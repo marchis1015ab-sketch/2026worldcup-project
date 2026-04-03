@@ -98,7 +98,10 @@ const squadState = {
   czech:{filter:'ALL',page:1,title:'체코 선수단'}
 };
 
-const playerPhotoSources = {
+let playerPhotoSources = null;
+function getPlayerPhotoSources(){
+  if(playerPhotoSources) return playerPhotoSources;
+  playerPhotoSources = {
   '김승규':'https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002482776350.jpg',
   '조현우':'https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002485565852.jpg',
   '송범근':'https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_202603300248414837.jpg',
@@ -127,9 +130,14 @@ const playerPhotoSources = {
   'Vladimír Coufal':'https://cdn.whufc.com/sites/default/files/inline-images/Vladimir-Coufal726.jpg',
   'Patrik Schick':'https://b04-ep-media-prod.azureedge.net/pickerimages/crop_20230219_JS_B04_M05_2765_503655_M.jpg',
   'Adam Hložek':'https://b04-ep-media-prod.azureedge.net/pickerimages/crop_20220527_NB_Adam_Hlozek_37641_435464_M.jpg'
-};
+  };
+  return playerPhotoSources;
+}
 
-const playerPhotoTitles = {
+let playerPhotoTitles = null;
+function getPlayerPhotoTitles(){
+  if(playerPhotoTitles) return playerPhotoTitles;
+  playerPhotoTitles = {
   '김승규':'Kim Seung-gyu',
   '조현우':'Jo Hyeon-woo',
   '송범근':'Song Bum-keun',
@@ -186,9 +194,24 @@ const playerPhotoTitles = {
   'Patrik Schick':'Patrik Schick',
   'Adam Hložek':'Adam Hložek',
   'Jan Kuchta':'Jan Kuchta'
-};
+  };
+  return playerPhotoTitles;
+}
 const playerPhotoCache = Object.create(null);
-const newsData = {
+const renderCache = {
+  newsTables:Object.create(null),
+  knockoutTables:Object.create(null),
+  groupViews:Object.create(null),
+  squadViews:Object.create(null),
+  equipmentSharedTable:'',
+  equipmentPersonalTables:Object.create(null),
+  mexicoStadiumDetails:Object.create(null),
+  timelineHeader:''
+};
+let newsData = null;
+function getNewsData(){
+  if(newsData) return newsData;
+  newsData = {
   "2022": {
     "KBS": [{"date":"2022.08.13","title":"카타르 월드컵 100일 앞으로…미리 가 본 베이스 캠프 | KBS 뉴스","link":"","analysis":"카타르 월드컵 D-100일, 취재진들이 미리 가 본 베이스 캠프 sk"},{"date":"2022.09.19","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5559214","analysis":"월드컵때 입을 유니폼 공개  행사 sk"},{"date":"2022.09.20","title":"[뉴스 더하기] 카타르 월드컵 ‘두 달 앞으로’","link":"","analysis":"카타르 월드컵 D-61 ‘두 달 앞으로’ 대표팀 활약 기대, 허정무 전 국가대표 감독 int"},{"date":"2022.09.21","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5560394","analysis":"본격적인 훈련 돌입, 손흥민 선수 int"},{"date":"2022.09.29","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5567243","analysis":"카타르 월드컵 기념스티커 구매 열풍, 일반리포트"},{"date":"2022.10.21","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5584260","analysis":"2002 영웅 히딩크 한국 방문 int"},{"date":"2022.10.27","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5588406","analysis":"중동 첫 월드컵 D-30 현지 월드컵 분위기, 특파원 MNG"},{"date":"2022.11.13","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5600316","analysis":"컨테이너 숙박대란, 공사중인 숙박 시설물 sk"},{"date":"2022.11.13","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5600336","analysis":"경기장과의 거리가 짧아서 하루에 여러 경기 관전 가능, 경기장 인근 sk "},{"date":"2022.11.14","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5600401","analysis":"축구대표팀 카타르월드컵 출발, 인천공항 단체촬영sk 및 int"},{"date":"2022.11.14","title":"축구대표팀 드디어 결전지 입성…경기장도 준비 완료","link":"","analysis":"도하에 착륙 후 버스에 탑승하기 전 국가대표팀들 int"},{"date":"2022.11.15","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5602120","analysis":"월드컵 첫 상대팀 우르과이, 아부다비에서 비공개 훈련 취재진 진입 차단."},{"date":"2022.11.19","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5605413","analysis":"해외 노동자들의 열악한 환경 취재, 촬영장비 꺼낼때마다 촬영 제지, 제지당하는 덴마크 언론사 자료확보, 취재기자std"},{"date":"2022.11.21","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5605820","analysis":"잘 곳이 없는 카타르 월드컵, 완공도 안된 컨테이너 숙박 취재"},{"date":"2022.11.21","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5606444","analysis":"벤투호 경기장 첫 답사 잔디 상태 집중 점검, 훈련sk 우르과이선수 기자회견sync"},{"date":"2022.11.24","title":"“도하에서도 대한민국!” 붉은 악마·교민, 응원전도 준비 완료 | KBS 뉴스","link":"","analysis":"붉은 악마·교민, 응원전 취재, 기자std 거리응원 시민int"},{"date":"2022.11.25","title":"[월드컵 영상] 전 세계가 놀란 한국의 응원 패션 ‘와~와~와우~’ | KBS 뉴스","link":"","analysis":"[월드컵 영상] 전 세계가 놀란 한국의 응원 패션"},{"date":"2022.11.25","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5610315","analysis":"카타르 현장에서 우리나라 선수들을 응원하는 응원단을 포커스를 둠"},{"date":"2022.11.17","title":"손흥민 \"잊지 못할 월드컵 만들겠다\"...벤투호 최종 엔트리 평가 및 카타르 월드컵 현지 상황 [사사건건 플러스]","link":"","analysis":"손흥민 \"잊지 못할 월드컵 만들겠다\" 손흥민 카타르공항 입성sk, 교민 현장 연결int, 국가대표훈련sk"},{"date":"2022.11.22","title":"","link":"https://www.youtube.com/watch?v=7HP8tyllzdw","analysis":"행사장 치안 문제? 인종차별 반대 퍼포먼스? 논란 속 카타르 월드컵, 경기장 외부 행사sk, 문제의 현장연결 영상 활용"},{"date":"2022.11.28","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5611280","analysis":"카타르에 부족한 숙박, 까다로운규정에 두바이로 몰린 축구팬들 sk 및 축구팬 int, 기자std"},{"date":"2022.11.28","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5611577","analysis":"‘욱일기 응원 논란’ 일본, 욱일기 들고 있는 일본 축구팬 자료사진 활용"},{"date":"2022.11.28","title":"카타르 월드컵에도 부는 ‘한류 바람’…다같이 “대한민국” | KBS 뉴스","link":"","analysis":"카타르 월드컵에도 부는 ‘한류 바람’, 카타르 코니시 해변에 자리 잡은 우리나라 홍보관sk, 북적거리는 인파sk"},{"date":"2022.11.28","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5611717","analysis":"‘문어’ 이영표의 가나전 해법…“역습, 초조해질 때까지 기다려라!” 이영표 전 국가대표 int"},{"date":"2022.11.30","title":"","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=5613325","analysis":"[크랩] “건강한 일주일이 주어진다면 강인이 경기를 직접 보고 싶다” 이강인 선수 int (과거 자료 활용)"},{"date":"2022.12.05","title":"","link":"https://www.youtube.com/watch?v=cJf0hm8fCj8","analysis":"손흥민과 네이마르 에이스 맞대결, 네이마르int 자료화면, 브라질 현지기자 int"}],
     "MBC": [{"date":"8.24","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6401344_35744.html","analysis":"우승트로피 월드투어 및 감독 및 은퇴선수 인터뷰 / 우승트로피 월드 투어 행사. 행사 기본 스케치 및 인터뷰"},{"date":"9.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6407413_35744.html","analysis":"이강인 대표팀 발탁 / 이강인 스페인 영상 및 대표팀 영상 "},{"date":"9.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409265_35744.html","analysis":"새 유니폼 공개 / 새 유니폼 공개 행사. 행사 기본 스케치 및 인터뷰"},{"date":"9.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409263_35744.html","analysis":"손흥민 대표팀 합류 / 손흥민 EPL 영상 이외 NFC훈련장 입성 스케치 및 인터뷰"},{"date":"9월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409643_35744.html","analysis":"손흥민 이강인 위주 대표팀 훈련 스케치 / 대표팀 훈련 스케치 위주 손흥민 공식인터뷰 "},{"date":"9.21","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410010_35744.html","analysis":"평가전 앞두고 대표팀 훈련 이강인 / 대표팀 훈련 스케치 위주 이강인 공식인터뷰 유튜브 활용 "},{"date":"9.22","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410382_35744.html","analysis":"평가전 앞두고 대표팀 훈련 벤투 / 대표팀 훈련 스케치 위주 벤투 공식인터뷰 유튜브 활용 "},{"date":"9.22","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410381_35744.html","analysis":"평가전 앞두고 대표팀 훈련 김민재 / 대표팀 훈련, 소속팀 경기영상 위주 김민재 공식 인터뷰 활용"},{"date":"9.23","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410750_35744.html","analysis":"코스타리카 평가전 / 경기전 분위기, 관중 스케치 인터뷰, 경기영상"},{"date":"9.24","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410927_35744.html","analysis":"전날 코스타리카 평가전   / 경기 중계 영상, 경기 후 인터뷰 "},{"date":"9.26","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6411459_35744.html","analysis":"마지막 대표팀 훈련 이강인  / 훈련 영상 벤투 공식 인터뷰"},{"date":"9.27","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6411836_35744.html","analysis":"카메룬 평가전 / 관중 인터뷰 영상 위주"},{"date":"9.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6412226_35744.html","analysis":"전날 카메룬 평가전 벤투 이강인 / 중계영상이 아닌 이강인 ENG 영상, 훈련 영상 벤투 공식 인터뷰"},{"date":"9.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6412225_35744.html","analysis":"전날 카메룬 평가전 분석 / 중계 영상과 공식 인터뷰 및 개별 인터뷰 "},{"date":"10.21","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6419486_35744.html","analysis":"유럽파 제외 국내파 소집 / 국내 경기영상 및 훈련영상 위주"},{"date":"10.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6421761_35744.html","analysis":"최종 평가전 마지막 소집 / 훈련 영상 벤투 공식 인터뷰"},{"date":"11.2","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423262_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상 과 전날 선수들 훈련 공식 인터뷰"},{"date":"11.2","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423261_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상"},{"date":"11.3","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423596_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상"},{"date":"11.3","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423597_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상 "},{"date":"11.4","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423937_35744.html","analysis":"최종 평가전 손흥민 수술 및 거리응원 취소 / 소속팀 리그 영상 및 예전 거리응원 자료영상"},{"date":"11.5","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6424093_35744.html","analysis":"최종 평가전 손흥민 수술 / 소속팀 리그 영상 과 선수들 훈련 공식 인터뷰"},{"date":"11.8","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425036_35744.html","analysis":"최종명단 발표 D-4 / 훈련 영상 및 현장 이벤트 스케치"},{"date":"11.9","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425403_35744.html","analysis":"손준호 / 소속팀 및 국가대표 영상 과 훈련영상"},{"date":"11월 10일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425776_35744.html","analysis":"최종 평가전 소집 손흥민 발탁 여부 / 과거 평가전 과 훈련영상 벤투 공식 인터뷰"},{"date":"11월 10일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425775_35744.html","analysis":"최종 평가전 앞두고 손흥민  / 모든 손흥민 영상 및 인터뷰 짜집기"},{"date":"11.11","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426139_35744.html","analysis":"같은 조 상대팀 최종명단 발표 / 각국 최종명단 공식 영상 활용"},{"date":"11.11","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426138_35744.html","analysis":"최종평가전 및 최종명단 발표 D-1 / 이전 평가전 영상 활용"},{"date":"11.12","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426302_35744.html","analysis":"최종명단 발표  / 최종명단 공식영상 과 현장 벤투 인터뷰 "},{"date":"11.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426479_35744.html","analysis":"대표팀 출국 (도하) 현지 스케치 및 경기장 스케치 / 현지 숙박시설 스케치 및 기자 스탠드업"},{"date":"11.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426478_35744.html","analysis":"수술 후 손흥민 / sns 와 제보 영상, 김민재 소속팀 영상 활용"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426875_35744.html","analysis":"[스포츠 영상]카타르 대표팀 숙소 / 숙소 촬영"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426871_35744.html","analysis":"월드컵 7번 관련 및 대표팀 현지 도착 / 인스타 게시물과 공항 현장 스케치 "},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426857_35744.html","analysis":"카타르 숙박시설 점검 / 앞선 두 리포트 11일, 13일 영상 재사용 숙박점검 리포트 기자 스탠드업"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426855_35744.html","analysis":"월드컵 CG 대표팀 카타르 입성 / 카타르 입성 현장 스케치 및 인터뷰"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427277_35744.html","analysis":"같은 조 우루과이 관련"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427275_35744.html","analysis":"김민재 카타르 입성"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427260_35744.html","analysis":"카타르 음주 관련 현지 취재"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427259_35744.html","analysis":"카타르 첫 훈련 이강인"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427659_35744.html","analysis":"같은 조 가나 관련"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427658_35744.html","analysis":"카타르 김민재"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427649_35744.html","analysis":"우루과이 공개 훈련"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427648_35744.html","analysis":"손흥민 합류 및 대표팀 공개 훈련"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428075_35744.html","analysis":"가나 평가전 "},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428074_35744.html","analysis":"카타르 현지 행사"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428063_35744.html","analysis":"현지 경기장 시설 점검"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428062_35744.html","analysis":"대표팀 훈련 손흥민"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428450_35744.html","analysis":"러우전쟁여파 폴란드 카타르 입성"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428449_35744.html","analysis":"포르투갈 최종 평가전"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428448_35744.html","analysis":"월드컵 앞두고 응원 메시지 "},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428435_35744.html","analysis":"가나 최종 평가전 "},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428434_35744.html","analysis":"대표팀 훈련 벤투 손흥민 이강인"},{"date":"11.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428608_35744.html","analysis":"가나 카타르 입성"},{"date":"11.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428607_35744.html","analysis":"대표팀 훈련 벤투"},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428758_35744.html","analysis":"같은 조 상대팀 훈련 스케치 "},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428756_35744.html","analysis":"카타르 현지 진행 월드컵 개막식 행사 "},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428757_35744.html","analysis":"현지 응원단 취재"}],
@@ -196,7 +219,9 @@ const newsData = {
   },
   "2018": {"KBS": [], "MBC": [], "SBS": []},
   "2014": {"KBS": [], "MBC": [], "SBS": []}
-};
+  };
+  return newsData;
+}
 
 const mexicoStadiums = {
   akron:{
@@ -279,6 +304,10 @@ let timelineSelectionStartIndex = -1;
 let timelineSelectionEndIndex = -1;
 let pendingTimelineSelection = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
+let hasSeededTimelineTeamSchedules = false;
+let squadPhotoHydrationVersion = 0;
+let timelineDates = null;
+let timelineMonthGroups = null;
 const timelineOfficialTeamSchedules = {
   대한민국:[
     {date:'2026-06-12',label:'vs 체코/덴마크 · 11:00 · Estadio Guadalajara'},
@@ -310,7 +339,11 @@ function seedTimelineTeamSchedules(){
     });
   });
 }
-seedTimelineTeamSchedules();
+function ensureTimelineDataReady(){
+  if(hasSeededTimelineTeamSchedules) return;
+  seedTimelineTeamSchedules();
+  hasSeededTimelineTeamSchedules = true;
+}
 
 function getFlag(code){return code ? `https://flagcdn.com/w40/${code}.png` : null;}
 function createTimelineDates(startDate, endDate){
@@ -323,7 +356,27 @@ function createTimelineDates(startDate, endDate){
   }
   return dates;
 }
-const timelineDates = createTimelineDates(new Date(2026,2,1), new Date(2026,6,31));
+function ensureTimelineCalendarReady(){
+  if(!timelineDates){
+    timelineDates=createTimelineDates(new Date(2026,2,1), new Date(2026,6,31));
+  }
+  if(!timelineMonthGroups){
+    timelineMonthGroups=timelineDates.reduce((groups,date)=>{
+      const label=`${date.getMonth()+1}월`;
+      const lastGroup=groups[groups.length-1];
+      if(lastGroup&&lastGroup.label===label){
+        lastGroup.span+=1;
+      }else{
+        groups.push({label,span:1});
+      }
+      return groups;
+    },[]);
+  }
+}
+function getTimelineDates(){
+  ensureTimelineCalendarReady();
+  return timelineDates;
+}
 function formatTimelineDate(date){
   return `${date.getMonth()+1}/${date.getDate()}`;
 }
@@ -331,16 +384,8 @@ function escapeHtml(value){
   return String(value).replace(/[&<>"']/g, char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
 function getTimelineMonthGroups(){
-  return timelineDates.reduce((groups,date)=>{
-    const label=`${date.getMonth()+1}월`;
-    const lastGroup=groups[groups.length-1];
-    if(lastGroup&&lastGroup.label===label){
-      lastGroup.span+=1;
-    }else{
-      groups.push({label,span:1});
-    }
-    return groups;
-  },[]);
+  ensureTimelineCalendarReady();
+  return timelineMonthGroups;
 }
 function formatTimelineKey(date){
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
@@ -359,9 +404,10 @@ function getTimelineCellTitle(person, date, dateKey){
   return label ? `${person} · ${formatTimelineDate(date)} · ${label}` : `${person} · ${formatTimelineDate(date)}`;
 }
 function getTimelineSegmentSpan(person, startIndex, label){
+  const dates=getTimelineDates();
   let span=1;
-  for(let index=startIndex+1;index<timelineDates.length;index+=1){
-    const nextDate=timelineDates[index];
+  for(let index=startIndex+1;index<dates.length;index+=1){
+    const nextDate=dates[index];
     if(!nextDate) break;
     if(getTimelineLabel(person, formatTimelineKey(nextDate))!==label) break;
     span+=1;
@@ -373,6 +419,7 @@ function renderTimelineHeaderCell(date){
   return `<th class="timeline-date-header ${classes}"><span class="timeline-date-day">${date.getDate()}</span></th>`;
 }
 function renderTimelineDayCell(row, date, index){
+  const dates=getTimelineDates();
   const person=row.label;
   const dateKey=formatTimelineKey(date);
   const label=getTimelineLabel(person, dateKey);
@@ -383,7 +430,7 @@ function renderTimelineDayCell(row, date, index){
   const dataLabel=label?` data-label="${escapeHtml(label)}"`:'';
   if(label){
     classes.push('filled');
-    const previousLabel=index>0?getTimelineLabel(person, formatTimelineKey(timelineDates[index-1])):'';
+    const previousLabel=index>0?getTimelineLabel(person, formatTimelineKey(dates[index-1])):'';
     if(previousLabel!==label){
       const span=getTimelineSegmentSpan(person, index, label);
       classes.push('segment-start');
@@ -393,10 +440,11 @@ function renderTimelineDayCell(row, date, index){
   return `<td class="${classes.join(' ')}" data-person="${escapeHtml(person)}" data-index="${index}" data-date="${dateKey}" title="${escapeHtml(getTimelineCellTitle(person, date, dateKey))}"${dataLabel}>${content}</td>`;
 }
 function renderTimelineRow(row){
+  const dates=getTimelineDates();
   if(row.type==='section'){
-    return `<tr class="timeline-row timeline-row-section"><th scope="row">${row.label}</th><td class="timeline-section-merged" colspan="${timelineDates.length}"></td></tr>`;
+    return `<tr class="timeline-row timeline-row-section"><th scope="row">${row.label}</th><td class="timeline-section-merged" colspan="${dates.length}"></td></tr>`;
   }
-  return `<tr class="timeline-row timeline-row-${row.type}"><th scope="row">${row.label}</th>${timelineDates.map((date,index)=>renderTimelineDayCell(row, date, index)).join('')}</tr>`;
+  return `<tr class="timeline-row timeline-row-${row.type}"><th scope="row">${row.label}</th>${dates.map((date,index)=>renderTimelineDayCell(row, date, index)).join('')}</tr>`;
 }
 function clearTimelinePreview(){
   document.querySelectorAll('.timeline-day-cell.preview').forEach(cell=>cell.classList.remove('preview'));
@@ -602,7 +650,16 @@ function showGroupASquad(key, el){
   squadState[key].page=1;
   renderSquad(key);
 }
-function toggleEquipment(){hideAllPanels();clearAllActive();document.getElementById('equipmentMenu').classList.add('active');renderEquipment();}
+function toggleEquipment(){
+  const detailCol=document.getElementById('detailCol');
+  const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('equipmentMenu').classList.contains('active');
+  hideAllPanels();
+  clearAllActive();
+  if(willOpen){
+    document.getElementById('equipmentMenu').classList.add('active');
+    renderEquipment();
+  }
+}
 function toggleTimeline(){
   const detailCol=document.getElementById('detailCol');
   const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('timelineMenu').classList.contains('active');
@@ -632,6 +689,9 @@ function buildNewsLinkCell(link){
   const label=link.includes('youtube.com')||link.includes('youtu.be')?'YouTube':'원문';
   return `<a class="news-link" href="${escapeHtml(link)}" target="_blank" rel="noreferrer noopener">${label}</a>`;
 }
+function getNewsTableCacheKey(year, broadcaster){
+  return `${year}:${broadcaster}`;
+}
 function getNewsTitleCell(entry, broadcaster){
   if(broadcaster==='MBC'){
     const [topic='']=(entry.analysis||'').split(' / ');
@@ -650,22 +710,26 @@ function getNewsAnalysisCell(entry, broadcaster){
 }
 function renderNewsTable(year,broadcaster){
   clearDetailExtras();
-  const entries=(newsData[year]&&newsData[year][broadcaster])||[];
+  const newsByYear=getNewsData();
+  const entries=(newsByYear[year]&&newsByYear[year][broadcaster])||[];
   document.getElementById('detailTitle').textContent=`${year} ${broadcaster}`;
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table news-table';
-  if(!entries.length){
-    document.getElementById('detailTable').innerHTML='<thead><tr><th>날짜</th><th>제목 / 프로그램</th><th>링크</th><th>주요분석</th></tr></thead><tbody><tr><td class="news-empty" colspan="4">해당 연도 데이터가 아직 비어 있습니다.</td></tr></tbody>';
-    document.getElementById('detailCol').classList.remove('hidden');
-    return;
+  const cacheKey=getNewsTableCacheKey(year, broadcaster);
+  if(!renderCache.newsTables[cacheKey]){
+    if(!entries.length){
+      renderCache.newsTables[cacheKey]='<thead><tr><th>날짜</th><th>제목 / 프로그램</th><th>링크</th><th>주요분석</th></tr></thead><tbody><tr><td class="news-empty" colspan="4">해당 연도 데이터가 아직 비어 있습니다.</td></tr></tbody>';
+    }else{
+      const body=entries.map(entry=>{
+        const dateText=escapeHtml(entry.date||'-');
+        const titleText=escapeHtml(getNewsTitleCell(entry, broadcaster));
+        const analysisText=escapeHtml(getNewsAnalysisCell(entry, broadcaster)).replace(/ \/ /g,'<br>');
+        return `<tr><td>${dateText}</td><td>${titleText}</td><td class="news-link-cell">${buildNewsLinkCell(entry.link)}</td><td>${analysisText}</td></tr>`;
+      }).join('');
+      renderCache.newsTables[cacheKey]=`<thead><tr><th>날짜</th><th>제목 / 프로그램</th><th>링크</th><th>주요분석</th></tr></thead><tbody>${body}</tbody>`;
+    }
   }
-  const body=entries.map(entry=>{
-    const dateText=escapeHtml(entry.date||'-');
-    const titleText=escapeHtml(getNewsTitleCell(entry, broadcaster));
-    const analysisText=escapeHtml(getNewsAnalysisCell(entry, broadcaster)).replace(/ \/ /g,'<br>');
-    return `<tr><td>${dateText}</td><td>${titleText}</td><td class="news-link-cell">${buildNewsLinkCell(entry.link)}</td><td>${analysisText}</td></tr>`;
-  }).join('');
-  document.getElementById('detailTable').innerHTML=`<thead><tr><th>날짜</th><th>제목 / 프로그램</th><th>링크</th><th>주요분석</th></tr></thead><tbody>${body}</tbody>`;
+  document.getElementById('detailTable').innerHTML=renderCache.newsTables[cacheKey];
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
@@ -673,26 +737,32 @@ function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol
 function renderKnockoutTable(stage){
   clearDetailExtras();
   const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
-  const rows=knockoutTemplates[stage]||[];
   document.getElementById('detailTitle').textContent=stageNames[stage]||'';
   document.getElementById('detailSubtitle').textContent='';
-  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody>`;
+  if(!renderCache.knockoutTables[stage]){
+    const rows=knockoutTemplates[stage]||[];
+    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody>`;
+  }
+  document.getElementById('detailTable').innerHTML=renderCache.knockoutTables[stage];
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
 function showGroup(groupKey, el){
-  const data=groupData[groupKey]||[];
-  const matches=groupMatches[groupKey]||[];
   document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
   el.classList.add('active');
-  const header='<thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
-  const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
-  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody></table></div></div>`:'';
+  if(!renderCache.groupViews[groupKey]){
+    const data=groupData[groupKey]||[];
+    const matches=groupMatches[groupKey]||[];
+    const header='<thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
+    const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
+    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody></table></div></div>`:'';
+    renderCache.groupViews[groupKey]={tableHtml:header+body,matchSection};
+  }
   document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
   document.getElementById('detailSubtitle').textContent='';
   clearDetailExtras();
-  document.getElementById('detailTable').innerHTML=header+body;
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',matchSection);
+  document.getElementById('detailTable').innerHTML=renderCache.groupViews[groupKey].tableHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.groupViews[groupKey].matchSection);
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
@@ -702,7 +772,7 @@ function renderSquadPlayerCell(player){
 
 async function fetchPlayerPhoto(name){
   if(Object.prototype.hasOwnProperty.call(playerPhotoCache,name)) return playerPhotoCache[name];
-  const officialUrl=playerPhotoSources[name];
+  const officialUrl=getPlayerPhotoSources()[name];
   if(officialUrl){
     playerPhotoCache[name]=officialUrl;
     return officialUrl;
@@ -724,6 +794,16 @@ async function hydrateSquadPhotos(){
     }
   }));
 }
+function scheduleSquadPhotoHydration(){
+  const currentVersion=++squadPhotoHydrationVersion;
+  const defer=(typeof window!=='undefined'&&typeof window.requestIdleCallback==='function')
+    ? callback=>window.requestIdleCallback(callback,{timeout:250})
+    : callback=>window.setTimeout(callback,16);
+  defer(()=>{
+    if(currentVersion!==squadPhotoHydrationVersion) return;
+    hydrateSquadPhotos();
+  });
+}
 
 function renderSquad(key){
   clearDetailExtras();
@@ -733,14 +813,22 @@ function renderSquad(key){
   const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
   state.page=Math.min(totalPages,Math.max(1,state.page));
   const rows=filtered.slice((state.page-1)*PAGE_SIZE,state.page*PAGE_SIZE);
+  const cacheKey=`${key}:${state.filter}:${state.page}`;
   document.getElementById('detailTitle').textContent=state.title;
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table squad-table';
-  document.getElementById('detailTable').innerHTML=`<colgroup><col class="squad-col-position"><col class="squad-col-number"><col class="squad-col-player"><col class="squad-col-club"><col class="squad-col-age"><col class="squad-col-injury"></colgroup><thead><tr><th>포지션</th><th>등번호</th><th>선수</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td>${renderSquadPlayerCell(p)}</td><td>${p.club}</td><td>${p.age}</td><td>${p.injury}</td></tr>`).join('')}</tbody>`;
-  document.getElementById('detailTable').insertAdjacentHTML('beforebegin',`<div class="toolbar">${['ALL','GK','DF','MF','FW'].map(pos=>`<button class="toolbar-btn ${state.filter===pos?'active':''}" onclick="setSquadFilter('${key}','${pos}')">${pos==='ALL'?'전체':pos}</button>`).join('')}</div>`);
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',`<div class="pagination"><button class="page-btn" onclick="changeSquadPage('${key}',-1)" ${state.page===1?'disabled':''}>이전</button><span>${state.page} / ${totalPages}</span><button class="page-btn" onclick="changeSquadPage('${key}',1)" ${state.page===totalPages?'disabled':''}>다음</button></div>`);
+  if(!renderCache.squadViews[cacheKey]){
+    renderCache.squadViews[cacheKey]={
+      tableHtml:`<colgroup><col class="squad-col-position"><col class="squad-col-number"><col class="squad-col-player"><col class="squad-col-club"><col class="squad-col-age"><col class="squad-col-injury"></colgroup><thead><tr><th>포지션</th><th>등번호</th><th>선수</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td>${renderSquadPlayerCell(p)}</td><td>${p.club}</td><td>${p.age}</td><td>${p.injury}</td></tr>`).join('')}</tbody>`,
+      toolbarHtml:`<div class="toolbar">${['ALL','GK','DF','MF','FW'].map(pos=>`<button class="toolbar-btn ${state.filter===pos?'active':''}" onclick="setSquadFilter('${key}','${pos}')">${pos==='ALL'?'전체':pos}</button>`).join('')}</div>`,
+      paginationHtml:`<div class="pagination"><button class="page-btn" onclick="changeSquadPage('${key}',-1)" ${state.page===1?'disabled':''}>이전</button><span>${state.page} / ${totalPages}</span><button class="page-btn" onclick="changeSquadPage('${key}',1)" ${state.page===totalPages?'disabled':''}>다음</button></div>`
+    };
+  }
+  document.getElementById('detailTable').innerHTML=renderCache.squadViews[cacheKey].tableHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('beforebegin',renderCache.squadViews[cacheKey].toolbarHtml);
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.squadViews[cacheKey].paginationHtml);
   document.getElementById('detailCol').classList.remove('hidden');
-  hydrateSquadPhotos();
+  scheduleSquadPhotoHydration();
 }
 function setSquadFilter(key, filter){squadState[key].filter=filter;squadState[key].page=1;renderSquad(key);}
 function changeSquadPage(key, delta){squadState[key].page+=delta;renderSquad(key);}
@@ -751,9 +839,14 @@ function renderEquipment(){
   document.getElementById('equipmentUserCol').classList.remove('hidden');
   document.getElementById('detailTitle').textContent='공용장비 현황';
   document.getElementById('detailSubtitle').textContent='';
-  const rows=Array.from({length:12}).map(()=>`<tr><td></td><td></td><td></td><td><select>${Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('')}</select></td><td></td><td><select><option value="">선택</option><option>박재현</option><option>장후원</option><option>정상원</option><option>이주원</option><option>김진광</option><option>정재우</option></select></td></tr>`).join('');
   document.getElementById('detailTable').className='data-table equipment-table';
-  document.getElementById('detailTable').innerHTML=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼넘버</th><th>수량</th><th>비고</th><th>사용인원</th></tr></thead><tbody>${rows}</tbody>`;
+  if(!renderCache.equipmentSharedTable){
+    const quantityOptions=Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('');
+    const userOptions='<option value="">선택</option><option>박재현</option><option>장후원</option><option>정상원</option><option>이주원</option><option>김진광</option><option>정재우</option>';
+    const rows=Array.from({length:12}).map(()=>`<tr><td></td><td></td><td></td><td><select>${quantityOptions}</select></td><td></td><td><select>${userOptions}</select></td></tr>`).join('');
+    renderCache.equipmentSharedTable=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼넘버</th><th>수량</th><th>비고</th><th>사용인원</th></tr></thead><tbody>${rows}</tbody>`;
+  }
+  document.getElementById('detailTable').innerHTML=renderCache.equipmentSharedTable;
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
@@ -763,25 +856,34 @@ function showEquipmentPersonal(user, el){
   clearDetailExtras();
   document.getElementById('detailTitle').textContent=`${user} 개인장비`;
   document.getElementById('detailSubtitle').textContent='';
-  const rows=Array.from({length:10}).map(()=>`<tr><td></td><td></td><td></td><td><select>${Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('')}</select></td><td></td></tr>`).join('');
   document.getElementById('detailTable').className='data-table equipment-table';
-  document.getElementById('detailTable').innerHTML=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼</th><th>수량</th><th>비고</th></tr></thead><tbody>${rows}</tbody>`;
+  if(!renderCache.equipmentPersonalTables[user]){
+    const quantityOptions=Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('');
+    const rows=Array.from({length:10}).map(()=>`<tr><td></td><td></td><td></td><td><select>${quantityOptions}</select></td><td></td></tr>`).join('');
+    renderCache.equipmentPersonalTables[user]=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼</th><th>수량</th><th>비고</th></tr></thead><tbody>${rows}</tbody>`;
+  }
+  document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
 function renderTimelineSchedule(){
+  ensureTimelineDataReady();
+  const dates=getTimelineDates();
   clearDetailExtras();
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
-  const monthCells=getTimelineMonthGroups().map(group=>`<th class="timeline-month-header" colspan="${group.span}">${group.label}</th>`).join('');
-  const headerCells=timelineDates.map(renderTimelineHeaderCell).join('');
+  if(!renderCache.timelineHeader){
+    const monthCells=getTimelineMonthGroups().map(group=>`<th class="timeline-month-header" colspan="${group.span}">${group.label}</th>`).join('');
+    const headerCells=dates.map(renderTimelineHeaderCell).join('');
+    renderCache.timelineHeader=`<thead><tr><th class="timeline-corner-header" rowspan="2">타임라인</th>${monthCells}</tr><tr>${headerCells}</tr></thead>`;
+  }
   const bodyRows=timelineRows.map(renderTimelineRow).join('');
   detailCol.classList.add('timeline-mode');
   document.getElementById('detailTitle').textContent='일정 타임라인';
   document.getElementById('detailSubtitle').textContent='';
   detailTable.parentElement.classList.add('timeline-card');
   detailTable.className='data-table timeline-table';
-  detailTable.innerHTML=`<thead><tr><th class="timeline-corner-header" rowspan="2">타임라인</th>${monthCells}</tr><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody>`;
+  detailTable.innerHTML=`${renderCache.timelineHeader}<tbody>${bodyRows}</tbody>`;
   detailTable.onmousedown=event=>{
     const cell=event.target.closest('.timeline-day-cell');
     if(!cell||event.button!==0) return;
@@ -823,7 +925,7 @@ function renderTimelineSchedule(){
 }
 
 function renderStadiumFigure(stadium){
-  return `<div class="group-match-wrap"><figure class="stadium-figure"><img class="stadium-photo" src="${stadium.imagePath}" alt="${stadium.imageAlt}"><figcaption class="stadium-caption"><span>${stadium.imageCaption}</span><a class="stadium-source-link" href="${stadium.sourceUrl}" target="_blank" rel="noreferrer">${stadium.sourceLabel}</a></figcaption></figure></div>`;
+  return `<div class="group-match-wrap"><figure class="stadium-figure"><img class="stadium-photo" src="${stadium.imagePath}" alt="${stadium.imageAlt}" loading="lazy"><figcaption class="stadium-caption"><span>${stadium.imageCaption}</span><a class="stadium-source-link" href="${stadium.sourceUrl}" target="_blank" rel="noreferrer">${stadium.sourceLabel}</a></figcaption></figure></div>`;
 }
 
 function renderStadiumSlot(){
@@ -834,10 +936,17 @@ function renderMexicoStadiumDetail(stadium, sectionKey=''){
   const sectionLabel=sectionKey?mexicoStadiumSections[sectionKey]:'';
   const section=sectionKey?stadium.sections[sectionKey]:null;
   const rows=section?[...stadium.rows,...section.rows]:stadium.rows;
+  const cacheKey=`${stadium.title}:${sectionKey||'root'}`;
   document.getElementById('detailTitle').textContent=sectionLabel?`${stadium.title} - ${sectionLabel}`:`${stadium.title}, ${stadium.city}`;
   document.getElementById('detailSubtitle').textContent='';
-  document.getElementById('detailTable').innerHTML=`<thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>${rows.map(([label,value])=>`<tr><td>${label}</td><td>${value}</td></tr>`).join('')}</tbody>`;
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',section?renderStadiumSlot():renderStadiumFigure(stadium));
+  if(!renderCache.mexicoStadiumDetails[cacheKey]){
+    renderCache.mexicoStadiumDetails[cacheKey]={
+      tableHtml:`<thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>${rows.map(([label,value])=>`<tr><td>${label}</td><td>${value}</td></tr>`).join('')}</tbody>`,
+      extraHtml:section?renderStadiumSlot():renderStadiumFigure(stadium)
+    };
+  }
+  document.getElementById('detailTable').innerHTML=renderCache.mexicoStadiumDetails[cacheKey].tableHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.mexicoStadiumDetails[cacheKey].extraHtml);
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
@@ -863,6 +972,11 @@ function showMexicoStadiumSection(sectionKey, el){
 }
 
 function runTests(){
+  ensureTimelineDataReady();
+  const dates=getTimelineDates();
+  const photoSources=getPlayerPhotoSources();
+  const photoTitles=getPlayerPhotoTitles();
+  const importedNewsData=getNewsData();
   console.assert(typeof toggleMain==='function','toggleMain should be defined');
   console.assert(typeof toggleBracket==='function','toggleBracket should be defined');
   console.assert(typeof toggleGroupASquads==='function','toggleGroupASquads should be defined');
@@ -877,16 +991,16 @@ function runTests(){
   console.assert(timelineAssignments['대한민국'].get('2026-06-12').includes('vs 체코/덴마크'),'Korea timeline should seed opponent');
   console.assert(timelineAssignments['멕시코'].get('2026-06-18').includes('vs 대한민국'),'Mexico timeline should seed opponent');
   console.assert(timelineAssignments['남아공'].get('2026-06-24').includes('Estadio Monterrey'),'South Africa timeline should seed venue');
-  console.assert(Array.isArray(timelineDates)&&timelineDates.length===153,'Timeline dates should exist');
-  console.assert(formatTimelineDate(timelineDates[0])==='3/1','Timeline should start on March 1');
-  console.assert(formatTimelineDate(timelineDates[timelineDates.length-1])==='7/31','Timeline should end on July 31');
+  console.assert(Array.isArray(dates)&&dates.length===153,'Timeline dates should exist');
+  console.assert(formatTimelineDate(dates[0])==='3/1','Timeline should start on March 1');
+  console.assert(formatTimelineDate(dates[dates.length-1])==='7/31','Timeline should end on July 31');
   console.assert(typeof toggleMexicoStadium==='function','toggleMexicoStadium should be defined');
-  console.assert(playerPhotoSources['손흥민'].includes('joinkfa.com'),'Son Heung-min official photo should exist');
-  console.assert(playerPhotoSources['Guillermo Ochoa'].includes('miseleccion.mx'),'Guillermo Ochoa official photo should exist');
-  console.assert(playerPhotoTitles['손흥민']==='Son Heung-min','Son Heung-min photo title should exist');
-  console.assert(playerPhotoTitles['Guillermo Ochoa']==='Guillermo Ochoa','Guillermo Ochoa photo title should exist');
-  console.assert(playerPhotoTitles['Ronwen Williams']==='Ronwen Williams','Ronwen Williams photo title should exist');
-  console.assert(playerPhotoTitles['Patrik Schick']==='Patrik Schick','Patrik Schick photo title should exist');
+  console.assert(photoSources['손흥민'].includes('joinkfa.com'),'Son Heung-min official photo should exist');
+  console.assert(photoSources['Guillermo Ochoa'].includes('miseleccion.mx'),'Guillermo Ochoa official photo should exist');
+  console.assert(photoTitles['손흥민']==='Son Heung-min','Son Heung-min photo title should exist');
+  console.assert(photoTitles['Guillermo Ochoa']==='Guillermo Ochoa','Guillermo Ochoa photo title should exist');
+  console.assert(photoTitles['Ronwen Williams']==='Ronwen Williams','Ronwen Williams photo title should exist');
+  console.assert(photoTitles['Patrik Schick']==='Patrik Schick','Patrik Schick photo title should exist');
   console.assert(mexicoStadiums.akron.sections.route.rows[1][1]==='미디어 입구 -> 작업 구역 -> 피치 접근','Akron route section should exist');
   console.assert(mexicoStadiums.bbva.sections.mixedZone.rows[1][1]==='라커룸 출구 인접 인터뷰 구역','BBVA mixed zone section should exist');
   console.assert(Array.isArray(groupMatches.A)&&groupMatches.A.length===6,'Group A should have 6 matches');
@@ -903,8 +1017,8 @@ function runTests(){
   showNewsYear('2022', document.querySelector('#newsCol .item'));
   activateBroadcaster(document.querySelector('#newsBroadcasterCol .item'), 'KBS');
   console.assert(document.getElementById('detailTitle').textContent==='2022 KBS','News detail should render');
-  console.assert(document.querySelectorAll('.news-table tbody tr').length===newsData['2022'].KBS.length,'News rows should match imported sheet data');
-  console.assert(newsData['2022'].SBS.every(item=>item.date&&item.date.startsWith('2022.')),'SBS news dates should be filled from official publish dates');
+  console.assert(document.querySelectorAll('.news-table tbody tr').length===importedNewsData['2022'].KBS.length,'News rows should match imported sheet data');
+  console.assert(importedNewsData['2022'].SBS.every(item=>item.date&&item.date.startsWith('2022.')),'SBS news dates should be filled from official publish dates');
   toggleGroupASquads();
   console.assert(!document.getElementById('groupASquadCol').classList.contains('hidden'),'Group A squad panel should open');
   showGroupASquad('korea', document.querySelector('#groupASquadCol .item'));
@@ -921,7 +1035,7 @@ function runTests(){
   console.assert(document.getElementById('detailTable').classList.contains('timeline-table'),'Timeline table class should render');
   console.assert(document.querySelectorAll('.timeline-table tbody tr').length===timelineRows.length,'Timeline rows should render');
   console.assert(document.querySelector('.timeline-corner-header')?.textContent==='타임라인','Timeline corner title should render');
-  console.assert(document.querySelectorAll('.timeline-day-cell').length===timelineEditableRows.length*timelineDates.length,'Timeline editable cells should render');
+  console.assert(document.querySelectorAll('.timeline-day-cell').length===timelineEditableRows.length*dates.length,'Timeline editable cells should render');
   console.assert(document.querySelector('.timeline-day-cell')?.dataset.index==='0','Timeline cells should have day indexes');
   toggleMexicoStadium();
   console.assert(!document.getElementById('mexicoStadiumCol').classList.contains('hidden'),'Mexico stadium panel should open');
@@ -934,4 +1048,3 @@ function runTests(){
   console.assert(document.querySelector('.stadium-photo')===null,'Mexico stadium subfolder should not reuse parent image');
   console.assert(document.querySelector('.stadium-slot')!==null,'Mexico stadium subfolder should render image slot');
 }
-runTests();
