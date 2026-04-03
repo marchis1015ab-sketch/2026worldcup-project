@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>월드컵 영상취재 가이드라인</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:"Pretendard","Noto Sans KR",Arial,sans-serif;background:linear-gradient(135deg,#f7f8fb 0%,#eef1f7 100%);color:#111}
+.page{padding:28px}
+.header{margin-bottom:20px;padding:24px 28px;border-radius:20px;background:linear-gradient(135deg,#10131a 0%,#1a2233 55%,#d71920 140%);color:#fff}
+.header h1{margin:0;font-size:34px;font-weight:800}
+.container{display:flex;gap:14px;align-items:flex-start}
+.sidebar,.column,.table-column{background:rgba(255,255,255,.92);border-radius:18px;padding:18px}
+.sidebar{width:220px;position:relative}
+.sidebar:before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;border-radius:18px 0 0 18px;background:linear-gradient(180deg,#d71920 0%,#8f1015 100%)}
+.column{width:240px;max-height:70vh;overflow-y:auto}
+.table-column{flex:1;min-height:560px}
+.menu,.item{cursor:pointer;padding:12px 14px;margin-bottom:8px;border-radius:10px;user-select:none;white-space:normal;word-break:keep-all;line-height:1.35}
+.menu{min-height:48px;display:flex;align-items:center;background:#222;color:#fff;font-weight:700}
+.item{background:#f5f7fb;color:#1c2230}
+.active{background:#d71920;color:#fff}
+.hidden{display:none}
+.section-title{margin:0 0 14px;font-size:24px;font-weight:800}
+.section-subtitle{margin:0 0 16px;color:#64748b;font-size:14px}
+.table-card{border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;background:#fff}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th,.data-table td{padding:12px 14px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;vertical-align:middle}
+.data-table td:nth-child(4){white-space:nowrap}
+.data-table th:last-child,.data-table td:last-child{border-right:none}
+.data-table th{text-align:left;background:#f8fafc;font-weight:700}
+.group-rank-cell,.group-coach-cell{text-align:center}
+.flag-cell{display:flex;align-items:center;gap:8px}
+.flag-icon{width:24px;height:16px;object-fit:cover;border:1px solid rgba(0,0,0,.08);border-radius:2px;background:#fff}
+.group-match-wrap{margin-top:18px}
+.group-match-title{margin:0 0 12px;font-size:18px;font-weight:800}
+.group-match-number{display:inline-flex;align-items:center;justify-content:center;min-width:44px;padding:6px 10px;border-radius:999px;background:#d71920;color:#fff;font-size:12px;font-weight:800}
+.vs-cell{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;white-space:nowrap}
+.team-side{display:inline-flex;align-items:center;gap:8px}
+.match-cell{position:relative;min-width:260px;text-align:center}
+.match-badge{position:absolute;top:8px;left:10px;background:#d71920;color:#fff;font-weight:800;font-size:11px;padding:4px 8px;border-radius:6px}
+.match-text{text-align:center;padding-top:18px;font-weight:700;line-height:1.5}
+.match-meta{text-align:center;color:#475569;font-size:13px;line-height:1.7}
+.stadium-placeholder,.photo-placeholder{display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;font-weight:700;background:#eef1f7;border:1px dashed #cbd5e1;border-radius:10px}
+.stadium-placeholder{width:100%;height:70px}
+.photo-placeholder{width:42px;height:42px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.toolbar-btn{border:1px solid #e5e7eb;background:#fff;color:#1c2230;padding:8px 12px;border-radius:999px;font-weight:700;cursor:pointer}
+.toolbar-btn.active{background:#d71920;border-color:#d71920;color:#fff}
+.pagination{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px}
+.page-btn{border:1px solid #e5e7eb;background:#fff;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:700}
+.page-btn:disabled{opacity:.4;cursor:default}
+.table-column select{width:100%;max-width:96px;padding:6px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;color:#1e293b;cursor:pointer;transition:all .2s ease}
+.table-column select:hover{border-color:#94a3b8;background:#f1f5f9}
+.table-column select:focus{outline:none;border-color:#d71920;box-shadow:0 0 0 2px rgba(215,25,32,.15);background:#fff}
+.data-table td:nth-child(4),.data-table th:nth-child(4){width:72px;text-align:center}
+@media (max-width:1200px){.container{flex-direction:column}.sidebar,.column,.table-column{width:100%;max-height:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header"><h1>2026 북중미 월드컵 영상취재 가이드라인</h1></div>
+  <div class="container">
+    <div class="sidebar">
+      <div id="newsMenu" class="menu" onclick="toggleMain()">월드컵 지상파 뉴스 추이</div>
+      <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
+      <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">Group A 선수단</div>
+      <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">공용장비 현황</div>
+    </div>
+
+    <div id="newsCol" class="column hidden">
+      <div class="item" onclick="showNewsYear('2022', this)">2022 카타르 월드컵</div>
+      <div class="item" onclick="showNewsYear('2018', this)">2018 러시아 월드컵</div>
+      <div class="item" onclick="showNewsYear('2014', this)">2014 브라질 월드컵</div>
+    </div>
+
+    <div id="newsBroadcasterCol" class="column hidden">
+      <div class="item" onclick="activateBroadcaster(this, 'KBS')">KBS</div>
+      <div class="item" onclick="activateBroadcaster(this, 'MBC')">MBC</div>
+      <div class="item" onclick="activateBroadcaster(this, 'SBS')">SBS</div>
+    </div>
+
+    <div id="bracketStageCol" class="column hidden">
+      <div class="item" onclick="showBracketStage('group', this)">조별리그</div>
+      <div class="item" onclick="showBracketStage('round32', this)">32강</div>
+      <div class="item" onclick="showBracketStage('round16', this)">16강</div>
+      <div class="item" onclick="showBracketStage('quarterfinal', this)">8강</div>
+      <div class="item" onclick="showBracketStage('semifinal', this)">4강</div>
+      <div class="item" onclick="showBracketStage('final', this)">결승</div>
+    </div>
+
+    <div id="groupCol" class="column hidden">
+      <div class="item" onclick="showGroup('A', this)">Group A</div>
+      <div class="item" onclick="showGroup('B', this)">Group B</div>
+      <div class="item" onclick="showGroup('C', this)">Group C</div>
+      <div class="item" onclick="showGroup('D', this)">Group D</div>
+      <div class="item" onclick="showGroup('E', this)">Group E</div>
+      <div class="item" onclick="showGroup('F', this)">Group F</div>
+      <div class="item" onclick="showGroup('G', this)">Group G</div>
+      <div class="item" onclick="showGroup('H', this)">Group H</div>
+      <div class="item" onclick="showGroup('I', this)">Group I</div>
+      <div class="item" onclick="showGroup('J', this)">Group J</div>
+      <div class="item" onclick="showGroup('K', this)">Group K</div>
+      <div class="item" onclick="showGroup('L', this)">Group L</div>
+    </div>
+
+    <div id="groupASquadCol" class="column hidden">
+      <div class="item" onclick="showGroupASquad('korea', this)">대한민국</div>
+      <div class="item" onclick="showGroupASquad('mexico', this)">멕시코</div>
+      <div class="item" onclick="showGroupASquad('southAfrica', this)">남아프리카 공화국</div>
+      <div class="item" onclick="showGroupASquad('czech', this)">체코</div>
+    </div>
+
+    <div id="equipmentUserCol" class="column hidden">
+      <div class="item" onclick="showEquipmentPersonal('박재현', this)">박재현</div>
+      <div class="item" onclick="showEquipmentPersonal('장후원', this)">장후원</div>
+      <div class="item" onclick="showEquipmentPersonal('정상원', this)">정상원</div>
+      <div class="item" onclick="showEquipmentPersonal('이주원', this)">이주원</div>
+      <div class="item" onclick="showEquipmentPersonal('김진광', this)">김진광</div>
+      <div class="item" onclick="showEquipmentPersonal('정재우', this)">정재우</div>
+    </div>
+
+    <div id="detailCol" class="table-column hidden">
+      <h2 id="detailTitle" class="section-title">상세 보기</h2>
+      <p id="detailSubtitle" class="section-subtitle"></p>
+      <div class="table-card"><table id="detailTable" class="data-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const groupData = {
+  A: [{name:'Mexico',code:'mx',rank:16,coach:'Javier Aguirre'},{name:'South Africa',code:'za',rank:60,coach:'Hugo Broos'},{name:'South Korea',code:'kr',rank:22,coach:'Hong Myung-bo'},{name:'Czechia',code:'cz',rank:43,coach:'Miroslav Koubek'}],
+  B: [{name:'Canada',code:'ca',rank:29,coach:'Jesse Marsch'},{name:'Bosnia and Herzegovina',code:'ba',rank:71,coach:'Sergej Barbarez'},{name:'Qatar',code:'qa',rank:56,coach:'Tintin Márquez'},{name:'Switzerland',code:'ch',rank:18,coach:'Murat Yakin'}],
+  C: [{name:'Brazil',code:'br',rank:5,coach:'Dorival Júnior'},{name:'Morocco',code:'ma',rank:8,coach:'Walid Regragui'},{name:'Haiti',code:'ht',rank:83,coach:'Sébastien Migné'},{name:'Scotland',code:'gb-sct',rank:38,coach:'Steve Clarke'}],
+  D: [{name:'United States',code:'us',rank:15,coach:'Gregg Berhalter'},{name:'Paraguay',code:'py',rank:40,coach:'Daniel Garnero'},{name:'Australia',code:'au',rank:27,coach:'Graham Arnold'},{name:'Türkiye',code:'tr',rank:22,coach:'Vincenzo Montella'}],
+  E: [{name:'Germany',code:'de',rank:10,coach:'Julian Nagelsmann'},{name:'Curacao',code:'cw',rank:81,coach:'Dick Advocaat'},{name:'Ivory Coast',code:'ci',rank:37,coach:'Emerse Faé'},{name:'Ecuador',code:'ec',rank:23,coach:'Félix Sánchez'}],
+  F: [{name:'Netherlands',code:'nl',rank:7,coach:'Ronald Koeman'},{name:'Japan',code:'jp',rank:19,coach:'Hajime Moriyasu'},{name:'Sweden',code:'se',rank:42,coach:'Graham Potter'} ,{name:'Tunisia',code:'tn',rank:47,coach:'Jalel Kadri'}],
+  G: [{name:'Belgium',code:'be',rank:9,coach:'Domenico Tedesco'},{name:'Egypt',code:'eg',rank:31,coach:'Hossam Hassan'},{name:'Iran',code:'ir',rank:20,coach:'Amir Ghalenoei'},{name:'New Zealand',code:'nz',rank:85,coach:'Darren Bazeley'}],
+  H: [{name:'Spain',code:'es',rank:1,coach:'Luis de la Fuente'},{name:'Cape Verde',code:'cv',rank:67,coach:'Bubista'},{name:'Saudi Arabia',code:'sa',rank:61,coach:'Roberto Mancini'},{name:'Uruguay',code:'uy',rank:17,coach:'Marcelo Bielsa'}],
+  I: [{name:'France',code:'fr',rank:3,coach:'Didier Deschamps'},{name:'Senegal',code:'sn',rank:12,coach:'Aliou Cissé'},{name:'Iraq',code:'iq',rank:58,coach:'Jesús Casas'},{name:'Norway',code:'no',rank:32,coach:'Ståle Solbakken'}],
+  J: [{name:'Argentina',code:'ar',rank:2,coach:'Lionel Scaloni'},{name:'Algeria',code:'dz',rank:28,coach:'Vladimir Petković'},{name:'Austria',code:'at',rank:24,coach:'Ralf Rangnick'},{name:'Jordan',code:'jo',rank:64,coach:'Hussein Ammouta'}],
+  K: [{name:'Portugal',code:'pt',rank:6,coach:'Roberto Martínez'},{name:'Congo DR',code:'cd',rank:48,coach:'Sébastien Desabre'},{name:'Uzbekistan',code:'uz',rank:52,coach:'Srečko Katanec'},{name:'Colombia',code:'co',rank:14,coach:'Néstor Lorenzo'}],
+  L: [{name:'England',code:'gb-eng',rank:4,coach:'Gareth Southgate'},{name:'Croatia',code:'hr',rank:11,coach:'Zlatko Dalić'},{name:'Ghana',code:'gh',rank:72,coach:'Otto Addo'},{name:'Panama',code:'pa',rank:33,coach:'Thomas Christiansen'}]
+};
+
+const groupMatches = {
+  A:[{number:'M1',home:'Mexico',homeCode:'mx',away:'South Africa',awayCode:'za',date:'2026-06-12',time:'09:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M2',home:'South Korea',homeCode:'kr',away:'Czechia',awayCode:'cz',date:'2026-06-12',time:'11:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M3',home:'Mexico',homeCode:'mx',away:'South Korea',awayCode:'kr',date:'2026-06-18',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M4',home:'South Africa',homeCode:'za',away:'Czechia',awayCode:'cz',date:'2026-06-18',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M5',home:'Czechia',homeCode:'cz',away:'Mexico',awayCode:'mx',date:'2026-06-24',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M6',home:'South Africa',homeCode:'za',away:'South Korea',awayCode:'kr',date:'2026-06-24',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}],
+  B:[{number:'M7',home:'Canada',homeCode:'ca',away:'Bosnia and Herzegovina',awayCode:'ba',date:'2026-06-13',time:'10:00 KST',stadium:'BMO Field (Toronto)'},{number:'M8',home:'Qatar',homeCode:'qa',away:'Switzerland',awayCode:'ch',date:'2026-06-14',time:'04:00 KST',stadium:"Levi's Stadium (San Francisco)"},{number:'M9',home:'Canada',homeCode:'ca',away:'Qatar',awayCode:'qa',date:'2026-06-19',time:'10:00 KST',stadium:'BMO Field (Toronto)'},{number:'M10',home:'Bosnia and Herzegovina',homeCode:'ba',away:'Switzerland',awayCode:'ch',date:'2026-06-19',time:'07:00 KST',stadium:'BC Place (Vancouver)'},{number:'M11',home:'Switzerland',homeCode:'ch',away:'Canada',awayCode:'ca',date:'2026-06-24',time:'07:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M12',home:'Qatar',homeCode:'qa',away:'Bosnia and Herzegovina',awayCode:'ba',date:'2026-06-24',time:'07:00 KST',stadium:'BC Place (Vancouver)'}],
+  C:[{number:'M13',home:'Brazil',homeCode:'br',away:'Morocco',awayCode:'ma',date:'2026-06-14',time:'07:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M14',home:'Haiti',homeCode:'ht',away:'Scotland',awayCode:'gb-sct',date:'2026-06-14',time:'10:00 KST',stadium:'Gillette Stadium (Boston)'},{number:'M15',home:'Brazil',homeCode:'br',away:'Haiti',awayCode:'ht',date:'2026-06-20',time:'10:00 KST',stadium:'Lincoln Financial Field (Philadelphia)'},{number:'M16',home:'Morocco',homeCode:'ma',away:'Scotland',awayCode:'gb-sct',date:'2026-06-20',time:'07:00 KST',stadium:'Gillette Stadium (Boston)'},{number:'M17',home:'Scotland',homeCode:'gb-sct',away:'Brazil',awayCode:'br',date:'2026-06-25',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M18',home:'Morocco',homeCode:'ma',away:'Haiti',awayCode:'ht',date:'2026-06-25',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}],
+  D:[{number:'M19',home:'United States',homeCode:'us',away:'Paraguay',awayCode:'py',date:'2026-06-15',time:'10:00 KST',stadium:'SoFi Stadium (Los Angeles)'},{number:'M20',home:'Australia',homeCode:'au',away:'Türkiye',awayCode:'tr',date:'2026-06-15',time:'07:00 KST',stadium:'AT&T Stadium (Dallas)'},{number:'M21',home:'United States',homeCode:'us',away:'Australia',awayCode:'au',date:'2026-06-21',time:'10:00 KST',stadium:'SoFi Stadium (Los Angeles)'},{number:'M22',home:'Paraguay',homeCode:'py',away:'Türkiye',awayCode:'tr',date:'2026-06-21',time:'07:00 KST',stadium:'NRG Stadium (Houston)'},{number:'M23',home:'Paraguay',homeCode:'py',away:'Australia',awayCode:'au',date:'2026-06-26',time:'07:00 KST',stadium:'Arrowhead Stadium (Kansas City)'},{number:'M24',home:'United States',homeCode:'us',away:'Türkiye',awayCode:'tr',date:'2026-06-26',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}],
+  E:[{number:'M25',home:'Germany',homeCode:'de',away:'Curacao',awayCode:'cw',date:'2026-06-16',time:'07:00 KST',stadium:'AT&T Stadium (Dallas)'},{number:'M26',home:'Ivory Coast',homeCode:'ci',away:'Ecuador',awayCode:'ec',date:'2026-06-16',time:'10:00 KST',stadium:'NRG Stadium (Houston)'},{number:'M27',home:'Germany',homeCode:'de',away:'Ivory Coast',awayCode:'ci',date:'2026-06-22',time:'10:00 KST',stadium:'SoFi Stadium (Los Angeles)'},{number:'M28',home:'Curacao',homeCode:'cw',away:'Ecuador',awayCode:'ec',date:'2026-06-22',time:'07:00 KST',stadium:'AT&T Stadium (Dallas)'},{number:'M29',home:'Ecuador',homeCode:'ec',away:'Germany',awayCode:'de',date:'2026-06-27',time:'07:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M30',home:'Ivory Coast',homeCode:'ci',away:'Curacao',awayCode:'cw',date:'2026-06-27',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'}],
+  F:[{number:'M31',home:'Netherlands',homeCode:'nl',away:'Japan',awayCode:'jp',date:'2026-06-17',time:'10:00 KST',stadium:'BC Place (Vancouver)'},{number:'M32',home:'Sweden',homeCode:'se',away:'Tunisia',awayCode:'tn',date:'2026-06-17',time:'07:00 KST',stadium:'BMO Field (Toronto)'},{number:'M33',home:'Netherlands',homeCode:'nl',away:'Tunisia',awayCode:'tn',date:'2026-06-23',time:'10:00 KST',stadium:'BC Place (Vancouver)'},{number:'M34',home:'Japan',homeCode:'jp',away:'Sweden',awayCode:'se',date:'2026-06-23',time:'07:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M35',home:'Japan',homeCode:'jp',away:'Tunisia',awayCode:'tn',date:'2026-06-28',time:'07:00 KST',stadium:"Levi's Stadium (San Francisco)"},{number:'M36',home:'Netherlands',homeCode:'nl',away:'Sweden',awayCode:'se',date:'2026-06-28',time:'07:00 KST',stadium:'SoFi Stadium (Los Angeles)'}],
+  G:[{number:'M37',home:'Belgium',homeCode:'be',away:'Egypt',awayCode:'eg',date:'2026-06-18',time:'07:00 KST',stadium:'Lincoln Financial Field (Philadelphia)'},{number:'M38',home:'Iran',homeCode:'ir',away:'New Zealand',awayCode:'nz',date:'2026-06-18',time:'10:00 KST',stadium:'Gillette Stadium (Boston)'},{number:'M39',home:'Belgium',homeCode:'be',away:'Iran',awayCode:'ir',date:'2026-06-24',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M40',home:'Egypt',homeCode:'eg',away:'New Zealand',awayCode:'nz',date:'2026-06-24',time:'07:00 KST',stadium:'Lincoln Financial Field (Philadelphia)'},{number:'M41',home:'Iran',homeCode:'ir',away:'Egypt',awayCode:'eg',date:'2026-06-29',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M42',home:'Belgium',homeCode:'be',away:'New Zealand',awayCode:'nz',date:'2026-06-29',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}],
+  H:[{number:'M43',home:'Spain',homeCode:'es',away:'Cape Verde',awayCode:'cv',date:'2026-06-19',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M44',home:'Saudi Arabia',homeCode:'sa',away:'Uruguay',awayCode:'uy',date:'2026-06-19',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M45',home:'Spain',homeCode:'es',away:'Saudi Arabia',awayCode:'sa',date:'2026-06-25',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M46',home:'Uruguay',homeCode:'uy',away:'Cape Verde',awayCode:'cv',date:'2026-06-25',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M47',home:'Uruguay',homeCode:'uy',away:'Spain',awayCode:'es',date:'2026-06-30',time:'07:00 KST',stadium:'AT&T Stadium (Dallas)'},{number:'M48',home:'Cape Verde',homeCode:'cv',away:'Saudi Arabia',awayCode:'sa',date:'2026-06-30',time:'07:00 KST',stadium:'NRG Stadium (Houston)'}],
+  I:[{number:'M49',home:'France',homeCode:'fr',away:'Senegal',awayCode:'sn',date:'2026-06-20',time:'07:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M50',home:'Iraq',homeCode:'iq',away:'Norway',awayCode:'no',date:'2026-06-20',time:'10:00 KST',stadium:'Lincoln Financial Field (Philadelphia)'},{number:'M51',home:'France',homeCode:'fr',away:'Iraq',awayCode:'iq',date:'2026-06-26',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M52',home:'Senegal',homeCode:'sn',away:'Norway',awayCode:'no',date:'2026-06-26',time:'07:00 KST',stadium:'Gillette Stadium (Boston)'},{number:'M53',home:'Norway',homeCode:'no',away:'France',awayCode:'fr',date:'2026-07-01',time:'07:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M54',home:'Iraq',homeCode:'iq',away:'Senegal',awayCode:'sn',date:'2026-07-01',time:'07:00 KST',stadium:'BC Place (Vancouver)'}],
+  J:[{number:'M55',home:'Argentina',homeCode:'ar',away:'Algeria',awayCode:'dz',date:'2026-06-21',time:'07:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M56',home:'Austria',homeCode:'at',away:'Jordan',awayCode:'jo',date:'2026-06-21',time:'10:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M57',home:'Argentina',homeCode:'ar',away:'Austria',awayCode:'at',date:'2026-06-27',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M58',home:'Algeria',homeCode:'dz',away:'Jordan',awayCode:'jo',date:'2026-06-27',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M59',home:'Jordan',homeCode:'jo',away:'Argentina',awayCode:'ar',date:'2026-07-02',time:'07:00 KST',stadium:'BC Place (Vancouver)'},{number:'M60',home:'Austria',homeCode:'at',away:'Algeria',awayCode:'dz',date:'2026-07-02',time:'07:00 KST',stadium:'SoFi Stadium (Los Angeles)'}],
+  K:[{number:'M61',home:'Portugal',homeCode:'pt',away:'Congo DR',awayCode:'cd',date:'2026-06-22',time:'07:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M62',home:'Uzbekistan',homeCode:'uz',away:'Colombia',awayCode:'co',date:'2026-06-22',time:'10:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M63',home:'Portugal',homeCode:'pt',away:'Uzbekistan',awayCode:'uz',date:'2026-06-28',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M64',home:'Colombia',homeCode:'co',away:'Congo DR',awayCode:'cd',date:'2026-06-28',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M65',home:'Colombia',homeCode:'co',away:'Portugal',awayCode:'pt',date:'2026-07-03',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M66',home:'Congo DR',homeCode:'cd',away:'Uzbekistan',awayCode:'uz',date:'2026-07-03',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}]
+};
+
+const knockoutTemplates = {
+  round32:[
+    ['M73 A1 vs B2'],['M74 C1 vs D2'],['M75 E1 vs F2'],['M76 G1 vs H2'],
+    ['M77 I1 vs J2'],['M78 K1 vs L2'],['M79 B1 vs A2'],['M80 D1 vs C2'],
+    ['M81 F1 vs E2'],['M82 H1 vs G2'],['M83 J1 vs I2'],['M84 L1 vs K2'],
+    ['M85 A3 vs B3'],['M86 C3 vs D3'],['M87 E3 vs F3'],['M88 G3 vs H3']
+  ],
+  round16:[
+    ['M89 Winner M73 vs Winner M74'],['M90 Winner M75 vs Winner M76'],
+    ['M91 Winner M77 vs Winner M78'],['M92 Winner M79 vs Winner M80'],
+    ['M93 Winner M81 vs Winner M82'],['M94 Winner M83 vs Winner M84'],
+    ['M95 Winner M85 vs Winner M86'],['M96 Winner M87 vs Winner M88']
+  ],
+  quarterfinal:[
+    ['M97 Winner M89 vs Winner M90'],['M98 Winner M91 vs Winner M92'],
+    ['M99 Winner M93 vs Winner M94'],['M100 Winner M95 vs Winner M96']
+  ],
+  semifinal:[
+    ['M101 Winner M97 vs Winner M98'],['M102 Winner M99 vs Winner M100']
+  ],
+  final:[['M104 Winner M101 vs Winner M102']]
+};
+
+const knockoutSchedule = {
+  M73:{date:'2026-06-28',time:'08:00 KST',stadium:'Los Angeles Stadium'},
+  M74:{date:'2026-06-29',time:'10:30 KST',stadium:'Dallas Stadium'},
+  M75:{date:'2026-06-29',time:'08:00 KST',stadium:'Seattle Stadium'},
+  M76:{date:'2026-06-29',time:'11:00 KST',stadium:'Philadelphia Stadium'},
+  M77:{date:'2026-06-30',time:'10:00 KST',stadium:'New York New Jersey Stadium'},
+  M78:{date:'2026-07-01',time:'10:00 KST',stadium:'Mexico City Stadium'},
+  M79:{date:'2026-06-30',time:'08:00 KST',stadium:'Miami Stadium'},
+  M80:{date:'2026-06-30',time:'11:00 KST',stadium:'Houston Stadium'},
+  M81:{date:'2026-07-01',time:'08:00 KST',stadium:'San Francisco Bay Area Stadium'},
+  M82:{date:'2026-07-01',time:'11:00 KST',stadium:'Atlanta Stadium'},
+  M83:{date:'2026-07-02',time:'05:00 KST',stadium:'Toronto Stadium'},
+  M84:{date:'2026-07-02',time:'08:00 KST',stadium:'Vancouver Stadium'},
+  M85:{date:'2026-07-02',time:'11:00 KST',stadium:'Vancouver Stadium'},
+  M86:{date:'2026-07-03',time:'08:00 KST',stadium:'Guadalajara Stadium'},
+  M87:{date:'2026-07-03',time:'11:00 KST',stadium:'Monterrey Stadium'},
+  M88:{date:'2026-07-04',time:'08:00 KST',stadium:'Boston Stadium'},
+  M89:{date:'2026-07-05',time:'09:00 KST',stadium:'Los Angeles Stadium'},
+  M90:{date:'2026-07-05',time:'12:00 KST',stadium:'Dallas Stadium'},
+  M91:{date:'2026-07-06',time:'08:00 KST',stadium:'New York New Jersey Stadium'},
+  M92:{date:'2026-07-06',time:'11:00 KST',stadium:'Seattle Stadium'},
+  M93:{date:'2026-07-07',time:'08:00 KST',stadium:'Miami Stadium'},
+  M94:{date:'2026-07-07',time:'11:00 KST',stadium:'Philadelphia Stadium'},
+  M95:{date:'2026-07-08',time:'08:00 KST',stadium:'Mexico City Stadium'},
+  M96:{date:'2026-07-08',time:'11:00 KST',stadium:'Toronto Stadium'},
+  M97:{date:'2026-07-10',time:'08:00 KST',stadium:'Los Angeles Stadium'},
+  M98:{date:'2026-07-10',time:'11:00 KST',stadium:'Dallas Stadium'},
+  M99:{date:'2026-07-11',time:'08:00 KST',stadium:'New York New Jersey Stadium'},
+  M100:{date:'2026-07-11',time:'11:00 KST',stadium:'Miami Stadium'},
+  M101:{date:'2026-07-14',time:'09:00 KST',stadium:'Dallas Stadium'},
+  M102:{date:'2026-07-15',time:'09:00 KST',stadium:'Atlanta Stadium'},
+  M104:{date:'2026-07-19',time:'09:00 KST',stadium:'New York New Jersey Stadium'}
+};
+
+const squads = {
+  korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
+  mexico:[{position:'GK',number:13,name:'Guillermo Ochoa',club:'Salernitana',age:40,injury:'-'},{position:'GK',number:1,name:'Luis Malagón',club:'Club América',age:29,injury:'-'},{position:'GK',number:23,name:'Julio González',club:'UNAM',age:34,injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Almería',age:28,injury:'-'},{position:'DF',number:15,name:'Héctor Moreno',club:'Monterrey',age:37,injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'Porto',age:28,injury:'-'},{position:'DF',number:23,name:'Jesús Gallardo',club:'Monterrey',age:31,injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa',age:27,injury:'-'},{position:'MF',number:4,name:'Edson Álvarez',club:'West Ham',age:28,injury:'-'},{position:'MF',number:18,name:'Luis Chávez',club:'Dynamo Moscow',age:29,injury:'-'},{position:'MF',number:16,name:'Orbelín Pineda',club:'AEK Athens',age:29,injury:'-'},{position:'MF',number:7,name:'Luis Romo',club:'Monterrey',age:30,injury:'-'},{position:'FW',number:9,name:'Raúl Jiménez',club:'Fulham',age:34,injury:'-'},{position:'FW',number:11,name:'Hirving Lozano',club:'PSV',age:30,injury:'-'},{position:'FW',number:22,name:'Henry Martín',club:'Club América',age:32,injury:'-'}],
+  southAfrica:[{position:'GK',number:1,name:'Ronwen Williams',club:'Mamelodi Sundowns',age:34,injury:'-'},{position:'GK',number:16,name:'Ricardo Goss',club:'SuperSport United',age:31,injury:'-'},{position:'GK',number:23,name:'Veli Mothwa',club:'AmaZulu',age:34,injury:'-'},{position:'DF',number:20,name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:14,name:'Grant Kekana',club:'Mamelodi Sundowns',age:32,injury:'-'},{position:'DF',number:3,name:'Mothobi Mvala',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:5,name:'Siyanda Xulu',club:'Richards Bay',age:33,injury:'-'},{position:'DF',number:2,name:'Nyiko Mobbie',club:'Sekhukhune United',age:30,injury:'-'},{position:'MF',number:4,name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:29,injury:'-'},{position:'MF',number:8,name:'Sphephelo Sithole',club:'Tondela',age:27,injury:'-'},{position:'MF',number:10,name:'Themba Zwane',club:'Mamelodi Sundowns',age:36,injury:'-'},{position:'MF',number:15,name:'Bathusi Aubaas',club:'TS Galaxy',age:30,injury:'-'},{position:'FW',number:11,name:'Percy Tau',club:'Qatar SC',age:32,injury:'-'},{position:'FW',number:9,name:'Evidence Makgopa',club:'Orlando Pirates',age:25,injury:'-'},{position:'FW',number:17,name:'Lyle Foster',club:'Burnley',age:25,injury:'-'}],
+  czech:[{position:'GK',number:1,name:'Jiří Pavlenka',club:'Werder Bremen',age:33,injury:'-'},{position:'GK',number:23,name:'Tomáš Vaclík',club:'Albacete',age:36,injury:'-'},{position:'DF',number:3,name:'Vladimír Coufal',club:'West Ham',age:33,injury:'-'},{position:'DF',number:2,name:'David Zima',club:'Torino',age:25,injury:'-'},{position:'DF',number:6,name:'Tomáš Holeš',club:'Slavia Praha',age:32,injury:'-'},{position:'DF',number:5,name:'Jakub Brabec',club:'Aris',age:32,injury:'-'},{position:'MF',number:8,name:'Tomáš Souček',club:'West Ham',age:31,injury:'-'},{position:'MF',number:10,name:'Václav Černý',club:'Wolfsburg',age:28,injury:'-'},{position:'MF',number:12,name:'Lukáš Provod',club:'Slavia Praha',age:29,injury:'-'},{position:'MF',number:21,name:'Antonín Barák',club:'Fiorentina',age:30,injury:'-'},{position:'FW',number:9,name:'Patrik Schick',club:'Leverkusen',age:30,injury:'-'},{position:'FW',number:11,name:'Adam Hložek',club:'Leverkusen',age:23,injury:'-'},{position:'FW',number:19,name:'Jan Kuchta',club:'Sparta Praha',age:28,injury:'-'}]
+};
+
+const squadState = {
+  korea:{filter:'ALL',page:1,title:'대한민국 선수단'},
+  mexico:{filter:'ALL',page:1,title:'멕시코 선수단'},
+  southAfrica:{filter:'ALL',page:1,title:'남아프리카 공화국 선수단'},
+  czech:{filter:'ALL',page:1,title:'체코 선수단'}
+};
+
+const PAGE_SIZE = 8;
+let currentNewsYear = '';
+
+function getFlag(code){return code ? `https://flagcdn.com/w40/${code}.png` : null;}
+function kstToLocal(date,timeStr){
+  if(!date||!timeStr||timeStr==='-') return {date:'-',time:'-'};
+  const t=timeStr.replace(' KST','');
+  const [hh,mm]=t.split(':').map(Number);
+  const d=new Date(`${date}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00+09:00`);
+  d.setHours(d.getHours()-13);
+  return {
+    date:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+    time:`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  };
+}
+function hideAllPanels(){['newsCol','newsBroadcasterCol','bracketStageCol','groupCol','groupASquadCol','equipmentUserCol','detailCol'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
+function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
+function clearDetailExtras(){
+  const detailTable=document.getElementById('detailTable');
+  let prev=detailTable.previousElementSibling;
+  while(prev&&prev.classList&&prev.classList.contains('toolbar')){const cur=prev;prev=prev.previousElementSibling;cur.remove();}
+  let next=detailTable.nextElementSibling;
+  while(next){const cur=next;next=next.nextElementSibling;cur.remove();}
+}
+
+function toggleMain(){const panel=document.getElementById('newsCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');}}
+function toggleBracket(){const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}}
+function toggleGroupASquads(){
+  const panel=document.getElementById('groupASquadCol');
+  const willOpen=panel.classList.contains('hidden');
+  hideAllPanels();
+  clearAllActive();
+  if(willOpen){
+    document.getElementById('groupASquadMenu').classList.add('active');
+    panel.classList.remove('hidden');
+  }
+}
+function showGroupASquad(key, el){
+  document.querySelectorAll('#groupASquadCol .item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  squadState[key].filter='ALL';
+  squadState[key].page=1;
+  renderSquad(key);
+}
+function toggleEquipment(){hideAllPanels();clearAllActive();document.getElementById('equipmentMenu').classList.add('active');renderEquipment();}
+
+function showNewsYear(year, el){currentNewsYear=year;document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');}
+function activateBroadcaster(el, broadcaster){document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);}
+function renderNewsTable(year,broadcaster){clearDetailExtras();document.getElementById('detailTitle').textContent=`${year} ${broadcaster}`;document.getElementById('detailSubtitle').textContent='날짜, 링크, 주요분석을 입력하는 표';document.getElementById('detailTable').innerHTML='<thead><tr><th>날짜</th><th>링크</th><th>주요분석</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody>';document.getElementById('detailCol').classList.remove('hidden');}
+
+function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);}
+function renderKnockoutTable(stage){
+  clearDetailExtras();
+  const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
+  const rows=knockoutTemplates[stage]||[];
+  document.getElementById('detailTitle').textContent=stageNames[stage]||'';
+  document.getElementById('detailSubtitle').textContent='시간: 현지 / 한국(KST)';
+  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+
+function showGroup(groupKey, el){
+  const data=groupData[groupKey]||[];
+  const matches=groupMatches[groupKey]||[];
+  document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  const header='<thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
+  const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
+  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody></table></div></div>`:'';
+  document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
+  document.getElementById('detailSubtitle').textContent='조별리그 편성 정보';
+  clearDetailExtras();
+  document.getElementById('detailTable').innerHTML=header+body;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',matchSection);
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+
+function renderSquad(key){
+  clearDetailExtras();
+  const state=squadState[key];
+  const squad=squads[key];
+  const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  state.page=Math.min(totalPages,Math.max(1,state.page));
+  const rows=filtered.slice((state.page-1)*PAGE_SIZE,state.page*PAGE_SIZE);
+  document.getElementById('detailTitle').textContent=state.title;
+  document.getElementById('detailSubtitle').textContent='포지션 탭 + 페이지 분할 적용';
+  document.getElementById('detailTable').innerHTML=`<thead><tr><th>포지션</th><th>등번호</th><th>사진</th><th>이름</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td><span class="photo-placeholder">사진</span></td><td>${p.name}</td><td>${p.club}</td><td>${p.age}</td><td>${p.injury}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('detailTable').insertAdjacentHTML('beforebegin',`<div class="toolbar">${['ALL','GK','DF','MF','FW'].map(pos=>`<button class="toolbar-btn ${state.filter===pos?'active':''}" onclick="setSquadFilter('${key}','${pos}')">${pos==='ALL'?'전체':pos}</button>`).join('')}</div>`);
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',`<div class="pagination"><button class="page-btn" onclick="changeSquadPage('${key}',-1)" ${state.page===1?'disabled':''}>이전</button><span>${state.page} / ${totalPages}</span><button class="page-btn" onclick="changeSquadPage('${key}',1)" ${state.page===totalPages?'disabled':''}>다음</button></div>`);
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+function setSquadFilter(key, filter){squadState[key].filter=filter;squadState[key].page=1;renderSquad(key);}
+function changeSquadPage(key, delta){squadState[key].page+=delta;renderSquad(key);}
+
+function renderEquipment(){
+  clearDetailExtras();
+  document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('equipmentUserCol').classList.remove('hidden');
+  document.getElementById('detailTitle').textContent='공용장비 현황';
+  document.getElementById('detailSubtitle').textContent='공동 사용 장비 현황';
+  const rows=Array.from({length:12}).map(()=>`<tr><td></td><td></td><td></td><td><select>${Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('')}</select></td><td></td><td><select><option value="">선택</option><option>박재현</option><option>장후원</option><option>정상원</option><option>이주원</option><option>김진광</option><option>정재우</option></select></td></tr>`).join('');
+  document.getElementById('detailTable').innerHTML=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼넘버</th><th>수량</th><th>비고</th><th>사용인원</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+
+function showEquipmentPersonal(user, el){
+  document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  clearDetailExtras();
+  document.getElementById('detailTitle').textContent=`${user} 개인장비`;
+  document.getElementById('detailSubtitle').textContent='개인 장비 목록';
+  const rows=Array.from({length:10}).map(()=>`<tr><td></td><td></td><td></td><td><select>${Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('')}</select></td><td></td></tr>`).join('');
+  document.getElementById('detailTable').innerHTML=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼</th><th>수량</th><th>비고</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+
+function runTests(){
+  console.assert(typeof toggleMain==='function','toggleMain should be defined');
+  console.assert(typeof toggleBracket==='function','toggleBracket should be defined');
+  console.assert(typeof toggleGroupASquads==='function','toggleGroupASquads should be defined');
+  console.assert(typeof showGroupASquad==='function','showGroupASquad should be defined');
+  console.assert(typeof toggleEquipment==='function','toggleEquipment should be defined');
+  console.assert(Array.isArray(groupMatches.A)&&groupMatches.A.length===6,'Group A should have 6 matches');
+  console.assert(Array.isArray(groupMatches.B)&&groupMatches.B.length===6,'Group B should have 6 matches');
+  console.assert(Array.isArray(groupMatches.K)&&groupMatches.K.length===6,'Group K should have 6 matches');
+  console.assert(groupData.A[3].name==='Czechia','Group A fourth team should be Czechia');
+  console.assert(groupData.B[1].name==='Bosnia and Herzegovina','Group B second team should be Bosnia and Herzegovina');
+  console.assert(groupData.D[3].name==='Türkiye','Group D fourth team should be Türkiye');
+  console.assert(groupData.F[2].name==='Sweden','Group F third team should be Sweden');
+  console.assert(groupData.I[2].name==='Iraq','Group I third team should be Iraq');
+  console.assert(groupData.K[1].name==='Congo DR','Group K second team should be Congo DR');
+  toggleMain();
+  console.assert(!document.getElementById('newsCol').classList.contains('hidden'),'News panel should open');
+  toggleGroupASquads();
+  console.assert(!document.getElementById('groupASquadCol').classList.contains('hidden'),'Group A squad panel should open');
+  showGroupASquad('korea', document.querySelector('#groupASquadCol .item'));
+  console.assert(document.getElementById('detailTitle').textContent==='대한민국 선수단','Group A squad detail should render');
+  toggleEquipment();
+  console.assert(document.getElementById('detailTitle').textContent==='공용장비 현황','Equipment panel should render');
+}
+runTests();
+</script>
+</body>
+</html>
