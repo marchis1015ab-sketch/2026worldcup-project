@@ -24,7 +24,8 @@ const groupMatches = {
   H:[{number:'M43',home:'Spain',homeCode:'es',away:'Cape Verde',awayCode:'cv',date:'2026-06-19',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M44',home:'Saudi Arabia',homeCode:'sa',away:'Uruguay',awayCode:'uy',date:'2026-06-19',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M45',home:'Spain',homeCode:'es',away:'Saudi Arabia',awayCode:'sa',date:'2026-06-25',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M46',home:'Uruguay',homeCode:'uy',away:'Cape Verde',awayCode:'cv',date:'2026-06-25',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M47',home:'Uruguay',homeCode:'uy',away:'Spain',awayCode:'es',date:'2026-06-30',time:'07:00 KST',stadium:'AT&T Stadium (Dallas)'},{number:'M48',home:'Cape Verde',homeCode:'cv',away:'Saudi Arabia',awayCode:'sa',date:'2026-06-30',time:'07:00 KST',stadium:'NRG Stadium (Houston)'}],
   I:[{number:'M49',home:'France',homeCode:'fr',away:'Senegal',awayCode:'sn',date:'2026-06-20',time:'07:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M50',home:'Iraq',homeCode:'iq',away:'Norway',awayCode:'no',date:'2026-06-20',time:'10:00 KST',stadium:'Lincoln Financial Field (Philadelphia)'},{number:'M51',home:'France',homeCode:'fr',away:'Iraq',awayCode:'iq',date:'2026-06-26',time:'10:00 KST',stadium:'MetLife Stadium (New York/New Jersey)'},{number:'M52',home:'Senegal',homeCode:'sn',away:'Norway',awayCode:'no',date:'2026-06-26',time:'07:00 KST',stadium:'Gillette Stadium (Boston)'},{number:'M53',home:'Norway',homeCode:'no',away:'France',awayCode:'fr',date:'2026-07-01',time:'07:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M54',home:'Iraq',homeCode:'iq',away:'Senegal',awayCode:'sn',date:'2026-07-01',time:'07:00 KST',stadium:'BC Place (Vancouver)'}],
   J:[{number:'M55',home:'Argentina',homeCode:'ar',away:'Algeria',awayCode:'dz',date:'2026-06-21',time:'07:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M56',home:'Austria',homeCode:'at',away:'Jordan',awayCode:'jo',date:'2026-06-21',time:'10:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M57',home:'Argentina',homeCode:'ar',away:'Austria',awayCode:'at',date:'2026-06-27',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M58',home:'Algeria',homeCode:'dz',away:'Jordan',awayCode:'jo',date:'2026-06-27',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M59',home:'Jordan',homeCode:'jo',away:'Argentina',awayCode:'ar',date:'2026-07-02',time:'07:00 KST',stadium:'BC Place (Vancouver)'},{number:'M60',home:'Austria',homeCode:'at',away:'Algeria',awayCode:'dz',date:'2026-07-02',time:'07:00 KST',stadium:'SoFi Stadium (Los Angeles)'}],
-  K:[{number:'M61',home:'Portugal',homeCode:'pt',away:'Congo DR',awayCode:'cd',date:'2026-06-22',time:'07:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M62',home:'Uzbekistan',homeCode:'uz',away:'Colombia',awayCode:'co',date:'2026-06-22',time:'10:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M63',home:'Portugal',homeCode:'pt',away:'Uzbekistan',awayCode:'uz',date:'2026-06-28',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M64',home:'Colombia',homeCode:'co',away:'Congo DR',awayCode:'cd',date:'2026-06-28',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M65',home:'Colombia',homeCode:'co',away:'Portugal',awayCode:'pt',date:'2026-07-03',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M66',home:'Congo DR',homeCode:'cd',away:'Uzbekistan',awayCode:'uz',date:'2026-07-03',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}]
+  K:[{number:'M61',home:'Portugal',homeCode:'pt',away:'Congo DR',awayCode:'cd',date:'2026-06-22',time:'07:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M62',home:'Uzbekistan',homeCode:'uz',away:'Colombia',awayCode:'co',date:'2026-06-22',time:'10:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M63',home:'Portugal',homeCode:'pt',away:'Uzbekistan',awayCode:'uz',date:'2026-06-28',time:'10:00 KST',stadium:'Estadio Azteca (Mexico City)'},{number:'M64',home:'Colombia',homeCode:'co',away:'Congo DR',awayCode:'cd',date:'2026-06-28',time:'07:00 KST',stadium:'Estadio Akron (Guadalajara)'},{number:'M65',home:'Colombia',homeCode:'co',away:'Portugal',awayCode:'pt',date:'2026-07-03',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M66',home:'Congo DR',homeCode:'cd',away:'Uzbekistan',awayCode:'uz',date:'2026-07-03',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}],
+  L:[{number:'M67',home:'England',homeCode:'gb-eng',away:'Croatia',awayCode:'hr',date:'2026-06-23',time:'07:00 KST',stadium:'BMO Field (Toronto)'},{number:'M68',home:'Ghana',homeCode:'gh',away:'Panama',awayCode:'pa',date:'2026-06-23',time:'10:00 KST',stadium:'BC Place (Vancouver)'},{number:'M69',home:'England',homeCode:'gb-eng',away:'Ghana',awayCode:'gh',date:'2026-06-29',time:'10:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M70',home:'Croatia',homeCode:'hr',away:'Panama',awayCode:'pa',date:'2026-06-29',time:'07:00 KST',stadium:'SoFi Stadium (Los Angeles)'},{number:'M71',home:'Panama',homeCode:'pa',away:'England',awayCode:'gb-eng',date:'2026-07-04',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M72',home:'Croatia',homeCode:'hr',away:'Ghana',awayCode:'gh',date:'2026-07-04',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}]
 };
 
 const knockoutTemplates = {
@@ -280,6 +281,138 @@ const mexicoStadiumSections = {
   mixedZone:'mixed zone',
   route:'경기장 내부 동선'
 };
+const scheduleStadiumMedia = {
+  azteca:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Estadio_Azteca_desde_el_aire_1.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Estadio_Azteca_desde_el_aire_1.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'에스타디오 아즈테카 부감 전경'
+  },
+  akron:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/EstadioAkronGDL.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:EstadioAkronGDL.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'에스타디오 아크론 전경'
+  },
+  bbva:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Estadio_BBVA.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Estadio_BBVA.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'에스타디오 BBVA 전경'
+  },
+  hardRock:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Hard_Rock_Stadium.png?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Hard_Rock_Stadium.png',
+    sourceLabel:'Wikimedia Commons',
+    alt:'하드록 스타디움 전경'
+  },
+  mercedesBenz:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Mercedes-Benz_Stadium_(27663349999).jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Mercedes-Benz_Stadium_(27663349999).jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'메르세데스-벤츠 스타디움 전경'
+  },
+  bmo:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/BMO_Field.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:BMO_Field.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'BMO 필드 전경'
+  },
+  levis:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Levi%27s_Stadium_from_air.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Levi%27s_Stadium_from_air.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'리바이스 스타디움 부감 전경'
+  },
+  bcPlace:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/BC_Place_Stadium_(2015).jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:BC_Place_Stadium_(2015).jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'BC 플레이스 스타디움 전경'
+  },
+  metlife:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Metlife_stadium_(Aerial_view).jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Metlife_stadium_(Aerial_view).jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'메트라이프 스타디움 부감 전경'
+  },
+  gillette:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Gillette_stadium.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Gillette_stadium.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'질레트 스타디움 부감 전경'
+  },
+  lincolnFinancial:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Lincoln_Financial_Field_(Aerial_view)_(cropped).jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Lincoln_Financial_Field_(Aerial_view)_(cropped).jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'링컨 파이낸셜 필드 부감 전경'
+  },
+  sofi:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Aerial_view_of_SoFi_Stadium_(July_2022).jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Aerial_view_of_SoFi_Stadium_(July_2022).jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'소파이 스타디움 부감 전경'
+  },
+  att:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/AT%26T_Stadium_Aerial.jpeg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:AT%26T_Stadium_Aerial.jpeg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'AT&T 스타디움 부감 전경'
+  },
+  nrg:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Reliant_Stadium_Aerial.JPG?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Reliant_Stadium_Aerial.JPG',
+    sourceLabel:'Wikimedia Commons',
+    alt:'NRG 스타디움 부감 전경'
+  },
+  lumen:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Aerial_CenturyLink_Field_November_2011.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Aerial_CenturyLink_Field_November_2011.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'루멘 필드 부감 전경'
+  },
+  arrowhead:{
+    imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Aerial_view_of_Arrowhead_Stadium_08-31-2013.jpg?width=1200',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Aerial_view_of_Arrowhead_Stadium_08-31-2013.jpg',
+    sourceLabel:'Wikimedia Commons',
+    alt:'애로헤드 스타디움 부감 전경'
+  }
+};
+const scheduleStadiumAliases = [
+  ['estadio azteca','azteca'],
+  ['mexico city stadium','azteca'],
+  ['estadio akron','akron'],
+  ['guadalajara stadium','akron'],
+  ['hard rock stadium','hardRock'],
+  ['miami stadium','hardRock'],
+  ['mercedes-benz stadium','mercedesBenz'],
+  ['atlanta stadium','mercedesBenz'],
+  ['bmo field','bmo'],
+  ['toronto stadium','bmo'],
+  ['levi\'s stadium','levis'],
+  ['san francisco bay area stadium','levis'],
+  ['bc place','bcPlace'],
+  ['vancouver stadium','bcPlace'],
+  ['metlife stadium','metlife'],
+  ['new york new jersey stadium','metlife'],
+  ['gillette stadium','gillette'],
+  ['boston stadium','gillette'],
+  ['lincoln financial field','lincolnFinancial'],
+  ['philadelphia stadium','lincolnFinancial'],
+  ['sofi stadium','sofi'],
+  ['los angeles stadium','sofi'],
+  ['at&t stadium','att'],
+  ['dallas stadium','att'],
+  ['nrg stadium','nrg'],
+  ['houston stadium','nrg'],
+  ['lumen field','lumen'],
+  ['seattle stadium','lumen'],
+  ['arrowhead stadium','arrowhead'],
+  ['kansas city stadium','arrowhead'],
+  ['estadio bbva','bbva'],
+  ['monterrey stadium','bbva']
+];
 
 const PAGE_SIZE = 8;
 const timelineRows = [
@@ -296,6 +429,8 @@ const timelineRows = [
   {label:'정재우',type:'person'}
 ];
 const timelineEditableRows = timelineRows.filter(row=>row.type!=='section');
+const timelineEditableLabels = timelineEditableRows.map(row=>row.label);
+const TIMELINE_STORAGE_KEY = 'worldcup-guide-timeline-assignments-v1';
 let currentNewsYear = '';
 let currentMexicoStadiumKey = '';
 let isTimelinePainting = false;
@@ -305,6 +440,7 @@ let timelineSelectionEndIndex = -1;
 let pendingTimelineSelection = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
+let hasLoadedTimelineSavedAssignments = false;
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
@@ -339,13 +475,56 @@ function seedTimelineTeamSchedules(){
     });
   });
 }
+function loadSavedTimelineAssignments(){
+  if(hasLoadedTimelineSavedAssignments) return;
+  hasLoadedTimelineSavedAssignments = true;
+  if(typeof window==='undefined'||!window.localStorage) return;
+  const raw=window.localStorage.getItem(TIMELINE_STORAGE_KEY);
+  if(!raw) return;
+  try{
+    const savedAssignments=JSON.parse(raw);
+    timelineEditableLabels.forEach(label=>{
+      const rowAssignments=savedAssignments?.[label];
+      if(!rowAssignments||typeof rowAssignments!=='object') return;
+      Object.entries(rowAssignments).forEach(([dateKey,value])=>{
+        if(typeof value!=='string') return;
+        const text=value.trim();
+        if(text){
+          timelineAssignments[label].set(dateKey, text);
+        }else{
+          timelineAssignments[label].delete(dateKey);
+        }
+      });
+    });
+  }catch(error){
+    console.warn('Failed to load saved timeline assignments.', error);
+  }
+}
+function saveTimelineAssignments(){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  const payload=Object.fromEntries(timelineEditableLabels.map(label=>[label, Object.fromEntries(timelineAssignments[label].entries())]));
+  window.localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(payload));
+}
 function ensureTimelineDataReady(){
-  if(hasSeededTimelineTeamSchedules) return;
-  seedTimelineTeamSchedules();
-  hasSeededTimelineTeamSchedules = true;
+  if(!hasSeededTimelineTeamSchedules){
+    seedTimelineTeamSchedules();
+    hasSeededTimelineTeamSchedules = true;
+  }
+  loadSavedTimelineAssignments();
 }
 
 function getFlag(code){return code ? `https://flagcdn.com/w40/${code}.png` : null;}
+function getScheduleStadiumKey(stadiumName=''){
+  const normalized=String(stadiumName).toLowerCase();
+  const match=scheduleStadiumAliases.find(([alias])=>normalized.includes(alias));
+  return match?match[1]:'';
+}
+function renderScheduleStadiumMedia(stadiumName=''){
+  const stadiumKey=getScheduleStadiumKey(stadiumName);
+  const media=stadiumKey?scheduleStadiumMedia[stadiumKey]:null;
+  if(!media) return '<div class="stadium-placeholder">경기장 사진</div>';
+  return `<figure class="schedule-stadium-card"><a class="schedule-stadium-link" href="${media.sourceUrl}" target="_blank" rel="noreferrer noopener"><img class="schedule-stadium-photo" src="${media.imageUrl}" alt="${media.alt}" loading="lazy" referrerpolicy="no-referrer"></a><figcaption class="schedule-stadium-caption"><span>${escapeHtml(stadiumName)}</span><a class="schedule-stadium-source" href="${media.sourceUrl}" target="_blank" rel="noreferrer noopener">${media.sourceLabel}</a></figcaption></figure>`;
+}
 function createTimelineDates(startDate, endDate){
   const dates=[];
   const cursor=new Date(startDate.getFullYear(),startDate.getMonth(),startDate.getDate());
@@ -399,20 +578,39 @@ function getTimelineDayClasses(date){
 function getTimelineLabel(person, dateKey){
   return timelineAssignments[person]?.get(dateKey)||'';
 }
-function getTimelineCellTitle(person, date, dateKey){
-  const label=getTimelineLabel(person, dateKey);
-  return label ? `${person} · ${formatTimelineDate(date)} · ${label}` : `${person} · ${formatTimelineDate(date)}`;
-}
-function getTimelineSegmentSpan(person, startIndex, label){
+function getTimelineSegmentBounds(person, index, label){
   const dates=getTimelineDates();
-  let span=1;
-  for(let index=startIndex+1;index<dates.length;index+=1){
-    const nextDate=dates[index];
+  let start=index;
+  let end=index;
+  while(start>0){
+    const previousDate=dates[start-1];
+    if(!previousDate) break;
+    if(getTimelineLabel(person, formatTimelineKey(previousDate))!==label) break;
+    start-=1;
+  }
+  while(end<dates.length-1){
+    const nextDate=dates[end+1];
     if(!nextDate) break;
     if(getTimelineLabel(person, formatTimelineKey(nextDate))!==label) break;
-    span+=1;
+    end+=1;
   }
-  return span;
+  return {start, end, span:end-start+1};
+}
+function getTimelineSegmentSpan(person, startIndex, label){
+  return getTimelineSegmentBounds(person, startIndex, label).span;
+}
+function getTimelineLabelWithRange(person, index, label){
+  if(!label) return '';
+  const dates=getTimelineDates();
+  const bounds=getTimelineSegmentBounds(person, index, label);
+  if(bounds.span<=1) return label;
+  const startLabel=formatTimelineDate(dates[bounds.start]);
+  const endLabel=formatTimelineDate(dates[bounds.end]);
+  return `${startLabel} - ${endLabel} · ${label}`;
+}
+function getTimelineCellTitle(person, date, index, dateKey){
+  const label=getTimelineLabel(person, dateKey);
+  return label ? `${person} · ${getTimelineLabelWithRange(person, index, label)}` : `${person} · ${formatTimelineDate(date)}`;
 }
 function renderTimelineHeaderCell(date){
   const classes=getTimelineDayClasses(date);
@@ -427,17 +625,18 @@ function renderTimelineDayCell(row, date, index){
   const dayClasses=getTimelineDayClasses(date);
   if(dayClasses) classes.push(dayClasses);
   let content='';
-  const dataLabel=label?` data-label="${escapeHtml(label)}"`:'';
+  const displayLabel=label?getTimelineLabelWithRange(person, index, label):'';
+  const dataLabel=displayLabel?` data-label="${escapeHtml(displayLabel)}"`:'';
   if(label){
     classes.push('filled');
     const previousLabel=index>0?getTimelineLabel(person, formatTimelineKey(dates[index-1])):'';
     if(previousLabel!==label){
       const span=getTimelineSegmentSpan(person, index, label);
       classes.push('segment-start');
-      content=`<span class="timeline-entry-label" style="width:calc(${span} * var(--timeline-cell-size) + ${Math.max(span-1, 0)}px)">${escapeHtml(label)}</span>`;
+      content=`<span class="timeline-entry-label" style="width:calc(${span} * var(--timeline-cell-size) + ${Math.max(span-1, 0)}px)">${escapeHtml(displayLabel)}</span>`;
     }
   }
-  return `<td class="${classes.join(' ')}" data-person="${escapeHtml(person)}" data-index="${index}" data-date="${dateKey}" title="${escapeHtml(getTimelineCellTitle(person, date, dateKey))}"${dataLabel}>${content}</td>`;
+  return `<td class="${classes.join(' ')}" data-person="${escapeHtml(person)}" data-index="${index}" data-date="${dateKey}" title="${escapeHtml(getTimelineCellTitle(person, date, index, dateKey))}"${dataLabel}>${content}</td>`;
 }
 function renderTimelineRow(row){
   const dates=getTimelineDates();
@@ -562,11 +761,13 @@ function writeTimelineSelection(value){
   });
   cells.forEach(cell=>{
     const dateKey=cell.dataset.date;
+    const cellIndex=Number(cell.dataset.index);
     const date=new Date(`${dateKey}T00:00:00`);
     cell.classList.remove('preview');
     cell.classList.toggle('filled', Boolean(text));
-    cell.title=getTimelineCellTitle(person, date, dateKey);
+    cell.title=getTimelineCellTitle(person, date, cellIndex, dateKey);
   });
+  saveTimelineAssignments();
   closeTimelineModal();
   renderTimelineSchedule();
   restoreTimelineScrollState(scrollState);
@@ -741,7 +942,7 @@ function renderKnockoutTable(stage){
   document.getElementById('detailSubtitle').textContent='';
   if(!renderCache.knockoutTables[stage]){
     const rows=knockoutTemplates[stage]||[];
-    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody>`;
+    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(info.stadium)}</td></tr>`;}).join('')}</tbody>`;
   }
   document.getElementById('detailTable').innerHTML=renderCache.knockoutTables[stage];
   document.getElementById('detailCol').classList.remove('hidden');
@@ -753,14 +954,15 @@ function showGroup(groupKey, el){
   if(!renderCache.groupViews[groupKey]){
     const data=groupData[groupKey]||[];
     const matches=groupMatches[groupKey]||[];
-    const header='<thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
+    const header='<colgroup><col class="group-col-team"><col class="group-col-rank"><col class="group-col-coach"></colgroup><thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
     const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
-    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td><div class="stadium-placeholder">경기장 이미지</div></td></tr>`;}).join('')}</tbody></table></div></div>`:'';
+    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(match.stadium)}</td></tr>`;}).join('')}</tbody></table></div></div>`:'';
     renderCache.groupViews[groupKey]={tableHtml:header+body,matchSection};
   }
   document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
   document.getElementById('detailSubtitle').textContent='';
   clearDetailExtras();
+  document.getElementById('detailTable').className='data-table group-table';
   document.getElementById('detailTable').innerHTML=renderCache.groupViews[groupKey].tableHtml;
   document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.groupViews[groupKey].matchSection);
   document.getElementById('detailCol').classList.remove('hidden');
@@ -988,9 +1190,9 @@ function runTests(){
   console.assert(Array.isArray(timelineRows)&&timelineRows.length===11,'Timeline rows should exist');
   console.assert(Array.isArray(timelineEditableRows)&&timelineEditableRows.length===10,'Editable timeline rows should exist');
   console.assert(timelineRows[0].label==='대한민국'&&timelineRows[4].label==='담당자','Timeline row ordering should exist');
-  console.assert(timelineAssignments['대한민국'].get('2026-06-12').includes('vs 체코/덴마크'),'Korea timeline should seed opponent');
-  console.assert(timelineAssignments['멕시코'].get('2026-06-18').includes('vs 대한민국'),'Mexico timeline should seed opponent');
-  console.assert(timelineAssignments['남아공'].get('2026-06-24').includes('Estadio Monterrey'),'South Africa timeline should seed venue');
+  console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코/덴마크'),'Korea official timeline should include opponent');
+  console.assert(timelineOfficialTeamSchedules['멕시코'][1].label.includes('vs 대한민국'),'Mexico official timeline should include opponent');
+  console.assert(timelineOfficialTeamSchedules['남아공'][2].label.includes('Estadio Monterrey'),'South Africa official timeline should include venue');
   console.assert(Array.isArray(dates)&&dates.length===153,'Timeline dates should exist');
   console.assert(formatTimelineDate(dates[0])==='3/1','Timeline should start on March 1');
   console.assert(formatTimelineDate(dates[dates.length-1])==='7/31','Timeline should end on July 31');
@@ -1006,6 +1208,7 @@ function runTests(){
   console.assert(Array.isArray(groupMatches.A)&&groupMatches.A.length===6,'Group A should have 6 matches');
   console.assert(Array.isArray(groupMatches.B)&&groupMatches.B.length===6,'Group B should have 6 matches');
   console.assert(Array.isArray(groupMatches.K)&&groupMatches.K.length===6,'Group K should have 6 matches');
+  console.assert(Array.isArray(groupMatches.L)&&groupMatches.L.length===6,'Group L should have 6 matches');
   console.assert(groupData.A[3].name==='Czechia','Group A fourth team should be Czechia');
   console.assert(groupData.B[1].name==='Bosnia and Herzegovina','Group B second team should be Bosnia and Herzegovina');
   console.assert(groupData.D[3].name==='Türkiye','Group D fourth team should be Türkiye');
@@ -1047,4 +1250,5 @@ function runTests(){
   console.assert(document.getElementById('detailTitle').textContent==='아크론스타디움 - 촬영 구역','Mexico stadium subfolder detail should render');
   console.assert(document.querySelector('.stadium-photo')===null,'Mexico stadium subfolder should not reuse parent image');
   console.assert(document.querySelector('.stadium-slot')!==null,'Mexico stadium subfolder should render image slot');
+  console.assert(renderScheduleStadiumMedia('MetLife Stadium (New York/New Jersey)').includes('schedule-stadium-photo'),'Schedule stadium media should render for mapped stadium');
 }
