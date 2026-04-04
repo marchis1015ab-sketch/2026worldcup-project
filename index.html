@@ -8,15 +8,30 @@
 </head>
 <body>
 <div class="page">
-  <div class="header"><h1>2026 북중미 월드컵 영상취재 가이드라인</h1></div>
+  <div class="header">
+    <div class="header-main">
+      <div class="header-copy">
+        <p class="header-kicker">FIFA WORLD CUP 2026</p>
+        <h1>2026 북중미 월드컵 영상취재 가이드라인</h1>
+        <p class="header-slogan">찌릿하게 다채롭게 월드컵은 JTBC</p>
+      </div>
+      <div id="headerCountdown" class="header-countdown">
+        <div class="header-countdown-meta">
+          <span class="header-countdown-label">월드컵 개막</span>
+          <span class="header-countdown-prefix">D-</span>
+        </div>
+        <span class="header-countdown-number">DAY</span>
+      </div>
+    </div>
+  </div>
   <div class="container">
     <div class="sidebar">
       <div id="newsMenu" class="menu" onclick="toggleMain()">월드컵 지상파 뉴스 추이</div>
       <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
       <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">Group A 선수단</div>
       <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">멕시코 경기장</div>
-      <div id="timelineMenu" class="menu" onclick="toggleTimeline()">일정 타임라인</div>
       <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">공용장비 현황</div>
+      <div id="personalTimelineMenu" class="menu" onclick="togglePersonalTimeline()">개인일정 타임라인</div>
     </div>
 
     <div id="newsCol" class="column hidden">
@@ -56,10 +71,10 @@
     </div>
 
     <div id="groupASquadCol" class="column hidden">
-      <div class="item" onclick="showGroupASquad('korea', this)">대한민국</div>
-      <div class="item" onclick="showGroupASquad('mexico', this)">멕시코</div>
-      <div class="item" onclick="showGroupASquad('southAfrica', this)">남아프리카 공화국</div>
-      <div class="item" onclick="showGroupASquad('czech', this)">체코</div>
+      <div class="item squad-country-tab squad-country-korea" onclick="showGroupASquad('korea', this)">대한민국</div>
+      <div class="item squad-country-tab squad-country-mexico" onclick="showGroupASquad('mexico', this)">멕시코</div>
+      <div class="item squad-country-tab squad-country-south-africa" onclick="showGroupASquad('southAfrica', this)">남아프리카 공화국</div>
+      <div class="item squad-country-tab squad-country-czech" onclick="showGroupASquad('czech', this)">체코</div>
     </div>
 
     <div id="equipmentUserCol" class="column hidden">
@@ -77,7 +92,6 @@
     </div>
 
     <div id="mexicoStadiumSectionCol" class="column hidden">
-      <p id="mexicoStadiumSectionLabel" class="column-label">세부 항목</p>
       <div class="item" onclick="showMexicoStadiumSection('shooting', this)">촬영 구역</div>
       <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
       <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부 동선</div>

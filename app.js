@@ -30,66 +30,85 @@ const groupMatches = {
 
 const knockoutTemplates = {
   round32:[
-    ['M73 A1 vs B2'],['M74 C1 vs D2'],['M75 E1 vs F2'],['M76 G1 vs H2'],
-    ['M77 I1 vs J2'],['M78 K1 vs L2'],['M79 B1 vs A2'],['M80 D1 vs C2'],
-    ['M81 F1 vs E2'],['M82 H1 vs G2'],['M83 J1 vs I2'],['M84 L1 vs K2'],
-    ['M85 A3 vs B3'],['M86 C3 vs D3'],['M87 E3 vs F3'],['M88 G3 vs H3']
+    ['M73 A조 2위 vs B조 2위'],
+    ['M74 E조 1위 vs A/B/C/D/F조 3위'],
+    ['M75 F조 1위 vs C조 2위'],
+    ['M76 C조 1위 vs F조 2위'],
+    ['M77 I조 1위 vs C/D/F/G/H조 3위'],
+    ['M78 E조 2위 vs I조 2위'],
+    ['M79 A조 1위 vs C/E/F/H/I조 3위'],
+    ['M80 L조 1위 vs E/H/I/J/K조 3위'],
+    ['M81 D조 1위 vs B/E/F/I/J조 3위'],
+    ['M82 G조 1위 vs A/E/H/I/J조 3위'],
+    ['M83 K조 2위 vs L조 2위'],
+    ['M84 H조 1위 vs J조 2위'],
+    ['M85 B조 1위 vs E/F/G/I/J조 3위'],
+    ['M86 J조 1위 vs H조 2위'],
+    ['M87 K조 1위 vs D/E/I/J/L조 3위'],
+    ['M88 D조 2위 vs G조 2위']
   ],
   round16:[
-    ['M89 Winner M73 vs Winner M74'],['M90 Winner M75 vs Winner M76'],
-    ['M91 Winner M77 vs Winner M78'],['M92 Winner M79 vs Winner M80'],
-    ['M93 Winner M81 vs Winner M82'],['M94 Winner M83 vs Winner M84'],
-    ['M95 Winner M85 vs Winner M86'],['M96 Winner M87 vs Winner M88']
+    ['M89 승자 M74 vs 승자 M77'],
+    ['M90 승자 M73 vs 승자 M75'],
+    ['M91 승자 M76 vs 승자 M78'],
+    ['M92 승자 M79 vs 승자 M80'],
+    ['M93 승자 M83 vs 승자 M84'],
+    ['M94 승자 M81 vs 승자 M82'],
+    ['M95 승자 M86 vs 승자 M88'],
+    ['M96 승자 M85 vs 승자 M87']
   ],
   quarterfinal:[
-    ['M97 Winner M89 vs Winner M90'],['M98 Winner M91 vs Winner M92'],
-    ['M99 Winner M93 vs Winner M94'],['M100 Winner M95 vs Winner M96']
+    ['M97 승자 M89 vs 승자 M90'],
+    ['M98 승자 M93 vs 승자 M94'],
+    ['M99 승자 M91 vs 승자 M92'],
+    ['M100 승자 M95 vs 승자 M96']
   ],
   semifinal:[
-    ['M101 Winner M97 vs Winner M98'],['M102 Winner M99 vs Winner M100']
+    ['M101 승자 M97 vs 승자 M98'],
+    ['M102 승자 M99 vs 승자 M100']
   ],
-  final:[['M104 Winner M101 vs Winner M102']]
+  final:[['M104 승자 M101 vs 승자 M102']]
 };
 
 const knockoutSchedule = {
-  M73:{date:'2026-06-28',time:'08:00 KST',stadium:'Los Angeles Stadium'},
-  M74:{date:'2026-06-29',time:'10:30 KST',stadium:'Dallas Stadium'},
-  M75:{date:'2026-06-29',time:'08:00 KST',stadium:'Seattle Stadium'},
-  M76:{date:'2026-06-29',time:'11:00 KST',stadium:'Philadelphia Stadium'},
-  M77:{date:'2026-06-30',time:'10:00 KST',stadium:'New York New Jersey Stadium'},
-  M78:{date:'2026-07-01',time:'10:00 KST',stadium:'Mexico City Stadium'},
-  M79:{date:'2026-06-30',time:'08:00 KST',stadium:'Miami Stadium'},
-  M80:{date:'2026-06-30',time:'11:00 KST',stadium:'Houston Stadium'},
-  M81:{date:'2026-07-01',time:'08:00 KST',stadium:'San Francisco Bay Area Stadium'},
-  M82:{date:'2026-07-01',time:'11:00 KST',stadium:'Atlanta Stadium'},
-  M83:{date:'2026-07-02',time:'05:00 KST',stadium:'Toronto Stadium'},
-  M84:{date:'2026-07-02',time:'08:00 KST',stadium:'Vancouver Stadium'},
-  M85:{date:'2026-07-02',time:'11:00 KST',stadium:'Vancouver Stadium'},
-  M86:{date:'2026-07-03',time:'08:00 KST',stadium:'Guadalajara Stadium'},
-  M87:{date:'2026-07-03',time:'11:00 KST',stadium:'Monterrey Stadium'},
-  M88:{date:'2026-07-04',time:'08:00 KST',stadium:'Boston Stadium'},
-  M89:{date:'2026-07-05',time:'09:00 KST',stadium:'Los Angeles Stadium'},
-  M90:{date:'2026-07-05',time:'12:00 KST',stadium:'Dallas Stadium'},
-  M91:{date:'2026-07-06',time:'08:00 KST',stadium:'New York New Jersey Stadium'},
-  M92:{date:'2026-07-06',time:'11:00 KST',stadium:'Seattle Stadium'},
-  M93:{date:'2026-07-07',time:'08:00 KST',stadium:'Miami Stadium'},
-  M94:{date:'2026-07-07',time:'11:00 KST',stadium:'Philadelphia Stadium'},
-  M95:{date:'2026-07-08',time:'08:00 KST',stadium:'Mexico City Stadium'},
-  M96:{date:'2026-07-08',time:'11:00 KST',stadium:'Toronto Stadium'},
-  M97:{date:'2026-07-10',time:'08:00 KST',stadium:'Los Angeles Stadium'},
-  M98:{date:'2026-07-10',time:'11:00 KST',stadium:'Dallas Stadium'},
-  M99:{date:'2026-07-11',time:'08:00 KST',stadium:'New York New Jersey Stadium'},
-  M100:{date:'2026-07-11',time:'11:00 KST',stadium:'Miami Stadium'},
-  M101:{date:'2026-07-14',time:'09:00 KST',stadium:'Dallas Stadium'},
-  M102:{date:'2026-07-15',time:'09:00 KST',stadium:'Atlanta Stadium'},
-  M104:{date:'2026-07-19',time:'09:00 KST',stadium:'New York New Jersey Stadium'}
+  M73:{date:'2026-06-29',time:'04:00 KST',stadium:'Los Angeles Stadium'},
+  M74:{date:'2026-06-30',time:'05:30 KST',stadium:'Boston Stadium'},
+  M75:{date:'2026-06-30',time:'10:00 KST',stadium:'Monterrey Stadium'},
+  M76:{date:'2026-06-30',time:'02:00 KST',stadium:'Houston Stadium'},
+  M77:{date:'2026-07-01',time:'06:00 KST',stadium:'New York New Jersey Stadium'},
+  M78:{date:'2026-07-01',time:'02:00 KST',stadium:'Dallas Stadium'},
+  M79:{date:'2026-07-01',time:'10:00 KST',stadium:'Mexico City Stadium'},
+  M80:{date:'2026-07-02',time:'01:00 KST',stadium:'Atlanta Stadium'},
+  M81:{date:'2026-07-02',time:'09:00 KST',stadium:'San Francisco Bay Area Stadium'},
+  M82:{date:'2026-07-02',time:'05:00 KST',stadium:'Seattle Stadium'},
+  M83:{date:'2026-07-03',time:'08:00 KST',stadium:'Toronto Stadium'},
+  M84:{date:'2026-07-03',time:'04:00 KST',stadium:'Los Angeles Stadium'},
+  M85:{date:'2026-07-03',time:'12:00 KST',stadium:'BC Place Vancouver'},
+  M86:{date:'2026-07-04',time:'07:00 KST',stadium:'Miami Stadium'},
+  M87:{date:'2026-07-04',time:'10:30 KST',stadium:'Kansas City Stadium'},
+  M88:{date:'2026-07-04',time:'03:00 KST',stadium:'Dallas Stadium'},
+  M89:{date:'2026-07-05',time:'06:00 KST',stadium:'Philadelphia Stadium'},
+  M90:{date:'2026-07-05',time:'02:00 KST',stadium:'Houston Stadium'},
+  M91:{date:'2026-07-06',time:'05:00 KST',stadium:'New York New Jersey Stadium'},
+  M92:{date:'2026-07-06',time:'09:00 KST',stadium:'Mexico City Stadium'},
+  M93:{date:'2026-07-07',time:'04:00 KST',stadium:'Dallas Stadium'},
+  M94:{date:'2026-07-07',time:'09:00 KST',stadium:'Seattle Stadium'},
+  M95:{date:'2026-07-08',time:'01:00 KST',stadium:'Atlanta Stadium'},
+  M96:{date:'2026-07-08',time:'05:00 KST',stadium:'BC Place Vancouver'},
+  M97:{date:'2026-07-10',time:'05:00 KST',stadium:'Boston Stadium'},
+  M98:{date:'2026-07-11',time:'04:00 KST',stadium:'Los Angeles Stadium'},
+  M99:{date:'2026-07-12',time:'06:00 KST',stadium:'Miami Stadium'},
+  M100:{date:'2026-07-12',time:'10:00 KST',stadium:'Kansas City Stadium'},
+  M101:{date:'2026-07-15',time:'04:00 KST',stadium:'Dallas Stadium'},
+  M102:{date:'2026-07-16',time:'04:00 KST',stadium:'Atlanta Stadium'},
+  M104:{date:'2026-07-20',time:'04:00 KST',stadium:'New York New Jersey Stadium'}
 };
 
 const squads = {
   korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
-  mexico:[{position:'GK',number:13,name:'Guillermo Ochoa',club:'Salernitana',age:40,injury:'-'},{position:'GK',number:1,name:'Luis Malagón',club:'Club América',age:29,injury:'-'},{position:'GK',number:23,name:'Julio González',club:'UNAM',age:34,injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Almería',age:28,injury:'-'},{position:'DF',number:15,name:'Héctor Moreno',club:'Monterrey',age:37,injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'Porto',age:28,injury:'-'},{position:'DF',number:23,name:'Jesús Gallardo',club:'Monterrey',age:31,injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa',age:27,injury:'-'},{position:'MF',number:4,name:'Edson Álvarez',club:'West Ham',age:28,injury:'-'},{position:'MF',number:18,name:'Luis Chávez',club:'Dynamo Moscow',age:29,injury:'-'},{position:'MF',number:16,name:'Orbelín Pineda',club:'AEK Athens',age:29,injury:'-'},{position:'MF',number:7,name:'Luis Romo',club:'Monterrey',age:30,injury:'-'},{position:'FW',number:9,name:'Raúl Jiménez',club:'Fulham',age:34,injury:'-'},{position:'FW',number:11,name:'Hirving Lozano',club:'PSV',age:30,injury:'-'},{position:'FW',number:22,name:'Henry Martín',club:'Club América',age:32,injury:'-'}],
+  mexico:[{position:'GK',number:23,name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'GK',number:'-',name:'Guillermo Ochoa',club:'AEL Limassol',age:'-',injury:'-'},{position:'GK',number:12,name:'Carlos Acevedo',club:'Santos Laguna',age:'-',injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Richard Ledezma',club:'Chivas',age:'-',injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa FC',age:'-',injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Lokomotiv Moscú',age:'-',injury:'-'},{position:'DF',number:4,name:'Jesús Angulo',club:'Tigres',age:'-',injury:'-'},{position:'DF',number:19,name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Gallardo',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:6,name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Denzell García',club:'FC Juárez',age:'-',injury:'-'},{position:'MF',number:8,name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:17,name:'Orbelín Pineda',club:'AEK Athens',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Atlético de Madrid',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chivas',age:'-',injury:'-'},{position:'MF',number:14,name:'Erick Sánchez',club:'América',age:'-',injury:'-'},{position:'MF',number:'-',name:'Álvaro Fidalgo',club:'Real Betis',age:'-',injury:'-'},{position:'MF',number:25,name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:9,name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'FW',number:10,name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'FW',number:7,name:'Germán Berterame',club:'Inter Miami',age:'-',injury:'-'},{position:'FW',number:22,name:'Guillermo Martínez',club:'Club Universidad Nacional',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Chivas',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham FC',age:'-',injury:'-'}],
   southAfrica:[{position:'GK',number:1,name:'Ronwen Williams',club:'Mamelodi Sundowns',age:34,injury:'-'},{position:'GK',number:16,name:'Ricardo Goss',club:'SuperSport United',age:31,injury:'-'},{position:'GK',number:23,name:'Veli Mothwa',club:'AmaZulu',age:34,injury:'-'},{position:'DF',number:20,name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:14,name:'Grant Kekana',club:'Mamelodi Sundowns',age:32,injury:'-'},{position:'DF',number:3,name:'Mothobi Mvala',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:5,name:'Siyanda Xulu',club:'Richards Bay',age:33,injury:'-'},{position:'DF',number:2,name:'Nyiko Mobbie',club:'Sekhukhune United',age:30,injury:'-'},{position:'MF',number:4,name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:29,injury:'-'},{position:'MF',number:8,name:'Sphephelo Sithole',club:'Tondela',age:27,injury:'-'},{position:'MF',number:10,name:'Themba Zwane',club:'Mamelodi Sundowns',age:36,injury:'-'},{position:'MF',number:15,name:'Bathusi Aubaas',club:'TS Galaxy',age:30,injury:'-'},{position:'FW',number:11,name:'Percy Tau',club:'Qatar SC',age:32,injury:'-'},{position:'FW',number:9,name:'Evidence Makgopa',club:'Orlando Pirates',age:25,injury:'-'},{position:'FW',number:17,name:'Lyle Foster',club:'Burnley',age:25,injury:'-'}],
-  czech:[{position:'GK',number:1,name:'Jiří Pavlenka',club:'Werder Bremen',age:33,injury:'-'},{position:'GK',number:23,name:'Tomáš Vaclík',club:'Albacete',age:36,injury:'-'},{position:'DF',number:3,name:'Vladimír Coufal',club:'West Ham',age:33,injury:'-'},{position:'DF',number:2,name:'David Zima',club:'Torino',age:25,injury:'-'},{position:'DF',number:6,name:'Tomáš Holeš',club:'Slavia Praha',age:32,injury:'-'},{position:'DF',number:5,name:'Jakub Brabec',club:'Aris',age:32,injury:'-'},{position:'MF',number:8,name:'Tomáš Souček',club:'West Ham',age:31,injury:'-'},{position:'MF',number:10,name:'Václav Černý',club:'Wolfsburg',age:28,injury:'-'},{position:'MF',number:12,name:'Lukáš Provod',club:'Slavia Praha',age:29,injury:'-'},{position:'MF',number:21,name:'Antonín Barák',club:'Fiorentina',age:30,injury:'-'},{position:'FW',number:9,name:'Patrik Schick',club:'Leverkusen',age:30,injury:'-'},{position:'FW',number:11,name:'Adam Hložek',club:'Leverkusen',age:23,injury:'-'},{position:'FW',number:19,name:'Jan Kuchta',club:'Sparta Praha',age:28,injury:'-'}]
+  czech:[{position:'GK',number:'-',name:'Lukáš Horníček',club:'Braga SC',age:23,injury:'-'},{position:'GK',number:'-',name:'Vítězslav Jaroš',club:'AFC Ajax',age:24,injury:'-'},{position:'GK',number:'-',name:'Martin Jedlička',club:'FC Baník Ostrava',age:28,injury:'-'},{position:'GK',number:'-',name:'Antonín Kinský',club:'Tottenham Hotspur FC',age:22,injury:'-'},{position:'GK',number:'-',name:'Matěj Kovář',club:'PSV Eindhoven',age:25,injury:'-'},{position:'GK',number:'-',name:'Jakub Markovič',club:'SK Slavia Praha',age:24,injury:'-'},{position:'GK',number:'-',name:'Jindřich Staněk',club:'SK Slavia Praha',age:29,injury:'-'},{position:'GK',number:'-',name:'Tomáš Vaclík',club:'-',age:36,injury:'-'},{position:'DF',number:'-',name:'Jan Bořil',club:'SK Slavia Praha',age:35,injury:'-'},{position:'DF',number:'-',name:'Martin Cedidla',club:'FK Jablonec',age:24,injury:'-'},{position:'DF',number:'-',name:'Vladimír Coufal',club:'TSG 1899 Hoffenheim',age:33,injury:'-'},{position:'DF',number:'-',name:'David Douděra',club:'SK Slavia Praha',age:27,injury:'-'},{position:'DF',number:'-',name:'Adam Gabriel',club:'FC Midtjylland',age:24,injury:'-'},{position:'DF',number:'-',name:'Milan Havel',club:'Bohemians Praha 1905',age:31,injury:'-'},{position:'DF',number:'-',name:'Tomáš Holeš',club:'SK Slavia Praha',age:32,injury:'-'},{position:'DF',number:'-',name:'Robin Hranáč',club:'TSG 1899 Hoffenheim',age:26,injury:'-'},{position:'DF',number:'-',name:'Václav Jemelka',club:'FC Viktoria Plzeň',age:30,injury:'-'},{position:'DF',number:'-',name:'David Jurásek',club:'SK Slavia Praha',age:25,injury:'-'},{position:'DF',number:'-',name:'Ladislav Krejčí',club:'Wolverhampton Wanderers FC',age:26,injury:'-'},{position:'DF',number:'-',name:'Matěj Ryneš',club:'AC Sparta Praha',age:24,injury:'-'},{position:'DF',number:'-',name:'Patrizio Stronati',club:'Újpest FC',age:31,injury:'-'},{position:'DF',number:'-',name:'Martin Vitík',club:'Bologna FC 1909',age:23,injury:'-'},{position:'DF',number:'-',name:'Tomáš Vlček',club:'SK Slavia Praha',age:25,injury:'-'},{position:'DF',number:'-',name:'Jaroslav Zelený',club:'AC Sparta Praha',age:33,injury:'-'},{position:'DF',number:'-',name:'David Zima',club:'SK Slavia Praha',age:25,injury:'-'},{position:'MF',number:'-',name:'Antonín Barák',club:'UC Sampdoria',age:31,injury:'-'},{position:'MF',number:'-',name:'Michal Beran',club:'SK Sigma Olomouc',age:25,injury:'-'},{position:'MF',number:'-',name:'Václav Černý',club:'Beşiktaş JK',age:28,injury:'-'},{position:'MF',number:'-',name:'Lukáš Červ',club:'FC Viktoria Plzeň',age:24,injury:'-'},{position:'MF',number:'-',name:'Matěj Jurásek',club:'Norwich City FC',age:22,injury:'-'},{position:'MF',number:'-',name:'Lukáš Kalvach',club:'Katar SC',age:30,injury:'-'},{position:'MF',number:'-',name:'Adam Karabec',club:'Olympique Lyon',age:22,injury:'-'},{position:'MF',number:'-',name:'Alex Král',club:'1. FC Union Berlín',age:27,injury:'-'},{position:'MF',number:'-',name:'Ondřej Lingr',club:'Houston Dynamo FC',age:27,injury:'-'},{position:'MF',number:'-',name:'Lukáš Provod',club:'SK Slavia Praha',age:29,injury:'-'},{position:'MF',number:'-',name:'Michal Sadílek',club:'SK Slavia Praha',age:26,injury:'-'},{position:'MF',number:'-',name:'Tomáš Souček',club:'West Ham United FC',age:31,injury:'-'},{position:'MF',number:'-',name:'Petr Ševčík',club:'SK Slavia Praha',age:31,injury:'-'},{position:'MF',number:'-',name:'Pavel Šulc',club:'Olympique Lyon',age:25,injury:'-'},{position:'MF',number:'-',name:'Filip Zorvan',club:'FK Jablonec',age:29,injury:'-'},{position:'FW',number:'-',name:'Adam Hložek',club:'TSG 1899 Hoffenheim',age:23,injury:'-'},{position:'FW',number:'-',name:'Tomáš Chorý',club:'SK Slavia Praha',age:31,injury:'-'},{position:'FW',number:'-',name:'Jan Chramosta',club:'FK Jablonec',age:35,injury:'-'},{position:'FW',number:'-',name:'Mojmír Chytil',club:'SK Slavia Praha',age:26,injury:'-'},{position:'FW',number:'-',name:'Jan Kuchta',club:'AC Sparta Praha',age:29,injury:'-'},{position:'FW',number:'-',name:'Vasil Kušej',club:'SK Slavia Praha',age:25,injury:'-'},{position:'FW',number:'-',name:'Patrik Schick',club:'Bayer 04 Leverkusen',age:30,injury:'-'},{position:'FW',number:'-',name:'Matěj Vydra',club:'FC Viktoria Plzeň',age:33,injury:'-'}]
 };
 
 const squadState = {
@@ -153,16 +172,35 @@ function getPlayerPhotoTitles(){
   '황희찬':'Hwang Hee-chan',
   '조규성':'Cho Gue-sung',
   'Guillermo Ochoa':'Guillermo Ochoa',
+  'Raúl Rangel':'Raúl Rangel',
+  'Carlos Acevedo':'Carlos Acevedo',
   'Luis Malagón':'Luis Malagón',
   'Julio González':'Julio González (footballer, born 1991)',
   'César Montes':'César Montes',
   'Héctor Moreno':'Héctor Moreno',
   'Jorge Sánchez':'Jorge Sánchez (footballer, born 1997)',
+  'Richard Ledezma':'Richard Ledezma',
+  'Jesús Angulo':'Jesús Angulo',
+  'Israel Reyes':'Israel Reyes Romero',
+  'Everardo López':'Everardo López',
   'Jesús Gallardo':'Jesús Gallardo',
   'Johan Vásquez':'Johan Vásquez',
   'Edson Álvarez':'Edson Álvarez',
   'Luis Chávez':'Luis Chávez (footballer, born 1996)',
+  'Erik Lira':'Erik Lira',
+  'Denzell García':'Denzell García',
+  'Carlos Rodríguez':'Carlos Rodríguez (footballer, born 1997)',
   'Orbelín Pineda':'Orbelín Pineda',
+  'Obed Vargas':'Obed Vargas',
+  'Brian Gutiérrez':'Brian Gutiérrez',
+  'Erick Sánchez':'Erick Sánchez',
+  'Álvaro Fidalgo':'Álvaro Fidalgo',
+  'Roberto Alvarado':'Roberto Alvarado',
+  'Julián Quiñones':'Julián Quiñones',
+  'Alexis Vega':'Alexis Vega',
+  'Germán Berterame':'Germán Berterame',
+  'Guillermo Martínez':'Guillermo Martínez Ayala',
+  'Armando González':'Armando González',
   'Luis Romo':'Luis Romo',
   'Raúl Jiménez':'Raúl Jiménez',
   'Hirving Lozano':'Hirving Lozano',
@@ -182,6 +220,38 @@ function getPlayerPhotoTitles(){
   'Percy Tau':'Percy Tau',
   'Evidence Makgopa':'Evidence Makgopa',
   'Lyle Foster':'Lyle Foster',
+  'Lukáš Horníček':'Lukáš Horníček',
+  'Vítězslav Jaroš':'Vítězslav Jaroš',
+  'Martin Jedlička':'Martin Jedlička',
+  'Antonín Kinský':'Antonín Kinský',
+  'Matěj Kovář':'Matěj Kovář',
+  'Jakub Markovič':'Jakub Markovič',
+  'Jindřich Staněk':'Jindřich Staněk',
+  'Jan Bořil':'Jan Bořil',
+  'Martin Cedidla':'Martin Cedidla',
+  'David Douděra':'David Douděra',
+  'Adam Gabriel':'Adam Gabriel',
+  'Milan Havel':'Milan Havel',
+  'Robin Hranáč':'Robin Hranáč',
+  'Václav Jemelka':'Václav Jemelka',
+  'David Jurásek':'David Jurásek',
+  'Ladislav Krejčí':'Ladislav Krejčí',
+  'Matěj Ryneš':'Matěj Ryneš',
+  'Patrizio Stronati':'Patrizio Stronati',
+  'Martin Vitík':'Martin Vitík',
+  'Tomáš Vlček':'Tomáš Vlček',
+  'Jaroslav Zelený':'Jaroslav Zelený',
+  'Michal Beran':'Michal Beran',
+  'Lukáš Červ':'Lukáš Červ',
+  'Matěj Jurásek':'Matěj Jurásek',
+  'Lukáš Kalvach':'Lukáš Kalvach',
+  'Adam Karabec':'Adam Karabec',
+  'Alex Král':'Alex Král',
+  'Ondřej Lingr':'Ondřej Lingr',
+  'Michal Sadílek':'Michal Sadílek',
+  'Petr Ševčík':'Petr Ševčík',
+  'Pavel Šulc':'Pavel Šulc',
+  'Filip Zorvan':'Filip Zorvan',
   'Jiří Pavlenka':'Jiří Pavlenka',
   'Tomáš Vaclík':'Tomáš Vaclík',
   'Vladimír Coufal':'Vladimír Coufal',
@@ -194,7 +264,12 @@ function getPlayerPhotoTitles(){
   'Antonín Barák':'Antonín Barák',
   'Patrik Schick':'Patrik Schick',
   'Adam Hložek':'Adam Hložek',
-  'Jan Kuchta':'Jan Kuchta'
+  'Jan Kuchta':'Jan Kuchta',
+  'Tomáš Chorý':'Tomáš Chorý',
+  'Jan Chramosta':'Jan Chramosta',
+  'Mojmír Chytil':'Mojmír Chytil',
+  'Vasil Kušej':'Vasil Kušej',
+  'Matěj Vydra':'Matěj Vydra'
   };
   return playerPhotoTitles;
 }
@@ -210,6 +285,21 @@ const renderCache = {
   timelineHeader:''
 };
 let newsData = null;
+function normalizeNewsDate(dateValue, fallbackYear=''){
+  const raw=String(dateValue||'').trim();
+  if(!raw) return raw;
+  if(/^\d{4}\.\d{2}\.\d{2}$/.test(raw)) return raw;
+  const sanitized=raw.replace(/\s+/g,'').replace(/월/g,'.').replace(/일/g,'');
+  if(/^\d{4}\.\d{1,2}\.\d{1,2}$/.test(sanitized)){
+    const [year,month,day]=sanitized.split('.');
+    return `${year}.${month.padStart(2,'0')}.${day.padStart(2,'0')}`;
+  }
+  if(/^\d{1,2}\.\d{1,2}$/.test(sanitized)&&fallbackYear){
+    const [month,day]=sanitized.split('.');
+    return `${fallbackYear}.${month.padStart(2,'0')}.${day.padStart(2,'0')}`;
+  }
+  return raw;
+}
 function getNewsData(){
   if(newsData) return newsData;
   newsData = {
@@ -218,9 +308,54 @@ function getNewsData(){
     "MBC": [{"date":"8.24","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6401344_35744.html","analysis":"우승트로피 월드투어 및 감독 및 은퇴선수 인터뷰 / 우승트로피 월드 투어 행사. 행사 기본 스케치 및 인터뷰"},{"date":"9.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6407413_35744.html","analysis":"이강인 대표팀 발탁 / 이강인 스페인 영상 및 대표팀 영상 "},{"date":"9.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409265_35744.html","analysis":"새 유니폼 공개 / 새 유니폼 공개 행사. 행사 기본 스케치 및 인터뷰"},{"date":"9.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409263_35744.html","analysis":"손흥민 대표팀 합류 / 손흥민 EPL 영상 이외 NFC훈련장 입성 스케치 및 인터뷰"},{"date":"9월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6409643_35744.html","analysis":"손흥민 이강인 위주 대표팀 훈련 스케치 / 대표팀 훈련 스케치 위주 손흥민 공식인터뷰 "},{"date":"9.21","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410010_35744.html","analysis":"평가전 앞두고 대표팀 훈련 이강인 / 대표팀 훈련 스케치 위주 이강인 공식인터뷰 유튜브 활용 "},{"date":"9.22","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410382_35744.html","analysis":"평가전 앞두고 대표팀 훈련 벤투 / 대표팀 훈련 스케치 위주 벤투 공식인터뷰 유튜브 활용 "},{"date":"9.22","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410381_35744.html","analysis":"평가전 앞두고 대표팀 훈련 김민재 / 대표팀 훈련, 소속팀 경기영상 위주 김민재 공식 인터뷰 활용"},{"date":"9.23","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410750_35744.html","analysis":"코스타리카 평가전 / 경기전 분위기, 관중 스케치 인터뷰, 경기영상"},{"date":"9.24","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6410927_35744.html","analysis":"전날 코스타리카 평가전   / 경기 중계 영상, 경기 후 인터뷰 "},{"date":"9.26","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6411459_35744.html","analysis":"마지막 대표팀 훈련 이강인  / 훈련 영상 벤투 공식 인터뷰"},{"date":"9.27","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6411836_35744.html","analysis":"카메룬 평가전 / 관중 인터뷰 영상 위주"},{"date":"9.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6412226_35744.html","analysis":"전날 카메룬 평가전 벤투 이강인 / 중계영상이 아닌 이강인 ENG 영상, 훈련 영상 벤투 공식 인터뷰"},{"date":"9.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6412225_35744.html","analysis":"전날 카메룬 평가전 분석 / 중계 영상과 공식 인터뷰 및 개별 인터뷰 "},{"date":"10.21","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6419486_35744.html","analysis":"유럽파 제외 국내파 소집 / 국내 경기영상 및 훈련영상 위주"},{"date":"10.28","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6421761_35744.html","analysis":"최종 평가전 마지막 소집 / 훈련 영상 벤투 공식 인터뷰"},{"date":"11.2","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423262_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상 과 전날 선수들 훈련 공식 인터뷰"},{"date":"11.2","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423261_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상"},{"date":"11.3","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423596_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상"},{"date":"11.3","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423597_35744.html","analysis":"최종 평가전 손흥민 부상 / 소속팀 리그 영상 "},{"date":"11.4","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6423937_35744.html","analysis":"최종 평가전 손흥민 수술 및 거리응원 취소 / 소속팀 리그 영상 및 예전 거리응원 자료영상"},{"date":"11.5","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6424093_35744.html","analysis":"최종 평가전 손흥민 수술 / 소속팀 리그 영상 과 선수들 훈련 공식 인터뷰"},{"date":"11.8","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425036_35744.html","analysis":"최종명단 발표 D-4 / 훈련 영상 및 현장 이벤트 스케치"},{"date":"11.9","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425403_35744.html","analysis":"손준호 / 소속팀 및 국가대표 영상 과 훈련영상"},{"date":"11월 10일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425776_35744.html","analysis":"최종 평가전 소집 손흥민 발탁 여부 / 과거 평가전 과 훈련영상 벤투 공식 인터뷰"},{"date":"11월 10일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6425775_35744.html","analysis":"최종 평가전 앞두고 손흥민  / 모든 손흥민 영상 및 인터뷰 짜집기"},{"date":"11.11","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426139_35744.html","analysis":"같은 조 상대팀 최종명단 발표 / 각국 최종명단 공식 영상 활용"},{"date":"11.11","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426138_35744.html","analysis":"최종평가전 및 최종명단 발표 D-1 / 이전 평가전 영상 활용"},{"date":"11.12","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426302_35744.html","analysis":"최종명단 발표  / 최종명단 공식영상 과 현장 벤투 인터뷰 "},{"date":"11.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426479_35744.html","analysis":"대표팀 출국 (도하) 현지 스케치 및 경기장 스케치 / 현지 숙박시설 스케치 및 기자 스탠드업"},{"date":"11.13","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426478_35744.html","analysis":"수술 후 손흥민 / sns 와 제보 영상, 김민재 소속팀 영상 활용"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426875_35744.html","analysis":"[스포츠 영상]카타르 대표팀 숙소 / 숙소 촬영"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426871_35744.html","analysis":"월드컵 7번 관련 및 대표팀 현지 도착 / 인스타 게시물과 공항 현장 스케치 "},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426857_35744.html","analysis":"카타르 숙박시설 점검 / 앞선 두 리포트 11일, 13일 영상 재사용 숙박점검 리포트 기자 스탠드업"},{"date":"11.14","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6426855_35744.html","analysis":"월드컵 CG 대표팀 카타르 입성 / 카타르 입성 현장 스케치 및 인터뷰"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427277_35744.html","analysis":"같은 조 우루과이 관련"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427275_35744.html","analysis":"김민재 카타르 입성"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427260_35744.html","analysis":"카타르 음주 관련 현지 취재"},{"date":"11.15","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427259_35744.html","analysis":"카타르 첫 훈련 이강인"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427659_35744.html","analysis":"같은 조 가나 관련"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427658_35744.html","analysis":"카타르 김민재"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427649_35744.html","analysis":"우루과이 공개 훈련"},{"date":"11.16","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6427648_35744.html","analysis":"손흥민 합류 및 대표팀 공개 훈련"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428075_35744.html","analysis":"가나 평가전 "},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428074_35744.html","analysis":"카타르 현지 행사"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428063_35744.html","analysis":"현지 경기장 시설 점검"},{"date":"11.17","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428062_35744.html","analysis":"대표팀 훈련 손흥민"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428450_35744.html","analysis":"러우전쟁여파 폴란드 카타르 입성"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428449_35744.html","analysis":"포르투갈 최종 평가전"},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428448_35744.html","analysis":"월드컵 앞두고 응원 메시지 "},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428435_35744.html","analysis":"가나 최종 평가전 "},{"date":"11.18","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428434_35744.html","analysis":"대표팀 훈련 벤투 손흥민 이강인"},{"date":"11.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428608_35744.html","analysis":"가나 카타르 입성"},{"date":"11.19","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428607_35744.html","analysis":"대표팀 훈련 벤투"},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428758_35744.html","analysis":"같은 조 상대팀 훈련 스케치 "},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428756_35744.html","analysis":"카타르 현지 진행 월드컵 개막식 행사 "},{"date":"11월 20일","title":"뉴스데스크","link":"https://imnews.imbc.com/replay/2022/nwdesk/article/6428757_35744.html","analysis":"현지 응원단 취재"}],
     "SBS": [{"date":"2022.11.15","title":"결전지 도하에서 첫 훈련…김민재도 오늘 합류","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006972034\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM","analysis":"카타르 월드컵 개최 전 훈련 및 기자회견 취재를 통한 준비 모습 및 현지 합류 선수들 취재.  / 축구협회 인사이드캠 제공 영상 활용."},{"date":"2022.11.16","title":"손흥민, 부기 여전히 있지만 \u0027마스크 투혼\u0027 예고","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006973549\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"카타르 월드컵 개최 전 훈련 및 기자회견 취재를 통한 준비 모습 및 현지 합류 선수들 취재. / 축구협회 인사이드캠 제공 영상 활용."},{"date":"2022.11.16","title":"6번째 우승 노리는 브라질, 슈퍼스타들 완전체로 첫 훈련","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006973574\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"주요 우승팀 훈련 영상 취재 후 단신 처리."},{"date":"2022.11.17","title":"가짜 팬\u0027 의혹까지…또 인권 침해 논란","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006975168\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"외신 및 자료화면에 현장 스탠딩을 통한 제작. 스탠딩 배경이 애매한 경우 앞부분 상징적 이미지를 타이트하게 넣어주고 화면전환."},{"date":"2022.11.18","title":"필승 상대\u0027 가나, 만만치 않다…세트피스 경계령","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006976530\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"개최전 같은 조 강팀 마지막 평가전 현지 취재."},{"date":"2022.11.18","title":"4년 전 눈물 쏟았지만…황희찬 \"이번엔 웃는다!\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006976529\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"현지 환경에 따른 훈련 시간 변화를 훈련장 타임랩스 촬영."},{"date":"2022.11.19","title":"가나 · 포르투갈 대표팀 입성…달아오른 도하","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006977052\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"같은 조 주요팀 현지 도착 및 분위기 취재"},{"date":"2022.11.19","title":"해설위원 이승우 \"1승 1무 1패 예상\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006977059\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"주요 해설위원들 리허설 및 훈련현장 동행 취재"},{"date":"2022.11.20","title":"29일간의 열전\u0027 사상 첫 겨울 · 중동 월드컵 곧 개막","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006977616\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"개막날 현장 라이브 현장 진행. 미리 취재 해놓은 각국 현지 응원 분위기로 엔딩."},{"date":"2022.11.20","title":"도하 시내 막 올린 팬 페스티벌…이미 응원 열기 \u0027펄펄\u0027","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006977619\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"팬들의 밤 행사 취재를 통해 각국 팬들의 응원 및 현지 반응을 취재 할 수 있는 포인트."},{"date":"2022.11.21","title":"3경기 모두 여기서…벤투호의 \u0027결전의 장소\u0027 평가는?","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006979049\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"개막 이튿날도 한국 경기가 이뤄질 경기장 내부에서 현장 뉴스 진행."},{"date":"2022.11.22","title":"이승우 \"경계 1호는 발베르데…수비 약점 공략도 방법\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006980549\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"현역 선수 해설위원 동행 상대팀 훈련 보면서 분석. 주변에 유명 유튜버팀들도 같이 동행. (유튜버: 슛포러브)"},{"date":"2022.11.23","title":"\"대∼한민국!\" 결전 앞두고 카타르에 붉은악마 입성","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006982168\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"별도의 비디오머그 팀이 한국에서부터 팔로우하여 취재한것으로 보임."},{"date":"2022.11.25","title":"홈경기인 줄…카타르 물들인 붉은 악마 응원","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006984909\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"붉은악마와 동행취재하는 비디오머그팀의 액션캠 스케치 및 인터뷰 활용."},{"date":"2022.11.25","title":"광장에서 오랜만에 \"대∼한민국!\"…깔끔한 뒷정리까지","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006984906\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"한국 다양한 장소 거리응원 취재."},{"date":"2022.11.25","title":"현란한 \u0027입담 드리블\u0027…\"골대 감사합니다\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006984901\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"현역 선수 해설위원과 믹스드존 취재를 통해 대표팀 선수들과 친근한 반응들을 취재. 장소의 제약으로 액션캠 활용한것으로 보임."},{"date":"2022.11.29","title":"하얗게 불태운 가나전 \u0027마지막 10분\u0027…응원석 현장 모습","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006989109\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"관중석 내 카메라 장비로 촬영이 안 되어 핸드폰 또는 액션캠으로 추측 되는 영상으로 양팀 응원단들 리액션 및 인터뷰 등 취재하여 리포트 제작한것으로 보임."},{"date":"2022.11.30","title":"앙숙 대결\u0027 미국이 웃었다…이란 선수 위로한 미국 선수","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006990776\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"정치적 이슈가 있는 국가간의 경기 및 응원단 반응 취재."},{"date":"2022.12.02","title":"\"우리는 태극전사 보유국\"…도하의 붉은 물결","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006993750\u0026plink=THUMB\u0026cooper=SBSNEWSPROGRAM\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"현지 교민들 단체 응원 취재"},{"date":"2022.11.11","title":"1박 28만 원인데…\u0027 카타르 월드컵 방문객 숙소 논란","link":"https://www.youtube.com/watch?v=CFDYGCkRLoM","analysis":"카타르 월드컵 팬 숙소 열악함 논란. 1박 28만원 컨테이너 숙소 사진 공개 후 비판."},{"date":"2022.11.18","title":"우리가 \u0027치맥\u0027 먹을 때, H조 나라 사람들은?…우루과이·포르투갈·가나 유학생에게 물어봤다","link":"https://www.youtube.com/watch?v=JWQ1NlUZCaQ","analysis":"H조 상대국 유학생 인터뷰. 우루과이, 가나, 포르투갈의 축구 문화와 음식 소개."},{"date":"2022.11.21","title":"불 붙은 월드컵 마케팅…손흥민 \u0027원톱\u0027","link":"https://www.youtube.com/watch?v=HU5yXp54XJk","analysis":"월드컵 맞아 손흥민 중심 마케팅 활발. 이태원 참사로 대규모 거리응원 취소 소식."},{"date":"2022.11.17","title":"더 빠르게, 더 정확하게\u0027…반자동 오프사이드 판독 \u0027첫 선\u0027","link":"https://www.youtube.com/watch?v=VfaOkazEwkA","analysis":"카타르 월드컵에 도입된 반자동 오프사이드 기술(SAOT) 설명. AI 기반 판독 시스템으로 더 빠르고 정확한 오프사이드 판정."},{"date":"2022.11.23","title":"붉은악마 생업 있나요? 네, 심지어 미국 회계사더군요 / 비머 in 카타르 ep.01","link":"https://www.youtube.com/watch?v=9pvej3LJ4Is","analysis":"카타르 월드컵 현지 취재 시작. 붉은악마 응원단과 함께 출국, 다양한 직업의 응원단원들 인터뷰."},{"date":"2022.11.19","title":"카타르에서 꼭 기억해야 할 3가지 원칙…\u0027한국에서처럼 행동했다가 큰일 나요\u0027","link":"https://www.youtube.com/watch?v=vQTCVHSmHnw","analysis":"카타르 현지 문화와 법규 주의사항. 주류 반입 금지, 복장 규정 등 여행자 필수 정보."},{"date":"2022.11.24","title":"[이 시각 도하] 대한민국 vs 우루과이, 결전의 장소에서 달아오른 응원 열기","link":"https://www.youtube.com/watch?v=F8J9t9uRt3Y","analysis":"한국 vs 우루과이 경기 전 현지 경기장 앞 응원 열기 생중계."},{"date":"2022.11.27","title":"걸으면 흔들리고, 바닥에서 밥 먹는 시스템, 참을 수는 있는데 묘하게 킹 받는 모먼트를 모았습니다 / 비머 in 카타르 ep.3","link":"https://www.youtube.com/watch?v=F7cmi81t07A\u0026t=10s","analysis":"카타르 월드컵 팬빌리지 숙소의 불편한 점들 소개. 흔들리는 컨테이너 숙소, 바닥 식사 등 현지 경험 공유."},{"date":"2022.11.18","title":"카타르 월드컵, 우리 축구 국가대표 팀의 경기장 이동거리 0km?","link":"https://www.youtube.com/watch?v=ga2VHq5f1po","analysis":"카타르 월드컵 경기장 간 이동거리 분석. 모든 경기장이 도하 인근에 위치한 특징."},{"date":"2022.11.28","title":"이승우 해설위원 쉬는 날 만난 우루과이 친구가 손흥민 발 밟은 선수였던 썰 / 비머 in 카타르 ep.4","link":"https://www.youtube.com/watch?v=ki34MaV8YKw","analysis":"해설위원들 비하인드 및 준비 모습 현장 취재."},{"date":"2022.11.29","title":"골문은 안 열리고 눈물샘만 열린 가나전, 냉탕 온탕 무한반복 직캠입니다 / 비머 in 카타르 ep.5","link":"https://www.youtube.com/watch?v=sWNCy0Tv5II","analysis":"가나전 2-3 패배 직후 현지 응원단 반응. 포르투갈전 각오 다지는 붉은악마."},{"date":"2022.12.02","title":"출장 간 기자 쉬는 날, 친구 만나서 \u0027걸어서 카타르 속으로\u0027 찍었습니다 / 비머 in 카타르 ep.6","link":"https://www.youtube.com/watch?v=zVnG33Q3Zoc","analysis":"카타르 현지 일상 브이로그. 정국 \u0027Dreamers\u0027 공연 현장, 카타르 문화 체험."},{"date":"2022.11.28","title":"[라이브머그 in 카타르] 달아오른 응원 열기, 이 시각 경기장 앞","link":"https://www.youtube.com/watch?v=TwxmZes42M8","analysis":"포르투갈전 전 경기장 앞 응원 현장 생중계. 뜨거운 응원 열기 현장 전달."},{"date":"2022.12.07","title":"전 세계 직관러들이 직접 뛴 조별리그 현장…훈훈하고 치열하고 다 하고 난리남 / 비머in카타르 ep.11","link":"https://www.youtube.com/watch?v=MziPOm0WcTg","analysis":"카타르 현지 \u0027팬즈컵\u0027 풋살 대회 취재. 월드컵 출전국별 팬들이 직접 참여한 조별리그 현장."},{"date":"2022.12.05","title":"중요한 것은 꺾이지 않는 마음…응원단도 \u0027두근두근\u0027 / SBS","link":"https://www.youtube.com/watch?v=jdGWbk17K9I","analysis":"16강 진출 후 카타르 원정응원단 현황. 귀국 일정 변경하며 현지 체류 연장하는 팬들."},{"date":"2022.12.03","title":"붉은악마 붉은악마 하는 이유가 있었습니다…노동하며 즐기는 축구팬 클라스 / 비머 in 카타르 ep.8","link":"https://www.youtube.com/watch?v=dM0PPtVcQ_E","analysis":"12년 만의 16강 진출 순간을 직관한 붉은악마 응원단 취재. 에듀케이션 시티 스타디움에서 열정적 응원 모습."},{"date":"2022.12.05","title":"브라질 취재진 근데 이제 염탐을 곁들인… 아슬아슬한 인터뷰 모음 / 비머in카타르 ep.9","link":"https://www.youtube.com/watch?v=_9C1KuQolSg","analysis":"16강전 상대 브라질 공식 훈련 취재. 벤투호의 철저한 준비 모습과 브라질 취재진 인터뷰."},{"date":"2022.12.05","title":"선수들 만큼이나 모든 걸 불태운 붉은악마…지금 이 시각 카타르 응원단 모습은?","link":"https://www.youtube.com/watch?v=XDZDh69gjic","analysis":"16강전 후 카타르 현지 붉은악마 응원단 생중계. 손흥민, 이강인, 황희찬, 벤투 감독 언급."},{"date":"2022.12.03","title":"극I도 E가 된다는 카타르 원정 응원단 찐텐 직캠, 다들 초면이란 게 함정 / 비머 in 카타르 ep.7","link":"https://www.youtube.com/watch?v=r3hs4XexD5k","analysis":"포르투갈전 16강 진출 확정 후 카타르 현장 응원단의 열정적 모습. 경기장 밖 시내 곳곳을 행진하며 외국인들과도 함께 대한민국을 연호."},{"date":"2022.12.03","title":"[영상토크] 추가시간에 터진 황희찬의 역전골 피치(Pitch) 직캠","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006994259\u0026plink=ARTICLE\u0026cooper=SBSNEWSSEARCH\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"현장 eng 취재본 활용 짧은 하이라이트."},{"date":"2022.12.03","title":"포르투갈전 하이라이트 영상…\u002712년 만의 16강행\u0027 순간","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006994318\u0026plink=ARTICLE\u0026cooper=SBSNEWSSEARCH\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"중계영상 외 한국 거리 응원, 현지 경기장 추가 스케치 영상 등 활용."},{"date":"2022.12.03","title":"16강 확정되자 캡틴 손흥민의 \u0027오열\u0027…벤투에게 남긴 말","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006994321\u0026plink=ARTICLE\u0026cooper=SBSNEWSSEARCH","analysis":"현장 eng 촬영본 및 스탠딩 활용된것으로 보임."},{"date":"2022.12.05","title":"\"어메이징 코리아…8강도 기대\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1006996284\u0026plink=ARTICLE\u0026cooper=SBSNEWSSEARCH\u0026plink=COPYPASTE\u0026cooper=SBSNEWSEND","analysis":"카타르 월드컵 현지 응원단 반응 위주 취재."}]
   },
-  "2018": {"KBS": [], "MBC": [], "SBS": []},
-  "2014": {"KBS": [], "MBC": [], "SBS": []}
+  "2018": {
+    "KBS": [
+      {"date":"2018.05.29","title":"‘깜짝 카드’ 문선민·이승우, ‘한국축구 희망’을 밝히다","link":"https://news.kbs.co.kr/news/view.do?ncd=3656404","analysis":"온두라스 평가전 뒤 문선민·이승우의 등장에 주목. 월드컵 직전 대표팀 분위기와 전술 옵션 변화를 정리한 스포츠 기사."},
+      {"date":"2018.06.02","title":"김진수·이청용·권경원, 러시아 월드컵 최종명단 제외","link":"https://news.kbs.co.kr/news/view.do?ncd=3658836","analysis":"러시아 월드컵 최종 23인 확정 기사. 부상과 경쟁 구도를 중심으로 대표팀 최종 엔트리 정리."},
+      {"date":"2018.06.03","title":"‘조별리그 F조’ 독일, 오스트리아에 1-2 역전패","link":"https://news.kbs.co.kr/news/view.do?ncd=3659022","analysis":"한국과 같은 F조 경쟁국 독일·스웨덴의 평가전 흐름을 점검. 상대 전력과 조별리그 판도 중심의 사전 분석 기사."},
+      {"date":"2018.06.15","title":"‘지구촌 축구 축제’ 2018 러시아 월드컵 개막","link":"https://news.kbs.co.kr/news/view.do?ncd=3664587","analysis":"개막식 진행, 개최국-사우디아라비아 개막전, 한국 조별리그 일정까지 한 번에 정리한 개막 기사."}
+    ],
+    "MBC": [
+      {"date":"2018.05.14","title":"러시아 월드컵 축구 대표팀 '꿈의 무대'서 '통쾌한 반란'","link":"https://imnews.imbc.com/replay/2018/nwdesk/article/4607426_30181.html","analysis":"뉴스데스크 스포츠 코너. 신태용호 28인 발표 직후 선수 개별 반응과 월드컵 각오를 인터뷰 중심으로 구성."},
+      {"date":"2018.05.23","title":"신태용호 수비수 장현수, 발목 부상으로 국내 평가전 2경기 결장","link":"https://imnews.imbc.com/news/2018/sports/article/4616838_30825.html","analysis":"장현수 부상으로 온두라스·보스니아전 결장 확정. 월드컵 직전 수비 조직 운용 변수에 초점을 맞춘 스포츠 기사."},
+      {"date":"2018.06.04","title":"붉은악마, 러시아서 '소수 정예'로 태극전사 응원","link":"https://imnews.imbc.com/news/2018/sports/article/4633034_30825.html","analysis":"러시아 현지 원정응원단 규모와 운영 방식을 소개. 응원 문화와 현장 분위기를 담은 월드컵 주변 기사."},
+      {"date":"2018.06.15","title":"월드컵 개막…개최국 러시아, 사우디에 5:0 대승","link":"https://imnews.imbc.com/replay/2018/nwtoday/article/4650232_30187.html","analysis":"개막식 연출, 개막전 결과, 개최국 완승까지 요약. 본선 분위기와 대회 출발점을 보여주는 개막 리포트."}
+    ],
+    "SBS": [
+      {"date":"2018.03.31","title":"신태용호 월드컵 출정식 평가전 '대구-전주' 개최 추진","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1004692286","analysis":"개막 약 75일 전 시점의 준비 기사. 국내 평가전과 출정식 장소, 재소집 일정 등 월드컵 준비 로드맵을 설명."},
+      {"date":"2018.05.16","title":"월드컵채널 SBS, '배성재x박지성' 콤비로 정상 수성한다","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1004760615","analysis":"SBS의 러시아 월드컵 중계 전략과 해설진 구성 소개. 월드컵 특집 편성과 방송 포인트를 다룬 기사."},
+      {"date":"2018.06.02","title":"신태용호 최종명단 확정…김진수·이청용·권경원 제외","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1004785325","analysis":"월드컵 최종 23인 확정 기사. 낙마 선수와 오스트리아 사전캠프 출국 계획까지 정리."},
+      {"date":"2018.06.15","title":"2018 러시아 월드컵 개막…32일간의 축구 대장정 돌입","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1004803293","analysis":"러시아 월드컵 개막식과 개최국 개막전, 한국의 F조 일정과 전체 대회 구조를 정리한 개막 뉴스."}
+    ]
+  },
+  "2014": {
+    "KBS": [
+      {"date":"2014.03.02","title":"[월드컵 D-100 ①] 사상 첫 원정 8강 도전 ‘앞으로 100일’","link":"https://news.kbs.co.kr/news/view.do?ncd=2818619","analysis":"브라질 월드컵 개막 D-100 기획 기사. 대회 개요, 개최 의미, 한국 대표팀 목표를 종합적으로 짚음."},
+      {"date":"2014.04.29","title":"홍명보호, 브라질월드컵 유니폼 색깔 확정","link":"https://news.kbs.co.kr/news/view.do?ncd=2854955","analysis":"조별리그 3경기 유니폼 컬러 확정 소식. 러시아·알제리·벨기에전 착장 계획과 상징성을 정리."},
+      {"date":"2014.05.06","title":"무릎 부상 기성용, 조기 귀국 ‘재활 전념’","link":"https://news.kbs.co.kr/news/mobile/view/view.do?ncd=2858181","analysis":"기성용의 부상 회복 상황과 귀국 소식을 다뤄 월드컵 직전 대표팀 전력 변수에 주목한 기사."},
+      {"date":"2014.06.18","title":"‘러시아전 승리 기원’ 서울 벌써 붉은물결","link":"https://news.kbs.co.kr/news/view.do?ncd=2877705","analysis":"러시아와의 조별리그 1차전을 앞두고 광화문 등 거리응원 분위기를 전한 현장성 기사."}
+    ],
+    "MBC": [
+      {"date":"2014.03.05","title":"월드컵 D-100, 다시 뭉친 '붉은 악마'…응원 출정식 개최","link":"https://imnews.imbc.com/replay/2014/nwdesk/article/3425450_30324.html","analysis":"브라질 월드컵 개막 D-100 뉴스데스크 리포트. 붉은악마 출정식과 원정응원 준비 상황을 다룸."},
+      {"date":"2014.04.29","title":"홍명보호 월드컵 유니폼 색깔 확정…알제리전서 붉은색 착용","link":"https://imnews.imbc.com/replay/2014/nwdesk/article/3455765_30324.html","analysis":"조별리그 유니폼 색상 확정 보도. 전통의 붉은색 유니폼이 알제리전에만 배정된 배경을 설명."},
+      {"date":"2014.06.18","title":"홍명보호 비주전 이근호의 확실한 한방…\"상상이 현실 됐다\"","link":"https://imnews.imbc.com/replay/2014/nwdesk/article/3481849_30324.html","analysis":"러시아전 직후 뉴스데스크 후속 리포트. 이근호의 교체 투입과 선제골의 의미를 짚음."},
+      {"date":"2014.06.18","title":"확 달라진 경기력…본선 '환골탈태' 마이애미 효과 톡톡","link":"https://imnews.imbc.com/replay/2014/nwdesk/article/3481847_30324.html","analysis":"러시아전 경기력 개선 배경을 분석. 마이애미 전훈과 컨디션 조절 효과를 중심으로 풀어낸 경기 분석 기사."}
+    ],
+    "SBS": [
+      {"date":"2014.04.03","title":"에일리, 월드컵 공식 응원가 '투혼가' 불러 관심 집중","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1002326690","analysis":"브라질 월드컵 응원 콘텐츠와 붉은악마 공식 응원가를 소개. D-100 이후 응원 문화 확산 흐름을 보여줌."},
+      {"date":"2014.05.14","title":"월드컵 채널 SBS, 차범근-배성재 출격 준비 완료","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1002389581","analysis":"브라질 월드컵을 앞둔 SBS 중계진과 현지 방송단 준비 상황을 설명한 방송사 자체 기사."},
+      {"date":"2014.06.05","title":"알제리의 간판스타 페굴리 \"월드컵에서 역사 만들 것\"","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1002425724","analysis":"한국과 같은 H조 알제리 핵심 선수 인터뷰를 소개하며 상대 전력을 짚은 스포츠 기사."},
+      {"date":"2014.06.13","title":"[영상] 자연과 인간, 축구의 향연 '2014 브라질 월드컵' 개막식","link":"https://news.sbs.co.kr/news/endPage.do?news_id=N1002436638","analysis":"개막식 핵심 장면과 공식 주제가 공연, 브라질 월드컵 본격 개막 분위기를 담은 영상 기사."}
+    ]
+  }
   };
+  Object.entries(newsData).forEach(([year,broadcasters])=>{
+    Object.values(broadcasters).forEach(entries=>{
+      entries.forEach(entry=>{
+        entry.date=normalizeNewsDate(entry.date, year);
+      });
+    });
+  });
   return newsData;
 }
 
@@ -415,12 +550,14 @@ const scheduleStadiumAliases = [
 ];
 
 const PAGE_SIZE = 8;
-const timelineRows = [
+const teamTimelineRows = [
   {label:'대한민국',type:'team'},
   {label:'멕시코',type:'team'},
   {label:'남아공',type:'team'},
-  {label:'체코',type:'team'},
-  {label:'담당자',type:'section'},
+  {label:'체코',type:'team'}
+];
+const personalTimelineRows = [
+  {label:'영상취재팀 공동',type:'person'},
   {label:'박재현',type:'person'},
   {label:'장후원',type:'person'},
   {label:'정상원',type:'person'},
@@ -428,11 +565,18 @@ const timelineRows = [
   {label:'김진광',type:'person'},
   {label:'정재우',type:'person'}
 ];
+const timelineViews = {
+  personal:{title:'개인일정 타임라인', rows:personalTimelineRows}
+};
+const timelineRows = [...teamTimelineRows, ...personalTimelineRows];
 const timelineEditableRows = timelineRows.filter(row=>row.type!=='section');
 const timelineEditableLabels = timelineEditableRows.map(row=>row.label);
-const TIMELINE_STORAGE_KEY = 'worldcup-guide-timeline-assignments-v1';
+const TIMELINE_STORAGE_KEY = 'worldcup-guide-timeline-assignments-v2';
+const LEGACY_TIMELINE_STORAGE_KEYS = ['worldcup-guide-timeline-assignments-v1'];
+const TIMELINE_WINDOW_NAME_KEY = '__worldcupGuideTimelineAssignments__';
 let currentNewsYear = '';
 let currentMexicoStadiumKey = '';
+let currentTimelineView = 'personal';
 let isTimelinePainting = false;
 let timelineSelectionPerson = '';
 let timelineSelectionStartIndex = -1;
@@ -444,6 +588,7 @@ let hasLoadedTimelineSavedAssignments = false;
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
+let personalTimelineStickyMonthCleanup = null;
 const timelineOfficialTeamSchedules = {
   대한민국:[
     {date:'2026-06-12',label:'vs 체코/덴마크 · 11:00 · Estadio Guadalajara'},
@@ -475,11 +620,64 @@ function seedTimelineTeamSchedules(){
     });
   });
 }
+function getTimelineStorageAreas(){
+  if(typeof window==='undefined') return [];
+  const storages=[window.localStorage, window.sessionStorage];
+  return storages.filter(storage=>{
+    try{
+      const probeKey='__timeline_storage_probe__';
+      storage.setItem(probeKey,'1');
+      storage.removeItem(probeKey);
+      return true;
+    }catch(error){
+      return false;
+    }
+  });
+}
+function readTimelineAssignmentsRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const preferredRaw=storage.getItem(TIMELINE_STORAGE_KEY);
+    if(preferredRaw) return preferredRaw;
+    for(const legacyKey of LEGACY_TIMELINE_STORAGE_KEYS){
+      const legacyRaw=storage.getItem(legacyKey);
+      if(legacyRaw) return legacyRaw;
+    }
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[TIMELINE_WINDOW_NAME_KEY]==='string' ? payload[TIMELINE_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writeTimelineAssignmentsRaw(raw){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>{
+    storage.setItem(TIMELINE_STORAGE_KEY, raw);
+    LEGACY_TIMELINE_STORAGE_KEYS.forEach(legacyKey=>storage.removeItem(legacyKey));
+  });
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[TIMELINE_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
 function loadSavedTimelineAssignments(){
   if(hasLoadedTimelineSavedAssignments) return;
   hasLoadedTimelineSavedAssignments = true;
-  if(typeof window==='undefined'||!window.localStorage) return;
-  const raw=window.localStorage.getItem(TIMELINE_STORAGE_KEY);
+  const raw=readTimelineAssignmentsRaw();
   if(!raw) return;
   try{
     const savedAssignments=JSON.parse(raw);
@@ -496,14 +694,14 @@ function loadSavedTimelineAssignments(){
         }
       });
     });
+    writeTimelineAssignmentsRaw(JSON.stringify(Object.fromEntries(timelineEditableLabels.map(label=>[label, Object.fromEntries(timelineAssignments[label].entries())]))));
   }catch(error){
     console.warn('Failed to load saved timeline assignments.', error);
   }
 }
 function saveTimelineAssignments(){
-  if(typeof window==='undefined'||!window.localStorage) return;
   const payload=Object.fromEntries(timelineEditableLabels.map(label=>[label, Object.fromEntries(timelineAssignments[label].entries())]));
-  window.localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(payload));
+  writeTimelineAssignmentsRaw(JSON.stringify(payload));
 }
 function ensureTimelineDataReady(){
   if(!hasSeededTimelineTeamSchedules){
@@ -611,6 +809,87 @@ function getTimelineLabelWithRange(person, index, label){
 function getTimelineCellTitle(person, date, index, dateKey){
   const label=getTimelineLabel(person, dateKey);
   return label ? `${person} · ${getTimelineLabelWithRange(person, index, label)}` : `${person} · ${formatTimelineDate(date)}`;
+}
+function getTimelineCountdownLabel(date){
+  const dateKey=formatTimelineKey(date);
+  const kickoffKey='2026-06-12';
+  const currentUtc=Date.parse(`${dateKey}T00:00:00Z`);
+  const kickoffUtc=Date.parse(`${kickoffKey}T00:00:00Z`);
+  const diffDays=Math.round((kickoffUtc-currentUtc)/86400000);
+  if(diffDays>0) return `D-${diffDays}`;
+  if(diffDays===0) return 'D-DAY';
+  return `D+${Math.abs(diffDays)}`;
+}
+function renderPersonalTimelineHoverPanel(){
+  const personalNames=['박재현','장후원','정상원','이주원','김진광','정재우'];
+  return `<div class="personal-timeline-hover-panel"><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">공용일정</span><div class="personal-timeline-hover-chip">영상취재팀 공동</div></div><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">개별일정</span><div class="personal-timeline-hover-grid">${personalNames.map(name=>`<div class="personal-timeline-hover-cell">${name}</div>`).join('')}</div></div></div>`;
+}
+function renderPersonalTimelineItem(date, index, rows){
+  const dateKey=formatTimelineKey(date);
+  const countdownLabel=getTimelineCountdownLabel(date);
+  const monthLabel=date.getDate()===1 ? `${date.getMonth()+1}월` : '';
+  const assignments=rows.map(row=>({label:row.label,value:getTimelineLabel(row.label, dateKey)})).filter(item=>item.value);
+  const entriesHtml=assignments.length
+    ? assignments.map(item=>`<div class="personal-timeline-entry"><span class="personal-timeline-entry-name">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('')
+    : `<div class="personal-timeline-empty-shell">${renderPersonalTimelineHoverPanel()}</div>`;
+  return `<article class="personal-timeline-item ${assignments.length?'has-entry':'is-empty'}" data-month="${date.getMonth()+1}"><div class="personal-timeline-rail">${monthLabel?`<span class="personal-timeline-month">${monthLabel}</span>`:''}<span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday">${countdownLabel}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+}
+function setupPersonalTimelineStickyMonth(detailCol){
+  if(personalTimelineStickyMonthCleanup){
+    personalTimelineStickyMonthCleanup();
+    personalTimelineStickyMonthCleanup=null;
+  }
+  const stickyEl=detailCol.querySelector('.personal-timeline-month-sticky');
+  const list=detailCol.querySelector('.personal-timeline-list');
+  if(!stickyEl||!list) return;
+  const updateStickyMonth=()=>{
+    const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+    if(!items.length) return;
+    const stickyTop=stickyEl.getBoundingClientRect().bottom + 12;
+    let activeItem=items[0];
+    items.forEach(item=>{
+      if(item.getBoundingClientRect().top<=stickyTop){
+        activeItem=item;
+      }
+    });
+    const month=activeItem.dataset.month||'';
+    stickyEl.textContent=month?`${month}월`:'';
+  };
+  window.addEventListener('scroll', updateStickyMonth, {passive:true});
+  window.addEventListener('resize', updateStickyMonth);
+  updateStickyMonth();
+  personalTimelineStickyMonthCleanup=()=>{
+    window.removeEventListener('scroll', updateStickyMonth);
+    window.removeEventListener('resize', updateStickyMonth);
+  };
+}
+function renderPersonalTimelineSchedule(view){
+  const dates=getTimelineDates();
+  const detailCol=document.getElementById('detailCol');
+  const detailTable=document.getElementById('detailTable');
+  detailCol.classList.add('timeline-mode','personal-timeline-mode');
+  document.getElementById('detailTitle').textContent=view.title;
+  document.getElementById('detailSubtitle').textContent='';
+  detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
+  detailTable.className='data-table hidden';
+  detailTable.innerHTML='';
+  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-month-sticky"></div><div class="personal-timeline-list">${dates.map((date,index)=>renderPersonalTimelineItem(date, index, view.rows)).join('')}</div>`);
+  const list=detailCol.querySelector('.personal-timeline-list');
+  if(list){
+    list.onclick=event=>{
+      const item=event.target.closest('.personal-timeline-item.is-empty');
+      if(!item||!list.contains(item)) return;
+      const wasOpen=item.classList.contains('is-open');
+      list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+      if(!wasOpen) item.classList.add('is-open');
+    };
+  }
+  detailCol.onclick=event=>{
+    if(event.target.closest('.personal-timeline-list')) return;
+    detailCol.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+  };
+  setupPersonalTimelineStickyMonth(detailCol);
+  document.getElementById('detailCol').classList.remove('hidden');
 }
 function renderTimelineHeaderCell(date){
   const classes=getTimelineDayClasses(date);
@@ -769,7 +1048,7 @@ function writeTimelineSelection(value){
   });
   saveTimelineAssignments();
   closeTimelineModal();
-  renderTimelineSchedule();
+  renderTimelineSchedule(currentTimelineView);
   restoreTimelineScrollState(scrollState);
 }
 function saveTimelineSelection(){
@@ -808,11 +1087,65 @@ function kstToLocal(date,timeStr){
     time:`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
   };
 }
+function getKstDateParts(date=new Date()){
+  const formatter=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Asia/Seoul',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit'
+  });
+  const parts=formatter.formatToParts(date);
+  return {
+    year:Number(parts.find(part=>part.type==='year')?.value),
+    month:Number(parts.find(part=>part.type==='month')?.value),
+    day:Number(parts.find(part=>part.type==='day')?.value)
+  };
+}
+function toUtcFromKstDateParts(year, month, day){
+  return Date.UTC(year, month-1, day, -9, 0, 0, 0);
+}
+function getWorldCupCountdownText(){
+  const today=getKstDateParts();
+  const todayUtc=toUtcFromKstDateParts(today.year, today.month, today.day);
+  const kickoffUtc=toUtcFromKstDateParts(2026, 6, 12);
+  const diffDays=Math.round((kickoffUtc-todayUtc)/86400000);
+  if(diffDays>0) return `월드컵 개막 D-${diffDays}`;
+  if(diffDays===0) return '월드컵 개막 D-DAY';
+  return `월드컵 개막 D+${Math.abs(diffDays)}`;
+}
+function updateHeaderCountdown(){
+  const countdownEl=document.getElementById('headerCountdown');
+  if(!countdownEl) return;
+  const rawValue=getWorldCupCountdownText().replace('월드컵 개막 ','');
+  const prefixEl=countdownEl.querySelector('.header-countdown-prefix');
+  const numberEl=countdownEl.querySelector('.header-countdown-number');
+  if(prefixEl&&numberEl){
+    if(rawValue==='D-DAY'){
+      prefixEl.textContent='D-';
+      numberEl.textContent='DAY';
+    }else if(rawValue.startsWith('D+')){
+      prefixEl.textContent='D+';
+      numberEl.textContent=rawValue.slice(2);
+    }else if(rawValue.startsWith('D-')){
+      prefixEl.textContent='D-';
+      numberEl.textContent=rawValue.slice(2);
+    }else{
+      prefixEl.textContent='';
+      numberEl.textContent=rawValue;
+    }
+    return;
+  }
+  countdownEl.textContent=getWorldCupCountdownText();
+}
 function hideAllPanels(){['newsCol','newsBroadcasterCol','bracketStageCol','groupCol','groupASquadCol','equipmentUserCol','mexicoStadiumCol','mexicoStadiumSectionCol','detailCol'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
-function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','timelineMenu','mexicoStadiumMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
+function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','personalTimelineMenu','mexicoStadiumMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
 function clearDetailExtras(){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
+  if(personalTimelineStickyMonthCleanup){
+    personalTimelineStickyMonthCleanup();
+    personalTimelineStickyMonthCleanup=null;
+  }
   cancelTimelineSelection();
   closeTimelineModal();
   hideTimelineTooltip();
@@ -861,14 +1194,14 @@ function toggleEquipment(){
     renderEquipment();
   }
 }
-function toggleTimeline(){
+function togglePersonalTimeline(){
   const detailCol=document.getElementById('detailCol');
-  const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('timelineMenu').classList.contains('active');
+  const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('personalTimelineMenu').classList.contains('active');
   hideAllPanels();
   clearAllActive();
   if(willOpen){
-    document.getElementById('timelineMenu').classList.add('active');
-    renderTimelineSchedule();
+    document.getElementById('personalTimelineMenu').classList.add('active');
+    renderTimelineSchedule('personal');
   }
 }
 function toggleMexicoStadium(){
@@ -972,12 +1305,32 @@ function renderSquadPlayerCell(player){
   return `<div class="player-cell"><span class="player-photo-shell" data-player-name="${player.name}"><span class="photo-placeholder">공식 프로필</span></span><span class="player-name-text">${player.name}</span></div>`;
 }
 
+async function fetchWikipediaPlayerPhoto(name){
+  const title=getPlayerPhotoTitles()[name];
+  if(!title||typeof fetch!=='function') return null;
+  try{
+    const response=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,{
+      headers:{Accept:'application/json'}
+    });
+    if(!response.ok) return null;
+    const data=await response.json();
+    return data?.thumbnail?.source||null;
+  }catch(error){
+    return null;
+  }
+}
+
 async function fetchPlayerPhoto(name){
   if(Object.prototype.hasOwnProperty.call(playerPhotoCache,name)) return playerPhotoCache[name];
   const officialUrl=getPlayerPhotoSources()[name];
   if(officialUrl){
     playerPhotoCache[name]=officialUrl;
     return officialUrl;
+  }
+  const fallbackUrl=await fetchWikipediaPlayerPhoto(name);
+  if(fallbackUrl){
+    playerPhotoCache[name]=fallbackUrl;
+    return fallbackUrl;
   }
   playerPhotoCache[name]=null;
   return playerPhotoCache[name];
@@ -1068,20 +1421,26 @@ function showEquipmentPersonal(user, el){
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
-function renderTimelineSchedule(){
+function renderTimelineSchedule(viewKey='personal'){
   ensureTimelineDataReady();
+  currentTimelineView=viewKey;
+  const view=timelineViews[viewKey]||timelineViews.personal;
   const dates=getTimelineDates();
   clearDetailExtras();
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
+  if(viewKey==='personal'){
+    renderPersonalTimelineSchedule(view);
+    return;
+  }
   if(!renderCache.timelineHeader){
     const monthCells=getTimelineMonthGroups().map(group=>`<th class="timeline-month-header" colspan="${group.span}">${group.label}</th>`).join('');
     const headerCells=dates.map(renderTimelineHeaderCell).join('');
     renderCache.timelineHeader=`<thead><tr><th class="timeline-corner-header" rowspan="2">타임라인</th>${monthCells}</tr><tr>${headerCells}</tr></thead>`;
   }
-  const bodyRows=timelineRows.map(renderTimelineRow).join('');
+  const bodyRows=view.rows.map(renderTimelineRow).join('');
   detailCol.classList.add('timeline-mode');
-  document.getElementById('detailTitle').textContent='일정 타임라인';
+  document.getElementById('detailTitle').textContent=view.title;
   document.getElementById('detailSubtitle').textContent='';
   detailTable.parentElement.classList.add('timeline-card');
   detailTable.className='data-table timeline-table';
@@ -1159,7 +1518,6 @@ function showMexicoStadium(key, el){
   if(el) el.classList.add('active');
   currentMexicoStadiumKey=key;
   clearDetailExtras();
-  document.getElementById('mexicoStadiumSectionLabel').textContent='세부 항목';
   document.getElementById('mexicoStadiumSectionCol').classList.remove('hidden');
   renderMexicoStadiumDetail(stadium);
 }
@@ -1174,22 +1532,28 @@ function showMexicoStadiumSection(sectionKey, el){
 }
 
 function runTests(){
+  updateHeaderCountdown();
   ensureTimelineDataReady();
   const dates=getTimelineDates();
   const photoSources=getPlayerPhotoSources();
   const photoTitles=getPlayerPhotoTitles();
   const importedNewsData=getNewsData();
+  const headerPrefix=document.querySelector('#headerCountdown .header-countdown-prefix')?.textContent||'';
+  const headerNumber=document.querySelector('#headerCountdown .header-countdown-number')?.textContent||'';
+  const headerCountdownText=`${headerPrefix}${headerNumber}`;
+  console.assert(headerCountdownText.startsWith('D-')||headerCountdownText==='D-DAY'||headerCountdownText.startsWith('D+'),'Header countdown should render');
   console.assert(typeof toggleMain==='function','toggleMain should be defined');
   console.assert(typeof toggleBracket==='function','toggleBracket should be defined');
   console.assert(typeof toggleGroupASquads==='function','toggleGroupASquads should be defined');
   console.assert(typeof showGroupASquad==='function','showGroupASquad should be defined');
   console.assert(typeof toggleEquipment==='function','toggleEquipment should be defined');
-  console.assert(typeof toggleTimeline==='function','toggleTimeline should be defined');
+  console.assert(typeof togglePersonalTimeline==='function','togglePersonalTimeline should be defined');
   console.assert(typeof saveTimelineSelection==='function','saveTimelineSelection should be defined');
   console.assert(typeof clearTimelineSelectionEntries==='function','clearTimelineSelectionEntries should be defined');
-  console.assert(Array.isArray(timelineRows)&&timelineRows.length===11,'Timeline rows should exist');
+  console.assert(Array.isArray(timelineRows)&&timelineRows.length===10,'Timeline rows should exist');
   console.assert(Array.isArray(timelineEditableRows)&&timelineEditableRows.length===10,'Editable timeline rows should exist');
-  console.assert(timelineRows[0].label==='대한민국'&&timelineRows[4].label==='담당자','Timeline row ordering should exist');
+  console.assert(teamTimelineRows[0].label==='대한민국'&&teamTimelineRows[3].label==='체코','Team timeline row ordering should exist');
+  console.assert(personalTimelineRows[0].label==='영상취재팀 공동'&&personalTimelineRows[6].label==='정재우','Personal timeline row ordering should exist');
   console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코/덴마크'),'Korea official timeline should include opponent');
   console.assert(timelineOfficialTeamSchedules['멕시코'][1].label.includes('vs 대한민국'),'Mexico official timeline should include opponent');
   console.assert(timelineOfficialTeamSchedules['남아공'][2].label.includes('Estadio Monterrey'),'South Africa official timeline should include venue');
@@ -1233,13 +1597,10 @@ function runTests(){
   console.assert(document.getElementById('detailTitle').textContent==='공용장비 현황','Equipment panel should render');
   showEquipmentPersonal('박재현', document.querySelector('#equipmentUserCol .item'));
   console.assert(document.getElementById('detailTitle').textContent==='박재현 개인장비','Equipment personal detail should render');
-  toggleTimeline();
-  console.assert(document.getElementById('detailTitle').textContent==='일정 타임라인','Timeline detail should render');
-  console.assert(document.getElementById('detailTable').classList.contains('timeline-table'),'Timeline table class should render');
-  console.assert(document.querySelectorAll('.timeline-table tbody tr').length===timelineRows.length,'Timeline rows should render');
-  console.assert(document.querySelector('.timeline-corner-header')?.textContent==='타임라인','Timeline corner title should render');
-  console.assert(document.querySelectorAll('.timeline-day-cell').length===timelineEditableRows.length*dates.length,'Timeline editable cells should render');
-  console.assert(document.querySelector('.timeline-day-cell')?.dataset.index==='0','Timeline cells should have day indexes');
+  togglePersonalTimeline();
+  console.assert(document.getElementById('detailTitle').textContent==='개인일정 타임라인','Personal timeline detail should render');
+  console.assert(document.querySelectorAll('.personal-timeline-item').length===dates.length,'Personal timeline items should render');
+  console.assert(document.querySelector('.personal-timeline-dot')!==null,'Personal timeline daily dots should render');
   toggleMexicoStadium();
   console.assert(!document.getElementById('mexicoStadiumCol').classList.contains('hidden'),'Mexico stadium panel should open');
   showMexicoStadium('akron', document.querySelector('#mexicoStadiumCol .item'));
@@ -1252,3 +1613,5 @@ function runTests(){
   console.assert(document.querySelector('.stadium-slot')!==null,'Mexico stadium subfolder should render image slot');
   console.assert(renderScheduleStadiumMedia('MetLife Stadium (New York/New Jersey)').includes('schedule-stadium-photo'),'Schedule stadium media should render for mapped stadium');
 }
+
+updateHeaderCountdown();
