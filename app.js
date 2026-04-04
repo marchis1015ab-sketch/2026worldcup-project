@@ -543,8 +543,10 @@ const scheduleStadiumMedia = {
 };
 const scheduleStadiumAliases = [
   ['estadio azteca','azteca'],
+  ['에스타디오 아즈테카','azteca'],
   ['mexico city stadium','azteca'],
   ['estadio akron','akron'],
+  ['에스타디오 과달라하라','akron'],
   ['guadalajara stadium','akron'],
   ['hard rock stadium','hardRock'],
   ['miami stadium','hardRock'],
@@ -573,6 +575,7 @@ const scheduleStadiumAliases = [
   ['arrowhead stadium','arrowhead'],
   ['kansas city stadium','arrowhead'],
   ['estadio bbva','bbva'],
+  ['에스타디오 몬테레이','bbva'],
   ['monterrey stadium','bbva']
 ];
 
@@ -621,6 +624,33 @@ const personalTimelineTaskReportLabels = {
   외곽취재:'외곽 취재',
   라이브연결:'라이브 연결'
 };
+const headerClockModes = {
+  venue:'venue',
+  device:'device'
+};
+const scheduleStadiumTimeZones = {
+  azteca:'America/Mexico_City',
+  akron:'America/Mexico_City',
+  bbva:'America/Monterrey',
+  hardRock:'America/New_York',
+  mercedesBenz:'America/New_York',
+  bmo:'America/Toronto',
+  levis:'America/Los_Angeles',
+  bcPlace:'America/Vancouver',
+  metlife:'America/New_York',
+  gillette:'America/New_York',
+  lincolnFinancial:'America/New_York',
+  sofi:'America/Los_Angeles',
+  att:'America/Chicago',
+  nrg:'America/Chicago',
+  lumen:'America/Los_Angeles',
+  arrowhead:'America/Chicago'
+};
+const headerLocalClockState = {
+  mode:headerClockModes.venue,
+  place:'에스타디오 과달라하라',
+  fallbackTimeZone:'America/Mexico_City'
+};
 let currentNewsYear = '';
 let currentMexicoStadiumKey = '';
 let currentTimelineView = 'personal';
@@ -637,6 +667,7 @@ let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
 let personalTimelineStickyMonthCleanup = null;
+let headerTimeTimerId = null;
 const personalTimelineDetailSelections = Object.create(null);
 const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
 const timelineOfficialTeamSchedules = {
@@ -845,14 +876,19 @@ function loadPersonalTimelineDetailSelections(){
       const sanitizedPeople=Object.create(null);
       Object.entries(people).forEach(([name, fields])=>{
         if(!fields||typeof fields!=='object') return;
-        const sanitizedFields=Object.create(null);
-        personalTimelineDetailFields.forEach(field=>{
-          if(typeof fields[field]!=='string') return;
-          const text=fields[field].trim();
-          if(text) sanitizedFields[field]=text;
-        });
-        if(Object.keys(sanitizedFields).length){
-          sanitizedPeople[name]=sanitizedFields;
+        const entries=Array.isArray(fields) ? fields : [fields];
+        const sanitizedEntries=entries.map(entry=>{
+          if(!entry||typeof entry!=='object') return null;
+          const sanitizedFields=Object.create(null);
+          personalTimelineDetailFields.forEach(field=>{
+            if(typeof entry[field]!=='string') return;
+            const text=entry[field].trim();
+            if(text) sanitizedFields[field]=text;
+          });
+          return Object.keys(sanitizedFields).length ? sanitizedFields : null;
+        }).filter(Boolean);
+        if(sanitizedEntries.length){
+          sanitizedPeople[name]=sanitizedEntries;
         }
       });
       if(Object.keys(sanitizedPeople).length){
@@ -869,7 +905,35 @@ function savePersonalTimelineDetailSelections(){
 }
 function getPersonalTimelineDetailSelection(dateKey, name){
   loadPersonalTimelineDetailSelections();
-  return personalTimelineDetailSelections[dateKey]?.[name]||null;
+  const entries=personalTimelineDetailSelections[dateKey]?.[name];
+  return Array.isArray(entries)&&entries.length ? entries[entries.length-1] : null;
+}
+function getPersonalTimelineDetailEntries(dateKey, name){
+  loadPersonalTimelineDetailSelections();
+  const entries=personalTimelineDetailSelections[dateKey]?.[name];
+  return Array.isArray(entries) ? entries : [];
+}
+function formatPersonalTimelineTimeLabel(localTime=''){
+  const raw=String(localTime||'').trim();
+  const match=raw.match(/^(\d{2}):(\d{2})$/);
+  if(!match) return raw;
+  const hour=Number(match[1]);
+  const minute=match[2];
+  const koreaHourTotal=hour+15;
+  const koreaDayOffset=Math.floor(koreaHourTotal/24);
+  const koreaHour=String(koreaHourTotal%24).padStart(2,'0');
+  const koreaSuffix=koreaDayOffset>0 ? `(+${koreaDayOffset}일)` : '';
+  return `현지 ${raw} / 한국 ${koreaHour}:${minute}${koreaSuffix}`;
+}
+function getPersonalTimelineTimeSortValue(localTime=''){
+  const raw=String(localTime||'').trim();
+  const match=raw.match(/^(\d{2}):(\d{2})$/);
+  if(!match) return Number.MAX_SAFE_INTEGER;
+  return Number(match[1])*60+Number(match[2]);
+}
+function getPersonalTimelineOptionLabel(field, option){
+  if(field==='시간') return formatPersonalTimelineTimeLabel(option);
+  return option;
 }
 function getPersonalTimelineTaskReportLabel(task){
   return personalTimelineTaskReportLabels[task]||task;
@@ -879,20 +943,26 @@ function buildPersonalTimelineReportText(name, detail){
   const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
   if(values.some(value=>!value)) return '';
   const reporter=detail.취재기자.endsWith('기자') ? detail.취재기자 : `${detail.취재기자} 기자`;
-  return `${name}기자 ${detail.시간}부터 ${detail.장소}에서 ${reporter}와 티비유 ${detail.TVU}으로 ${getPersonalTimelineTaskReportLabel(detail.업무내용)} 진행`;
+  return `${name}기자 ${formatPersonalTimelineTimeLabel(detail.시간)}부터 ${detail.장소}에서 ${reporter}와 티비유 ${detail.TVU}으로 ${getPersonalTimelineTaskReportLabel(detail.업무내용)} 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
-  return personalTimelineMemberNames.map(name=>{
-    const detail=getPersonalTimelineDetailSelection(dateKey, name);
-    const text=buildPersonalTimelineReportText(name, detail);
-    return text ? {name, dateKey, text} : null;
-  }).filter(Boolean);
+  return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
+    name,
+    dateKey,
+    entryIndex,
+    timeSort:getPersonalTimelineTimeSortValue(detail.시간),
+    text:buildPersonalTimelineReportText(name, detail)
+  }))).filter(item=>item.text).sort((a,b)=>{
+    if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
+    if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
+    return a.entryIndex-b.entryIndex;
+  });
 }
 function getAllPersonalTimelineGeneratedReports(){
   loadPersonalTimelineDetailSelections();
   return Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
     const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
-    return items.map(item=>({...item, sortOrder:personalTimelineMemberNames.indexOf(item.name)}));
+    return items.map((item, index)=>({...item, sortOrder:index}));
   }).sort((a,b)=>{
     if(a.dateKey!==b.dateKey) return a.dateKey.localeCompare(b.dateKey);
     return a.sortOrder-b.sortOrder;
@@ -900,23 +970,86 @@ function getAllPersonalTimelineGeneratedReports(){
 }
 function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   if(!dateKey||!name||!personalTimelineDetailFields.includes(field)) return;
-  loadPersonalTimelineDetailSelections();
+  const nextValues={...(getPersonalTimelineDetailSelection(dateKey, name)||{})};
   const text=String(value||'').trim();
-  const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
-  const personSelections=dateSelections[name]||(dateSelections[name]=Object.create(null));
   if(text){
-    personSelections[field]=text;
+    nextValues[field]=text;
   }else{
-    delete personSelections[field];
+    delete nextValues[field];
   }
-  if(!Object.keys(personSelections).length){
-    delete dateSelections[name];
-  }
-  if(!Object.keys(dateSelections).length){
-    delete personalTimelineDetailSelections[dateKey];
+  savePersonalTimelineDetailSelectionBatch(dateKey, name, nextValues);
+}
+function renderPersonalTimelineSummaryBoard(dateKey){
+  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const lines=items.map(item=>`<p class="personal-timeline-summary-line">${escapeHtml(item.text)}</p>`).join('');
+  return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
+}
+function updatePersonalTimelineSummaryBoard(item, dateKey){
+  if(!item||!dateKey) return;
+  const board=item.querySelector('.personal-timeline-summary-board');
+  if(!board) return;
+  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  board.innerHTML=items.map(entry=>`<p class="personal-timeline-summary-line">${escapeHtml(entry.text)}</p>`).join('');
+  board.classList.toggle('is-empty', items.length===0);
+}
+function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
+  if(!dateKey||!name) return;
+  loadPersonalTimelineDetailSelections();
+  const normalized=Object.create(null);
+  personalTimelineDetailFields.forEach(field=>{
+    const text=String(detailValues?.[field]||'').trim();
+    if(text) normalized[field]=text;
+  });
+  if(Object.keys(normalized).length){
+    const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
+    const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
+    const lastEntry=entries[entries.length-1]||null;
+    const isSameAsLast=lastEntry&&personalTimelineDetailFields.every(field=>String(lastEntry[field]||'').trim()===String(normalized[field]||'').trim());
+    if(!isSameAsLast){
+      dateSelections[name]=[...entries, normalized];
+    }
+  }else if(personalTimelineDetailSelections[dateKey]){
+    delete personalTimelineDetailSelections[dateKey][name];
+    if(!Object.keys(personalTimelineDetailSelections[dateKey]).length){
+      delete personalTimelineDetailSelections[dateKey];
+    }
   }
   savePersonalTimelineDetailSelections();
   updateHeaderReportBoard();
+}
+function collectPersonalTimelineRowValues(row){
+  const values=Object.create(null);
+  if(!row) return values;
+  row.querySelectorAll('.personal-timeline-detail-select').forEach(select=>{
+    const field=select.dataset.field||'';
+    if(field) values[field]=select.value||'';
+  });
+  return values;
+}
+function setPersonalTimelineRowDirty(row, isDirty){
+  if(!row) return;
+  row.classList.toggle('is-dirty', Boolean(isDirty));
+  const button=row.querySelector('.personal-timeline-save-btn');
+  if(button&&!button.disabled){
+    button.classList.toggle('is-dirty', Boolean(isDirty));
+  }
+}
+function savePersonalTimelinePersonRow(row){
+  if(!row) return;
+  const button=row.querySelector('.personal-timeline-save-btn');
+  const dateKey=button?.dataset.dateKey||'';
+  const personName=button?.dataset.person||'';
+  if(!dateKey||!personName) return;
+  savePersonalTimelineDetailSelectionBatch(dateKey, personName, collectPersonalTimelineRowValues(row));
+  setPersonalTimelineRowDirty(row, false);
+  const item=row.closest('.personal-timeline-item');
+  updatePersonalTimelineSummaryBoard(item, dateKey);
+  if(item){
+    const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
+    const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+    item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
+    item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
+  }
 }
 function formatHeaderReportBoardDate(dateKey){
   const [year, month, day]=dateKey.split('-').map(Number);
@@ -926,11 +1059,20 @@ function formatHeaderReportBoardDate(dateKey){
 function renderHeaderReportBoardItems(items){
   return items.map(item=>`<div class="header-report-board-item"><span class="header-report-board-date">${formatHeaderReportBoardDate(item.dateKey)}</span><span class="header-report-board-text">${escapeHtml(item.text)}</span></div>`).join('');
 }
-function renderHeaderReportBoardRow(items, {reverse=false, duration=28}={}){
-  if(!items.length) return '';
+function splitHeaderReportBoardItems(items, rowCount=6){
+  const rows=Array.from({length:rowCount},()=>[]);
+  items.forEach((item, index)=>{
+    rows[index%rowCount].push(item);
+  });
+  return rows;
+}
+function renderHeaderReportBoardRow(items, {duration=28, placeholder='대기 중'}={}){
+  if(!items.length){
+    return `<div class="header-report-board-row is-idle"><div class="header-report-board-empty">${placeholder}</div></div>`;
+  }
   const lineHtml=renderHeaderReportBoardItems(items);
-  const content=items.length>1 ? `${lineHtml}${lineHtml}` : lineHtml;
-  return `<div class="header-report-board-row${reverse?' is-reverse':''}" style="--report-board-duration:${duration}s"><div class="header-report-board-line">${content}</div></div>`;
+  const content=`${lineHtml}${lineHtml}`;
+  return `<div class="header-report-board-row" style="--report-board-duration:${duration}s"><div class="header-report-board-line">${content}</div></div>`;
 }
 function updateHeaderReportBoard(){
   loadPersonalTimelineDetailSelections();
@@ -938,19 +1080,13 @@ function updateHeaderReportBoard(){
   const track=document.getElementById('headerReportBoardTrack');
   if(!board||!track) return;
   const items=getAllPersonalTimelineGeneratedReports();
+  const rows=splitHeaderReportBoardItems(items, 6);
   board.classList.toggle('is-empty', items.length===0);
-  board.classList.toggle('is-animated', items.length>1);
-  if(!items.length){
-    track.innerHTML='<div class="header-report-board-empty">개인일정 업무 보고 문장이 아직 없습니다.</div>';
-    board.style.setProperty('--report-board-duration','0s');
-    return;
-  }
-  const rowAItems=items.filter((_, index)=>index%2===0);
-  const rowBItems=items.filter((_, index)=>index%2===1);
-  const rowAHtml=renderHeaderReportBoardRow(rowAItems, {duration:Math.max(18, rowAItems.length*8)});
-  const rowBHtml=rowBItems.length ? renderHeaderReportBoardRow(rowBItems, {reverse:true, duration:Math.max(18, rowBItems.length*8)}) : '';
-  track.innerHTML=`${rowAHtml}${rowBHtml}`;
-  board.style.setProperty('--report-board-duration',`${Math.max(18, items.length*8)}s`);
+  board.classList.toggle('is-animated', items.length>0);
+  track.innerHTML=rows.map((rowItems, index)=>renderHeaderReportBoardRow(rowItems, {
+    duration:Math.max(18, rowItems.length*8 + index*2),
+    placeholder:'업무 보고 대기 중'
+  })).join('');
 }
 function ensureTimelineDataReady(){
   if(!hasSeededTimelineTeamSchedules){
@@ -1091,7 +1227,7 @@ function renderPersonalTimelineEntries(entries, kind){
 }
 function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
   const placeholderSelected=!selectedValue ? ' selected' : '';
-  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${selectedValue===option?' selected':''}>${escapeHtml(option)}</option>`).join('');
+  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${selectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
   return `<option value=""${placeholderSelected}>${field}</option>${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
@@ -1106,10 +1242,10 @@ function renderPersonalTimelinePersonRow(name, dateKey){
   const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
   const disabledAttr=isPastTimelineDateKey(dateKey)?' disabled aria-disabled="true"':'';
   const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}"${disabledAttr}>${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
-  return `<div class="personal-timeline-person-row"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}</div></div>`;
+  return `<div class="personal-timeline-person-row"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}"${disabledAttr}>저장</button></div></div>`;
 }
 function renderPersonalTimelinePersonalColumn(dateKey){
-  return `<div class="personal-timeline-person-list">${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}</div>`;
+  return `<div class="personal-timeline-person-list">${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}${renderPersonalTimelineSummaryBoard(dateKey)}</div>`;
 }
 function renderPersonalTimelineItem(date, index, rows){
   const dateKey=formatTimelineKey(date);
@@ -1195,14 +1331,6 @@ function renderPersonalTimelineSchedule(view){
   detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
-    list.onclick=event=>{
-      const trigger=event.target.closest('.personal-timeline-rail');
-      const item=event.target.closest('.personal-timeline-item');
-      if(!trigger||!item||!list.contains(item)) return;
-      const wasOpen=item.classList.contains('is-open');
-      list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
-      if(!wasOpen) item.classList.add('is-open');
-    };
     list.onmouseover=event=>{
       const trigger=event.target.closest('.personal-timeline-rail');
       if(!trigger||!list.contains(trigger)) return;
@@ -1224,15 +1352,20 @@ function renderPersonalTimelineSchedule(view){
     list.onchange=event=>{
       const select=event.target.closest('.personal-timeline-detail-select');
       if(!select||!list.contains(select)) return;
-      setPersonalTimelineDetailSelection(select.dataset.dateKey||'', select.dataset.person||'', select.dataset.field||'', select.value);
-      const item=select.closest('.personal-timeline-item');
-      const dateKey=select.dataset.dateKey||'';
-      if(item&&dateKey){
-        const hasTimelineAssignment=timelineViews.personal.rows.some(row=>Boolean(getTimelineLabel(row.label, dateKey)));
-        const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
-        item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
-        item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
+      setPersonalTimelineRowDirty(select.closest('.personal-timeline-person-row'), true);
+    };
+    list.onclick=event=>{
+      const saveButton=event.target.closest('.personal-timeline-save-btn');
+      if(saveButton&&list.contains(saveButton)){
+        savePersonalTimelinePersonRow(saveButton.closest('.personal-timeline-person-row'));
+        return;
       }
+      const trigger=event.target.closest('.personal-timeline-rail');
+      const item=event.target.closest('.personal-timeline-item');
+      if(!trigger||!item||!list.contains(item)) return;
+      const wasOpen=item.classList.contains('is-open');
+      list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+      if(!wasOpen) item.classList.add('is-open');
     };
   }
   detailCol.onclick=event=>{
@@ -1471,6 +1604,69 @@ function getWorldCupCountdownText(){
   if(diffDays>0) return `월드컵 개막 D-${diffDays}`;
   if(diffDays===0) return '월드컵 개막 D-DAY';
   return `월드컵 개막 D+${Math.abs(diffDays)}`;
+}
+function formatHeaderClock(timeZone){
+  return new Intl.DateTimeFormat('ko-KR',{
+    timeZone,
+    hour:'2-digit',
+    minute:'2-digit',
+    hour12:false
+  }).format(new Date());
+}
+function getDeviceTimeZone(){
+  try{
+    return Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  }catch(error){
+    return '';
+  }
+}
+function resolveHeaderLocalClockContext(){
+  const fallbackTimeZone=headerLocalClockState.fallbackTimeZone;
+  if(headerLocalClockState.mode===headerClockModes.device){
+    const deviceTimeZone=getDeviceTimeZone();
+    return {
+      label:'휴대폰시각',
+      timeZone:deviceTimeZone||fallbackTimeZone,
+      sourceLabel:deviceTimeZone ? '휴대폰 기준' : '기본 현지 기준'
+    };
+  }
+  const place=String(headerLocalClockState.place||'').trim();
+  const stadiumKey=getScheduleStadiumKey(place);
+  return {
+    label:'현지시각',
+    timeZone:(stadiumKey&&scheduleStadiumTimeZones[stadiumKey])||fallbackTimeZone,
+    sourceLabel:place ? `${place} 기준` : '현지 기준'
+  };
+}
+function setHeaderLocalClockMode(mode=''){
+  headerLocalClockState.mode=mode===headerClockModes.device ? headerClockModes.device : headerClockModes.venue;
+  updateHeaderTimes();
+}
+function setHeaderLocalClockPlace(place=''){
+  const nextPlace=String(place||'').trim();
+  if(nextPlace){
+    headerLocalClockState.place=nextPlace;
+  }
+  updateHeaderTimes();
+}
+function updateHeaderTimes(){
+  const localLabelEl=document.getElementById('headerLocalTimeLabel');
+  const localEl=document.getElementById('headerLocalTime');
+  const koreaEl=document.getElementById('headerKoreaTime');
+  if(!localEl||!koreaEl) return;
+  const localContext=resolveHeaderLocalClockContext();
+  if(localLabelEl){
+    localLabelEl.textContent=localContext.label;
+  }
+  localEl.textContent=formatHeaderClock(localContext.timeZone);
+  localEl.title=localContext.sourceLabel;
+  koreaEl.textContent=formatHeaderClock('Asia/Seoul');
+  koreaEl.title='대한민국 기준';
+}
+function startHeaderTimeTicker(){
+  updateHeaderTimes();
+  if(typeof window==='undefined'||headerTimeTimerId!==null) return;
+  headerTimeTimerId=window.setInterval(updateHeaderTimes, 30000);
 }
 function updateHeaderCountdown(){
   const countdownEl=document.getElementById('headerCountdown');
@@ -1979,3 +2175,4 @@ function runTests(){
 
 updateHeaderCountdown();
 updateHeaderReportBoard();
+startHeaderTimeTicker();
