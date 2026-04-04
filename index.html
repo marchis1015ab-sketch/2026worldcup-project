@@ -24,6 +24,12 @@
       </div>
     </div>
   </div>
+  <div id="headerReportBoard" class="header-report-board" aria-live="polite">
+    <span class="header-report-board-label">업무 보고</span>
+    <div class="header-report-board-window">
+      <div id="headerReportBoardTrack" class="header-report-board-track"></div>
+    </div>
+  </div>
   <div class="container">
     <div class="sidebar">
       <div id="newsMenu" class="menu" onclick="toggleMain()">월드컵 지상파 뉴스 추이</div>
@@ -95,6 +101,9 @@
       <div class="item" onclick="showMexicoStadiumSection('shooting', this)">촬영 구역</div>
       <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
       <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부 동선</div>
+      <div class="item" onclick="showMexicoStadiumSection('conferenceRoom', this)">컨퍼런스 룸</div>
+      <div class="item" onclick="showMexicoStadiumSection('ground', this)">그라운드</div>
+      <div class="item" onclick="showMexicoStadiumSection('playerArrival', this)">선수 도착</div>
     </div>
 
     <div id="detailCol" class="table-column hidden">

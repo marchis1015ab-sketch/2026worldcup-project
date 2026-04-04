@@ -377,6 +377,18 @@ const mexicoStadiums = {
       route:{
         subtitle:'아크론스타디움 내부 동선 정보',
         rows:[['세부 폴더','경기장 내부 동선'],['기준 이동','미디어 입구 -> 작업 구역 -> 피치 접근'],['운영 포인트','보안 게이트 재통과 시간 여유 확보'],['비고','출입 패스 우선 확인']]
+      },
+      conferenceRoom:{
+        subtitle:'아크론스타디움 컨퍼런스 룸 정보',
+        rows:[['세부 폴더','컨퍼런스 룸'],['기준 위치','프레스 구역 인접 공식 회견실'],['운영 포인트','브리핑 시작 전 오디오 라인 점검'],['비고','감독·선수 공식 기자회견 진행']]
+      },
+      ground:{
+        subtitle:'아크론스타디움 그라운드 정보',
+        rows:[['세부 폴더','그라운드'],['기준 위치','피치 레벨 촬영 허용 구역'],['운영 포인트','워밍업 및 입장 장면 촬영 포인트 사전 확보'],['비고','잔디 보호 구간 출입 제한 확인']]
+      },
+      playerArrival:{
+        subtitle:'아크론스타디움 선수 도착 정보',
+        rows:[['세부 폴더','선수 도착'],['기준 위치','팀 버스 하차 지점'],['운영 포인트','도착 시간대 대기 위치 사전 지정'],['비고','보안 통제선 변동 가능성 확인']]
       }
     },
     imagePath:'images/akron-architecture.jpg',
@@ -402,6 +414,18 @@ const mexicoStadiums = {
       route:{
         subtitle:'에스타디오 BBVA 내부 동선 정보',
         rows:[['세부 폴더','경기장 내부 동선'],['기준 이동','미디어 체크인 -> 혼합구역 -> 스탠드 작업석'],['운영 포인트','엘리베이터 대기 시간 감안'],['비고','경기 종료 후 퇴장 동선 분리']]
+      },
+      conferenceRoom:{
+        subtitle:'에스타디오 BBVA 컨퍼런스 룸 정보',
+        rows:[['세부 폴더','컨퍼런스 룸'],['기준 위치','미디어 센터 옆 공식 회견실'],['운영 포인트','인터뷰 전 마이크와 백드롭 확인'],['비고','공식 기자회견 및 브리핑 진행']]
+      },
+      ground:{
+        subtitle:'에스타디오 BBVA 그라운드 정보',
+        rows:[['세부 폴더','그라운드'],['기준 위치','터치라인 인접 피치 촬영 구역'],['운영 포인트','킥오프 전 워밍업 촬영 동선 우선 확인'],['비고','장비 배치 허용 범위 사전 체크']]
+      },
+      playerArrival:{
+        subtitle:'에스타디오 BBVA 선수 도착 정보',
+        rows:[['세부 폴더','선수 도착'],['기준 위치','선수단 버스 진입 게이트'],['운영 포인트','도착 컷 확보용 스탠드업 위치 지정'],['비고','보안 펜스 외 촬영 가능 범위 확인']]
       }
     },
     imagePath:'images/bbva-interior.webp',
@@ -414,7 +438,10 @@ const mexicoStadiums = {
 const mexicoStadiumSections = {
   shooting:'촬영 구역',
   mixedZone:'mixed zone',
-  route:'경기장 내부 동선'
+  route:'경기장 내부 동선',
+  conferenceRoom:'컨퍼런스 룸',
+  ground:'그라운드',
+  playerArrival:'선수 도착'
 };
 const scheduleStadiumMedia = {
   azteca:{
@@ -565,6 +592,17 @@ const personalTimelineRows = [
   {label:'김진광',type:'person'},
   {label:'정재우',type:'person'}
 ];
+const personalTimelineMemberNames = personalTimelineRows.filter(row=>row.label!=='영상취재팀 공동').map(row=>row.label);
+const personalTimelineDetailFieldOptions = {
+  시간:Array.from({length:16},(_,index)=>{
+    const hour=String(index+9).padStart(2,'0');
+    return `${hour}:00`;
+  }),
+  장소:['에스타디오 과달라하라','에스타디오 몬테레이'],
+  취재기자:['전영희','온누리','홍지용','오선민','이예원','이은진'],
+  TVU:['1번','2번','3번','4번','5번','6번'],
+  업무내용:['경기취재','외곽취재','밀착카메라','라이브연결','인터뷰']
+};
 const timelineViews = {
   personal:{title:'개인일정 타임라인', rows:personalTimelineRows}
 };
@@ -574,6 +612,15 @@ const timelineEditableLabels = timelineEditableRows.map(row=>row.label);
 const TIMELINE_STORAGE_KEY = 'worldcup-guide-timeline-assignments-v2';
 const LEGACY_TIMELINE_STORAGE_KEYS = ['worldcup-guide-timeline-assignments-v1'];
 const TIMELINE_WINDOW_NAME_KEY = '__worldcupGuideTimelineAssignments__';
+const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-v1';
+const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
+const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
+const personalTimelineDetailFields = ['시간','장소','취재기자','TVU','업무내용'];
+const personalTimelineTaskReportLabels = {
+  경기취재:'경기 취재',
+  외곽취재:'외곽 취재',
+  라이브연결:'라이브 연결'
+};
 let currentNewsYear = '';
 let currentMexicoStadiumKey = '';
 let currentTimelineView = 'personal';
@@ -585,10 +632,13 @@ let pendingTimelineSelection = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
+let hasLoadedPersonalTimelineDetailSelections = false;
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
 let personalTimelineStickyMonthCleanup = null;
+const personalTimelineDetailSelections = Object.create(null);
+const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
 const timelineOfficialTeamSchedules = {
   대한민국:[
     {date:'2026-06-12',label:'vs 체코/덴마크 · 11:00 · Estadio Guadalajara'},
@@ -674,6 +724,53 @@ function writeTimelineAssignmentsRaw(raw){
     window.name='';
   }
 }
+function hasTimelineCleanupFlag(flagKey){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    if(storage.getItem(flagKey)==='1') return true;
+  }
+  if(typeof window==='undefined'||!window.name) return false;
+  try{
+    const payload=JSON.parse(window.name);
+    return payload?.[flagKey]==='1';
+  }catch(error){
+    return false;
+  }
+}
+function writeTimelineCleanupFlag(flagKey){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(flagKey,'1'));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[flagKey]='1';
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
+function removeKimJingwangGuidelineSchedule(){
+  if(hasTimelineCleanupFlag(TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY)) return;
+  const rowAssignments=timelineAssignments['김진광'];
+  let changed=false;
+  if(rowAssignments){
+    Array.from(rowAssignments.entries()).forEach(([dateKey, value])=>{
+      if(typeof value==='string'&&value.includes('가이드라인 제작')){
+        rowAssignments.delete(dateKey);
+        changed=true;
+      }
+    });
+  }
+  if(changed) saveTimelineAssignments();
+  writeTimelineCleanupFlag(TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY);
+}
 function loadSavedTimelineAssignments(){
   if(hasLoadedTimelineSavedAssignments) return;
   hasLoadedTimelineSavedAssignments = true;
@@ -703,12 +800,166 @@ function saveTimelineAssignments(){
   const payload=Object.fromEntries(timelineEditableLabels.map(label=>[label, Object.fromEntries(timelineAssignments[label].entries())]));
   writeTimelineAssignmentsRaw(JSON.stringify(payload));
 }
+function readPersonalTimelineDetailsRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY);
+    if(raw) return raw;
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]==='string' ? payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writePersonalTimelineDetailsRaw(raw){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
+function loadPersonalTimelineDetailSelections(){
+  if(hasLoadedPersonalTimelineDetailSelections) return;
+  hasLoadedPersonalTimelineDetailSelections = true;
+  const raw=readPersonalTimelineDetailsRaw();
+  if(!raw) return;
+  try{
+    const savedSelections=JSON.parse(raw);
+    Object.entries(savedSelections||{}).forEach(([dateKey, people])=>{
+      if(!people||typeof people!=='object') return;
+      const sanitizedPeople=Object.create(null);
+      Object.entries(people).forEach(([name, fields])=>{
+        if(!fields||typeof fields!=='object') return;
+        const sanitizedFields=Object.create(null);
+        personalTimelineDetailFields.forEach(field=>{
+          if(typeof fields[field]!=='string') return;
+          const text=fields[field].trim();
+          if(text) sanitizedFields[field]=text;
+        });
+        if(Object.keys(sanitizedFields).length){
+          sanitizedPeople[name]=sanitizedFields;
+        }
+      });
+      if(Object.keys(sanitizedPeople).length){
+        personalTimelineDetailSelections[dateKey]=sanitizedPeople;
+      }
+    });
+    savePersonalTimelineDetailSelections();
+  }catch(error){
+    console.warn('Failed to load personal timeline detail selections.', error);
+  }
+}
+function savePersonalTimelineDetailSelections(){
+  writePersonalTimelineDetailsRaw(JSON.stringify(personalTimelineDetailSelections));
+}
+function getPersonalTimelineDetailSelection(dateKey, name){
+  loadPersonalTimelineDetailSelections();
+  return personalTimelineDetailSelections[dateKey]?.[name]||null;
+}
+function getPersonalTimelineTaskReportLabel(task){
+  return personalTimelineTaskReportLabels[task]||task;
+}
+function buildPersonalTimelineReportText(name, detail){
+  if(!detail) return '';
+  const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
+  if(values.some(value=>!value)) return '';
+  const reporter=detail.취재기자.endsWith('기자') ? detail.취재기자 : `${detail.취재기자} 기자`;
+  return `${name}기자 ${detail.시간}부터 ${detail.장소}에서 ${reporter}와 티비유 ${detail.TVU}으로 ${getPersonalTimelineTaskReportLabel(detail.업무내용)} 진행`;
+}
+function getPersonalTimelineGeneratedReportsForDate(dateKey){
+  return personalTimelineMemberNames.map(name=>{
+    const detail=getPersonalTimelineDetailSelection(dateKey, name);
+    const text=buildPersonalTimelineReportText(name, detail);
+    return text ? {name, dateKey, text} : null;
+  }).filter(Boolean);
+}
+function getAllPersonalTimelineGeneratedReports(){
+  loadPersonalTimelineDetailSelections();
+  return Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
+    const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+    return items.map(item=>({...item, sortOrder:personalTimelineMemberNames.indexOf(item.name)}));
+  }).sort((a,b)=>{
+    if(a.dateKey!==b.dateKey) return a.dateKey.localeCompare(b.dateKey);
+    return a.sortOrder-b.sortOrder;
+  });
+}
+function setPersonalTimelineDetailSelection(dateKey, name, field, value){
+  if(!dateKey||!name||!personalTimelineDetailFields.includes(field)) return;
+  loadPersonalTimelineDetailSelections();
+  const text=String(value||'').trim();
+  const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
+  const personSelections=dateSelections[name]||(dateSelections[name]=Object.create(null));
+  if(text){
+    personSelections[field]=text;
+  }else{
+    delete personSelections[field];
+  }
+  if(!Object.keys(personSelections).length){
+    delete dateSelections[name];
+  }
+  if(!Object.keys(dateSelections).length){
+    delete personalTimelineDetailSelections[dateKey];
+  }
+  savePersonalTimelineDetailSelections();
+  updateHeaderReportBoard();
+}
+function formatHeaderReportBoardDate(dateKey){
+  const [year, month, day]=dateKey.split('-').map(Number);
+  if(!year||!month||!day) return dateKey;
+  return `${month}.${day}`;
+}
+function renderHeaderReportBoardItems(items){
+  return items.map(item=>`<div class="header-report-board-item"><span class="header-report-board-date">${formatHeaderReportBoardDate(item.dateKey)}</span><span class="header-report-board-text">${escapeHtml(item.text)}</span></div>`).join('');
+}
+function renderHeaderReportBoardRow(items, {reverse=false, duration=28}={}){
+  if(!items.length) return '';
+  const lineHtml=renderHeaderReportBoardItems(items);
+  const content=items.length>1 ? `${lineHtml}${lineHtml}` : lineHtml;
+  return `<div class="header-report-board-row${reverse?' is-reverse':''}" style="--report-board-duration:${duration}s"><div class="header-report-board-line">${content}</div></div>`;
+}
+function updateHeaderReportBoard(){
+  loadPersonalTimelineDetailSelections();
+  const board=document.getElementById('headerReportBoard');
+  const track=document.getElementById('headerReportBoardTrack');
+  if(!board||!track) return;
+  const items=getAllPersonalTimelineGeneratedReports();
+  board.classList.toggle('is-empty', items.length===0);
+  board.classList.toggle('is-animated', items.length>1);
+  if(!items.length){
+    track.innerHTML='<div class="header-report-board-empty">개인일정 업무 보고 문장이 아직 없습니다.</div>';
+    board.style.setProperty('--report-board-duration','0s');
+    return;
+  }
+  const rowAItems=items.filter((_, index)=>index%2===0);
+  const rowBItems=items.filter((_, index)=>index%2===1);
+  const rowAHtml=renderHeaderReportBoardRow(rowAItems, {duration:Math.max(18, rowAItems.length*8)});
+  const rowBHtml=rowBItems.length ? renderHeaderReportBoardRow(rowBItems, {reverse:true, duration:Math.max(18, rowBItems.length*8)}) : '';
+  track.innerHTML=`${rowAHtml}${rowBHtml}`;
+  board.style.setProperty('--report-board-duration',`${Math.max(18, items.length*8)}s`);
+}
 function ensureTimelineDataReady(){
   if(!hasSeededTimelineTeamSchedules){
     seedTimelineTeamSchedules();
     hasSeededTimelineTeamSchedules = true;
   }
   loadSavedTimelineAssignments();
+  loadPersonalTimelineDetailSelections();
+  removeKimJingwangGuidelineSchedule();
 }
 
 function getFlag(code){return code ? `https://flagcdn.com/w40/${code}.png` : null;}
@@ -756,6 +1007,13 @@ function getTimelineDates(){
 }
 function formatTimelineDate(date){
   return `${date.getMonth()+1}/${date.getDate()}`;
+}
+function getTodayTimelineKey(){
+  const today=getKstDateParts();
+  return `${today.year}-${String(today.month).padStart(2,'0')}-${String(today.day).padStart(2,'0')}`;
+}
+function isPastTimelineDateKey(dateKey=''){
+  return Boolean(dateKey)&&dateKey<getTodayTimelineKey();
 }
 function escapeHtml(value){
   return String(value).replace(/[&<>"']/g, char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -815,10 +1073,11 @@ function getPersonalTimelinePhase(date){
   const todayUtc=toUtcFromKstDateParts(today.year, today.month, today.day);
   const targetUtc=toUtcFromKstDateParts(date.getFullYear(), date.getMonth()+1, date.getDate());
   const diffDays=Math.round((targetUtc-todayUtc)/86400000);
-  if(diffDays<0) return {key:'past',label:'지난 일정'};
-  if(diffDays===0) return {key:'today',label:'오늘'};
-  if(diffDays===1) return {key:'tomorrow',label:'내일'};
-  return {key:'upcoming',label:`예정 D-${diffDays}`};
+  const kickoffLabel=getWorldCupOpeningLabel(getWorldCupOpeningDiffDaysForDate(date));
+  if(diffDays<0) return {key:'past',label:kickoffLabel};
+  if(diffDays===0) return {key:'today',label:kickoffLabel};
+  if(diffDays===1) return {key:'tomorrow',label:kickoffLabel};
+  return {key:'upcoming',label:kickoffLabel};
 }
 function renderPersonalTimelineHoverPanel(){
   const personalNames=['박재현','장후원','정상원','이주원','김진광','정재우'];
@@ -827,18 +1086,69 @@ function renderPersonalTimelineHoverPanel(){
 function renderPersonalTimelineLegend(){
   return '<div class="personal-timeline-legend"><span class="personal-timeline-legend-chip is-today">오늘</span><span class="personal-timeline-legend-chip is-tomorrow">내일</span><span class="personal-timeline-legend-chip is-upcoming">예정</span><span class="personal-timeline-legend-chip is-shared">공동 일정</span><span class="personal-timeline-legend-chip is-personal">개별 일정</span></div>';
 }
+function renderPersonalTimelineEntries(entries, kind){
+  return entries.map(item=>`<div class="personal-timeline-entry personal-timeline-entry-${item.kind}"><span class="personal-timeline-entry-name personal-timeline-entry-name-${item.kind}">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('');
+}
+function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
+  const placeholderSelected=!selectedValue ? ' selected' : '';
+  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${selectedValue===option?' selected':''}>${escapeHtml(option)}</option>`).join('');
+  return `<option value=""${placeholderSelected}>${field}</option>${optionHtml}`;
+}
+function renderPersonalTimelineSharedColumn(dateKey){
+  const sharedValue=getTimelineLabel('영상취재팀 공동', dateKey);
+  if(!sharedValue){
+    return '<div class="personal-timeline-column-empty personal-timeline-column-empty-shared"></div>';
+  }
+  return renderPersonalTimelineEntries([{label:'영상취재팀 공동',value:sharedValue,kind:'shared'}],'shared');
+}
+function renderPersonalTimelinePersonRow(name, dateKey){
+  const fieldClassMap={시간:'time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
+  const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
+  const disabledAttr=isPastTimelineDateKey(dateKey)?' disabled aria-disabled="true"':'';
+  const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}"${disabledAttr}>${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
+  return `<div class="personal-timeline-person-row"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}</div></div>`;
+}
+function renderPersonalTimelinePersonalColumn(dateKey){
+  return `<div class="personal-timeline-person-list">${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}</div>`;
+}
 function renderPersonalTimelineItem(date, index, rows){
   const dateKey=formatTimelineKey(date);
   const phase=getPersonalTimelinePhase(date);
+  const dateLabel=`${date.getMonth()+1}월 ${date.getDate()}일`;
+  const generatedReports=getPersonalTimelineGeneratedReportsForDate(dateKey);
   const assignments=rows.map(row=>({
     label:row.label,
     value:getTimelineLabel(row.label, dateKey),
     kind:row.label==='영상취재팀 공동'?'shared':'personal'
   })).filter(item=>item.value);
-  const entriesHtml=assignments.length
-    ? assignments.map(item=>`<div class="personal-timeline-entry personal-timeline-entry-${item.kind}"><span class="personal-timeline-entry-name personal-timeline-entry-name-${item.kind}">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('')
-    : `<div class="personal-timeline-empty-shell">${renderPersonalTimelineHoverPanel()}</div>`;
-  return `<article class="personal-timeline-item ${assignments.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}" data-month="${date.getMonth()+1}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+  const columnsHtml=`<div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header personal-timeline-column-header-shared"><span class="personal-timeline-column-title">공용 일정</span><span class="personal-timeline-column-date">${dateLabel}</span></div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(dateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(dateKey)}</div></section></div>`;
+  const entriesHtml=columnsHtml;
+  return `<article class="personal-timeline-item ${assignments.length||generatedReports.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}" data-month="${date.getMonth()+1}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+}
+function renderPersonalTimelineMonthGroups(dates, rows){
+  const groups=dates.reduce((result, date, index)=>{
+    const label=`${date.getMonth()+1}월`;
+    const last=result[result.length-1];
+    const itemHtml=renderPersonalTimelineItem(date, index, rows);
+    if(last&&last.label===label){
+      last.items.push(itemHtml);
+    }else{
+      result.push({label,items:[itemHtml]});
+    }
+    return result;
+  },[]);
+  return groups.map(group=>`<section class="personal-timeline-month-group"><div class="personal-timeline-month-banner"><span class="personal-timeline-month-label">${group.label}</span></div><div class="personal-timeline-month-items">${group.items.join('')}</div></section>`).join('');
+}
+function updatePersonalTimelineHoverWave(list, activeItem){
+  const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+  items.forEach(item=>item.classList.remove('is-hover-main','is-hover-near','is-hover-far'));
+  if(!activeItem) return;
+  const activeIndex=items.indexOf(activeItem);
+  if(activeIndex===-1) return;
+  [[0,'is-hover-main'],[-1,'is-hover-near'],[1,'is-hover-near'],[-2,'is-hover-far'],[2,'is-hover-far']].forEach(([offset,className])=>{
+    const target=items[activeIndex+offset];
+    if(target) target.classList.add(className);
+  });
 }
 function setupPersonalTimelineStickyMonth(detailCol){
   if(personalTimelineStickyMonthCleanup){
@@ -882,22 +1192,54 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-topbar"><div class="personal-timeline-month-sticky"></div>${renderPersonalTimelineLegend()}</div><div class="personal-timeline-list">${dates.map((date,index)=>renderPersonalTimelineItem(date, index, view.rows)).join('')}</div>`);
+  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
     list.onclick=event=>{
-      const item=event.target.closest('.personal-timeline-item.is-empty');
-      if(!item||!list.contains(item)) return;
+      const trigger=event.target.closest('.personal-timeline-rail');
+      const item=event.target.closest('.personal-timeline-item');
+      if(!trigger||!item||!list.contains(item)) return;
       const wasOpen=item.classList.contains('is-open');
       list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
       if(!wasOpen) item.classList.add('is-open');
+    };
+    list.onmouseover=event=>{
+      const trigger=event.target.closest('.personal-timeline-rail');
+      if(!trigger||!list.contains(trigger)) return;
+      const item=trigger.closest('.personal-timeline-item');
+      if(item) updatePersonalTimelineHoverWave(list, item);
+    };
+    list.onmouseout=event=>{
+      const trigger=event.target.closest('.personal-timeline-rail');
+      if(!trigger||!list.contains(trigger)) return;
+      const related=event.relatedTarget;
+      if(related&&trigger.contains(related)) return;
+      const nextTrigger=related&&typeof related.closest==='function'?related.closest('.personal-timeline-rail'):null;
+      if(nextTrigger&&list.contains(nextTrigger)) return;
+      updatePersonalTimelineHoverWave(list, null);
+    };
+    list.onmouseleave=()=>{
+      updatePersonalTimelineHoverWave(list, null);
+    };
+    list.onchange=event=>{
+      const select=event.target.closest('.personal-timeline-detail-select');
+      if(!select||!list.contains(select)) return;
+      setPersonalTimelineDetailSelection(select.dataset.dateKey||'', select.dataset.person||'', select.dataset.field||'', select.value);
+      const item=select.closest('.personal-timeline-item');
+      const dateKey=select.dataset.dateKey||'';
+      if(item&&dateKey){
+        const hasTimelineAssignment=timelineViews.personal.rows.some(row=>Boolean(getTimelineLabel(row.label, dateKey)));
+        const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+        item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
+        item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
+      }
     };
   }
   detailCol.onclick=event=>{
     if(event.target.closest('.personal-timeline-list')) return;
     detailCol.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+    if(list) updatePersonalTimelineHoverWave(list, null);
   };
-  setupPersonalTimelineStickyMonth(detailCol);
   document.getElementById('detailCol').classList.remove('hidden');
 }
 function renderTimelineHeaderCell(date){
@@ -1113,11 +1455,19 @@ function getKstDateParts(date=new Date()){
 function toUtcFromKstDateParts(year, month, day){
   return Date.UTC(year, month-1, day, -9, 0, 0, 0);
 }
+function getWorldCupOpeningDiffDaysForDate(date){
+  const targetUtc=toUtcFromKstDateParts(date.getFullYear(), date.getMonth()+1, date.getDate());
+  const kickoffUtc=toUtcFromKstDateParts(WORLD_CUP_OPENING_DATE.year, WORLD_CUP_OPENING_DATE.month, WORLD_CUP_OPENING_DATE.day);
+  return Math.round((kickoffUtc-targetUtc)/86400000);
+}
+function getWorldCupOpeningLabel(diffDays){
+  if(diffDays>0) return `월드컵 D-${diffDays}`;
+  if(diffDays===0) return '월드컵 개막일';
+  return `월드컵 D+${Math.abs(diffDays)}`;
+}
 function getWorldCupCountdownText(){
   const today=getKstDateParts();
-  const todayUtc=toUtcFromKstDateParts(today.year, today.month, today.day);
-  const kickoffUtc=toUtcFromKstDateParts(2026, 6, 12);
-  const diffDays=Math.round((kickoffUtc-todayUtc)/86400000);
+  const diffDays=getWorldCupOpeningDiffDaysForDate(new Date(today.year, today.month-1, today.day));
   if(diffDays>0) return `월드컵 개막 D-${diffDays}`;
   if(diffDays===0) return '월드컵 개막 D-DAY';
   return `월드컵 개막 D+${Math.abs(diffDays)}`;
@@ -1509,9 +1859,10 @@ function renderMexicoStadiumDetail(stadium, sectionKey=''){
   const cacheKey=`${stadium.title}:${sectionKey||'root'}`;
   document.getElementById('detailTitle').textContent=sectionLabel?`${stadium.title} - ${sectionLabel}`:`${stadium.title}, ${stadium.city}`;
   document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table mexico-stadium-table';
   if(!renderCache.mexicoStadiumDetails[cacheKey]){
     renderCache.mexicoStadiumDetails[cacheKey]={
-      tableHtml:`<thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>${rows.map(([label,value])=>`<tr><td>${label}</td><td>${value}</td></tr>`).join('')}</tbody>`,
+      tableHtml:`<colgroup><col class="mexico-stadium-col-label"><col class="mexico-stadium-col-value"></colgroup><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>${rows.map(([label,value])=>`<tr><td>${label}</td><td>${value}</td></tr>`).join('')}</tbody>`,
       extraHtml:section?renderStadiumSlot():renderStadiumFigure(stadium)
     };
   }
@@ -1559,8 +1910,11 @@ function runTests(){
   console.assert(typeof togglePersonalTimeline==='function','togglePersonalTimeline should be defined');
   console.assert(typeof saveTimelineSelection==='function','saveTimelineSelection should be defined');
   console.assert(typeof clearTimelineSelectionEntries==='function','clearTimelineSelectionEntries should be defined');
+  console.assert(typeof updateHeaderReportBoard==='function','updateHeaderReportBoard should be defined');
+  console.assert(typeof buildPersonalTimelineReportText==='function','buildPersonalTimelineReportText should be defined');
   console.assert(Array.isArray(timelineRows)&&timelineRows.length===10,'Timeline rows should exist');
   console.assert(Array.isArray(timelineEditableRows)&&timelineEditableRows.length===10,'Editable timeline rows should exist');
+  console.assert(personalTimelineDetailFields.length===5,'Personal timeline detail fields should exist');
   console.assert(teamTimelineRows[0].label==='대한민국'&&teamTimelineRows[3].label==='체코','Team timeline row ordering should exist');
   console.assert(personalTimelineRows[0].label==='영상취재팀 공동'&&personalTimelineRows[6].label==='정재우','Personal timeline row ordering should exist');
   console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코/덴마크'),'Korea official timeline should include opponent');
@@ -1624,3 +1978,4 @@ function runTests(){
 }
 
 updateHeaderCountdown();
+updateHeaderReportBoard();
