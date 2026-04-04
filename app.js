@@ -810,29 +810,35 @@ function getTimelineCellTitle(person, date, index, dateKey){
   const label=getTimelineLabel(person, dateKey);
   return label ? `${person} · ${getTimelineLabelWithRange(person, index, label)}` : `${person} · ${formatTimelineDate(date)}`;
 }
-function getTimelineCountdownLabel(date){
-  const dateKey=formatTimelineKey(date);
-  const kickoffKey='2026-06-12';
-  const currentUtc=Date.parse(`${dateKey}T00:00:00Z`);
-  const kickoffUtc=Date.parse(`${kickoffKey}T00:00:00Z`);
-  const diffDays=Math.round((kickoffUtc-currentUtc)/86400000);
-  if(diffDays>0) return `D-${diffDays}`;
-  if(diffDays===0) return 'D-DAY';
-  return `D+${Math.abs(diffDays)}`;
+function getPersonalTimelinePhase(date){
+  const today=getKstDateParts();
+  const todayUtc=toUtcFromKstDateParts(today.year, today.month, today.day);
+  const targetUtc=toUtcFromKstDateParts(date.getFullYear(), date.getMonth()+1, date.getDate());
+  const diffDays=Math.round((targetUtc-todayUtc)/86400000);
+  if(diffDays<0) return {key:'past',label:'지난 일정'};
+  if(diffDays===0) return {key:'today',label:'오늘'};
+  if(diffDays===1) return {key:'tomorrow',label:'내일'};
+  return {key:'upcoming',label:`예정 D-${diffDays}`};
 }
 function renderPersonalTimelineHoverPanel(){
   const personalNames=['박재현','장후원','정상원','이주원','김진광','정재우'];
-  return `<div class="personal-timeline-hover-panel"><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">공용일정</span><div class="personal-timeline-hover-chip">영상취재팀 공동</div></div><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">개별일정</span><div class="personal-timeline-hover-grid">${personalNames.map(name=>`<div class="personal-timeline-hover-cell">${name}</div>`).join('')}</div></div></div>`;
+  return `<div class="personal-timeline-hover-panel"><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">공동 일정</span><div class="personal-timeline-hover-chip">영상취재팀 공동</div></div><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">개별 일정</span><div class="personal-timeline-hover-grid">${personalNames.map(name=>`<div class="personal-timeline-hover-cell">${name}</div>`).join('')}</div></div></div>`;
+}
+function renderPersonalTimelineLegend(){
+  return '<div class="personal-timeline-legend"><span class="personal-timeline-legend-chip is-today">오늘</span><span class="personal-timeline-legend-chip is-tomorrow">내일</span><span class="personal-timeline-legend-chip is-upcoming">예정</span><span class="personal-timeline-legend-chip is-shared">공동 일정</span><span class="personal-timeline-legend-chip is-personal">개별 일정</span></div>';
 }
 function renderPersonalTimelineItem(date, index, rows){
   const dateKey=formatTimelineKey(date);
-  const countdownLabel=getTimelineCountdownLabel(date);
-  const monthLabel=date.getDate()===1 ? `${date.getMonth()+1}월` : '';
-  const assignments=rows.map(row=>({label:row.label,value:getTimelineLabel(row.label, dateKey)})).filter(item=>item.value);
+  const phase=getPersonalTimelinePhase(date);
+  const assignments=rows.map(row=>({
+    label:row.label,
+    value:getTimelineLabel(row.label, dateKey),
+    kind:row.label==='영상취재팀 공동'?'shared':'personal'
+  })).filter(item=>item.value);
   const entriesHtml=assignments.length
-    ? assignments.map(item=>`<div class="personal-timeline-entry"><span class="personal-timeline-entry-name">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('')
+    ? assignments.map(item=>`<div class="personal-timeline-entry personal-timeline-entry-${item.kind}"><span class="personal-timeline-entry-name personal-timeline-entry-name-${item.kind}">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('')
     : `<div class="personal-timeline-empty-shell">${renderPersonalTimelineHoverPanel()}</div>`;
-  return `<article class="personal-timeline-item ${assignments.length?'has-entry':'is-empty'}" data-month="${date.getMonth()+1}"><div class="personal-timeline-rail">${monthLabel?`<span class="personal-timeline-month">${monthLabel}</span>`:''}<span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday">${countdownLabel}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+  return `<article class="personal-timeline-item ${assignments.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}" data-month="${date.getMonth()+1}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
 }
 function setupPersonalTimelineStickyMonth(detailCol){
   if(personalTimelineStickyMonthCleanup){
@@ -855,11 +861,14 @@ function setupPersonalTimelineStickyMonth(detailCol){
     const month=activeItem.dataset.month||'';
     stickyEl.textContent=month?`${month}월`:'';
   };
-  window.addEventListener('scroll', updateStickyMonth, {passive:true});
+  const onScroll=()=>window.requestAnimationFrame(updateStickyMonth);
+  window.addEventListener('scroll', onScroll, {passive:true});
+  detailCol.addEventListener('scroll', onScroll, {passive:true});
   window.addEventListener('resize', updateStickyMonth);
   updateStickyMonth();
   personalTimelineStickyMonthCleanup=()=>{
-    window.removeEventListener('scroll', updateStickyMonth);
+    window.removeEventListener('scroll', onScroll);
+    detailCol.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', updateStickyMonth);
   };
 }
@@ -873,7 +882,7 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-month-sticky"></div><div class="personal-timeline-list">${dates.map((date,index)=>renderPersonalTimelineItem(date, index, view.rows)).join('')}</div>`);
+  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-topbar"><div class="personal-timeline-month-sticky"></div>${renderPersonalTimelineLegend()}</div><div class="personal-timeline-list">${dates.map((date,index)=>renderPersonalTimelineItem(date, index, view.rows)).join('')}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
     list.onclick=event=>{
