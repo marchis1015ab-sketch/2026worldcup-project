@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+:root{--patch-probe:1}
 *{box-sizing:border-box}
 body{margin:0;font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:linear-gradient(180deg,#e9edf2 0%,#f5f7fa 24%,#eef2f6 100%);color:#111827}
 .page{padding:24px}
