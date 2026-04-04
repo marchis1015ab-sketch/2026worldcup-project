@@ -1,0 +1,109 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>월드컵 영상취재 가이드라인</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-main">
+      <div class="header-copy">
+        <p class="header-kicker">FIFA WORLD CUP 2026</p>
+        <h1>2026 북중미 월드컵 영상취재 가이드라인</h1>
+        <p class="header-slogan">찌릿하게 다채롭게 월드컵은 JTBC</p>
+      </div>
+      <div id="headerCountdown" class="header-countdown">
+        <div class="header-countdown-meta">
+          <span class="header-countdown-label">월드컵 개막</span>
+          <span class="header-countdown-prefix">D-</span>
+        </div>
+        <span class="header-countdown-number">DAY</span>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="sidebar">
+      <div id="newsMenu" class="menu" onclick="toggleMain()">월드컵 지상파 뉴스 추이</div>
+      <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
+      <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">Group A 선수단</div>
+      <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">멕시코 경기장</div>
+      <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">공용장비 현황</div>
+      <div id="personalTimelineMenu" class="menu" onclick="togglePersonalTimeline()">개인일정 타임라인</div>
+    </div>
+
+    <div id="newsCol" class="column hidden">
+      <div class="item" onclick="showNewsYear('2022', this)">2022 카타르 월드컵</div>
+      <div class="item" onclick="showNewsYear('2018', this)">2018 러시아 월드컵</div>
+      <div class="item" onclick="showNewsYear('2014', this)">2014 브라질 월드컵</div>
+    </div>
+
+    <div id="newsBroadcasterCol" class="column hidden">
+      <div class="item" onclick="activateBroadcaster(this, 'KBS')">KBS</div>
+      <div class="item" onclick="activateBroadcaster(this, 'MBC')">MBC</div>
+      <div class="item" onclick="activateBroadcaster(this, 'SBS')">SBS</div>
+    </div>
+
+    <div id="bracketStageCol" class="column hidden">
+      <div class="item" onclick="showBracketStage('group', this)">조별리그</div>
+      <div class="item" onclick="showBracketStage('round32', this)">32강</div>
+      <div class="item" onclick="showBracketStage('round16', this)">16강</div>
+      <div class="item" onclick="showBracketStage('quarterfinal', this)">8강</div>
+      <div class="item" onclick="showBracketStage('semifinal', this)">4강</div>
+      <div class="item" onclick="showBracketStage('final', this)">결승</div>
+    </div>
+
+    <div id="groupCol" class="column hidden">
+      <div class="item" onclick="showGroup('A', this)">Group A</div>
+      <div class="item" onclick="showGroup('B', this)">Group B</div>
+      <div class="item" onclick="showGroup('C', this)">Group C</div>
+      <div class="item" onclick="showGroup('D', this)">Group D</div>
+      <div class="item" onclick="showGroup('E', this)">Group E</div>
+      <div class="item" onclick="showGroup('F', this)">Group F</div>
+      <div class="item" onclick="showGroup('G', this)">Group G</div>
+      <div class="item" onclick="showGroup('H', this)">Group H</div>
+      <div class="item" onclick="showGroup('I', this)">Group I</div>
+      <div class="item" onclick="showGroup('J', this)">Group J</div>
+      <div class="item" onclick="showGroup('K', this)">Group K</div>
+      <div class="item" onclick="showGroup('L', this)">Group L</div>
+    </div>
+
+    <div id="groupASquadCol" class="column hidden">
+      <div class="item squad-country-tab squad-country-korea" onclick="showGroupASquad('korea', this)">대한민국</div>
+      <div class="item squad-country-tab squad-country-mexico" onclick="showGroupASquad('mexico', this)">멕시코</div>
+      <div class="item squad-country-tab squad-country-south-africa" onclick="showGroupASquad('southAfrica', this)">남아프리카 공화국</div>
+      <div class="item squad-country-tab squad-country-czech" onclick="showGroupASquad('czech', this)">체코</div>
+    </div>
+
+    <div id="equipmentUserCol" class="column hidden">
+      <div class="item" onclick="showEquipmentPersonal('박재현', this)">박재현</div>
+      <div class="item" onclick="showEquipmentPersonal('장후원', this)">장후원</div>
+      <div class="item" onclick="showEquipmentPersonal('정상원', this)">정상원</div>
+      <div class="item" onclick="showEquipmentPersonal('이주원', this)">이주원</div>
+      <div class="item" onclick="showEquipmentPersonal('김진광', this)">김진광</div>
+      <div class="item" onclick="showEquipmentPersonal('정재우', this)">정재우</div>
+    </div>
+
+    <div id="mexicoStadiumCol" class="column hidden">
+      <div class="item" onclick="showMexicoStadium('akron', this)">아크론스타디움, 과달라하라</div>
+      <div class="item" onclick="showMexicoStadium('bbva', this)">에스타디오 BBVA, 몬테레이</div>
+    </div>
+
+    <div id="mexicoStadiumSectionCol" class="column hidden">
+      <div class="item" onclick="showMexicoStadiumSection('shooting', this)">촬영 구역</div>
+      <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
+      <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부 동선</div>
+    </div>
+
+    <div id="detailCol" class="table-column hidden">
+      <h2 id="detailTitle" class="section-title">상세 보기</h2>
+      <p id="detailSubtitle" class="section-subtitle"></p>
+      <div class="table-card"><table id="detailTable" class="data-table"></table></div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

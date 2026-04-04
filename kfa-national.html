@@ -1,0 +1,2052 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1">
+<meta name="naver-site-verification" content=""/>
+<meta property="og:type" content="website">
+<meta id="meta_og_title" property="og:title" content="KFA | 대한축구협회"/>
+<meta id="meta_og_url" property="og:url" content="https://www.kfa.or.kr" />
+<meta id="meta_og_description" property="og:description" content="KFA, 대한축구협회, Korea Football Association" />
+<meta id="meta_og_image" property="og:image" content="https://www.kfa.or.kr/images/sns_logo_new.png" />
+
+<!-- 트위터 -->
+<meta name="twitter:card" content="chatting" />
+<meta id="meta_twitter_title" name="twitter:title" content="" />
+<meta id="meta_twitter_url" name="twitter:site" content="" />
+<!-- <meta name="twitter:creator" content="KFA | 대한축구협회" /> -->
+<meta id="meta_twitter_image" name="twitter:image" content="" />
+<meta id="meta_twitter_description" name="twitter:description" content="" />
+
+<!-- ICON -->
+<link rel="shortcut icon" href="/images/common/favicon.ico" type="image/x-icon" />
+<link rel="icon" href="/images/common/favicon.ico" type="image/x-icon" />
+<link rel="apple-touch-icon" href="/images/common/mobicon.png" />
+<title>KFA | 대한축구협회</title>
+<script type="text/javascript" src="/script/jquery-3.3.1.min.js"></script>
+<script type="text/javascript" src="/script/jquery-ui.min.js"></script>
+<script type="text/javascript" src="/script/common.js"></script>
+<script type="text/javascript" src="/script/default.js"></script>
+<script type="text/javascript" src="/script/formcheck.js"></script>
+
+<!-- common -->
+<link rel="stylesheet" href="/css/common_font.css?ver=2025122404" />
+<link rel="stylesheet" href="/css/loading_view_pc.css?ver=2025122404" />
+
+
+
+<link rel="stylesheet" href="/css/layout_playkfa.css?ver=2025122404" />
+
+
+<link rel="stylesheet" href="/css/sub.css?ver=2025122404" />
+
+
+
+
+<link rel="stylesheet" href="/css/national_new.css?ver=2025122404" />
+
+
+
+
+
+
+
+<link rel="stylesheet" media="all and (max-width:960px)" href="/css/no_responsive.css?ver=2025122404" />
+
+<!-- owl slider plugin -->
+<link rel="stylesheet" href="/API_Plugin/OwlCarousel2-2.2.1/owl.carousel.css">
+<link rel="stylesheet" href="/API_Plugin/OwlCarousel2-2.2.1/owl.theme.default.css">
+<script src="/API_Plugin/OwlCarousel2-2.2.1/owl.carousel.js"></script>
+<script src="/API_Plugin/jquery.bxslider.js?ver=2019102805"></script>
+<script>
+
+// BackSpace 키 방지 이벤트
+    $(document).keydown(function(e){
+        if(e.target.nodeName != "INPUT" && e.target.nodeName != "TEXTAREA"){
+            if(e.keyCode === 8){
+            return false;
+            }
+        }
+    });
+
+    //window.history.forward(0);
+
+</script>
+<!--[if lt IE 9]>
+<script type="text/javascript" src="/script/html5shiv.js"></script>
+<script type="text/javascript" src="/script/respond.js"></script>
+<![endif]-->
+<!--[if lte IE 8]>
+<div class="alert alert-danger text-center" style="width:100%; position:absolute; top:0; left:0; z-index:1040;">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    사용 중인 브라우저는 보안에 취약한 구 버전의 브라우저입니다.<br />
+    웹 브라우저를 <a href="https://www.microsoft.com/korea/ie" class="alert-link" target="_blank">업그레이드</a>하시거나,
+    다른 브라우저를 사용해보시기 바랍니다.<br />
+    <a href="https://www.google.com/chrome?hl=ko" class="alert-link" target="_blank">크롬 바로가기</a>,
+    <a href="https://www.mozilla.or.kr/ko/firefox/" class="alert-link" target="_blank">파이어폭스 바로가기</a>
+</div>
+<![endif]-->
+<!-- <link rel="stylesheet" href="/API_Plugin/animate.min.css"> -->
+
+</head>
+<body>
+
+<!-- 헤더 시작 -->
+<div id="header">
+
+<script type="text/javascript">
+$(document).ready(function(){
+    $('#top_search_val').keydown(function (key) {
+        if(key.keyCode == 13){//키가 13이면 실행 (엔터는 13)
+            top_search();
+        }
+    });
+});
+
+function top_search() {
+    var top_search_val = $.trim($('#top_search_val').val());
+
+    if(top_search_val == '') {
+        alert('검색어를 입력하여 주십시요!');
+        $('#top_search_val').focus();
+    } else {
+        var textLength = top_search_val.length;
+        var byteCnt = 0;
+        var forIE = false;
+        for (i = 0; i < textLength; i++) {
+            var charTemp = top_search_val.charAt(i);
+            if (escape(charTemp).length > 4) {
+                byteCnt += 2;
+                forIE= true;
+            } else {
+                byteCnt += 1;
+                forIE = false;
+            }
+        }
+        /*
+        if( byteCnt < 4){
+            if(forIE){
+                alert("최소 한글 2글자 영문 4글자 이상 입력하여 주십시요!");//ie에서 한글일때
+            }else{
+                alert("최소 한글 2글자 영문 4글자 이상 입력하여 주십시요!!");
+            }
+        } else {
+
+            url = '/top_search.php?search_val='+encodeURI(top_search_val);
+
+            $.get(url, function(args) {
+
+                $('#top_search_result').html(args);
+
+            });
+            $('#top_search_result').css("display","block");
+
+        }
+        */
+            url = '/top_search.php?search_val='+encodeURI(top_search_val);
+            $.get(url, function(args) {
+
+                $('#top_search_result').html(args);
+            });
+
+            $('#top_search_result').css("display","block");
+    }
+}
+</script>
+
+<header id="pc_version">
+    <div class="top"> <a href="/">
+        <h1 class="main_logo">대한축구협회</h1>
+        </a>
+        <nav class="pc_top_nav">
+            <ul class="menu">
+                <li class="sub_05" onclick="location.href='/'">KFA Live</li>
+                <li class="sub_01" onclick="location.href='/national/?act=nt_man'">국가대표</li>
+                <li class="sub_02" onclick="location.href='/competition/korea_cup.php'">대회</li>
+                <li class="sub_03" onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX05U'">아카이브</li>
+                <li class="sub_04" onclick="location.href='/kfa/?act=summary'">KFA</li>
+                <li class="sub_06" onclick="location.href='/cheonan_nfc/'">코리아풋볼파크</li>
+            </ul>
+            <ul class="btn_quick" style="margin-left: 300px;">
+                <li><a href="/sinmungo/sinmungo.php" class="btn_sinmungo">sinmungo</a></li>
+                <li><a href="https://www.playkfa.com/" class="btn_kfan" target="_blank">PLAYKFA</a></li>
+                <li><a href="#" class="btn_schedule">schedule</a><a href="#" class="btn_scheduleClose">schedule Close</a></li>
+                <li><a href="#" class="btn_search">Search</a><a href="#" class="btn_searchClose">search Close</a></li>
+                <li onclick="location.href='/live/live.php?KFA_Lang=eng';">EN</li>
+                <li><a href="/_kfa_sso/auth.php">로그인</a></li>
+                <!-- <li><a href="https://portal.kfa.or.kr" target="_blank">로그인</a></li> -->
+            </ul>
+        </nav>
+    </div>
+
+
+    <!-- 서브메뉴 시작 -->
+    <div class="k_sub_menu">
+
+        <!-- 국가대표 -->
+        <ul class="ath_national" style="display:none;">
+            <li onclick="location.href='/national/?act=nt_man';"><p>남자 A</p></li>
+            <li onclick="location.href='/national/?act=mu_23';"><p>남자 U-23</p></li>
+            <li onclick="location.href='/national/?act=mu_20';"><p>남자 U-20</p></li>
+            <li onclick="location.href='/national/?act=mu_17';"><p>남자 U-17</p></li>
+            <li onclick="location.href='/national/?act=mu_14';"><p>남자 U-14</p></li>
+            <li onclick="location.href='/national/?act=m_uni';"><p>남자유니버시아드</p></li>
+            <li onclick="location.href='/national/?act=nt_fs';"><p>남자풋살</p></li>
+            <li onclick="location.href='/national/?act=nt_woman';"><p>여자 A</p></li>
+            <li onclick="location.href='/national/?act=wu_20';"><p>여자 U-20</p></li>
+            <li onclick="location.href='/national/?act=wu_17';"><p>여자 U-17</p></li>
+            <li onclick="location.href='/national/?act=wu_14';"><p>여자 U-14</p></li>
+            <li onclick="location.href='/national/?act=w_uni';"><p>여자유니버시아드</p></li>
+            <li class="none"></li>
+            <li class="none"></li>
+        </ul>
+
+        <!-- 국내 대회 -->
+        <ul class="ath_competition" style="display:none;">
+            <li onclick="location.href='/competition/korea_cup.php';"><p>코리아컵</p></li>
+            <li onclick="location.href='/competition/k3_2026.php';"><p>K3 리그</p></li>
+            <li onclick="location.href='/competition/k4_2026.php';"><p>K4 리그</p></li>
+            <li onclick="location.href='/competition/competition.php?act=k567';"><p>K5·K6·K7 리그</p></li>
+            <li onclick="location.href='/competition/competition.php?act=lg_u';"><p>U 리그</p></li>
+            <li onclick="location.href='/competition/competition.php?act=lg_emh';"><p>초중고 리그</p></li>
+            <li onclick="location.href='/competition/competition.php?act=lg_i';"><p>i 리그</p></li>
+        </ul>
+
+        <!-- 아카이브 -->
+        <ul class="ath_archive" style="display:none;">
+            <li class="arch_nat">
+                <h3>국제대회</h3>
+                <ul class="arch_man">
+                    <li>
+                        <h4>남자</h4>
+                        <ul>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX05U';">FIFA 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9BU0lBTi1DVVA=';">아시안컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9PTFlNUElD';">올림픽</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9BU0lBTi1HQU1F';">아시안게임</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0yMg==';">AFC U23 아시안컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX1UtMjA=';">FIFA U20 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0xOQ==';">AFC U20 아시안컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX1UtMTc=';">FIFA U17 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0xNg==';">AFC U17 아시안컵</li>
+                        </ul>
+                    </li>
+                </ul>
+                <ul class="arch_woman">
+                    <li>
+                        <h4>여자</h4>
+                        <ul>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX05U';">FIFA 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9BU0lBTi1DVVA=';">아시안컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9PTFlNUElD';">올림픽</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9BU0lBTi1HQU1F';">아시안게임</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX1UtMjA=';">FIFA U20 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9BRkNfVS0xOQ==';">AFC U20 아시안컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX1UtMTc=';">FIFA U17 월드컵</li>
+                            <li onclick="location.href='/archive/national.php?sec=woman&div=Rl9BRkNfVS0xNg==';">AFC U17 아시안컵</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li class="arch_in">
+                <h3>국내대회</h3>
+                <ul>
+                    <li onclick="location.href='/archive/league.php?act=fa_cup&div=ZmFfY3Vw';">코리아컵</li>
+                    <li onclick="location.href='/archive/league.php?act=k_league&div=a19sZWFndWU=';">K 리그</li>
+                    <li onclick="location.href='/archive/league.php?act=k3_league&div=azNfbGVhZ3Vl';">K3·K4·K5 리그</li>
+                    <li onclick="location.href='/archive/league.php?act=wk_league&div=d2tfbGVhZ3Vl';">WK 리그</li>
+                    <li onclick="location.href='/archive/league.php?act=emh_league&div=ZW1oX2xlYWd1ZQ==';">초중고 리그</li>
+                    <li onclick="location.href='/archive/league.php?act=u_league&div=dV9sZWFndWU=';">U 리그</li>
+                    <li onclick="location.href='/archive/league.php?act=fk_league&div=ZmtfbGVhZ3Vl';">FK 리그</li>
+                </ul>
+            </li>
+            <li class="arch_record">
+                <h3>기록실</h3>
+                <ul>
+                    <li onclick="location.href='/archive/korea_history.php'">한국 축구 연혁</li>
+                    <li onclick="location.href='/archive/national_record.php'">국가별 역대 전적</li>
+                    <li onclick="location.href='/archive/player_record.php'">선수별 A매치 기록</li>
+                    <li onclick="location.href='/archive/director_history.php'">역대 대표팀 감독</li>
+                    <li onclick="location.href='/archive/etc_record.php'">각종 기록</li>
+                </ul>
+            </li>
+        </ul>
+
+        <!-- KFA -->
+        <ul class="ath_kfa" style="display:none;">
+            <li class="list_01">
+                <h3 onclick="location.href='/kfa/'">KFA 소개</h3>
+                <ul>
+                    <li onclick="location.href='/kfa/?act=summary'">개요</li>
+                    <li onclick="location.href='/kfa/?act=history'">연혁</li>
+                    <li onclick="location.href='/kfa/?act=executive_branch'">역대 집행부</li>
+                    <li onclick="location.href='/kfa/?act=emblem'">엠블럼/BI</li>
+                </ul>
+            </li>
+            <li class="list_02"}>
+                <h3>조직</h3>
+                <ul>
+                    <li onclick="location.href='/kfa/?act=organization_chart'">조직도</li>
+                    <li onclick="location.href='/kfa/?act=organization_affiliated'">회원단체</li>
+                    <li onclick="location.href='/kfa/?act=executive'">임원명단</li>
+                </ul>
+            </li>
+            <li class="list_03">
+                <h3>가치체계</h3>
+                <ul>
+                    <li onclick="location.href='/kfa/?act=value_system'">미션/가치/목표</li>
+                </ul>
+            </li>
+            <li class="list_04">
+                <h3>자료실</h3>
+                <ul>
+                    <li onclick="location.href='/kfa/data_room.php?act=charter';">윤리헌장 및 실천강령 / 정관</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=rule';">규정/규칙</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=publication';">ONSIDE</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=business_plan';">사업계획</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=registration';">등록현황</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=minutes';">이사회/총회 회의록</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=budget';">예산집행 내역</li>
+                    <li onclick="location.href='/kfa/data_room.php?act=inspection';">외부평가/감사결과</li>
+                </ul>
+            </li>
+            <li class="list_05">
+                <h3>기타</h3>
+                <ul>
+                    <li onclick="location.href='/kfa/?act=golden_age';">골든에이지</li>
+                    <li onclick="location.href='/kfa/?act=kfa_challenge';">KFA챌린지</li>
+                    <li onclick="location.href='/kfa/?act=social_con';">사회공헌</li>
+                    <li onclick="location.href='/kfa/?act=artificial_turf_certification';">인조잔디 인증제도/현황</li>
+                    <li onclick="location.href='/kfa/?act=nfc_faentasium';">풋볼 팬타지움</li>
+                    <li onclick="location.href='/kfa/?act=faq&code_div=national'">FAQs</li>
+                    <li onclick="location.href='/sinmungo/sinmungo.php'">신문고센터</li>
+                </ul>
+            </li>
+        </ul>
+
+    </div>
+
+    <!-- 검색 -->
+    <div class="popup_window" style="display:none; overflow-y:auto;">
+        <div class="search_bar">
+            <div>
+                <label for="top_search_val" class="search_txt">검색어를 입력하세요</label>
+                <input type="text" class="search_input" id="top_search_val" name="top_search_val" placeholder="무엇을 찾고 계세요??"/>
+                <button type="button" class="button" onclick="top_search();">검색하기</button>
+            </div>
+        </div>
+
+        <!-- 검색결과 소스 시작 -->
+        <div class="search_result" id="top_search_result" style="display:none;"> </div>
+        <!-- //검색결과 소스 끝 -->
+
+    </div>
+    <!-- 스케쥴 -->
+    <div class="popup_cals" style="display:none;">
+        <div id="calendar_view"> </div>
+    </div>
+</header>
+
+
+<header id="mobile_version" style="display:none;">
+    <h1 class="main_logo"><a href="/"><img src="/images/common/logo_main_left_top_71_34.png" alt="대한축구협회"></a></h1>
+
+    <a href="#" class="btn_m_menu">메뉴</a>
+    <a href="/sinmungo/sinmungo.php" class="btn_m_sinmungo">sinmungo</a>
+    <a href="https://www.playkfa.com/" class="btn_m_kfan" target="_blank">PLAYKFA</a>
+    <a href="javascript:;" class="btn_m_schedule">일정보기</a>
+    <a href="#" class="btn_m_search">검색</a>
+    <!-- 검색 -->
+    <div class="m_search">
+        <div class="search_bar">
+            <label for="top_mobile_search_val"></label>
+            <input type="text" id="top_mobile_search_val" name="top_mobile_search_val" placeholder="무엇을 찾고 계세요??"/>
+            <button type="button" class="button" onclick="top_search();">Search</button>
+        </div>
+        <div class="search_result" id="top_mobile_search_result" style="display:none;"> </div>
+    </div>
+    <!-- //검색 -->
+
+    <div class="popup_cals" style="display:none;">
+        <div id="calendar_view"> </div>
+    </div>
+</header>
+
+<!-- 모바일 메뉴 -->
+<div class="mobile_menu_list">
+    <div>
+        <ul class="gnb">
+            <!-- 1depth -->
+            <li><a href="#">KFA Live</a>
+                <ul class="last">
+                    <li><a href="javascript:;" onclick="location.href='/'">전체</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/live/live.php?act=news_tv'">News &#38; TV</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/live/live.php?act=notice'">공지사항</a></li>
+                    <li><a href="javascript:;"  onclick="location.href='/live/live.php?act=match_schedule'">경기일정</a></li>
+                </ul>
+            </li>
+            <li><a href="#">국가대표</a>
+                <ul>
+                    <li><a href="#">남자</a>
+                        <ul class="last">
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=nt_man';">남자 A</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=mu_23';">U-23</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=mu_20';">U-20</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=mu_17';">U-17</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=mu_14';">U-14</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=m_uni';">유니버시아드</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=nt_fs';">풋살대표</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#">여자</a>
+                        <ul class="last">
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=nt_woman';">여자 A</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=wu_20';">U-20</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=wu_17';">U-17</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=wu_14';">U-14</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/national/?act=w_uni';">유니버시아드</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li><a href="#">대회</a>
+                <ul class="last">
+                    <li><a href="javascript:;" onclick="location.href='/competition/korea_cup.php';">코리아컵</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/k3_2026.php';">K3 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/k4_2026.php';">K4 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/competition.php?act=lg_u';">U 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/competition.php?act=lg_emh';">초중고 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/competition.php?act=k567';">K5·K6·K7 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/competition.php?act=lg_i';">i 리그</a></li>
+                    <li><a href="javascript:;" onclick="location.href='/competition/competition.php?act=etc';">국내대회일정</a></li>
+                </ul>
+            </li>
+            <li><a href="#'">아카이브</a>
+                <ul>
+                    <li><a href="#">국제대회</a>
+                        <ul>
+                            <li><a href="#">남자</a>
+                                <ul class="last">
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX05U';">FIFA 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9BU0lBTi1DVVA=';">아시안컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9PTFlNUElD';">올림픽</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9BU0lBTi1HQU1F';">아시안게임</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0yMg==';">AFC U23 아시안컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX1UtMjA=';">FIFA U20 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0xOQ==';">AFC U20 아시안컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9GSUZBX1UtMTc=';">FIFA U17 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=man&div=TV9BRkNfVS0xNg==';">AFC U17 아시안컵</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="#">여자</a>
+                                <ul class="last">
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX05U';">FIFA 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9BU0lBTi1DVVA=';">아시안컵</a></li>
+                                    <li><a href="javascript:void(0);" onclick="location.href='/archive/national.php?sec=woman&div=Rl9PTFlNUElD';">올림픽</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9BU0lBTi1HQU1F';">아시안게임</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX1UtMjA=';">FIFA U20 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9BRkNfVS0xOQ==';">AFC U20 아시안컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9GSUZBX1UtMTc=';">FIFA U17 월드컵</a></li>
+                                    <li><a href="javascript:;" onclick="location.href='/archive/national.php?sec=woman&div=Rl9BRkNfVS0xNg==';">AFC U17 아시안컵</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li><a href="#">국내대회</a>
+                        <ul class="last">
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=fa_cup&div=ZmFfY3Vw';">코리아컵</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=k_league&div=a19sZWFndWU=';">K 리그</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=k3_league&div=azNfbGVhZ3Vl';">K3·K4·K5 리그</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=wk_league&div=d2tfbGVhZ3Vl';">WK 리그</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=emh_league&div=ZW1oX2xlYWd1ZQ==';">초중고 리그</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=u_league&div=dV9sZWFndWU=';">U 리그</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/league.php?act=fk_league&div=ZmtfbGVhZ3Vl';">FK 리그</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#">기록실</a>
+                        <ul class="last">
+                            <li><a href="javascript:;" onclick="location.href='/archive/korea_history.php'">한국 축구 연혁</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/country_history.php'">국가별 역대 전적</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/player_history.php'">선수별 A매치 기록</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/director_history.php'">역대 대표팀 감독</a></li>
+                            <li><a href="javascript:;" onclick="location.href='/archive/etc_record.php'">각종 기록</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
+			<li><a href="#">KFA</a>
+				<ul>
+					<li><a href="#">KFA 소개</a>
+						<ul class="last">
+							<li><a href="#" onclick="location.href='/kfa/?act=summary'">개요</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=history'">연혁</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=executive_branch'">역대 집행부</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=emblem'">엠블럼/BI</a></li>
+						</ul>
+					</li>
+					<li><a href="#">조직</a>
+						<ul class="last">
+							<li><a href="#" onclick="location.href='/kfa/?act=organization_chart'">조직도</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=organization_affiliated'">회원단체</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=executive'">임원명단</a></li>
+						</ul>
+					</li>
+					<li><a href="#">가치체계</a>
+						<ul class="last">
+							<li><a href="#" onclick="location.href='/kfa/?act=value_system'">미션/가치/목표</a></li>
+						</ul>
+					</li>
+					<li><a href="#">자료실</a>
+						<ul class="last">
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=charter'">윤리헌장 및 실천강령 / 정관</a></li>
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=rule'">규정/규칙</a></li>
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=publication'">ONSIDE</a></li>
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=business_plan'">사업계획</a></li>
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=registration'">등록현황</a></li>
+                            <li><a href="#" onclick="location.href='/kfa/data_room.php?act=minutes';">이사회/총회 회의록</a></li>
+                            <li><a href="#" onclick="location.href='/kfa/data_room.php?act=budget';">예산집행 내역</a></li>
+                            <li><a href="#" onclick="location.href='/kfa/data_room.php?act=inspection';">외부평가/감사결과</a></li>
+						</ul>
+					</li>
+					<li><a href="#">기타</a>
+						<ul class="last">
+							<li><a href="#" onclick="location.href='/kfa/?act=golden_age'">골든에이지</a></li>
+                            <li><a href="#" onclick="location.href='/kfa/?act=kfa_challenge'">KFA챌린지</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=social_con'">사회공헌</a></li>
+							<li><a href="#" onclick="location.href='/kfa/data_room.php?act=artificial_turf_certification'">인조잔디 인증제도/현황</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=nfc_faentasium'">풋볼 팬타지움</a></li>
+							<li><a href="#" onclick="location.href='/kfa/?act=faq&code_div=national'">FAQs</a></li>
+							<li><a href="#" onclick="location.href='/sinmungo/sinmungo.php'">신문고센터</a></li>
+						</ul>
+					</li>
+				</ul>
+			</li>
+
+
+			<li><a href="#" onclick="location.href='/cheonan_nfc/'">코리아풋볼파크</a></li>
+
+
+        </ul>
+        <ul class="b_menu">
+            <li><a href="http://www.kfaedu.com" target="_blank">KFA edu</a></li>
+            <li><a href="https://plusapi.kfa.or.kr/api/cms/sso/ssologin?returnUrl=https%3A%2F%2Fplus.kfa.or.kr%2Fgallery%3Fpage%3D0%26sort%3Ddesc%26sortTarget%3Dimagecontent.pictureDate%26shareYn%3DY" target="_blank">KFA Photo</a></li>
+            <li><a href="https://www.joinkfa.com/" target="_blank">JoinKFA</a></li>
+            <li><a href="https://media.kfa.or.kr/" target="_blank">Media</a></li>
+            <li><a href="https://www.playkfa.com/" target="_blank">PLAYKFA</a></li>
+
+
+			<li class="big" ><a href="/_kfa_sso/auth.php">로그인</a></li>
+			<li class="big" style="margin-top:0px;"><a href="/live/live.php?KFA_Lang=eng">English</a></li>
+
+            <!-- <li class="big"><a href="/live/live.php?KFA_Lang=eng">English</a></li> -->
+            <li class="big">
+                <select id="family_site_mobile" name="family_site_mobile" onchange="window.open(this.value,'_blank');">
+                    <option value="">Family site</option>
+                    <option value="http://www.fifa.com/">국제축구연맹(FIFA)</option>
+                    <option value="http://www.the-afc.com">아시아축구연맹(AFC)</option>
+                    <option value="https://eaff.com/index_k.html">동아시아축구연맹(EAFF)</option>
+                    <option value="http://www.seoulfa.or.kr">서울특별시축구협회</option>
+                    <option value="http://www.bfa.or.kr">부산광역시축구협회</option>
+                    <option value="http://www.dfa.or.kr">대구광역시축구협회</option>
+                    <option value="http://www.kifa.incheon.kr">인천광역시축구협회</option>
+                    <option value="http://www.djfa.co.kr">대전광역시축구협회</option>
+                    <option value="http://m.cafe.daum.net/gjfa.com">광주광역시축구협회</option>
+                    <option value="http://www.ufa.or.kr">울산광역시축구협회</option>
+                    <option value="http://www.gokgfa.or.kr">경기도축구협회</option>
+                    <option value="http://www.gfa.kr">강원도축구협회</option>
+                    <option value="http://www.jjfa.or.kr">제주특별자치도축구협회</option>
+                    <option value="http://www.cbfa.kr">충청북도축구협회</option>
+                    <option value="http://m.www.cnfa.co.kr">충청남도축구협회</option>
+                    <option value="http://www.jfa.or.kr">전라북도축구협회</option>
+                    <option value="http://www.jeonnamfa.or.kr">전라남도축구협회</option>
+                    <option value="http://www.gbfa.co.kr">경상북도축구협회</option>
+                    <option value="http://www.gnfa.or.kr">경상남도축구협회</option>
+                    <option value="http://www.koreasoccer.or.kr/sejong">세종특별자치시축구협회</option>
+                    <option value="http://www.kleague.com">한국프로축구연맹(K리그)</option>
+                    <option value="http://www.kufc.or.kr">한국대학축구연맹</option>
+                    <option value="http://www.kwff.or.kr">한국여자축구연맹</option>
+                    <option value="http://www.futsal.or.kr">한국풋살연맹</option>
+                    <option value="http://faentasium.com">풋볼팬타지움</option>
+                </select>
+ </li>
+        </ul>
+        <p>Copyright ⓒ KFA. All Rights Reserved.</p>
+    </div>
+</div>
+
+<script>
+
+
+    function kfan_notice() {
+
+        url = '/live/live.php?act=notice_detail&idx=1023&div_code=';
+
+        $.get(url, function(args) {
+
+            $('#layer_popup').html(args);
+
+        });
+
+        $('#layer_popup').css("display","block");
+        $('#header').css("display","none");
+        $('#contents').css("display","none");
+        $( 'html, body' ).animate( { scrollTop : 0 }, 400 );
+
+    }
+</script>
+</div>
+<!-- 헤더 끝 -->
+<!-- 로딩 시작 -->
+
+<div id="loading_view"><div class="loader"></div></div>
+
+<script type="text/javascript">
+//$(window).on('load',function() {
+$(document).ready(function() {
+    //$('#loading_view').hide();
+    //$('#loading_view').fadeOut("slow");
+    $('#loading_view').fadeOut(1000, 'linear');
+});
+</script>
+
+<!-- 로딩 끝 -->
+
+<!-- Custom Use -->
+<div id="custom_view"></div>
+
+<!-- 레이어 팝업 -->
+<div id="layer_popup" style="display:none;z-index:9999999;">
+
+</div>
+
+<!-- 메인 시작 -->
+<div id="contents">
+	<!-- 메인 내용 -->
+    <div id="main_contents">
+<div class="news_slide">
+            <div class="bg_slide owl-carousel">
+				<!-- background 이미지에 첨부된 이미지 경로 -->
+                    <div class="img_slide" style="background-image: url('https://img.kfa.or.kr/main_banner/176362318845073.jpg'); cursor:pointer;" onclick="window.open(' ','_blank');">
+                    <div class="news_nav">
+                        <p class="nav_title"> </p>
+                        <p class="nav_contents"> </p>
+                        <ul class="nav_btn">
+							<!-- 해당기사 바로가기 -->
+                            <li><a href="#"><!-- 자세히보기 -->자세히보기</a></li>
+							<li><a href="#" class="prev">이전</a></li>
+							<li><a href="#" class="next">다음</a></li>
+                        </ul>
+                    </div>
+                </div>
+                    <div class="img_slide" style="background-image: url('https://img.kfa.or.kr/main_banner/175316272688272.jpg'); cursor:pointer;" onclick="window.open('//www.kfa.or.kr/national/?act=nt_woman','_blank');">
+                    <div class="news_nav">
+                        <p class="nav_title"> </p>
+                        <p class="nav_contents"> </p>
+                        <ul class="nav_btn">
+							<!-- 해당기사 바로가기 -->
+                            <li><a href="#"><!-- 자세히보기 -->자세히보기</a></li>
+							<li><a href="#" class="prev">이전</a></li>
+							<li><a href="#" class="next">다음</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+<script>
+function search_move() {
+    var s_idx=$('#s_idx').val();
+    var search_val=$('#search_val_match').val();
+    location.href='?act=nt_man&position=&s_idx='+s_idx+'&search_val='+search_val+'&cursor=#cursor_location';
+}
+function search_move_match() {
+    var s_idx=$('#s_idx').val();
+    var search_val=$('#search_val_match').val();
+    location.href='?act=nt_man&position=&s_idx='+s_idx+'&search_val='+search_val+'&cursor=#cursor_location_sub';
+}
+</script>
+    <section>
+<!-- 웹용 -->
+        <div class="sub_menu web" id="cursor_location">
+			<div class="box">
+				<h2 class="sub_title_text">국가대표</h2>
+				<ul class="sub_menu_list two-row">
+					<li class="m_all_sub on"><a href="javascript:;" onclick="location.href='/national/?act=nt_man'">남자 A</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_23'">남자 U-23</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_20'">남자 U-20</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_17'">남자 U-17</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_14'">남자 U-14</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=m_uni'">남자유니버시아드</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=nt_fs'">남자풋살</a></li>
+				</ul>
+				<ul class="sub_menu_list two-row">
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=nt_woman'">여자 A</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=wu_20'">여자 U-20</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=wu_17'">여자 U-17</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=wu_14'">여자 U-14</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=w_uni'">여자유니버시아드</a></li>
+				</ul>
+			</div>
+            <!-- 서브메뉴 스크립트 -->
+            <script>
+                $(".m_all").click(function () {
+                    $(".m_all_sub").toggle("slow");
+                });
+            </script>
+        </div>
+		<!-- //웹용 -->
+
+		<!-- 모바일 -->
+		<div class="sub_menu mob">
+			<!-- 남자 팀 일경우 -->
+			<div class="man">
+				<h2 class="sub_title_text"><a href="#">남자</a></h2>
+				<ul class="list">
+					<li class="on"><a href="/national/?act=nt_man">남자</a></li>
+					<li><a href="/national/?act=nt_woman">여자</a></li>
+				</ul>
+				<!-- 모바일 메뉴컨트롤 -->
+				<a href="#" class="m_sub_menu">
+남자 A				</a>
+				<!-- //모바일 메뉴컨트롤 -->
+
+				<ul class="sub_menu_list">
+					<li class="m_all_sub on"><a href="javascript:;" onclick="location.href='/national/?act=nt_man'">남자 A</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_23'">남자 U-23</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_20'">남자 U-20</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_17'">남자 U-17</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=mu_14'">남자 U-14</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=m_uni'">남자유니버시아드</a></li>
+					<li class="m_all_sub"><a href="javascript:;" onclick="location.href='/national/?act=nt_fs'">남자풋살</a></li>
+				</ul>
+			</div>
+			<!-- //남자 팀 일경우 -->
+
+			<!-- 여자팀 일경우 -->
+			<!-- //여자팀 일경우 -->
+		</div>
+		<!-- //모바일 -->
+
+		<!-- 서브메뉴 스크립트 -->
+		<script>
+			$('.sub_menu .sub_title_text a').on('click',function(){
+				$('.m_sub_menu').removeClass('active');
+				$('.sub_menu_list').slideUp('fast');
+				$(this).toggleClass('active');
+				$(this).parent().next('.list').stop().slideToggle('fast');
+				return false;
+			});
+
+        </script>
+        <div class="main_contents">
+		<div class="fb_banner"><a href="https://www.facebook.com/KoreaFootballTeam" target="_blank"><img src="/images/banner/facebook_pc_1X_new.png" /></a></div>
+		<div class="fb_banner_mobile"><a href="https://www.facebook.com/KoreaFootballTeam" target="_blank"><img src="/images/banner/facebook_mobile_1X_new.png" /></a></div>
+		<div class="fb_banner_retina"><a href="https://www.facebook.com/KoreaFootballTeam" target="_blank"><img src="/images/banner/facebook_pc_2X_new.png" /></a></div>
+		<div class="fb_banner_mobile_retina"><a href="https://www.facebook.com/KoreaFootballTeam" target="_blank"><img src="/images/banner/facebook_mobile_2X_new.png" /></a></div>
+
+            <div class="left_dataTable">
+
+                <div class="search_nav">
+                    <div class="table-title">
+                        <h3>선수 명단<!-- &nbsp;2026 --></h3>
+                    </div>
+					<!-- 대회 선택 박스 -->
+                    <div class="table-filter game">
+                        <select name="s_idx" id="s_idx" onchange="search_move();">
+							<option value="7608"  selected title="2026년03월23일 남자 축구 국가대표팀 3월 평가전 소집명단(영국, 오스트리아)">2026년03월23일 남자 축구 국가대표팀 3월 평가전 소집명단(영국, 오스트리아)</option>
+							<option value="7207"  title="2025년11월03일 남자 축구 국가대표팀 11월 평가전 소집명단(대전, 서울)">2025년11월03일 남자 축구 국가대표팀 11월 평가전 소집명단(대전, 서울)</option>
+							<option value="7067"  title="2025년9월29일 남자 축구 국가대표팀 10월 평가전 소집명단(서울)">2025년9월29일 남자 축구 국가대표팀 10월 평가전 소집명단(서울)</option>
+							<option value="6887"  title="2025년8월25일 남자 축구 국가대표팀  9월 평가전 소집명단(미국)">2025년8월25일 남자 축구 국가대표팀  9월 평가전 소집명단(미국)</option>
+							<option value="6708"  title="2025년06월23일 남자 축구 국가대표팀 EAFF E-1 챔피언십 소집명단">2025년06월23일 남자 축구 국가대표팀 EAFF E-1 챔피언십 소집명단</option>
+							<option value="6608"  title="2025년5월26일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (이라크.서울)">2025년5월26일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (이라크.서울)</option>
+							<option value="6387"  title="2025년3월10일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (고양. 수원)">2025년3월10일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (고양. 수원)</option>
+							<option value="6148"  title="2024년11월4일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (쿠웨이트. 요르단)">2024년11월4일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (쿠웨이트. 요르단)</option>
+							<option value="6027"  title="2024년09월30일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (요르단, 용인)">2024년09월30일 남자축구국가 대표팀 월드컵 3차 예선소집명단 (요르단, 용인)</option>
+							<option value="5927"  title="2024년08월26일 남자국가 대표팀 월드컵 3차 예선 소집명단(서울,오만)">2024년08월26일 남자국가 대표팀 월드컵 3차 예선 소집명단(서울,오만)</option>
+							<option value="5587"  title="2024년05월27일 남자국가 대표팀 월드컵 2차 예선 소집명단(싱가포르, 서울)">2024년05월27일 남자국가 대표팀 월드컵 2차 예선 소집명단(싱가포르, 서울)</option>
+							<option value="5247"  title="2024년03월11일 남자국가 대표팀 월드컵 2차 예선 소집명단(서울, 태국)">2024년03월11일 남자국가 대표팀 월드컵 2차 예선 소집명단(서울, 태국)</option>
+							<option value="5027"  title="2024년1월2일 남자국가대표팀 아시안컵 명단(카타르)">2024년1월2일 남자국가대표팀 아시안컵 명단(카타르)</option>
+							<option value="4909"  title="2023년11월06일 남자국가 대표팀 월드컵 2차 예선 소집명단(서울, 중국)">2023년11월06일 남자국가 대표팀 월드컵 2차 예선 소집명단(서울, 중국)</option>
+							<option value="4787"  title="2023년10월4일 축구국가대표팀 2023년 10월 평가전 소집 명단(파주NFC  ">2023년10월4일 축구국가대표팀 2023년 10월 평가전 소집 명단(파주NFC  </option>
+							<option value="4588"  title="2023년08월29일 남자축구국가대표팀 유럽원정 소집명단(영국)">2023년08월29일 남자축구국가대표팀 유럽원정 소집명단(영국)</option>
+							<option value="4367"  title="2023년6월7일 하나은행 초청 축구 국가대표팀 친선경기 명단(부산,대전)">2023년6월7일 하나은행 초청 축구 국가대표팀 친선경기 명단(부산,대전)</option>
+							<option value="4127"  title="2023년03월20일 2023 하나은행 초청 축구 국가대표팀 친선경기 명단(파주 NFC)">2023년03월20일 2023 하나은행 초청 축구 국가대표팀 친선경기 명단(파주 NFC)</option>
+							<option value="3767"  title="2022년11월12일 대표팀(2022 FIFA 카타르 월드컵 명단)">2022년11월12일 대표팀(2022 FIFA 카타르 월드컵 명단)</option>
+							<option value="3667"  title="2022년10월21일 대표팀(10월 국가대표 국내훈련소집명단.파주NFC)">2022년10월21일 대표팀(10월 국가대표 국내훈련소집명단.파주NFC)</option>
+							<option value="3507"  title="2022년9월13일 대표팀(9월 국가대표 친선경기)">2022년9월13일 대표팀(9월 국가대표 친선경기)</option>
+							<option value="3327"  title="2022년7월11일 대표팀(2022년  EAFF E-1 챔피언십 대회 명단)">2022년7월11일 대표팀(2022년  EAFF E-1 챔피언십 대회 명단)</option>
+							<option value="3207"  title="2022년5월23일 대표팀(6월 국가대표 친선경기)">2022년5월23일 대표팀(6월 국가대표 친선경기)</option>
+							<option value="3007"  title="2022년3월21일 대표팀(FIFA 월드컵 카타르 2022 아시아 3월 최종예선)">2022년3월21일 대표팀(FIFA 월드컵 카타르 2022 아시아 3월 최종예선)</option>
+							<option value="2927"  title="2022년1월23일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선(시리아&레바논)">2022년1월23일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선(시리아&...</option>
+							<option value="2807"  title="2022년1월9일 국가대표팀명단(2022년 1월 전지훈련 국가대표팀 소집 명단, 터키)">2022년1월9일 국가대표팀명단(2022년 1월 전지훈련 국가대표팀 소집 명단, 터키)</option>
+							<option value="2667"  title="2021년11월01일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선(UAE&이라크)">2021년11월01일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선(UAE&이...</option>
+							<option value="2587"  title="2021년 9월27일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선, 시리아&이란)">2021년 9월27일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선, 시리아...</option>
+							<option value="2507"  title="2021년 8월23일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선, 서울&수원)">2021년 8월23일 국가대표팀명단(FIFA 월드컵 카타르 2022 아시아 최종예선, 서울&...</option>
+							<option value="2388"  title="2021년 5월 25일 대표팀 (2022 FIFA 카타르 월드컵 아시아지역 2차 예선, 경기 고양시)">2021년 5월 25일 대표팀 (2022 FIFA 카타르 월드컵 아시아지역 2차 예선, 경기 고...</option>
+							<option value="2307"  title="2021년 3월 25일 대표팀 (친선경기 vs 일본, 일본)">2021년 3월 25일 대표팀 (친선경기 vs 일본, 일본)</option>
+							<option value="2069"  title="2020년 11월 2일 대표팀 (친선경기 vs 멕시코, 카타르) ">2020년 11월 2일 대표팀 (친선경기 vs 멕시코, 카타르) </option>
+							<option value="2007"  title="2020년 10월 10일 대표팀 (2020 하나은행컵 축구국가대표팀 vs. 올림픽대표팀, 고양)">2020년 10월 10일 대표팀 (2020 하나은행컵 축구국가대표팀 vs. 올림픽대표팀, 고양)</option>
+							<option value="1619"  title="2019년 12월 13일 대표팀 (EAFF E-1 챔피언십, 부산)">2019년 12월 13일 대표팀 (EAFF E-1 챔피언십, 부산)</option>
+							<option value="1617"  title="2019년 11월 13일 대표팀 (월드컵 2차 통합 예선 vs 레바논 / 친선경기 vs 브라질)">2019년 11월 13일 대표팀 (월드컵 2차 통합 예선 vs 레바논 / 친선경기 vs 브라질)</option>
+							<option value="1612"  title="2019년 10월 15일 대표팀 (월드컵 2차 통합 예선 vs 북한)">2019년 10월 15일 대표팀 (월드컵 2차 통합 예선 vs 북한)</option>
+							<option value="1606"  title="2019년 09월 30일 대표팀 (월드컵 2차 통합예선 vs 스리랑카)">2019년 09월 30일 대표팀 (월드컵 2차 통합예선 vs 스리랑카)</option>
+							<option value="1594"  title="2019년 08월 30일 대표팀 (친선경기 vs 조지아 / 월드컵 2차 통합예선 vs 투르크메니스탄)">2019년 08월 30일 대표팀 (친선경기 vs 조지아 / 월드컵 2차 통합예선 vs 투르크메...</option>
+							<option value="1579"  title="2019년 06월 10일 대표팀 (친선경기 vs 이란)">2019년 06월 10일 대표팀 (친선경기 vs 이란)</option>
+							<option value="1578"  title="2019년 06월 03일 대표팀 (친선경기 vs 호주)">2019년 06월 03일 대표팀 (친선경기 vs 호주)</option>
+							<option value="1566"  title="2019년 03월 25일 대표팀 (친선경기 vs 콜롬비아)">2019년 03월 25일 대표팀 (친선경기 vs 콜롬비아)</option>
+							<option value="1560"  title="2019년 03월 20일 대표팀 (친선경기 vs 볼리비아)">2019년 03월 20일 대표팀 (친선경기 vs 볼리비아)</option>
+							<option value="1549"  title="2019년 01월 06일 대표팀 (2019 AFC 아시안컵 최종명단, UAE)">2019년 01월 06일 대표팀 (2019 AFC 아시안컵 최종명단, UAE)</option>
+							<option value="1548"  title="2018년 12월 7일 대표팀 (2019 AFC 아시안컵 대비 국내 최종훈련, 울산)">2018년 12월 7일 대표팀 (2019 AFC 아시안컵 대비 국내 최종훈련, 울산)</option>
+							<option value="1545"  title="2018년 11월 13일 대표팀 (친선경기 vs 호주 / 우즈베키스탄)">2018년 11월 13일 대표팀 (친선경기 vs 호주 / 우즈베키스탄)</option>
+							<option value="1537"  title="2018년 10월 06일 대표팀 (친선경기 vs 우루과이 / 파나마)">2018년 10월 06일 대표팀 (친선경기 vs 우루과이 / 파나마)</option>
+							<option value="1529"  title="2018년 09월 05일 대표팀 (친선경기 vs 코스타리카 / 칠레)">2018년 09월 05일 대표팀 (친선경기 vs 코스타리카 / 칠레)</option>
+							<option value="1516"  title="2018년 06월 04일 대표팀 (러시아월드컵)">2018년 06월 04일 대표팀 (러시아월드컵)</option>
+							<option value="1511"  title="2018년 05월 23일 대표팀 (친선경기 vs 온두라스 / 보스니아 헤르체고비나)">2018년 05월 23일 대표팀 (친선경기 vs 온두라스 / 보스니아 헤르체고비나)</option>
+							<option value="1504"  title="2018년 03월 12일 대표팀 (유럽 원정 평가전)">2018년 03월 12일 대표팀 (유럽 원정 평가전)</option>
+							<option value="1499"  title="2018년 01월 18일 대표팀 (터키 전지훈련)">2018년 01월 18일 대표팀 (터키 전지훈련)</option>
+							<option value="1490"  title="2017년 11월 24일 대표팀 (EAFF E-1 챔피언십)">2017년 11월 24일 대표팀 (EAFF E-1 챔피언십)</option>
+							<option value="1488"  title="2017년 11월 06일 대표팀 (친선경기 vs 콜롬비아 / 세르비아)">2017년 11월 06일 대표팀 (친선경기 vs 콜롬비아 / 세르비아)</option>
+							<option value="1474"  title="2017년 09월 25일 대표팀 (친선경기 vs 러시아 / 모로코)">2017년 09월 25일 대표팀 (친선경기 vs 러시아 / 모로코)</option>
+							<option value="1471"  title="2017년 09월 05일 대표팀 (월드컵 최종예선 vs 우즈베키스탄)">2017년 09월 05일 대표팀 (월드컵 최종예선 vs 우즈베키스탄)</option>
+							<option value="1461"  title="2017년 08월 14일 대표팀 (월드컵 최종예선 vs 이란)">2017년 08월 14일 대표팀 (월드컵 최종예선 vs 이란)</option>
+							<option value="1450"  title="2017년 05월 22일 대표팀 (친선경기 vs 이라크 / 월드컵 최종예선 vs 카타르)">2017년 05월 22일 대표팀 (친선경기 vs 이라크 / 월드컵 최종예선 vs 카타르)</option>
+							<option value="1440"  title="2017년 03월 27일 대표팀 (월드컵 최종예선 vs 시리아)">2017년 03월 27일 대표팀 (월드컵 최종예선 vs 시리아)</option>
+							<option value="1437"  title="2017년 03월 16일 대표팀 (월드컵 최종예선 vs 중국)">2017년 03월 16일 대표팀 (월드컵 최종예선 vs 중국)</option>
+							<option value="1425"  title="2016년 11월 15일 대표팀 (월드컵 최종예선 vs 우즈베키스탄)">2016년 11월 15일 대표팀 (월드컵 최종예선 vs 우즈베키스탄)</option>
+							<option value="1422"  title="2016년 10월 31일 대표팀 (친선경기 vs 캐나다)">2016년 10월 31일 대표팀 (친선경기 vs 캐나다)</option>
+							<option value="1415"  title="2016년 10월 07일 대표팀 (월드컵 최종예선 vs 이란)">2016년 10월 07일 대표팀 (월드컵 최종예선 vs 이란)</option>
+							<option value="1407"  title="2016년 09월 26일 대표팀 (월드컵 최종예선 vs 카타르)">2016년 09월 26일 대표팀 (월드컵 최종예선 vs 카타르)</option>
+							<option value="1405"  title="2016년 09월 03일 대표팀 (월드컵 최종예선 vs 시리아)">2016년 09월 03일 대표팀 (월드컵 최종예선 vs 시리아)</option>
+							<option value="1400"  title="2016년 08월 22일 대표팀 (월드컵 최종예선 vs 중국)">2016년 08월 22일 대표팀 (월드컵 최종예선 vs 중국)</option>
+							<option value="1353"  title="2016년 05월 23일 대표팀 (친선경기 vs 스페인 / 체코)">2016년 05월 23일 대표팀 (친선경기 vs 스페인 / 체코)</option>
+							<option value="1344"  title="2016년 03월 21일 대표팀 (월드컵2차 통합예선 vs 레바논 / 친선경기 vs 태국)">2016년 03월 21일 대표팀 (월드컵2차 통합예선 vs 레바논 / 친선경기 vs 태국)</option>
+							<option value="1342"  title="2016년 03월 14일 대표팀 (월드컵2차 통합예선 vs 레바논 / 친선경기 vs 태국)">2016년 03월 14일 대표팀 (월드컵2차 통합예선 vs 레바논 / 친선경기 vs 태국)</option>
+							<option value="1319"  title="2015년 11월 02일 대표팀 (월드컵2차 통합예선 vs 라오스, 라오스 비엔티엔)">2015년 11월 02일 대표팀 (월드컵2차 통합예선 vs 라오스, 라오스 비엔티엔)</option>
+							<option value="1311"  title="2015년 11월 02일 대표팀 (월드컵2차 통합예선 vs 미얀마, 수원)">2015년 11월 02일 대표팀 (월드컵2차 통합예선 vs 미얀마, 수원)</option>
+							<option value="1303"  title="2015년 10월 11일 대표팀 (친선경기 vs 자메이카)">2015년 10월 11일 대표팀 (친선경기 vs 자메이카)</option>
+							<option value="1301"  title="2015년 09월 28일 대표팀 (월드컵 2차 통합예선 vs 쿠웨이트 / 국내 친선 vs 자메이카)">2015년 09월 28일 대표팀 (월드컵 2차 통합예선 vs 쿠웨이트 / 국내 친선 vs 자메...</option>
+							<option value="1298"  title="2015년 10월 02일 대표팀 (월드컵 2차 통합예선 vs 쿠웨이트 / 국내 친선 vs 자메이카)">2015년 10월 02일 대표팀 (월드컵 2차 통합예선 vs 쿠웨이트 / 국내 친선 vs 자메...</option>
+							<option value="1286"  title="2015년 08월 28일 대표팀 (월드컵 2차 통합예선 vs 라오스/레바논)">2015년 08월 28일 대표팀 (월드컵 2차 통합예선 vs 라오스/레바논)</option>
+							<option value="1285"  title="2015년 08월 24일 대표팀 (월드컵 2차 통합예선 vs 라오스/레바논)">2015년 08월 24일 대표팀 (월드컵 2차 통합예선 vs 라오스/레바논)</option>
+							<option value="1279"  title="2015년 07월 24일 대표팀 (EAFF 동아시안컵)">2015년 07월 24일 대표팀 (EAFF 동아시안컵)</option>
+							<option value="1277"  title="2015년 07월 20일 대표팀 (EAFF 동아시안컵)">2015년 07월 20일 대표팀 (EAFF 동아시안컵)</option>
+							<option value="1267"  title="2015년 06월 11일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선)">2015년 06월 11일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선)</option>
+							<option value="1265"  title="2015년 06월 08일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선)">2015년 06월 08일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선)</option>
+							<option value="1259"  title="2015년 06월 01일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선) ">2015년 06월 01일 대표팀 (vs UAE 평가전 / vs 미얀마 월드컵 2차예선) </option>
+							<option value="1241"  title="2015년 03월 17일 대표팀 (친선경기 vs 우즈베키스탄 / 뉴질랜드 )">2015년 03월 17일 대표팀 (친선경기 vs 우즈베키스탄 / 뉴질랜드 )</option>
+							<option value="1238"  title="2015년 03월 19일 대표팀 (친선경기 vs 우즈베키스탄 / 뉴질랜드 )">2015년 03월 19일 대표팀 (친선경기 vs 우즈베키스탄 / 뉴질랜드 )</option>
+							<option value="1226"  title="2014년 12월 22일 대표팀 (2015 아시안컵 최종명단, 호주)">2014년 12월 22일 대표팀 (2015 아시안컵 최종명단, 호주)</option>
+							<option value="1225"  title="2014년 12월 15일 대표팀 (2015 아시안컵/동아시안컵 대비 국내최종훈련, 제주도 서귀포)">2014년 12월 15일 대표팀 (2015 아시안컵/동아시안컵 대비 국내최종훈련, 제주도 ...</option>
+							<option value="1224"  title="2014년 12월 04일 대표팀 (2015 아시안컵/동아시안컵 대비 국내최종훈련, 제주도 서귀포)">2014년 12월 04일 대표팀 (2015 아시안컵/동아시안컵 대비 국내최종훈련, 제주도 ...</option>
+							<option value="1221"  title="2014년 11월 07일 대표팀 (요르단, 이란 친선경기)">2014년 11월 07일 대표팀 (요르단, 이란 친선경기)</option>
+							<option value="1215"  title="2014년 11월 03일 대표팀 (요르단, 이란 친선경기)">2014년 11월 03일 대표팀 (요르단, 이란 친선경기)</option>
+							<option value="1210"  title="2014년 10월 06일 대표팀 (파라과이, 코스타리카 친선경기)">2014년 10월 06일 대표팀 (파라과이, 코스타리카 친선경기)</option>
+							<option value="1205"  title="2014년 08월 25일 대표팀 (베네수엘라, 우루과이 친선경기)">2014년 08월 25일 대표팀 (베네수엘라, 우루과이 친선경기)</option>
+							<option value="1158"  title="2014년 05월 29일 대표팀 (브라질월드컵)">2014년 05월 29일 대표팀 (브라질월드컵)</option>
+							<option value="1155"  title="2014년 05월 08일 대표팀 (브라질월드컵)">2014년 05월 08일 대표팀 (브라질월드컵)</option>
+							<option value="1050"  title="2014년 03월 02일 대표팀 (그리스 친선경기)">2014년 03월 02일 대표팀 (그리스 친선경기)</option>
+							<option value="1040"  title="2014년 02월 19일 대표팀 (그리스 친선경기)">2014년 02월 19일 대표팀 (그리스 친선경기)</option>
+							<option value="1008"  title="2014년 01월 07일 대표팀 (브라질, 미국 동계전지훈련)">2014년 01월 07일 대표팀 (브라질, 미국 동계전지훈련)</option>
+							<option value="1006"  title="2014년 01월 02일 대표팀 (브라질, 미국 동계전지훈련)">2014년 01월 02일 대표팀 (브라질, 미국 동계전지훈련)</option>
+							<option value="1000"  title="2013년 11월 11일 대표팀 (스위스, 러시아 친선경기)">2013년 11월 11일 대표팀 (스위스, 러시아 친선경기)</option>
+							<option value="999"  title="2013년 11월 04일 대표팀 (스위스, 러시아 친선경기)">2013년 11월 04일 대표팀 (스위스, 러시아 친선경기)</option>
+							<option value="995"  title="2013년 10월 09일 대표팀 (브라질, 말리 친선경기)">2013년 10월 09일 대표팀 (브라질, 말리 친선경기)</option>
+							<option value="992"  title="2013년 09월 30일 대표팀 (브라질, 말리 친선경기)">2013년 09월 30일 대표팀 (브라질, 말리 친선경기)</option>
+							<option value="982"  title="2013년 09월 05일 대표팀 (아이티, 크로아티아 친선경기)">2013년 09월 05일 대표팀 (아이티, 크로아티아 친선경기)</option>
+							<option value="981"  title="2013년 08월 27일 대표팀 (아이티, 크로아티아 친선경기)">2013년 08월 27일 대표팀 (아이티, 크로아티아 친선경기)</option>
+							<option value="979"  title="2013년 08월 06일 대표팀 (페루 친선경기)">2013년 08월 06일 대표팀 (페루 친선경기)</option>
+							<option value="976"  title="2013년 07월 11일 대표팀 (EAFF 동아시안컵)">2013년 07월 11일 대표팀 (EAFF 동아시안컵)</option>
+							<option value="971"  title="2013년 05월 16일 대표팀 (월드컵 최종예선 6,7,8차전)">2013년 05월 16일 대표팀 (월드컵 최종예선 6,7,8차전)</option>
+							<option value="958"  title="2013년 03월 04일 대표팀 (월드컵 최종예선 카타르전)">2013년 03월 04일 대표팀 (월드컵 최종예선 카타르전)</option>
+							<option value="956"  title="2013년 01월 21일 대표팀 (크로아티아 친선경기)">2013년 01월 21일 대표팀 (크로아티아 친선경기)</option>
+							<option value="951"  title="2012년 11월 05일 대표팀 (호주 친선경기)">2012년 11월 05일 대표팀 (호주 친선경기)</option>
+							<option value="950"  title="2012년 10월 08일 대표팀 (이란 전)">2012년 10월 08일 대표팀 (이란 전)</option>
+							<option value="948"  title="2012년 08월 29일 대표팀 (우즈베키스탄 전)">2012년 08월 29일 대표팀 (우즈베키스탄 전)</option>
+							<option value="945"  title="2012년 08월 09일 대표팀 (잠비아 친선경기)">2012년 08월 09일 대표팀 (잠비아 친선경기)</option>
+							<option value="934"  title="2012년 05월 17일 대표팀 (스페인, 카타르, 레바논 전)">2012년 05월 17일 대표팀 (스페인, 카타르, 레바논 전)</option>
+							<option value="924"  title="2012년 02월 10일 대표팀 (우즈베키스탄,쿠웨이트 전)">2012년 02월 10일 대표팀 (우즈베키스탄,쿠웨이트 전)</option>
+							<option value="917"  title="2011년 10월 27일 대표팀 (UAE , 레바논 월드컵 3차예선)">2011년 10월 27일 대표팀 (UAE , 레바논 월드컵 3차예선)</option>
+							<option value="911"  title="2011년 09월 30일 대표팀 (폴란드 친선경기 , UAE 월드컵 3차예선) ">2011년 09월 30일 대표팀 (폴란드 친선경기 , UAE 월드컵 3차예선) </option>
+							<option value="902"  title="2011년 08월 22일 대표팀 (월드컵 3차예선)">2011년 08월 22일 대표팀 (월드컵 3차예선)</option>
+							<option value="893"  title="2011년 07월 27일 대표팀 (일본 친선경기)">2011년 07월 27일 대표팀 (일본 친선경기)</option>
+							<option value="879"  title="2011년 05월 23일 대표팀 (세르비아 , 가나 친선경기)">2011년 05월 23일 대표팀 (세르비아 , 가나 친선경기)</option>
+							<option value="867"  title="2011년 03월 15일 대표팀 (온두라스 , 몬테네그로 친선경기) ">2011년 03월 15일 대표팀 (온두라스 , 몬테네그로 친선경기) </option>
+							<option value="865"  title="2011년 02월 01일 대표팀 (터키 친선경기)">2011년 02월 01일 대표팀 (터키 친선경기)</option>
+							<option value="861"  title="2010년 12월 24일 대표팀 (카타르 아시안컵 최종, 시리아 친선경기)">2010년 12월 24일 대표팀 (카타르 아시안컵 최종, 시리아 친선경기)</option>
+							<option value="864"  title="2010년 12월 13일 대표팀 (아시안컵 대비 제주 소집훈련)">2010년 12월 13일 대표팀 (아시안컵 대비 제주 소집훈련)</option>
+							<option value="863"  title="2010년 10월 04일 대표팀 (일본 친선경기)">2010년 10월 04일 대표팀 (일본 친선경기)</option>
+							<option value="855"  title="2010년 08월 30일 대표팀 (이란 친선경기)">2010년 08월 30일 대표팀 (이란 친선경기)</option>
+							<option value="852"  title="2010년 08월 05일 대표팀 (나이지리아 친선경기)">2010년 08월 05일 대표팀 (나이지리아 친선경기)</option>
+							<option value="843"  title="2010년 06월 01일 대표팀 (2010 남아공 월드컵 최종)">2010년 06월 01일 대표팀 (2010 남아공 월드컵 최종)</option>
+							<option value="842"  title="2010년 05월 17일 대표팀 (2010 남아공 월드컵 예비, 일본/벨라루스 친선경기)">2010년 05월 17일 대표팀 (2010 남아공 월드컵 예비, 일본/벨라루스 친선경기)</option>
+							<option value="837"  title="2010년 04월 29일 대표팀 (2010 남아공 월드컵 예비, 에콰도르 친선경기)">2010년 04월 29일 대표팀 (2010 남아공 월드컵 예비, 에콰도르 친선경기)</option>
+							<option value="830"  title="2010년 02월 25일 대표팀 (코트디부아르 친선경기)">2010년 02월 25일 대표팀 (코트디부아르 친선경기)</option>
+							<option value="828"  title="2010년 02월 03일 대표팀 (2010 도쿄 동아시아 축구대회) ">2010년 02월 03일 대표팀 (2010 도쿄 동아시아 축구대회) </option>
+							<option value="825"  title="2009년 12월 10일 대표팀 (남아공, 스페인 해외전지훈련)">2009년 12월 10일 대표팀 (남아공, 스페인 해외전지훈련)</option>
+							<option value="821"  title="2009년 11월 09일 대표팀 (세르비아 유럽원정)">2009년 11월 09일 대표팀 (세르비아 유럽원정)</option>
+							<option value="820"  title="2009년 11월 09일 대표팀 (덴마크 유럽원정)">2009년 11월 09일 대표팀 (덴마크 유럽원정)</option>
+							<option value="817"  title="2009년 11월 02일 대표팀 (덴마크 및 세르비아 유럽원정)">2009년 11월 02일 대표팀 (덴마크 및 세르비아 유럽원정)</option>
+							<option value="812"  title="2009년 10월 05일 대표팀 (세네갈 친선경기)">2009년 10월 05일 대표팀 (세네갈 친선경기)</option>
+							<option value="806"  title="2009년 08월 27일 대표팀 (호주 친선경기)">2009년 08월 27일 대표팀 (호주 친선경기)</option>
+							<option value="799"  title="2009년 08월 03일 대표팀 (파라과이 친선경기)">2009년 08월 03일 대표팀 (파라과이 친선경기)</option>
+							<option value="789"  title="2009년 05월 21일 대표팀 (월드컵 최종예선 UAE, 사우디, 이란전)">2009년 05월 21일 대표팀 (월드컵 최종예선 UAE, 사우디, 이란전)</option>
+							<option value="783"  title="2009년 03월 23일 대표팀 (이라크평가전, 월드컵 최종예선 북한전)">2009년 03월 23일 대표팀 (이라크평가전, 월드컵 최종예선 북한전)</option>
+							<option value="742"  title="2009년 01월 28일 대표팀 (두바이평가전, 월드컵 최종예선 이란전)">2009년 01월 28일 대표팀 (두바이평가전, 월드컵 최종예선 이란전)</option>
+							<option value="741"  title="2008년 12월 26일 대표팀 (월드컵 최종예선 대비 동계훈련)">2008년 12월 26일 대표팀 (월드컵 최종예선 대비 동계훈련)</option>
+							<option value="673"  title="2008년 11월 19일 대표팀 (월드컵 아시아 최종예선 사우디전)">2008년 11월 19일 대표팀 (월드컵 아시아 최종예선 사우디전)</option>
+							<option value="672"  title="2008년 11월 14일 대표팀 (카타르 친선경기)">2008년 11월 14일 대표팀 (카타르 친선경기)</option>
+							<option value="674"  title="2008년 10월 15일 대표팀 (월드컵 아시아 최종예선 UAE전)">2008년 10월 15일 대표팀 (월드컵 아시아 최종예선 UAE전)</option>
+							<option value="662"  title="2008년 10월 08일 대표팀 (우즈베키스탄 친선경기)">2008년 10월 08일 대표팀 (우즈베키스탄 친선경기)</option>
+							<option value="664"  title="2008년 09월 05일 대표팀 (요르단 친선경기)">2008년 09월 05일 대표팀 (요르단 친선경기)</option>
+							<option value="663"  title="2008년 09월 05일 대표팀 (월드컵 최종예선 북한전)">2008년 09월 05일 대표팀 (월드컵 최종예선 북한전)</option>
+							<option value="646"  title="2008년 06월 21일 대표팀 (월드컵 3차예선 북한전)">2008년 06월 21일 대표팀 (월드컵 3차예선 북한전)</option>
+							<option value="645"  title="2008년 06월 02일 대표팀 (월드컵 3차예선 요르단, 투르크메니스탄전)">2008년 06월 02일 대표팀 (월드컵 3차예선 요르단, 투르크메니스탄전)</option>
+							<option value="644"  title="2008년 05월 29일 대표팀 (월드컵 3차예선 요르단전)">2008년 05월 29일 대표팀 (월드컵 3차예선 요르단전)</option>
+							<option value="796"  title="2008년 05월 14일  대표팀 (월드컵 3차예선 요르단전 예비)">2008년 05월 14일  대표팀 (월드컵 3차예선 요르단전 예비)</option>
+							<option value="418"  title="2008년 03월 26일 대표팀 (월드컵 예선 북한전 예비)">2008년 03월 26일 대표팀 (월드컵 예선 북한전 예비)</option>
+							<option value="417"  title="2008년 03월 21일 대표팀 (월드컵 3차예선 북한전)">2008년 03월 21일 대표팀 (월드컵 3차예선 북한전)</option>
+							<option value="414"  title="2008년 02월 12일 대표팀 (동아시아선수권 최종)">2008년 02월 12일 대표팀 (동아시아선수권 최종)</option>
+							<option value="413"  title="2008년 02월 11일 대표팀 (동아시아선수권)">2008년 02월 11일 대표팀 (동아시아선수권)</option>
+							<option value="416"  title="2008년 02월 06일 대표팀 (월드컵 예선 투르크메니스탄전)">2008년 02월 06일 대표팀 (월드컵 예선 투르크메니스탄전)</option>
+							<option value="415"  title="2008년 02월 04일 대표팀 (월드컵 예선 투르크메니스탄 예비)">2008년 02월 04일 대표팀 (월드컵 예선 투르크메니스탄 예비)</option>
+							<option value="412"  title="2008년 01월 30일 대표팀 (칠레 친선경기)">2008년 01월 30일 대표팀 (칠레 친선경기)</option>
+							<option value="411"  title="2007년 06월 28일 대표팀 (제14회 아시안컵) ">2007년 06월 28일 대표팀 (제14회 아시안컵) </option>
+							<option value="410"  title="2007년 06월 15일 대표팀 (제14회 아시안컵)">2007년 06월 15일 대표팀 (제14회 아시안컵)</option>
+							<option value="409"  title="2007년 05월 28일 대표팀 (네덜란드 친선경기)">2007년 05월 28일 대표팀 (네덜란드 친선경기)</option>
+							<option value="408"  title="2007년 03월 19일 대표팀 (우루과이 친선경기)">2007년 03월 19일 대표팀 (우루과이 친선경기)</option>
+							<option value="407"  title="2007년 01월 30일 대표팀 (그리스 친선경기)">2007년 01월 30일 대표팀 (그리스 친선경기)</option>
+							<option value="397"  title="2006년 11월 13일 대표팀 (아시안컵 예선 이란전)">2006년 11월 13일 대표팀 (아시안컵 예선 이란전)</option>
+							<option value="396"  title="2006년 10월 10일 대표팀 (아시안컵 예선 시리아전)">2006년 10월 10일 대표팀 (아시안컵 예선 시리아전)</option>
+							<option value="406"  title="2006년 09월 26일 대표팀 (가나 친선경기, 아시안컵 예선 시리아전)">2006년 09월 26일 대표팀 (가나 친선경기, 아시안컵 예선 시리아전)</option>
+							<option value="405"  title="2006년 08월 29일 대표팀 (아시안컵 예선 이란, 대만전)">2006년 08월 29일 대표팀 (아시안컵 예선 이란, 대만전)</option>
+							<option value="403"  title="2006년 08월 10일 대표팀 (아시안컵 예선 대만전)">2006년 08월 10일 대표팀 (아시안컵 예선 대만전)</option>
+							<option value="404"  title="2006년 08월 01일 대표팀 (아시안컵 예선 대만전 대비)">2006년 08월 01일 대표팀 (아시안컵 예선 대만전 대비)</option>
+							<option value="402"  title="2006년 07월 28일 대표팀 (아시안컵 예선 대만전 대비)">2006년 07월 28일 대표팀 (아시안컵 예선 대만전 대비)</option>
+							<option value="401"  title="2006년 06월 07일 대표팀 (독일 월드컵 최종)">2006년 06월 07일 대표팀 (독일 월드컵 최종)</option>
+							<option value="400"  title="2006년 05월 11일 대표팀 (독일 월드컵)">2006년 05월 11일 대표팀 (독일 월드컵)</option>
+							<option value="399"  title="2006년 02월 27일 대표팀 (앙골라 친선경기)">2006년 02월 27일 대표팀 (앙골라 친선경기)</option>
+							<option value="398"  title="2006년 01월 14일 대표팀 (1,2월 전지훈련)">2006년 01월 14일 대표팀 (1,2월 전지훈련)</option>
+							<option value="383"  title="2005년 11월 14일 대표팀 (세르비아 몬테네그로 친선경기)">2005년 11월 14일 대표팀 (세르비아 몬테네그로 친선경기)</option>
+							<option value="384"  title="2005년 11월 04일 대표팀 (스웨덴 친선경기)">2005년 11월 04일 대표팀 (스웨덴 친선경기)</option>
+							<option value="395"  title="2005년 09월 30일 대표팀 (이란 친선경기)">2005년 09월 30일 대표팀 (이란 친선경기)</option>
+							<option value="394"  title="2005년 08월 15일 대표팀 (월드컵 최종 예선 사우디전)">2005년 08월 15일 대표팀 (월드컵 최종 예선 사우디전)</option>
+							<option value="393"  title="2005년 08월 13일 대표팀 (남북통일축구)">2005년 08월 13일 대표팀 (남북통일축구)</option>
+							<option value="392"  title="2005년 07월 29일 대표팀 (동아시아 축구대회)">2005년 07월 29일 대표팀 (동아시아 축구대회)</option>
+							<option value="390"  title="2005년 05월 19일 대표팀 (월드컵 예선 우즈벡, 쿠웨이트전)">2005년 05월 19일 대표팀 (월드컵 예선 우즈벡, 쿠웨이트전)</option>
+							<option value="391"  title="2005년 05월 10일 대표팀 (월드컵 예선 우즈벡, 쿠웨이트전)">2005년 05월 10일 대표팀 (월드컵 예선 우즈벡, 쿠웨이트전)</option>
+							<option value="389"  title="2005년 03월 29일 대표팀 (월드컵 예선 우즈벡전)">2005년 03월 29일 대표팀 (월드컵 예선 우즈벡전)</option>
+							<option value="388"  title="2005년 03월 22일 대표팀 (월드컵 예선 사우디전)">2005년 03월 22일 대표팀 (월드컵 예선 사우디전)</option>
+							<option value="757"  title="2005년 03월 대표팀 (부르키나파소 친선경기)">2005년 03월 대표팀 (부르키나파소 친선경기)</option>
+							<option value="387"  title="2005년 02월 08일 대표팀 (월드컵 예선 쿠웨이트전)">2005년 02월 08일 대표팀 (월드컵 예선 쿠웨이트전)</option>
+							<option value="386"  title="2005년 01월 28일 대표팀 (이집트 친선경기, 월드컵 최종 예선 쿠웨이트전)">2005년 01월 28일 대표팀 (이집트 친선경기, 월드컵 최종 예선 쿠웨이트전)</option>
+							<option value="385"  title="2005년 01월 10일 대표팀 (미국 전지훈련)">2005년 01월 10일 대표팀 (미국 전지훈련)</option>
+							<option value="370"  title="2004년 12월 07일 대표팀 (독일 친선경기)">2004년 12월 07일 대표팀 (독일 친선경기)</option>
+							<option value="369"  title="2004년 11월 08일 대표팀 (월드컵 예선 몰디브전)">2004년 11월 08일 대표팀 (월드컵 예선 몰디브전)</option>
+							<option value="368"  title="2004년 10월 04일 대표팀 (월드컵 예선 레바논전)">2004년 10월 04일 대표팀 (월드컵 예선 레바논전)</option>
+							<option value="379"  title="2004년 09월 06일 대표팀 (월드컵 예선 베트남전)">2004년 09월 06일 대표팀 (월드컵 예선 베트남전)</option>
+							<option value="376"  title="2004년 07월 15일 대표팀 (아시안컵 최종 명단)">2004년 07월 15일 대표팀 (아시안컵 최종 명단)</option>
+							<option value="758"  title="2004년 07월 대표팀 (트리니다드 토바고 친선경기)">2004년 07월 대표팀 (트리니다드 토바고 친선경기)</option>
+							<option value="378"  title="2004년 07월 09일 대표팀 (바레인 친선경기)">2004년 07월 09일 대표팀 (바레인 친선경기)</option>
+							<option value="377"  title="2004년 07월 06일 대표팀 (아시안컵 대비)">2004년 07월 06일 대표팀 (아시안컵 대비)</option>
+							<option value="372"  title="2004년 06월 27일 대표팀 (아시안컵 대비)">2004년 06월 27일 대표팀 (아시안컵 대비)</option>
+							<option value="374"  title="2004년 06월 25일 대표팀 (아시안컵 대비)">2004년 06월 25일 대표팀 (아시안컵 대비)</option>
+							<option value="373"  title="2004년 06월15일 대표팀 (아시안컵 예비)">2004년 06월15일 대표팀 (아시안컵 예비)</option>
+							<option value="375"  title="2004년 06월 08일 대표팀 (월드컵 예선 베트남전)">2004년 06월 08일 대표팀 (월드컵 예선 베트남전)</option>
+							<option value="371"  title="2004년 05월 25일 대표팀 (터키 친선경기, 월드컵 예선 베트남전)">2004년 05월 25일 대표팀 (터키 친선경기, 월드컵 예선 베트남전)</option>
+							<option value="382"  title="2004년 04월 26일 대표팀 (파라과이 친선경기)">2004년 04월 26일 대표팀 (파라과이 친선경기)</option>
+							<option value="381"  title="2004년 03월 23일 대표팀 (월드컵 예선 몰디브전)">2004년 03월 23일 대표팀 (월드컵 예선 몰디브전)</option>
+							<option value="380"  title="2004년 01월 26일 대표팀 (월드컵 예선 레바논전)">2004년 01월 26일 대표팀 (월드컵 예선 레바논전)</option>
+							<option value="355"  title="2003년 11월 28일 대표팀 (동아시아연맹 선수권 최종)">2003년 11월 28일 대표팀 (동아시아연맹 선수권 최종)</option>
+							<option value="354"  title="2003년 11월 10일 대표팀 (불가리아 친선경기)">2003년 11월 10일 대표팀 (불가리아 친선경기)</option>
+							<option value="353"  title="2003년 10월 08일 대표팀 (아시안컵 예선 오만 라운드)">2003년 10월 08일 대표팀 (아시안컵 예선 오만 라운드)</option>
+							<option value="366"  title="2003년 09월 08일 대표팀 (아시안컵 예선)">2003년 09월 08일 대표팀 (아시안컵 예선)</option>
+							<option value="364"  title="2003년 06월 10일 대표팀 (아르헨티나 친선경기)">2003년 06월 10일 대표팀 (아르헨티나 친선경기)</option>
+							<option value="365"  title="2003년 06월 05일 대표팀 (우루과이 친선경기)">2003년 06월 05일 대표팀 (우루과이 친선경기)</option>
+							<option value="362"  title="2003년 05월 28일 대표팀 (일본 친선경기)">2003년 05월 28일 대표팀 (일본 친선경기)</option>
+							<option value="361"  title="2003년 05월 22일 대표팀 (일본 친선경기)">2003년 05월 22일 대표팀 (일본 친선경기)</option>
+							<option value="363"  title="2003년 05월 02일 대표팀 (임시 소집훈련)">2003년 05월 02일 대표팀 (임시 소집훈련)</option>
+							<option value="360"  title="2003년 04월 14일 대표팀 (일본 친선경기)">2003년 04월 14일 대표팀 (일본 친선경기)</option>
+							<option value="359"  title="2003년 04월 10일 대표팀 (일본 친선경기)">2003년 04월 10일 대표팀 (일본 친선경기)</option>
+							<option value="367"  title="2003년 04월 07일 대표팀 (파주NFC 임시소집)">2003년 04월 07일 대표팀 (파주NFC 임시소집)</option>
+							<option value="358"  title="2003년 03월 24일 대표팀 (콜롬비아 친선경기)">2003년 03월 24일 대표팀 (콜롬비아 친선경기)</option>
+							<option value="357"  title="2003년 03월 20일 대표팀 (콜롬비아 친선경기)">2003년 03월 20일 대표팀 (콜롬비아 친선경기)</option>
+							<option value="356"  title="2003년 02월 14일 대표팀 (국가대표 후보 추천)">2003년 02월 14일 대표팀 (국가대표 후보 추천)</option>
+							<option value="349"  title="2002년 11월 11일 대표팀 (브라질 친선경기)">2002년 11월 11일 대표팀 (브라질 친선경기)</option>
+							<option value="352"  title="2002년 05월 27일 대표팀 (한일 월드컵 최종)">2002년 05월 27일 대표팀 (한일 월드컵 최종)</option>
+							<option value="351"  title="2002년 05월 25일 대표팀 (프랑스 친선경기)">2002년 05월 25일 대표팀 (프랑스 친선경기)</option>
+							<option value="348"  title="2002년 05월 20일 대표팀 (잉글랜드 친선경기)">2002년 05월 20일 대표팀 (잉글랜드 친선경기)</option>
+							<option value="347"  title="2002년 05월 15일 대표팀 (스코틀랜드 친선경기)">2002년 05월 15일 대표팀 (스코틀랜드 친선경기)</option>
+							<option value="345"  title="2002년 04월 30일 대표팀 (서귀포 소집 훈련)">2002년 04월 30일 대표팀 (서귀포 소집 훈련)</option>
+							<option value="344"  title="2002년 04월 26일 대표팀 (중국 친선경기)">2002년 04월 26일 대표팀 (중국 친선경기)</option>
+							<option value="346"  title="2002년 04월 04일 대표팀 (코스타리카 친선경기)">2002년 04월 04일 대표팀 (코스타리카 친선경기)</option>
+							<option value="343"  title="2002년 02월 25일 대표팀 (유럽 전지훈련)">2002년 02월 25일 대표팀 (유럽 전지훈련)</option>
+							<option value="342"  title="2002년 02월 21일 대표팀 (유럽 전지훈련)">2002년 02월 21일 대표팀 (유럽 전지훈련)</option>
+							<option value="341"  title="2002년 02월 12일 대표팀 (우루과이 친선경기)">2002년 02월 12일 대표팀 (우루과이 친선경기)</option>
+							<option value="350"  title="2002년 01월 07일 대표팀 (북중미 골드컵)">2002년 01월 07일 대표팀 (북중미 골드컵)</option>
+							<option value="327"  title="2001년 12월 12일 대표팀 (북중미 골드컵 예비)">2001년 12월 12일 대표팀 (북중미 골드컵 예비)</option>
+							<option value="329"  title="2001년 12월 09일 대표팀 (미국 친선경기)">2001년 12월 09일 대표팀 (미국 친선경기)</option>
+							<option value="328"  title="2001년 12월 02일 대표팀 (미국 친선경기)">2001년 12월 02일 대표팀 (미국 친선경기)</option>
+							<option value="336"  title="2001년 11월 26일 대표팀 (미국 친선경기)">2001년 11월 26일 대표팀 (미국 친선경기)</option>
+							<option value="335"  title="2001년 10월 29일 대표팀 (11월 A매치)">2001년 10월 29일 대표팀 (11월 A매치)</option>
+							<option value="339"  title="2001년 09월 27일 대표팀 (대구 소집 훈련)">2001년 09월 27일 대표팀 (대구 소집 훈련)</option>
+							<option value="338"  title="2001년 09월 10일 대표팀 (나이지리아 친선경기)">2001년 09월 10일 대표팀 (나이지리아 친선경기)</option>
+							<option value="340"  title="2001년 09월 06일 대표팀 (나이지리아 친선경기)">2001년 09월 06일 대표팀 (나이지리아 친선경기)</option>
+							<option value="337"  title="2001년 07월 26일 대표팀 (유럽 전지훈련)">2001년 07월 26일 대표팀 (유럽 전지훈련)</option>
+							<option value="334"  title="2001년 05월 28일 대표팀 (FIFA 컨페더레이션스컵)">2001년 05월 28일 대표팀 (FIFA 컨페더레이션스컵)</option>
+							<option value="759"  title="2001년 5월 대표팀 (카메룬 친선경기)">2001년 5월 대표팀 (카메룬 친선경기)</option>
+							<option value="333"  title="2001년 04월 19일 대표팀 (이집트 4개국 친선대회)">2001년 04월 19일 대표팀 (이집트 4개국 친선대회)</option>
+							<option value="332"  title="2001년 04월 12일 대표팀 (이집트 4개국 친선대회)">2001년 04월 12일 대표팀 (이집트 4개국 친선대회)</option>
+							<option value="331"  title="2001년 02월 05일 대표팀 (두바이 4개국 친선대회)">2001년 02월 05일 대표팀 (두바이 4개국 친선대회)</option>
+							<option value="330"  title="2001년 01월 18일 대표팀 (홍콩 칼스버그컵)">2001년 01월 18일 대표팀 (홍콩 칼스버그컵)</option>
+							<option value="313"  title="2000년 12월 28일 대표팀 (홍콩 칼스버그컵)">2000년 12월 28일 대표팀 (홍콩 칼스버그컵)</option>
+							<option value="314"  title="2000년 12월 03일 대표팀 (일본 친선경기)">2000년 12월 03일 대표팀 (일본 친선경기)</option>
+							<option value="760"  title="2000년 10월 04일 대표팀 (LG컵)">2000년 10월 04일 대표팀 (LG컵)</option>
+							<option value="318"  title="2000년 09월 25일 대표팀 (아시안컵 최종)">2000년 09월 25일 대표팀 (아시안컵 최종)</option>
+							<option value="317"  title="2000년 07월 25일 대표팀 (한중 정기전)">2000년 07월 25일 대표팀 (한중 정기전)</option>
+							<option value="316"  title="2000년 06월 2일 대표팀 (LG컵 이란 친선대회)">2000년 06월 2일 대표팀 (LG컵 이란 친선대회)</option>
+							<option value="326"  title="2000년 05월 25일 대표팀 (유고 친선경기)">2000년 05월 25일 대표팀 (유고 친선경기)</option>
+							<option value="325"  title="2000년 05월 12일 대표팀 (유고 친선경기)">2000년 05월 12일 대표팀 (유고 친선경기)</option>
+							<option value="324"  title="2000년 04월 17일 대표팀 (일본 친선경기)">2000년 04월 17일 대표팀 (일본 친선경기)</option>
+							<option value="323"  title="2000년 4월 대표팀 (아시안컵 6조 예선 참가 예비)">2000년 4월 대표팀 (아시안컵 6조 예선 참가 예비)</option>
+							<option value="322"  title="2000년 03월 31일 대표팀 (4월 아시안컵 6조 예선)">2000년 03월 31일 대표팀 (4월 아시안컵 6조 예선)</option>
+							<option value="321"  title="2000년 03월 14일 대표팀 (아시안컵 6조 예선)">2000년 03월 14일 대표팀 (아시안컵 6조 예선)</option>
+							<option value="319"  title="2000년 01월 25일 대표팀 (북중미 골드컵)">2000년 01월 25일 대표팀 (북중미 골드컵)</option>
+							<option value="1026"  title="2000년 1월 21일 뉴질랜드 친선경기 참가 명단">2000년 1월 21일 뉴질랜드 친선경기 참가 명단</option>
+							<option value="320"  title="2000년 01월 01일 대표팀 (국가대표팀 상비군)">2000년 01월 01일 대표팀 (국가대표팀 상비군)</option>
+						</select>
+                    </div>
+					<!-- //대회 선택 박스 -->
+                </div>
+				<div class="soccer_list">
+					<div class="head">
+						<ul>
+							<li class="on"><a href="?act=nt_man&search_val=2026&s_idx=7608&cursor=#cursor_location">All Players</a></li>
+							<li><a href="?act=nt_man&position=FW&search_val=2026&s_idx=7608&cursor=#cursor_location">FW</a></li>
+							<li><a href="?act=nt_man&position=MF&search_val=2026&s_idx=7608&cursor=#cursor_location">MF</a></li>
+							<li><a href="?act=nt_man&position=DF&search_val=2026&s_idx=7608&cursor=#cursor_location">DF</a></li>
+							<li><a href="?act=nt_man&position=GK&search_val=2026&s_idx=7608&cursor=#cursor_location">GK</a></li>
+							<li><a href="?act=nt_man&position=Coach&search_val=2026&s_idx=7608&cursor=#cursor_location">Coach</a></li>
+							<!-- <li><a href="?act=nt_man&position=Coach">Coach</a></li> -->
+						</ul>
+					</div>
+					<ul class="conts">
+						<li>
+<a href="javascript:;" onclick="view_player('4421')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033003005698673.jpg');">손흥민 사진</p>
+                                <p class="name">손흥민<br />SON Heungmin</p>
+								<p class="profile"><br />1992.07.08<br />183Cm / 78Kg<br />로스앤젤레스 FC</p>
+								<p class="position fw">FW</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('77197')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033003011051481.jpg');">오현규 사진</p>
+                                <p class="name">오현규<br />OH Hyeongyu</p>
+								<p class="profile"><br />2001.04.12<br />183Cm / 72Kg<br />베식타스 JK</p>
+								<p class="position fw">FW</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('14898')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033003013091712.jpg');">조규성 사진</p>
+                                <p class="name">조규성<br />CHO Guesung</p>
+								<p class="profile"><br />1998.01.25<br />189Cm / 82Kg<br />FC 미트윌란</p>
+								<p class="position fw">FW</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('84385')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002522859954.jpg');">권혁규 사진</p>
+                                <p class="name">권혁규<br />KWON Hyeokkyu</p>
+								<p class="profile"><br />2001.03.13<br />190Cm / 77Kg<br />카를스루어 SC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('44313')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_202603300253347636.jpg');">김진규 사진</p>
+                                <p class="name">김진규<br />KIM Jingyu</p>
+								<p class="profile"><br />1997.02.24<br />177Cm / 68Kg<br />전북현대모터스</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('43719')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002535338487.jpg');">박진섭 사진</p>
+                                <p class="name">박진섭<br />PARK Jinseob</p>
+								<p class="profile"><br />1995.10.23<br />182Cm / 75Kg<br />저장 FC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('148972')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002543932368.jpg');">배준호 사진</p>
+                                <p class="name">배준호<br />BAE Junho</p>
+								<p class="profile"><br />2003.08.21<br />180Cm / 70Kg<br />스토크 시티 FC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('59826')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002551399843.jpg');">백승호 사진</p>
+                                <p class="name">백승호<br />PAIK Seung Ho</p>
+								<p class="profile"><br />1997.03.17<br />182Cm / 72Kg<br />버밍엄 시티 FC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('144818')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002554547479.jpg');">양현준 사진</p>
+                                <p class="name">양현준<br />YANG Hyun Jun</p>
+								<p class="profile"><br />2002.05.25<br />179Cm / 73Kg<br />셀틱 FC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('90634')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002564811366.jpg');">엄지성 사진</p>
+                                <p class="name">엄지성<br />EOM Jisung</p>
+								<p class="profile"><br />2002.05.09<br />177Cm / 70Kg<br />스완지 시티 AFC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('79869')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002590071347.jpg');">이강인 사진</p>
+                                <p class="name">이강인<br />LEE Kangin</p>
+								<p class="profile"><br />2001.02.19<br />174Cm / 72Kg<br />파리 생제르맹 FC</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('7247')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002594479181.jpg');">이재성 사진</p>
+                                <p class="name">이재성<br />LEE Jaesung</p>
+								<p class="profile"><br />1992.08.10<br />180Cm / 70Kg<br />FSV 마인츠05</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('83741')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033003001984370.jpg');">홍현석 사진</p>
+                                <p class="name">홍현석<br />HONG Hyunseok</p>
+								<p class="profile"><br />1999.06.16<br />175Cm / 66Kg<br />KAA 헨트</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('20790')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033003004298993.jpg');">황희찬 사진</p>
+                                <p class="name">황희찬<br />HWANG Heechan</p>
+								<p class="profile"><br />1996.01.26<br />177Cm / 77Kg<br />울버햄튼원더러스</p>
+								<p class="position mf">MF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('42219')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002491758049.jpg');">김문환 사진</p>
+                                <p class="name">김문환<br />KIM Moonhwan</p>
+								<p class="profile"><br />1995.08.01<br />173Cm / 64Kg<br />대전하나시티즌</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('47267')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002493130268.jpg');">김민재 사진</p>
+                                <p class="name">김민재<br />KIM Minjae</p>
+								<p class="profile"><br />1996.11.15<br />190Cm / 88Kg<br />FC 바이에른 뮌헨</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('63432')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002494161216.jpg');">김주성 사진</p>
+                                <p class="name">김주성<br />KIM Jusung</p>
+								<p class="profile"><br />2000.12.12<br />186Cm / 76Kg<br />산프레체 히로시마</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('88363')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002495934223.jpg');">김태현 사진</p>
+                                <p class="name">김태현<br />KIM Taehyeon</p>
+								<p class="profile"><br />2000.09.17<br />187Cm / 69Kg<br />가시마 앤틀러스</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('64017')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002501629668.jpg');">설영우 사진</p>
+                                <p class="name">설영우<br />SEOL Youngwoo</p>
+								<p class="profile"><br />1998.12.05<br />180Cm / 72Kg<br />FK 츠르베나 즈베즈다</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('1426249')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002505256652.jpg');">옌스 카스트로프 사진</p>
+                                <p class="name">옌스 카스트로프<br />CASTROP Jens</p>
+								<p class="profile"><br />2003.07.29<br />Cm / Kg<br />보루시아 묀헨글라트바흐</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('145736')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002511410494.jpg');">이태석 사진</p>
+                                <p class="name">이태석<br />LEE Taeseok</p>
+								<p class="profile"><br />2002.07.28<br />174Cm / 61Kg<br />FK 아우스트리아 빈</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('81533')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002514319670.jpg');">이한범 사진</p>
+                                <p class="name">이한범<br />LEE Hanbeom</p>
+								<p class="profile"><br />2002.06.17<br />188Cm / 72Kg<br />FC 미트윌란</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('26607')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002520675198.jpg');">조유민 사진</p>
+                                <p class="name">조유민<br />CHO Yumin</p>
+								<p class="profile"><br />1996.11.17<br />182Cm / 70Kg<br />샤르자 FC</p>
+								<p class="position df">DF</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('64342')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002482776350.jpg');">김승규 사진</p>
+                                <p class="name">김승규<br />KIM Seunggyu</p>
+								<p class="profile"><br />1990.09.30<br />187Cm / 84Kg<br />FC 도쿄</p>
+								<p class="position gk">GK</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('5397')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_202603300248414837.jpg');">송범근 사진</p>
+                                <p class="name">송범근<br />SONG Bumkeun</p>
+								<p class="profile"><br />1997.10.15<br />194Cm / 88Kg<br />전북현대모터스</p>
+								<p class="position gk">GK</p>
+</a>						</li>
+						<li>
+<a href="javascript:;" onclick="view_player('38407')">								<!--  -->
+								<p class="pic" style="background-image:url('https://files.joinkfa.com/NAT/2026/PHOTO/S/%EC%82%AC%EC%A7%84_2026033002485565852.jpg');">조현우 사진</p>
+                                <p class="name">조현우<br />JO Hyeonwoo</p>
+								<p class="profile"><br />1991.09.25<br />189Cm / 75Kg<br />울산HDFC</p>
+								<p class="position gk">GK</p>
+</a>						</li>
+					</ul>
+					<ul class="conts">
+					</ul>
+				</div>
+
+            </div>
+
+            <div class="left_dataTable" style="margin-top:40px;" id="cursor_location_sub">
+                <div class="search_nav">
+                    <div class="table-title">
+                        <h3>경기결과</h3>
+                    </div>
+                    <div class="table-filter game">
+                        <select name="search_val_match" id="search_val_match" onchange="search_move_match();">
+							<!-- <option value="">전체</option> -->
+							<option value="2027" >2027</option>
+							<option value="2026"  selected>2026</option>
+							<option value="2025" >2025</option>
+							<option value="2024" >2024</option>
+							<option value="2023" >2023</option>
+							<option value="2022" >2022</option>
+							<option value="2021" >2021</option>
+							<option value="2020" >2020</option>
+							<option value="2019" >2019</option>
+							<option value="2018" >2018</option>
+							<option value="2017" >2017</option>
+							<option value="2016" >2016</option>
+							<option value="2015" >2015</option>
+							<option value="2014" >2014</option>
+							<option value="2013" >2013</option>
+							<option value="2012" >2012</option>
+							<option value="2011" >2011</option>
+							<option value="2010" >2010</option>
+							<option value="2009" >2009</option>
+							<option value="2008" >2008</option>
+							<option value="2007" >2007</option>
+							<option value="2006" >2006</option>
+							<option value="2005" >2005</option>
+							<option value="2004" >2004</option>
+							<option value="2003" >2003</option>
+							<option value="2002" >2002</option>
+							<option value="2001" >2001</option>
+							<option value="2000" >2000</option>
+							<option value="1999" >1999</option>
+							<option value="1998" >1998</option>
+							<option value="1997" >1997</option>
+							<option value="1996" >1996</option>
+							<option value="1995" >1995</option>
+							<option value="1994" >1994</option>
+							<option value="1993" >1993</option>
+							<option value="1992" >1992</option>
+							<option value="1991" >1991</option>
+							<option value="1990" >1990</option>
+							<option value="1989" >1989</option>
+							<option value="1988" >1988</option>
+							<option value="1987" >1987</option>
+							<option value="1986" >1986</option>
+							<option value="1985" >1985</option>
+							<option value="1984" >1984</option>
+							<option value="1983" >1983</option>
+							<option value="1982" >1982</option>
+							<option value="1981" >1981</option>
+							<option value="1980" >1980</option>
+							<option value="1979" >1979</option>
+							<option value="1978" >1978</option>
+							<option value="1977" >1977</option>
+							<option value="1976" >1976</option>
+							<option value="1975" >1975</option>
+							<option value="1974" >1974</option>
+							<option value="1973" >1973</option>
+							<option value="1972" >1972</option>
+							<option value="1971" >1971</option>
+							<option value="1970" >1970</option>
+							<option value="1969" >1969</option>
+							<option value="1968" >1968</option>
+							<option value="1967" >1967</option>
+							<option value="1966" >1966</option>
+							<option value="1965" >1965</option>
+							<option value="1964" >1964</option>
+							<option value="1963" >1963</option>
+							<option value="1962" >1962</option>
+							<option value="1961" >1961</option>
+							<option value="1960" >1960</option>
+							<option value="1959" >1959</option>
+							<option value="1958" >1958</option>
+							<option value="1957" >1957</option>
+							<option value="1956" >1956</option>
+							<option value="1955" >1955</option>
+							<option value="1954" >1954</option>
+							<option value="1953" >1953</option>
+							<option value="1952" >1952</option>
+							<option value="1951" >1951</option>
+							<option value="1950" >1950</option>
+							<option value="1949" >1949</option>
+							<option value="1948" >1948</option>
+							<option value="1947" >1947</option>
+							<option value="1946" >1946</option>
+							<option value="1945" >1945</option>
+							<option value="1944" >1944</option>
+							<option value="1943" >1943</option>
+							<option value="1942" >1942</option>
+							<option value="1941" >1941</option>
+							<option value="1940" >1940</option>
+							<option value="1939" >1939</option>
+							<option value="1938" >1938</option>
+							<option value="1937" >1937</option>
+							<option value="1936" >1936</option>
+							<option value="1935" >1935</option>
+							<option value="1934" >1934</option>
+							<option value="1933" >1933</option>
+							<option value="1932" >1932</option>
+							<option value="1931" >1931</option>
+							<option value="1930" >1930</option>
+							<option value="1929" >1929</option>
+							<option value="1928" >1928</option>
+							<option value="1927" >1927</option>
+							<option value="1926" >1926</option>
+							<option value="1925" >1925</option>
+							<option value="1924" >1924</option>
+							<option value="1923" >1923</option>
+							<option value="1922" >1922</option>
+							<option value="1921" >1921</option>
+							<option value="1920" >1920</option>
+							<option value="1919" >1919</option>
+							<option value="1918" >1918</option>
+							<option value="1917" >1917</option>
+							<option value="1916" >1916</option>
+							<option value="1915" >1915</option>
+							<option value="1914" >1914</option>
+							<option value="1913" >1913</option>
+							<option value="1912" >1912</option>
+							<option value="1911" >1911</option>
+							<option value="1910" >1910</option>
+							<option value="1909" >1909</option>
+							<option value="1908" >1908</option>
+							<option value="1907" >1907</option>
+						</select>
+                    </div>
+                </div>
+                <table class="soccer-match-list">
+                    <tbody>
+                    <tr>
+                        <td>
+                            <div class="result_info">
+                                <p class="result_title">
+                                <span class="title">2026 축구 국가대표팀 친선경기</span>
+                                <span style="display:block">오스트리아&nbsp;에른스트 하펠 경기장</span>
+                                </p>
+	                            <ul   onclick="layer_popup_national_result('10483');" style="cursor:pointer;">
+                                    <li class="korea">
+남자 국가대표팀                                        <span>0 </span>
+									</li>
+                                    <li class="away" style="background-image: url('https://img.kfa.or.kr/nation_flag/26_nation_austria@1x.png');">
+오스트리아                                        <span class="score_win">1 </span>
+									</li>
+                                </ul>
+								<em style="top:40px;">04. 01 수요일 03:45</em>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="result_info">
+                                <p class="result_title">
+                                <span class="title">2026 축구 국가대표팀 친선경기</span>
+                                <span style="display:block">영국&nbsp;스타디움 MK</span>
+                                </p>
+	                            <ul   onclick="layer_popup_national_result('10465');" style="cursor:pointer;">
+                                    <li class="korea">
+남자 국가대표팀                                        <span>0 </span>
+									</li>
+                                    <li class="away" style="background-image: url('https://img.kfa.or.kr/nation_flag/68_nation_cotedlvoire@1x.png');">
+코트디부아르                                        <span class="score_win">4 </span>
+									</li>
+                                </ul>
+								<em style="top:40px;">03. 28 토요일 23:00</em>
+                            </div>
+                        </td>
+                        </tr><tr>
+                    </tr>
+                    <!-- <tr>
+                        <td colspan="2" style="text-align: center;padding:20px 0px;">
+                            <a href="/live/live.php?act=match_schedule&div=nt_man"><img src="/images/btn_more_txt.png"></a>
+                        </td>
+                    </tr> -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- News -->
+            <div class="left_dataTable" style="margin-top:40px;">
+                <!-- <div class="news_list" onclick="detail_view('27863','news');" id="location_view_27863"> -->
+				<a href="javascript:;" class="news_list" onclick="detail_view('27863','news');" id="location_view_27863">
+<span>NEW</span>					<div class="news_image">
+						<img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774989709_2005629346.jpg" alt="" /><!-- <img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774989709_2005629346.jpg" alt="" width="" height=""/> -->
+					</div>
+					<div class="news_subject">
+						<p class="news_category">남자A</p>
+						<p class="news_content">남자 대표팀, 오스트리아에 0-1 패</p>
+					</div>
+                </a>
+                <!-- <div class="news_list" onclick="detail_view('27862','news');" id="location_view_27862"> -->
+				<a href="javascript:;" class="news_list" onclick="detail_view('27862','news');" id="location_view_27862">
+<span>NEW</span>					<div class="news_image">
+						<img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774979617_1821777355.png" alt="" /><!-- <img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774979617_1821777355.png" alt="" width="" height=""/> -->
+					</div>
+					<div class="news_subject">
+						<p class="news_category">남자A</p>
+						<p class="news_content">‘손흥민 출격’ 남자 대표팀, 오스트리아전 명단 발표</p>
+					</div>
+                </a>
+                <!-- <div class="news_list" onclick="detail_view('27850','news');" id="location_view_27850"> -->
+				<a href="javascript:;" class="news_list" onclick="detail_view('27850','news');" id="location_view_27850">
+					<div class="news_image">
+						<img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774713026_1272899641.jpg" alt="" /><!-- <img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774713026_1272899641.jpg" alt="" width="" height=""/> -->
+					</div>
+					<div class="news_subject">
+						<p class="news_category">남자A</p>
+						<p class="news_content">남자 대표팀, 코트디부아르에 0-4 패... 1일 오스트리아전</p>
+					</div>
+                </a>
+                <!-- <div class="news_list" onclick="detail_view('27849','news');" id="location_view_27849"> -->
+				<a href="javascript:;" class="news_list" onclick="detail_view('27849','news');" id="location_view_27849">
+					<div class="news_image">
+						<img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774703667_28543080.png" alt="" /><!-- <img src="https://img.kfa.or.kr/bbs/news/total_news_11314/_1774703667_28543080.png" alt="" width="" height=""/> -->
+					</div>
+					<div class="news_subject">
+						<p class="news_category">남자A</p>
+						<p class="news_content">‘오현규 선발’ 한국, 코트디부아르전 명단 발표</p>
+					</div>
+                </a>
+            </div>
+
+            <div id="new_list" style="background-color:#efefef">
+                <div id="more_view_1"></div>
+            </div>
+
+            <div id="more_button">
+            <button type="button" class="btn_c_more" id="more_1" onclick="more_view('1')">MORE</button>
+            </div>
+            <!-- News -->
+
+    </section>
+<script>
+function view_player(idx) {
+
+	//url = '/archive/player_record.php?act=detail_view&player_idx='+idx;
+	url = '/archive/player_record.php?act=detail_view&match_grade=&player_idx='+idx;
+
+	$.get(url, function(args) {
+
+		$('#layer_popup').html(args);
+
+	});
+
+    $('#layer_popup').css("display","block");
+	$('html').css('overflow-y','hidden');
+
+}
+
+function detail_view(idx,div_code) {
+
+    url = '/live/live.php?act=news_tv_detail&idx='+idx+'&div_code='+div_code;
+
+    $.get(url, function(args) {
+
+        $('#layer_popup').html(args);
+
+    });
+
+    $('#layer_popup').css("display","block");
+    $('#header').css("display","none");
+    $('#contents').css("display","none");
+    $( 'html, body' ).animate( { scrollTop : 0 }, 400 );
+
+}
+
+function layer_popup_national_result(cid)
+{
+
+
+    $('#layer_popup').html('');
+    //url = '/layer_popup/popup_archive.php?act=main_match_result_view&vs_country='+encodeURI(vs_country)+'&m_grade='+m_grade+'&m_date='+encodeURI(m_date);
+
+    url = '/layer_popup/national.php?act=main_match_result_view&div='+cid;
+
+    $.get(url, function(args) {
+
+        $('#layer_popup').html(args);
+
+    });
+    $('#layer_popup').css("display","block");
+    if($('html, body').css('overflow') == 'hidden'){
+        $('html, body').css({'overflow': '', 'height': '100%'});// 스크롤 사용
+    } else {
+        $('html').css('overflow-y','hidden');// 스크롤 중지
+    }
+    //$('html').css('overflow-y','hidden');
+    /*
+    */
+    return;
+}
+
+function more_view(seq) {
+
+    pre_seq = Number(seq)-1;
+    next_seq = Number(seq)+1;
+    $('#more_'+seq).remove();
+    var search_key = '';
+    var search_val = '2026';
+    url = '/national/?act=news_more&seq='+seq+'&div_code=11314&a_div=MNT&search_val='+search_val;
+
+    $.get(url, function(args) {
+
+        //$('#table_'+next_seq).html(args);
+        $('#more_view_'+seq+'').html(args);
+        //$(args).appendTo("#more_button");
+
+    });
+
+    //var more_button = '<button type="button" class="btn_c_more" id="more_1" onclick="more_view('+next_seq+')">more</button>';
+    //$('#more_button').html(more_button);
+    $("#more_"+pre_seq).remove();
+    $('<button type="button" class="btn_c_more" id="more_'+seq+'" onclick="more_view('+next_seq+')">MORE</button>').appendTo("#more_button");
+    $('<div id="more_view_'+seq+'">').appendTo("#new_list");
+
+    //$('#layer_popup').css("display","block");
+
+
+}
+
+</script>
+    </div>
+</div>
+<!-- 메인 끝 -->
+
+<!-- 푸터 시작 -->
+<div id="footer">
+<footer>
+    <div class="footer_slide">
+    <!-- <p>Offial Partner</p> -->
+        <h5 class="official">OFFICIAL PARTNERS</h5>
+        <ul class="slide_pt" style="max-width: 100%;">
+            <li><a href="https://www.nike.com" target="_blank"><img src="/images/partners/Sponsor_Nike_@1X_2025_01.png" alt="NIKE"/></a></li>
+            <li><a href="https://www.kebhana.com/" target="_blank"><img src="/images/partners/Sponsor_hanabank_@1X_2025_01.png" alt="하나은행"/></a></li>
+            <li><a href="https://www.kt.com/" target="_blank"><img src="/images/partners/Sponsor_KT_@1X_2025_01.png" alt="KT"/></a></li>
+            <li><a href="https://www.kyobo.com" target="_blank"><img src="/images/partners/Sponsor_Kyobo_@1X_2025_01.png" alt="KYOBO교보생명"/></a></li>
+            <li><a href="https://www.hyundai.com/" target="_blank"><img src="/images/partners/Sponsor_Hyundai_@1X_2025_01.png" alt="HYUNDAI"/></a></li>
+            <li><a href="https://www.coupangplay.com/" target="_blank"><img src="/images/partners/Sponsor_Coupang_@1X_2025_01.png" alt="Coupang"/></a></li>
+            <li><a href="http://www.koreanair.com" target="_blank"><img src="/images/partners/Sponsor_KoreanAir_@1X_2026_01.png" alt="대한한공"/></a></li>
+            <li><a href="http://www.coca-colajourney.co.kr/" target="_blank"><img src="/images/partners/Sponsor_Coke_@1X_2025_01.png" alt="코카콜라"/></a></li>
+            <li><a href="https://www.nexon.com/" target="_blank"><img src="/images/partners/Sponsor_Nexon_@1X_2025_01.png" alt="넥슨"/></a></li>
+            <li><a href="https://www.cass.co.kr/" target="_blank"><img src="/images/partners/Sponsor_cass_@1X_2025_01.png" alt="CASS"/></a></li>
+            <li><a href="https://hdc-dvp.com/" target="_blank"><img src="/images/partners/Sponsor_HDC_Ipark_@1X_2026_01.png" alt="현대산업개발"/></a></li>
+        </ul>
+    </div>
+    <div class="footer_menu">
+
+        <ul>
+            <li><a href="http://www.kfaedu.com" target="_blank">KFA edu</a></li>
+            <li><a href="https://plusapi.kfa.or.kr/api/cms/sso/ssologin?returnUrl=https%3A%2F%2Fplus.kfa.or.kr%2Fgallery%3Fpage%3D0%26sort%3Ddesc%26sortTarget%3Dimagecontent.pictureDate%26shareYn%3DY" target="_blank">KFA Photo</a></li>
+            <li><a href="https://media.kfa.or.kr/" target="_blank">MEDIA</a></li>
+        </ul>
+        <ul>
+            <li><a href="https://www.playkfa.com/" target="_blank">PLAYKFA</a></li>
+            <li><a href="https://www.joinkfa.com/" target="_blank">JoinKFA</a></li>
+        </ul>
+
+
+        <div class="family_site">
+            <select id="family_site" name="family_site" onchange="family_site_move(this.value);">
+                <option value="">Family site</option>
+                <option value="http://www.fifa.com/">국제축구연맹(FIFA)</option>
+                <option value="http://www.the-afc.com">아시아축구연맹(AFC)</option>
+                <option value="https://eaff.com/index_k.html">동아시아축구연맹(EAFF)</option>
+                <option value="http://www.seoulfa.or.kr">서울특별시축구협회</option>
+                <option value="http://www.bfa.or.kr">부산광역시축구협회</option>
+                <option value="http://www.dfa.or.kr">대구광역시축구협회</option>
+                <option value="http://www.kifa.incheon.kr">인천광역시축구협회</option>
+                <option value="http://www.djfa.co.kr">대전광역시축구협회</option>
+                <option value="http://cafe.daum.net/gjfa.com">광주광역시축구협회</option>
+                <option value="http://www.ufa.or.kr">울산광역시축구협회</option>
+                <option value="http://www.gokgfa.or.kr">경기도축구협회</option>
+                <option value="http://www.gfa.kr">강원도축구협회</option>
+                <option value="http://www.jjfa.or.kr">제주특별자치도축구협회</option>
+                <option value="http://www.cbfa.kr">충청북도축구협회</option>
+                <option value="http://www.cnfa.co.kr">충청남도축구협회</option>
+                <option value="http://www.jfa.or.kr">전라북도축구협회</option>
+                <option value="http://www.jeonnamfa.or.kr">전라남도축구협회</option>
+                <option value="http://www.gbfa.co.kr">경상북도축구협회</option>
+                <option value="http://www.gnfa.or.kr">경상남도축구협회</option>
+                <option value="http://www.koreasoccer.or.kr/sejong">세종특별자치시축구협회</option>
+                <option value="http://www.kleague.com">한국프로축구연맹(K리그)</option>
+                <option value="http://www.kufc.or.kr">한국대학축구연맹</option>
+                <option value="http://www.kwff.or.kr">한국여자축구연맹</option>
+                <option value="http://www.futsal.or.kr">한국풋살연맹</option>
+                <option value="http://faentasium.com">풋볼팬타지움</option>
+            </select>
+        </div>
+    </div>
+    <div class="footer_info">
+        <div>
+            <ul class="info_list">
+                <li><a href="/customer/">이용약관</a></li>
+                <li><a href="/customer/?act=private">개인정보처리방침</a></li>
+                <li><a href="/customer/?act=email">이메일무단수집거부</a></li>
+            </ul>
+            <ul class="info_sns">
+                <li><a href="https://instagram.com/thekfa/" target='_blank'>instagram</a></li>
+                <li><a href="https://www.facebook.com/kfa" target='_blank'>facebook</a></li>
+                <li><a href="https://twitter.com/thekfa" target='_blank'>tweet</a></li>
+                <li><a href="https://www.youtube.com/thekfa" target='_blank'>YouTube</a></li>
+            </ul>
+            <p class="copyright" style="top: 30%;">
+                <span style="color:#7f7f7f;line-height:20px;padding-bottom:5px;">
+                사단법인 대한축구협회 대표자 : 정몽규<br>사업자등록번호 : 102-82-00068<br>
+                주소: 충남 천안시 서북구 입장면 코리아풋볼파크1로 55 코리아풋볼파크 | 전화: 041.538.6363<br>
+                공문접수: kfaletter@kfa.or.kr<br>
+                </span>
+                <span style="line-height: 25px;">Copyright ⓒ KFA. All Rights Reserved.</span>
+            </p>
+        </div>
+    </div>
+</footer>
+<style type="text/css">
+@media (min-width: 961px) {
+    .info_sns li > a {
+        height:150px;
+    }
+}
+</style>
+<script>
+function family_site_move(go_url) {
+    if(go_url != '') {
+        window.open(go_url,'_blank');
+    } else return;
+}
+
+function click_count_check() {
+
+
+    $.ajax({
+        url: '/click_count.php',
+        async: true,
+        data : {click_referer : '/national/'},
+        type: 'post',
+        dataType: 'jsonp',
+        jsonp : 'callback',
+        timeout: 50000,
+
+        error: function (jqXHR, textStatus, errorThrown) {
+        },
+
+
+        success: function(obj){
+
+          if( obj.mode == 1 ){
+
+            window.open(obj.msg,'_blank');
+            return;
+
+          } else {
+            window.open(obj.msg,'_blank');
+            return false;
+          }
+
+        }
+
+    });
+
+}
+</script>
+</div>
+<!-- 푸터 끝 -->
+
+
+<!-- 일정표 -->
+<script>
+    $("#pc_version .btn_search").click(function() {
+        $("#pc_version .popup_window").slideDown("fast");
+        $(this).hide();
+		$('#pc_version .btn_searchClose').css('display','block');
+
+		$("#pc_version .popup_cals").slideUp("fast");
+		$("#pc_version .btn_scheduleClose").hide();
+		$("#pc_version .btn_schedule").css('display','block');
+
+		return false;
+    });
+
+	$("#pc_version .btn_searchClose").click(function() {
+        $(".popup_window").slideUp("fast");
+		$(this).hide();
+		$('#pc_version .btn_search').css('display','block');
+		if($('html').hasClass('active')){
+			$('html').removeClass('active');
+		}
+		return false;
+    });
+
+    $("#pc_version .btn_schedule").click(function() {
+        $("#pc_version .popup_cals").slideDown("fast");
+		$(this).hide();
+		$('#pc_version .btn_scheduleClose').css('display','block');
+
+		$(".popup_window").slideUp("fast");
+		$("#pc_version .btn_searchClose").hide();
+		$('#pc_version .btn_search').css('display','block');
+
+        url = '/calendar.php';
+        $.get(url, function(args) {
+            $('#pc_version #calendar_view').html(args);
+        });
+		if($('html').hasClass('active')){
+			return;
+		}else{
+			$('html').addClass('active');
+		}
+		return false;
+    });
+
+	$("#pc_version .btn_scheduleClose").click(function() {
+		$("#pc_version .popup_cals").slideUp("fast");
+		$(this).hide();
+		$("#pc_version .btn_schedule").css('display','block');
+		if($('html').hasClass('active')){
+			$('html').removeClass('active');
+		}
+		return false;
+    });
+
+	$("#pc_version .btn_quick").mouseover(navHide);
+
+	function navHide(){
+		$('.ath_national').stop().slideUp('fast');
+		$('.ath_competition').stop().slideUp('fast');
+		$('.ath_kfa').stop().slideUp('fast');
+		$('.ath_archive').stop().slideUp('fast');
+		//$('.ath_cheonan_nfc').stop().slideUp('fast');
+	}
+
+	//상단 메뉴
+	$(document).ready(function() {
+		$('.sub_05').mouseover(function() {
+			$('.ath_national').stop().slideUp('fast');
+			$('.ath_competition').stop().slideUp('fast');
+			$('.ath_kfa').stop().slideUp('fast');
+			$('.ath_archive').stop().slideUp('fast');
+			//$('.ath_cheonan_nfc').stop().slideUp('fast');
+		});
+
+		$('.sub_01').mouseover(function() {
+			$('.ath_national').stop().slideDown("fast");
+			$('.ath_competition').hide();
+			$('.ath_kfa').hide();
+			$('.ath_archive').hide();
+			//$('.ath_cheonan_nfc').hide();
+			$('.k_sub_menu').mouseleave(function() {
+				$('.ath_national').stop().slideUp('fast');
+			});
+
+		});
+		$('.sub_02').mouseover(function() {
+			$('.ath_national').hide();
+			$('.ath_competition').stop().slideDown("fast");
+			$('.ath_kfa').hide();
+			$('.ath_archive').hide();
+			//$('.ath_cheonan_nfc').hide();
+			$('.k_sub_menu').mouseleave(function() {
+				$('.ath_competition').stop().slideUp('fast');
+			});
+		});
+		$('.sub_03').mouseover(function() {
+			$('.ath_national').hide();
+			$('.ath_competition').hide()
+			$('.ath_kfa').hide();
+			$('.ath_archive').stop().slideDown("fast");
+			//$('.ath_cheonan_nfc').hide();
+			$('.k_sub_menu').mouseleave(function() {
+				$('.ath_archive').stop().slideUp('fast');;
+			});
+		});
+		$('.sub_04').mouseover(function() {
+			$('.ath_national').hide();
+			$('.ath_competition').hide()
+			$('.ath_kfa').stop().slideDown("fast");
+			$('.ath_archive').hide();
+			//$('.ath_cheonan_nfc').hide();
+			$('.k_sub_menu').mouseleave(function() {
+				$('.ath_kfa').stop().slideUp('fast');
+			});
+		});
+		$('.sub_06').mouseover(function() {
+			$('.ath_national').hide();
+			$('.ath_competition').hide()
+			$('.ath_kfa').hide();
+			$('.ath_archive').hide();
+			//$('.ath_cheonan_nfc').stop().slideDown("fast");
+			//$('.k_sub_menu').mouseleave(function() {
+				//$('.ath_cheonan_nfc').stop().slideUp('fast');
+			//});
+		});
+
+		$('header#pc_version').mouseleave(function(){
+			$('.ath_national').stop().slideUp('fast');
+			$('.ath_competition').stop().slideUp('fast');
+			$('.ath_kfa').stop().slideUp('fast');
+			$('.ath_archive').stop().slideUp('fast');
+			//$('.ath_cheonan_nfc').stop().slideUp('fast');
+		});
+	});
+
+	//모바일메뉴컨트롤
+	$(function(){
+		var mob_header = $('#mobile_version');
+		var mob_search = $('#mobile_version .btn_m_search');
+		var mob_searchBox = $('.m_search');
+		var mob_schedule = $("#mobile_version .btn_m_schedule");
+		var mob_scheduleBox = $("#mobile_version .popup_cals");
+
+		$('#mobile_version .btn_m_menu').on('click',function(){
+			$(this).toggleClass('active')
+			mob_header.toggleClass('active');
+			$('.mobile_menu_list').toggleClass('active',function(){
+				$('#contents').toggleClass('active');
+			});
+			mob_schedule.removeClass('active');
+			mob_scheduleBox.hide();
+			mob_search.removeClass('active');
+			mob_searchBox.removeClass('active');
+		})
+		$('#mobile_version .btn_m_search').on('click',function(){
+			$(this).toggleClass('active')
+			mob_header.toggleClass('active');
+			mob_searchBox.toggleClass('active');
+			mob_schedule.removeClass('active');
+			mob_scheduleBox.hide();
+		})
+		$("#mobile_version .btn_m_schedule").click(function() {
+			$(this).toggleClass('active');
+			mob_scheduleBox.toggle('fast');
+			mob_header.toggleClass('active');
+			url = '/calendar.php';
+			$.get(url, function(args) {
+				$('#mobile_version #calendar_m_view').html(args);
+			});
+			mob_search.removeClass('active');
+			mob_searchBox.removeClass('active');
+		});
+	});
+
+	//모바일 gnb
+	$(function(){
+		var gnbRoot = $('.gnb');
+		var gnbMenu = $('.gnb > li a');
+		$('.gnb > li ul').hide();
+
+		function gnbShow(){
+			$(this).parent().siblings().find(">a").removeClass("on").end().removeClass("open").children('ul').stop().slideUp('fast');
+			$(this).toggleClass("on");
+			$(this).parent("li:first").toggleClass("open").children('ul').stop().slideDown('fast');
+			return false;
+		}
+		gnbMenu.click(gnbShow);
+	});
+
+	$(function(){
+		$('.sub_menu_list > li > a').wrapInner('<span></span>');
+	});
+
+	$(function(){
+		$('.m_sub_menu').on('click',function(){
+			$(this).toggleClass('active').next('.sub_menu_list').stop().slideToggle('fast');
+			return false;
+		});
+
+	});
+
+	//모바일 게시판 검색
+	$(function(){
+		$(".m_bbs .btn_search").on("click",function(){
+			$(this).toggleClass('active').next(".sch").stop().slideToggle('fast');
+			return false;
+		});
+	});
+
+	//아코디언
+	$(function(){
+		$(".accordionPC").each(function(){
+			var accordionBox = $(this).children("div");
+			var accordionBtn = accordionBox.children("a");
+			accordionBtn.next('div').hide();
+			accordionBtn.on("click",function(){
+				$(this).toggleClass("active").next("div").stop().slideToggle("fast");
+				return false;
+			});
+			accordionBtn.eq(0).click();
+		});
+	});
+
+	//table
+	$(function(){
+		$('.tableScroll').wrap('<div class="scrollTable"></div>');
+		$('.tableScroll_small').wrap('<div class="scrollTable"></div>');
+	});
+
+	$(document).ready( function() {
+		var owl = $(".bg_slide");
+		owl.owlCarousel({
+			loop:true,
+			margin:0,
+			responsive:{0:{items:1}},
+			autoplay:true,
+			autoplayTimeout:3000,
+			autoplayHoverPause:true,
+			mouseDrag:true,
+			touchDrag:true
+		});
+
+		$(".bg_slide .nav_btn .next").click(function(){
+			owl.trigger('next.owl.carousel');
+			return false;
+		})
+		$(".bg_slide .nav_btn .prev").click(function(){
+			owl.trigger('prev.owl.carousel');
+			return false;
+		})
+
+		$(window).scroll(function(){
+			if($(".sub_menu").length > 0){
+				var winTop = $(document).scrollTop();
+				var headerHeight = $('header').height();
+				var snbTop = $(".news_slide .bg_slide").height();
+				var archiveTop = $(".archive_bg").height();
+				var kfaTop = $(".kfa_bg").height();
+				// snb
+
+				if (winTop > snbTop || winTop > archiveTop || winTop > kfaTop) {
+					$("header#pc_version").addClass("active");
+					$(".sub_menu").addClass("jbFixed");
+				} else {
+					$(".sub_menu").removeClass("jbFixed");
+					$("header#pc_version").removeClass("active");
+				}
+
+			}
+		});
+    });
+
+	$(function(){
+		var banner = $(".main_banner");
+		banner.owlCarousel({
+			animateOut: 'fadeOut',
+			loop:true,
+			margin:0,
+			responsive:{0:{items:1}},
+			autoplay:true,
+			autoplayTimeout:5000,
+			autoplayHoverPause:true,
+			autoHeight:true,
+			mouseDrag:true,
+			touchDrag:true,
+			navigation:false
+		});
+	});
+</script>
+
+<!-- 레이어 팝업
+<script>
+    $(document).ready(function() {
+        var b_height = $(document).height();
+        $('.popup_wrap').css('min-height', b_height);
+    });
+</script>
+ -->
+
+<!-- Google Analytics -->
+<script type="text/javascript">
+/*
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25180453-1']);
+  _gaq.push(['_setDomainName', '.kfa.or.kr']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '/common/.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+*/
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<!-- Admin ADD 2020.01.08 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156013082-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-156013082-1');
+</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<!-- Team Manager -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-89367924-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-89367924-3');
+</script>
+
+<!-- Google tag (gtag.js) -->
+<!-- Team Manager 2023.07.05 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-25180453-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-25180453-2');
+</script>
+
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<!-- Dev ADD 2020.01.11 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156048922-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-156048922-2');
+</script>
+</body>
+</html>
