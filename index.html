@@ -48,20 +48,20 @@
       <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
       <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">Group A 선수단</div>
       <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">멕시코 경기장</div>
-      <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">공용장비 현황</div>
+        <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">장비현황</div>
       <div id="personalTimelineMenu" class="menu" onclick="togglePersonalTimeline()">개인일정 타임라인</div>
     </div>
 
     <div id="newsCol" class="column hidden">
-      <div class="item news-year-item" onclick="showNewsYear('2022', this)" aria-label="2022 카타르 월드컵"><img class="news-year-logo" src="assets/news-year-2022.png" alt="2022 카타르 월드컵 로고"></div>
-      <div class="item news-year-item" onclick="showNewsYear('2018', this)" aria-label="2018 러시아 월드컵"><img class="news-year-logo" src="assets/news-year-2018.png" alt="2018 러시아 월드컵 로고"></div>
-      <div class="item news-year-item" onclick="showNewsYear('2014', this)" aria-label="2014 브라질 월드컵"><img class="news-year-logo" src="assets/news-year-2014.png" alt="2014 브라질 월드컵 로고"></div>
+      <div class="item news-year-item" onclick="showNewsYear('2022', this)" aria-label="2022 카타르 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2022.png" alt="2022 카타르 월드컵 로고"></span></div>
+      <div class="item news-year-item" onclick="showNewsYear('2018', this)" aria-label="2018 러시아 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2018.png" alt="2018 러시아 월드컵 로고"></span></div>
+      <div class="item news-year-item" onclick="showNewsYear('2014', this)" aria-label="2014 브라질 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2014.png" alt="2014 브라질 월드컵 로고"></span></div>
     </div>
 
     <div id="newsBroadcasterCol" class="column hidden">
-      <div class="item broadcaster-item broadcaster-item-kbs" onclick="activateBroadcaster(this, 'KBS')" aria-label="KBS"><span class="broadcaster-ci broadcaster-ci-kbs"><span class="sr-only">KBS</span></span></div>
-      <div class="item broadcaster-item broadcaster-item-mbc" onclick="activateBroadcaster(this, 'MBC')" aria-label="MBC"><span class="broadcaster-ci broadcaster-ci-mbc"><span class="sr-only">MBC</span></span></div>
-      <div class="item broadcaster-item broadcaster-item-sbs" onclick="activateBroadcaster(this, 'SBS')" aria-label="SBS"><span class="broadcaster-ci broadcaster-ci-sbs"><span class="sr-only">SBS</span></span></div>
+      <div class="item broadcaster-item broadcaster-item-kbs" onclick="activateBroadcaster(this, 'KBS')" aria-label="KBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-kbs" src="assets/news-ci-kbs-clean.png" alt="KBS 로고"></span></div>
+      <div class="item broadcaster-item broadcaster-item-mbc" onclick="activateBroadcaster(this, 'MBC')" aria-label="MBC"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-mbc" src="assets/news-ci-mbc-clean.png" alt="MBC 로고"></span></div>
+      <div class="item broadcaster-item broadcaster-item-sbs" onclick="activateBroadcaster(this, 'SBS')" aria-label="SBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-sbs" src="assets/news-ci-sbs-clean.png" alt="SBS 로고"></span></div>
     </div>
 
     <div id="bracketStageCol" class="column hidden">
@@ -95,10 +95,11 @@
       <div class="item squad-country-tab squad-country-czech" onclick="showGroupASquad('czech', this)">체코</div>
     </div>
 
-    <div id="equipmentUserCol" class="column hidden">
-      <div class="item" onclick="showEquipmentPersonal('박재현', this)">박재현</div>
-      <div class="item" onclick="showEquipmentPersonal('장후원', this)">장후원</div>
-      <div class="item" onclick="showEquipmentPersonal('정상원', this)">정상원</div>
+      <div id="equipmentUserCol" class="column hidden">
+        <div id="equipmentSharedTab" class="item" onclick="showEquipmentShared(this)">공용장비</div>
+        <div class="item" onclick="showEquipmentPersonal('박재현', this)">박재현</div>
+        <div class="item" onclick="showEquipmentPersonal('장후원', this)">장후원</div>
+        <div class="item" onclick="showEquipmentPersonal('정상원', this)">정상원</div>
       <div class="item" onclick="showEquipmentPersonal('이주원', this)">이주원</div>
       <div class="item" onclick="showEquipmentPersonal('김진광', this)">김진광</div>
       <div class="item" onclick="showEquipmentPersonal('정재우', this)">정재우</div>

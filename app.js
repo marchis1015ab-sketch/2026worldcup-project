@@ -287,13 +287,28 @@ const renderCache = {
 let newsData = null;
 const NEWS_EDITOR_STORAGE_KEY = 'worldcup-guide-news-editor-v1';
 const NEWS_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideNewsEditor__';
+const SQUAD_INJURY_STORAGE_KEY = 'worldcup-guide-squad-injury-v1';
+const SQUAD_INJURY_WINDOW_NAME_KEY = '__worldcupGuideSquadInjury__';
+const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-v1';
+const MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideMexicoStadiumEditor__';
+const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
+const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 let hasLoadedNewsEditorEntries = false;
+let hasLoadedSquadInjuryEntries = false;
+let hasLoadedMexicoStadiumEditorEntries = false;
+let hasLoadedEquipmentEditorEntries = false;
 let currentNewsBroadcaster = '';
 let currentNewsEditingKey = '';
 let currentNewsDeletingKey = '';
 let pendingNewsEditorContext = null;
+let pendingSquadInjuryContext = null;
+let pendingMexicoStadiumEditorContext = null;
+let pendingEquipmentEditorContext = null;
 let newsEditorEntrySeq = 0;
 const newsEditorEntries = Object.create(null);
+const squadInjuryEntries = Object.create(null);
+const mexicoStadiumEditorEntries = Object.create(null);
+const equipmentEditorEntries = Object.create(null);
 function normalizeNewsDate(dateValue, fallbackYear=''){
   const raw=String(dateValue||'').trim();
   if(!raw) return raw;
@@ -561,6 +576,354 @@ const mexicoStadiumSections = {
   ground:'그라운드',
   playerArrival:'선수 도착'
 };
+function getMexicoStadiumEditorKey(stadiumKey, sectionKey=''){
+  return `${stadiumKey}::${sectionKey||'root'}`;
+}
+function cloneMexicoStadiumRows(rows=[]){
+  return rows.map(([label, value])=>[String(label||''), String(value||'')]);
+}
+function getMexicoStadiumDefaultRows(stadiumKey, sectionKey=''){
+  const stadium=mexicoStadiums[stadiumKey];
+  if(!stadium) return [];
+  const section=sectionKey?stadium.sections?.[sectionKey]:null;
+  return cloneMexicoStadiumRows(section?[...stadium.rows,...section.rows]:stadium.rows);
+}
+function getMexicoStadiumEditorEntry(stadiumKey, sectionKey=''){
+  ensureMexicoStadiumEditorEntries();
+  return mexicoStadiumEditorEntries[getMexicoStadiumEditorKey(stadiumKey, sectionKey)]||null;
+}
+function getMexicoStadiumRows(stadiumKey, sectionKey=''){
+  const entry=getMexicoStadiumEditorEntry(stadiumKey, sectionKey);
+  return entry?.rows?.length ? cloneMexicoStadiumRows(entry.rows) : getMexicoStadiumDefaultRows(stadiumKey, sectionKey);
+}
+function getMexicoStadiumMediaItems(stadiumKey, sectionKey=''){
+  const entry=getMexicoStadiumEditorEntry(stadiumKey, sectionKey);
+  return Array.isArray(entry?.mediaItems) ? entry.mediaItems.map(item=>({...item})) : [];
+}
+function readMexicoStadiumEditorRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(MEXICO_STADIUM_EDITOR_STORAGE_KEY);
+    if(raw) return raw;
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY]==='string' ? payload[MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writeMexicoStadiumEditorRaw(raw){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(MEXICO_STADIUM_EDITOR_STORAGE_KEY, raw));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
+function normalizeMexicoStadiumEditorEntry(entry, stadiumKey, sectionKey=''){
+  const rows=getMexicoStadiumDefaultRows(stadiumKey, sectionKey).map(([label], index)=>{
+    const nextRow=Array.isArray(entry?.rows?.[index]) ? entry.rows[index] : null;
+    return [label, String(nextRow?.[1] ?? '').trim()];
+  });
+  const mediaItems=Array.isArray(entry?.mediaItems)
+    ? entry.mediaItems.map((item, index)=>({
+        id:String(item?.id||`media-${index+1}`),
+        name:String(item?.name||`사진 ${index+1}`),
+        src:String(item?.src||'')
+      })).filter(item=>item.src)
+    : [];
+  return {rows, mediaItems};
+}
+function ensureMexicoStadiumEditorEntries(){
+  if(hasLoadedMexicoStadiumEditorEntries) return;
+  hasLoadedMexicoStadiumEditorEntries=true;
+  const raw=readMexicoStadiumEditorRaw();
+  if(!raw) return;
+  try{
+    const parsed=JSON.parse(raw);
+    if(parsed&&typeof parsed==='object'){
+      Object.entries(parsed).forEach(([key, value])=>{
+        const [stadiumKey, sectionKey='root']=String(key).split('::');
+        mexicoStadiumEditorEntries[key]=normalizeMexicoStadiumEditorEntry(value, stadiumKey, sectionKey==='root'?'':sectionKey);
+      });
+    }
+  }catch(error){}
+}
+function saveMexicoStadiumEditorEntries(){
+  writeMexicoStadiumEditorRaw(JSON.stringify(mexicoStadiumEditorEntries));
+}
+function invalidateMexicoStadiumDetails(){
+  renderCache.mexicoStadiumDetails=Object.create(null);
+}
+function setMexicoStadiumEditorEntry(stadiumKey, sectionKey, entry){
+  const key=getMexicoStadiumEditorKey(stadiumKey, sectionKey);
+  mexicoStadiumEditorEntries[key]=normalizeMexicoStadiumEditorEntry(entry, stadiumKey, sectionKey);
+  invalidateMexicoStadiumDetails();
+  saveMexicoStadiumEditorEntries();
+}
+function deleteMexicoStadiumEditorEntry(stadiumKey, sectionKey){
+  delete mexicoStadiumEditorEntries[getMexicoStadiumEditorKey(stadiumKey, sectionKey)];
+  invalidateMexicoStadiumDetails();
+  saveMexicoStadiumEditorEntries();
+}
+let mexicoStadiumEditorMediaSeq = 0;
+function createMexicoStadiumEditorMediaId(){
+  mexicoStadiumEditorMediaSeq+=1;
+  return `mexico-media-${Date.now()}-${mexicoStadiumEditorMediaSeq}`;
+}
+function renderMexicoStadiumTitle(stadiumKey, sectionKey=''){
+  const stadium=mexicoStadiums[stadiumKey];
+  if(!stadium) return '';
+  if(!sectionKey){
+    return escapeHtml(`${stadium.title}, ${stadium.city}`);
+  }
+  return `<span class="section-title-row"><span>${escapeHtml(`${stadium.title} - ${mexicoStadiumSections[sectionKey]||sectionKey}`)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}')">작성</button><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}','edit')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMexicoStadiumEditorAndRender('${stadiumKey}','${sectionKey}')">삭제</button></span></span>`;
+}
+function renderMexicoStadiumMediaGallery(stadiumKey, sectionKey=''){
+  const mediaItems=getMexicoStadiumMediaItems(stadiumKey, sectionKey);
+  if(!mediaItems.length) return renderStadiumSlot();
+  return `<div class="group-match-wrap"><div class="mexico-stadium-media-grid">${mediaItems.map(item=>`<figure class="mexico-stadium-media-item"><img class="mexico-stadium-media-photo" src="${item.src}" alt="${escapeHtml(item.name)}"><figcaption class="mexico-stadium-media-caption">${escapeHtml(item.name)}</figcaption></figure>`).join('')}</div></div>`;
+}
+function ensureMexicoStadiumEditorModal(){
+  if(document.getElementById('mexicoStadiumEditorModal')) return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="mexicoStadiumEditorModal" class="news-editor-modal hidden"><div class="news-editor-modal-backdrop" onclick="closeMexicoStadiumEditorModal()"></div><div class="news-editor-modal-panel" role="dialog" aria-modal="true" aria-labelledby="mexicoStadiumEditorModalTitle"><div class="news-editor-modal-header"><h3 id="mexicoStadiumEditorModalTitle">경기장 정보 작성</h3><button type="button" class="news-editor-modal-close" onclick="closeMexicoStadiumEditorModal()" aria-label="닫기">×</button></div><p id="mexicoStadiumEditorModalMeta" class="news-editor-modal-meta"></p><div id="mexicoStadiumEditorFields" class="mexico-stadium-editor-fields"></div><div class="timeline-modal-media mexico-stadium-editor-media"><div class="timeline-modal-upload"><span>사진 첨부</span><input id="mexicoStadiumEditorFiles" type="file" accept=\"image/*\" multiple></div><div id="mexicoStadiumEditorMediaList" class="timeline-modal-media-list"></div></div><div class="news-editor-modal-actions"><button type="button" class="news-editor-modal-btn" onclick="closeMexicoStadiumEditorModal()">취소</button><button type="button" class="news-editor-modal-btn primary" onclick="saveMexicoStadiumEditorModal()">저장</button></div></div></div>`);
+  const modal=document.getElementById('mexicoStadiumEditorModal');
+  modal.addEventListener('keydown', event=>{
+    if(event.key==='Escape'){
+      closeMexicoStadiumEditorModal();
+    }
+  });
+  document.getElementById('mexicoStadiumEditorFiles').addEventListener('change', async event=>{
+    const files=Array.from(event.target.files||[]);
+    if(!pendingMexicoStadiumEditorContext||!files.length) return;
+    const items=(await Promise.all(files.map(file=>new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve({id:createMexicoStadiumEditorMediaId(), name:file.name||'사진', src:String(reader.result||'')});
+      reader.onerror=()=>resolve(null);
+      reader.readAsDataURL(file);
+    })))).filter(Boolean);
+    pendingMexicoStadiumEditorContext.mediaItems.push(...items);
+    renderMexicoStadiumEditorMediaList();
+    event.target.value='';
+  });
+  modal.addEventListener('click', event=>{
+    const removeButton=event.target.closest('.timeline-modal-media-remove');
+    if(!removeButton||!pendingMexicoStadiumEditorContext) return;
+    pendingMexicoStadiumEditorContext.mediaItems=pendingMexicoStadiumEditorContext.mediaItems.filter(item=>item.id!==removeButton.dataset.mediaId);
+    renderMexicoStadiumEditorMediaList();
+  });
+}
+function renderMexicoStadiumEditorMediaList(){
+  const list=document.getElementById('mexicoStadiumEditorMediaList');
+  if(!list) return;
+  const mediaItems=Array.isArray(pendingMexicoStadiumEditorContext?.mediaItems) ? pendingMexicoStadiumEditorContext.mediaItems : [];
+  list.innerHTML=mediaItems.length
+    ? mediaItems.map(item=>`<figure class="timeline-modal-media-item"><img class="timeline-modal-media-thumb" src="${item.src}" alt="${escapeHtml(item.name)}"><figcaption class="timeline-modal-media-caption">${escapeHtml(item.name)}</figcaption><button type="button" class="timeline-modal-media-remove" data-media-id="${item.id}" aria-label="${escapeHtml(item.name)} 삭제">×</button></figure>`).join('')
+    : '<div class="timeline-modal-media-empty">첨부된 사진 없음</div>';
+}
+function openMexicoStadiumEditorModal(stadiumKey, sectionKey, mode='write'){
+  if(!sectionKey) return;
+  ensureMexicoStadiumEditorEntries();
+  ensureMexicoStadiumEditorModal();
+  const stadium=mexicoStadiums[stadiumKey];
+  const rows=getMexicoStadiumRows(stadiumKey, sectionKey);
+  pendingMexicoStadiumEditorContext={stadiumKey, sectionKey, mode, mediaItems:getMexicoStadiumMediaItems(stadiumKey, sectionKey)};
+  document.getElementById('mexicoStadiumEditorModalTitle').textContent=mode==='edit' ? '경기장 정보 수정' : '경기장 정보 작성';
+  document.getElementById('mexicoStadiumEditorModalMeta').textContent=`${stadium.title} · ${mexicoStadiumSections[sectionKey]||sectionKey}`;
+  document.getElementById('mexicoStadiumEditorFields').innerHTML=rows.map(([label, value], index)=>`<label class="news-editor-field"><span>${escapeHtml(label)}</span><textarea class="news-editor-textarea mexico-stadium-editor-input" data-row-index="${index}">${escapeHtml(value)}</textarea></label>`).join('');
+  renderMexicoStadiumEditorMediaList();
+  document.body.classList.add('news-editor-modal-open');
+  document.getElementById('mexicoStadiumEditorModal').classList.remove('hidden');
+  const firstInput=document.querySelector('.mexico-stadium-editor-input');
+  if(firstInput) firstInput.focus();
+}
+function closeMexicoStadiumEditorModal(){
+  const modal=document.getElementById('mexicoStadiumEditorModal');
+  if(modal) modal.classList.add('hidden');
+  document.body.classList.remove('news-editor-modal-open');
+  pendingMexicoStadiumEditorContext=null;
+}
+function saveMexicoStadiumEditorModal(){
+  if(!pendingMexicoStadiumEditorContext) return;
+  const {stadiumKey, sectionKey}=pendingMexicoStadiumEditorContext;
+  const defaultRows=getMexicoStadiumDefaultRows(stadiumKey, sectionKey);
+  const rows=defaultRows.map(([label], index)=>[label, document.querySelector(`.mexico-stadium-editor-input[data-row-index="${index}"]`)?.value?.trim()||'']);
+  setMexicoStadiumEditorEntry(stadiumKey, sectionKey, {rows, mediaItems:pendingMexicoStadiumEditorContext.mediaItems});
+  closeMexicoStadiumEditorModal();
+  renderMexicoStadiumDetail(stadiumKey, sectionKey);
+}
+function deleteMexicoStadiumEditorAndRender(stadiumKey, sectionKey){
+  deleteMexicoStadiumEditorEntry(stadiumKey, sectionKey);
+  renderMexicoStadiumDetail(stadiumKey, sectionKey);
+}
+function getEquipmentEditorKey(mode, user=''){
+  return mode==='personal' ? `personal::${user}` : 'shared';
+}
+function getEquipmentHeaders(mode){
+  return mode==='personal'
+    ? ['장비 모델명','제조사','시리얼','수량','비고']
+    : ['장비 모델명','제조사','시리얼넘버','수량','비고','사용인원'];
+}
+function getEquipmentRowCount(mode){
+  return mode==='personal' ? 10 : 12;
+}
+function getEquipmentDefaultRows(mode){
+  return Array.from({length:getEquipmentRowCount(mode)}, ()=>getEquipmentHeaders(mode).map(()=>'')); 
+}
+function normalizeEquipmentRows(mode, rows){
+  const headers=getEquipmentHeaders(mode);
+  const defaultRows=getEquipmentDefaultRows(mode);
+  return defaultRows.map((defaultRow, rowIndex)=>defaultRow.map((_, colIndex)=>String(rows?.[rowIndex]?.[colIndex]||'').trim()));
+}
+function readEquipmentEditorRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(EQUIPMENT_EDITOR_STORAGE_KEY);
+    if(raw) return raw;
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[EQUIPMENT_EDITOR_WINDOW_NAME_KEY]==='string' ? payload[EQUIPMENT_EDITOR_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writeEquipmentEditorRaw(raw){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(EQUIPMENT_EDITOR_STORAGE_KEY, raw));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[EQUIPMENT_EDITOR_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
+function ensureEquipmentEditorEntries(){
+  if(hasLoadedEquipmentEditorEntries) return;
+  hasLoadedEquipmentEditorEntries=true;
+  const raw=readEquipmentEditorRaw();
+  if(!raw) return;
+  try{
+    const parsed=JSON.parse(raw);
+    if(parsed&&typeof parsed==='object'){
+      Object.entries(parsed).forEach(([key, value])=>{
+        const mode=String(key).startsWith('personal::') ? 'personal' : 'shared';
+        equipmentEditorEntries[key]=normalizeEquipmentRows(mode, value);
+      });
+    }
+  }catch(error){}
+}
+function saveEquipmentEditorEntries(){
+  writeEquipmentEditorRaw(JSON.stringify(equipmentEditorEntries));
+}
+function getEquipmentRows(mode, user=''){
+  ensureEquipmentEditorEntries();
+  const key=getEquipmentEditorKey(mode, user);
+  return equipmentEditorEntries[key] ? normalizeEquipmentRows(mode, equipmentEditorEntries[key]) : getEquipmentDefaultRows(mode);
+}
+function setEquipmentRows(mode, user, rows){
+  equipmentEditorEntries[getEquipmentEditorKey(mode, user)]=normalizeEquipmentRows(mode, rows);
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  saveEquipmentEditorEntries();
+}
+function clearEquipmentRows(mode, user){
+  equipmentEditorEntries[getEquipmentEditorKey(mode, user)]=getEquipmentDefaultRows(mode);
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  saveEquipmentEditorEntries();
+}
+function renderEquipmentTitle(mode, user=''){
+  const titleText=mode==='personal' ? `${user} 개인장비` : '공용장비 현황';
+  const encodedUser=escapeHtml(JSON.stringify(user)).replace(/"/g,'&quot;');
+  const openCall=mode==='personal'
+    ? `openEquipmentEditorModal('personal', ${encodedUser})`
+    : `openEquipmentEditorModal('shared')`;
+  const deleteCall=mode==='personal'
+    ? `clearEquipmentAndRender('personal', ${encodedUser})`
+    : `clearEquipmentAndRender('shared')`;
+  return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${openCall}">작성</button><button type="button" class="section-title-action-btn delete" onclick="${deleteCall}">삭제</button></span></span>`;
+}
+function renderEquipmentTableHtml(mode, user=''){
+  const headers=getEquipmentHeaders(mode);
+  const rows=getEquipmentRows(mode, user);
+  return `<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value)||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+function ensureEquipmentEditorModal(){
+  if(document.getElementById('equipmentEditorModal')) return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="equipmentEditorModal" class="news-editor-modal hidden"><div class="news-editor-modal-backdrop" onclick="closeEquipmentEditorModal()"></div><div class="news-editor-modal-panel equipment-editor-modal-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentEditorModalTitle"><div class="news-editor-modal-header"><h3 id="equipmentEditorModalTitle">장비 현황 작성</h3><button type="button" class="news-editor-modal-close" onclick="closeEquipmentEditorModal()" aria-label="닫기">×</button></div><p id="equipmentEditorModalMeta" class="news-editor-modal-meta"></p><div id="equipmentEditorTableWrap" class="equipment-editor-table-wrap"></div><div class="news-editor-modal-actions"><button type="button" class="news-editor-modal-btn" onclick="closeEquipmentEditorModal()">취소</button><button type="button" class="news-editor-modal-btn primary" onclick="saveEquipmentEditorModal()">저장</button></div></div></div>`);
+  document.getElementById('equipmentEditorModal').addEventListener('keydown', event=>{
+    if(event.key==='Escape'){
+      closeEquipmentEditorModal();
+    }
+  });
+}
+function openEquipmentEditorModal(mode, user=''){
+  ensureEquipmentEditorEntries();
+  ensureEquipmentEditorModal();
+  pendingEquipmentEditorContext={mode, user};
+  const titleText=mode==='personal' ? '개인장비 현황 수정' : '공용장비 현황 수정';
+  document.getElementById('equipmentEditorModalTitle').textContent=titleText;
+  document.getElementById('equipmentEditorModalMeta').textContent=mode==='personal' ? `${user} 개인장비 전체 작성` : '공용장비 전체 작성';
+  const headers=getEquipmentHeaders(mode);
+  const rows=getEquipmentRows(mode, user);
+  document.getElementById('equipmentEditorTableWrap').innerHTML=`<table class="data-table equipment-editor-table"><thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>`<tr>${row.map((value, colIndex)=>`<td><input type="text" class="equipment-editor-input" data-row-index="${rowIndex}" data-col-index="${colIndex}" value="${escapeHtml(value)}"></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  document.body.classList.add('news-editor-modal-open');
+  document.getElementById('equipmentEditorModal').classList.remove('hidden');
+  const firstInput=document.querySelector('.equipment-editor-input');
+  if(firstInput) firstInput.focus();
+}
+function closeEquipmentEditorModal(){
+  const modal=document.getElementById('equipmentEditorModal');
+  if(modal) modal.classList.add('hidden');
+  document.body.classList.remove('news-editor-modal-open');
+  pendingEquipmentEditorContext=null;
+}
+function saveEquipmentEditorModal(){
+  if(!pendingEquipmentEditorContext) return;
+  const {mode, user}=pendingEquipmentEditorContext;
+  const rowCount=getEquipmentRowCount(mode);
+  const colCount=getEquipmentHeaders(mode).length;
+  const rows=Array.from({length:rowCount}, (_, rowIndex)=>Array.from({length:colCount}, (_, colIndex)=>document.querySelector(`.equipment-editor-input[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`)?.value?.trim()||''));
+  setEquipmentRows(mode, user, rows);
+  closeEquipmentEditorModal();
+  if(mode==='personal'){
+    showEquipmentPersonal(user);
+  }else{
+    renderEquipment();
+  }
+}
+function clearEquipmentAndRender(mode, user=''){
+  clearEquipmentRows(mode, user);
+  if(mode==='personal'){
+    showEquipmentPersonal(user);
+  }else{
+    renderEquipment();
+  }
+}
 const scheduleStadiumMedia = {
   azteca:{
     imageUrl:'https://commons.wikimedia.org/wiki/Special:FilePath/Estadio_Azteca_desde_el_aire_1.jpg?width=1200',
@@ -834,6 +1197,7 @@ const headerLocalClockState = {
 };
 let currentNewsYear = '';
 let currentMexicoStadiumKey = '';
+let currentMexicoStadiumSectionKey = '';
 let currentTimelineView = 'personal';
 let isTimelinePainting = false;
 let timelineSelectionPerson = '';
@@ -2643,6 +3007,9 @@ function clearDetailExtras(){
   cancelTimelineSelection();
   closeTimelineModal();
   closeNewsEditorModal();
+  closeSquadInjuryModal();
+  closeMexicoStadiumEditorModal();
+  closeEquipmentEditorModal();
   hideTimelineTooltip();
   document.body.classList.remove('timeline-modal-open');
   document.body.classList.remove('news-editor-modal-open');
@@ -2716,10 +3083,15 @@ function toggleMexicoStadium(){
 
 function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');}
 function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);}
+function getNewsBroadcasterLogoPath(broadcaster){
+  const map={KBS:'assets/news-ci-kbs-clean.png',MBC:'assets/news-ci-mbc-clean.png',SBS:'assets/news-ci-sbs-clean.png'};
+  return map[broadcaster]||'';
+}
 function renderNewsBroadcasterCiMarkup(broadcaster, extraClass=''){
   const key=String(broadcaster||'').toLowerCase();
   const className=`broadcaster-ci broadcaster-ci-${key}${extraClass?` ${extraClass}`:''}`;
-  return `<span class="${className}"><span class="sr-only">${escapeHtml(broadcaster)}</span></span>`;
+  const src=getNewsBroadcasterLogoPath(broadcaster);
+  return `<img class="${className}" src="${src}" alt="${escapeHtml(broadcaster)} 로고">`;
 }
 function renderNewsDetailTitle(year, broadcaster){
   return `<span class="news-detail-title"><span class="news-detail-title-year">${escapeHtml(year)}</span>${renderNewsBroadcasterCiMarkup(broadcaster,'news-detail-title-ci')}</span>`;
@@ -2872,6 +3244,278 @@ function renderNewsTable(year,broadcaster){
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
+function normalizeSquadInjuryValue(value=''){
+  const normalized=String(value||'').trim();
+  return normalized||'-';
+}
+function ensureSquadPlayerMeta(player){
+  if(!player.__baseKey) player.__baseKey=String(player.name||'').trim();
+  if(!player.__defaults){
+    player.__defaults={
+      position:String(player.position||'').trim(),
+      number:String(player.number??'').trim(),
+      name:String(player.name||'').trim(),
+      photo:String(player.photo||'').trim(),
+      club:String(player.club||'').trim(),
+      age:String(player.age??'').trim(),
+      injury:normalizeSquadInjuryValue(player.injury)
+    };
+  }
+  return player;
+}
+function getSquadPlayerEntryKey(squadKey, playerBaseKey){
+  return `${squadKey}::${playerBaseKey}`;
+}
+function readSquadInjuryRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(SQUAD_INJURY_STORAGE_KEY);
+    if(raw) return raw;
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[SQUAD_INJURY_WINDOW_NAME_KEY]==='string' ? payload[SQUAD_INJURY_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writeSquadInjuryRaw(raw){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(SQUAD_INJURY_STORAGE_KEY, raw));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[SQUAD_INJURY_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
+function normalizeSquadPlayerEntryValue(entry, player){
+  ensureSquadPlayerMeta(player);
+  if(typeof entry==='string'){
+    return {
+      position:player.__defaults.position,
+      number:player.__defaults.number,
+      name:player.__defaults.name,
+      photo:player.__defaults.photo,
+      club:player.__defaults.club,
+      age:player.__defaults.age,
+      injury:normalizeSquadInjuryValue(entry)
+    };
+  }
+  return {
+    position:String(entry?.position ?? player.__defaults.position).trim() || player.__defaults.position,
+    number:String(entry?.number ?? player.__defaults.number).trim(),
+    name:String(entry?.name ?? player.__defaults.name).trim() || player.__defaults.name,
+    photo:String(entry?.photo ?? player.__defaults.photo).trim(),
+    club:String(entry?.club ?? player.__defaults.club).trim() || player.__defaults.club,
+    age:String(entry?.age ?? player.__defaults.age).trim(),
+    injury:normalizeSquadInjuryValue(entry?.injury ?? player.__defaults.injury)
+  };
+}
+function applySquadPlayerEntry(player, entry){
+  player.position=entry.position;
+  player.number=entry.number;
+  player.name=entry.name;
+  player.photo=entry.photo;
+  player.club=entry.club;
+  player.age=entry.age;
+  player.injury=entry.injury;
+}
+function applySquadInjuryEntries(){
+  Object.entries(squads).forEach(([squadKey, players])=>{
+    players.forEach(player=>{
+      ensureSquadPlayerMeta(player);
+      const entryKey=getSquadPlayerEntryKey(squadKey, player.__baseKey);
+      if(Object.prototype.hasOwnProperty.call(squadInjuryEntries, entryKey)){
+        applySquadPlayerEntry(player, normalizeSquadPlayerEntryValue(squadInjuryEntries[entryKey], player));
+      }
+    });
+  });
+}
+function ensureSquadInjuryEntries(){
+  if(hasLoadedSquadInjuryEntries) return;
+  hasLoadedSquadInjuryEntries=true;
+  Object.values(squads).forEach(players=>players.forEach(ensureSquadPlayerMeta));
+  const raw=readSquadInjuryRaw();
+  if(raw){
+    try{
+      const parsed=JSON.parse(raw);
+      if(parsed&&typeof parsed==='object'){
+        Object.entries(parsed).forEach(([key, value])=>{
+          squadInjuryEntries[key]=value;
+        });
+      }
+    }catch(error){}
+  }
+  applySquadInjuryEntries();
+}
+function saveSquadInjuryEntries(){
+  writeSquadInjuryRaw(JSON.stringify(squadInjuryEntries));
+}
+function invalidateSquadViews(){
+  renderCache.squadViews=Object.create(null);
+}
+function findSquadPlayer(squadKey, playerBaseKey){
+  return (squads[squadKey]||[]).find(player=>ensureSquadPlayerMeta(player).__baseKey===playerBaseKey)||null;
+}
+function hasSquadPlayerCustomEntry(squadKey, playerBaseKey){
+  ensureSquadInjuryEntries();
+  return Object.prototype.hasOwnProperty.call(squadInjuryEntries, getSquadPlayerEntryKey(squadKey, playerBaseKey));
+}
+function setSquadPlayerEntry(squadKey, playerBaseKey, entry){
+  ensureSquadInjuryEntries();
+  const player=findSquadPlayer(squadKey, playerBaseKey);
+  if(!player) return;
+  const normalized=normalizeSquadPlayerEntryValue(entry, player);
+  squadInjuryEntries[getSquadPlayerEntryKey(squadKey, playerBaseKey)]={...normalized};
+  applySquadPlayerEntry(player, normalized);
+  if(normalized.photo){
+    playerPhotoCache[playerBaseKey]=normalized.photo;
+  }else{
+    delete playerPhotoCache[playerBaseKey];
+  }
+  invalidateSquadViews();
+  saveSquadInjuryEntries();
+}
+function resetSquadPlayerEntry(squadKey, playerBaseKey){
+  ensureSquadInjuryEntries();
+  const player=findSquadPlayer(squadKey, playerBaseKey);
+  if(!player) return;
+  const defaults=ensureSquadPlayerMeta(player).__defaults;
+  delete squadInjuryEntries[getSquadPlayerEntryKey(squadKey, playerBaseKey)];
+  applySquadPlayerEntry(player, {...defaults});
+  delete playerPhotoCache[playerBaseKey];
+  invalidateSquadViews();
+  saveSquadInjuryEntries();
+}
+function ensureSquadInjuryModal(){
+  if(document.getElementById('squadInjuryModal')) return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="squadInjuryModal" class="news-editor-modal hidden"><div class="news-editor-modal-backdrop" onclick="closeSquadInjuryModal()"></div><div class="news-editor-modal-panel" role="dialog" aria-modal="true" aria-labelledby="squadInjuryModalTitle"><div class="news-editor-modal-header"><h3 id="squadInjuryModalTitle">선수 정보 작성</h3><button type="button" class="news-editor-modal-close" onclick="closeSquadInjuryModal()" aria-label="닫기">×</button></div><p id="squadInjuryModalMeta" class="news-editor-modal-meta"></p><div class="news-editor-form"><label class="news-editor-field"><span>포지션</span><input id="squadPlayerPosition" type="text" class="news-editor-input"></label><label class="news-editor-field"><span>등번호</span><input id="squadPlayerNumber" type="text" class="news-editor-input"></label><label class="news-editor-field"><span>선수</span><input id="squadPlayerName" type="text" class="news-editor-input"></label><label class="news-editor-field"><span>선수사진 첨부</span><input id="squadPlayerPhotoFile" type="file" accept="image/*" class="news-editor-input"></label><div class="news-editor-field"><span>선수사진 미리보기</span><div id="squadPlayerPhotoPreview" class="squad-player-photo-preview"><span class="photo-placeholder">공식 프로필</span></div></div><label class="news-editor-field"><span>소속팀</span><input id="squadPlayerClub" type="text" class="news-editor-input"></label><label class="news-editor-field"><span>나이</span><input id="squadPlayerAge" type="text" class="news-editor-input"></label><label class="news-editor-field"><span>부상이력</span><textarea id="squadInjuryInput" class="news-editor-textarea"></textarea></label></div><div class="news-editor-modal-actions"><button type="button" class="news-editor-modal-btn" onclick="closeSquadInjuryModal()">취소</button><button type="button" class="news-editor-modal-btn primary" onclick="saveSquadInjuryModal()">저장</button></div></div></div>`);
+  document.getElementById('squadInjuryModal').addEventListener('keydown', event=>{
+    if(event.key==='Escape'){
+      closeSquadInjuryModal();
+    }
+  });
+  document.getElementById('squadPlayerPhotoFile').addEventListener('change', async event=>{
+    const file=event.target.files?.[0];
+    if(!file||!pendingSquadInjuryContext) return;
+    pendingSquadInjuryContext.photoData=await resizeSquadPlayerPhotoFile(file);
+    renderSquadPlayerPhotoPreview(pendingSquadInjuryContext.photoData);
+    event.target.value='';
+  });
+}
+function resizeSquadPlayerPhotoFile(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const image=new Image();
+      image.onload=()=>{
+        const targetWidth=74;
+        const targetHeight=94;
+        const canvas=document.createElement('canvas');
+        canvas.width=targetWidth;
+        canvas.height=targetHeight;
+        const context=canvas.getContext('2d');
+        if(!context){
+          resolve(String(reader.result||''));
+          return;
+        }
+        context.fillStyle='#eef1f7';
+        context.fillRect(0,0,targetWidth,targetHeight);
+        const scale=Math.max(targetWidth/image.width,targetHeight/image.height);
+        const drawWidth=image.width*scale;
+        const drawHeight=image.height*scale;
+        const dx=(targetWidth-drawWidth)/2;
+        const dy=(targetHeight-drawHeight)/2;
+        context.drawImage(image, dx, dy, drawWidth, drawHeight);
+        resolve(canvas.toDataURL('image/jpeg',0.9));
+      };
+      image.onerror=()=>resolve(String(reader.result||''));
+      image.src=String(reader.result||'');
+    };
+    reader.onerror=()=>resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+function renderSquadPlayerPhotoPreview(photoUrl=''){
+  const preview=document.getElementById('squadPlayerPhotoPreview');
+  if(!preview) return;
+  if(photoUrl){
+    preview.innerHTML=`<img class="player-photo player-photo-official" src="${photoUrl}" alt="선수사진 미리보기">`;
+  }else{
+    preview.innerHTML='<span class="photo-placeholder">공식 프로필</span>';
+  }
+}
+function openSquadInjuryModal(squadKey, playerBaseKey){
+  ensureSquadInjuryEntries();
+  ensureSquadInjuryModal();
+  const player=findSquadPlayer(squadKey, playerBaseKey);
+  if(!player) return;
+  pendingSquadInjuryContext={squadKey, playerBaseKey, photoData:String(player.photo||'').trim()};
+  const hasCustom=hasSquadPlayerCustomEntry(squadKey, playerBaseKey);
+  document.getElementById('squadInjuryModalTitle').textContent=hasCustom ? '선수 정보 수정' : '선수 정보 작성';
+  document.getElementById('squadInjuryModalMeta').textContent=`${squadState[squadKey]?.title||''} · ${player.name}`;
+  document.getElementById('squadPlayerPosition').value=player.position||'';
+  document.getElementById('squadPlayerNumber').value=String(player.number??'');
+  document.getElementById('squadPlayerName').value=player.name||'';
+  document.getElementById('squadPlayerPhotoFile').value='';
+  renderSquadPlayerPhotoPreview(pendingSquadInjuryContext.photoData);
+  document.getElementById('squadPlayerClub').value=player.club||'';
+  document.getElementById('squadPlayerAge').value=String(player.age??'');
+  document.getElementById('squadInjuryInput').value=player.injury&&player.injury!=='-' ? player.injury : '';
+  document.body.classList.add('news-editor-modal-open');
+  document.getElementById('squadInjuryModal').classList.remove('hidden');
+  document.getElementById('squadPlayerPosition').focus();
+}
+function closeSquadInjuryModal(){
+  const modal=document.getElementById('squadInjuryModal');
+  if(modal) modal.classList.add('hidden');
+  document.body.classList.remove('news-editor-modal-open');
+  const photoInput=document.getElementById('squadPlayerPhotoFile');
+  if(photoInput) photoInput.value='';
+  pendingSquadInjuryContext=null;
+}
+function saveSquadInjuryModal(){
+  if(!pendingSquadInjuryContext) return;
+  const {squadKey, playerBaseKey}=pendingSquadInjuryContext;
+  setSquadPlayerEntry(squadKey, playerBaseKey, {
+    position:document.getElementById('squadPlayerPosition').value,
+    number:document.getElementById('squadPlayerNumber').value,
+    name:document.getElementById('squadPlayerName').value,
+    photo:pendingSquadInjuryContext.photoData||'',
+    club:document.getElementById('squadPlayerClub').value,
+    age:document.getElementById('squadPlayerAge').value,
+    injury:document.getElementById('squadInjuryInput').value
+  });
+  closeSquadInjuryModal();
+  renderSquad(squadKey);
+}
+function deleteSquadInjury(squadKey, playerBaseKey){
+  resetSquadPlayerEntry(squadKey, playerBaseKey);
+  renderSquad(squadKey);
+}
+function renderSquadInjuryCell(squadKey, player){
+  const baseKey=ensureSquadPlayerMeta(player).__baseKey;
+  const injuryText=escapeHtml(normalizeSquadInjuryValue(player.injury));
+  const openCall=`openSquadInjuryModal(${JSON.stringify(squadKey)}, ${JSON.stringify(baseKey)})`;
+  const deleteCall=`deleteSquadInjury(${JSON.stringify(squadKey)}, ${JSON.stringify(baseKey)})`;
+  const hasCustom=hasSquadPlayerCustomEntry(squadKey, baseKey);
+  const actions=hasCustom
+    ? `<span class="squad-injury-actions"><button type="button" class="squad-injury-btn squad-injury-edit-btn" onclick='${openCall}'>수정</button><button type="button" class="squad-injury-btn squad-injury-delete-btn" onclick='${deleteCall}'>삭제</button></span>`
+    : `<span class="squad-injury-actions"><button type="button" class="squad-injury-btn squad-injury-write-btn" onclick='${openCall}'>작성</button></span>`;
+  return `<div class="squad-injury-cell"><span class="squad-injury-text">${injuryText}</span>${actions}</div>`;
+}
+
 function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);}
 function renderKnockoutTable(stage){
   clearDetailExtras();
@@ -2907,7 +3551,10 @@ function showGroup(groupKey, el){
 }
 
 function renderSquadPlayerCell(player){
-  return `<div class="player-cell"><span class="player-photo-shell" data-player-name="${player.name}"><span class="photo-placeholder">공식 프로필</span></span><span class="player-name-text">${player.name}</span></div>`;
+  const baseKey=ensureSquadPlayerMeta(player).__baseKey;
+  const customPhoto=String(player.photo||'').trim();
+  const photoDataAttr=customPhoto ? ` data-photo-url="${escapeHtml(customPhoto)}"` : '';
+  return `<div class="player-cell"><span class="player-photo-shell" data-player-key="${escapeHtml(baseKey)}" data-player-name="${escapeHtml(player.name)}"${photoDataAttr}><span class="photo-placeholder">공식 프로필</span></span><span class="player-name-text">${player.name}</span></div>`;
 }
 
 async function fetchWikipediaPlayerPhoto(name){
@@ -2944,11 +3591,13 @@ async function fetchPlayerPhoto(name){
 async function hydrateSquadPhotos(){
   const shells=Array.from(document.querySelectorAll('.player-photo-shell'));
   await Promise.all(shells.map(async shell=>{
-    const name=shell.dataset.playerName;
-    const photoUrl=await fetchPlayerPhoto(name);
+    const displayName=shell.dataset.playerName||'선수';
+    const customPhotoUrl=String(shell.dataset.photoUrl||'').trim();
+    const photoKey=shell.dataset.playerKey||displayName;
+    const photoUrl=customPhotoUrl||await fetchPlayerPhoto(photoKey);
     if(!document.body.contains(shell)) return;
     if(photoUrl){
-      shell.innerHTML=`<img class="player-photo player-photo-official" src="${photoUrl}" alt="${name} 대표팀 공식 프로필 사진" loading="lazy" referrerpolicy="no-referrer">`;
+      shell.innerHTML=`<img class="player-photo player-photo-official" src="${photoUrl}" alt="${displayName} 대표팀 공식 프로필 사진" loading="lazy" referrerpolicy="no-referrer">`;
     }else{
       shell.innerHTML='<span class="photo-placeholder">공식 프로필</span>';
     }
@@ -2967,6 +3616,7 @@ function scheduleSquadPhotoHydration(){
 
 function renderSquad(key){
   clearDetailExtras();
+  ensureSquadInjuryEntries();
   const state=squadState[key];
   const squad=squads[key];
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
@@ -2979,7 +3629,7 @@ function renderSquad(key){
   document.getElementById('detailTable').className='data-table squad-table';
   if(!renderCache.squadViews[cacheKey]){
     renderCache.squadViews[cacheKey]={
-      tableHtml:`<colgroup><col class="squad-col-position"><col class="squad-col-number"><col class="squad-col-player"><col class="squad-col-club"><col class="squad-col-age"><col class="squad-col-injury"></colgroup><thead><tr><th>포지션</th><th>등번호</th><th>선수</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td>${renderSquadPlayerCell(p)}</td><td>${p.club}</td><td>${p.age}</td><td>${p.injury}</td></tr>`).join('')}</tbody>`,
+      tableHtml:`<colgroup><col class="squad-col-position"><col class="squad-col-number"><col class="squad-col-player"><col class="squad-col-club"><col class="squad-col-age"><col class="squad-col-injury"></colgroup><thead><tr><th>포지션</th><th>등번호</th><th>선수</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td>${renderSquadPlayerCell(p)}</td><td>${p.club}</td><td>${p.age}</td><td>${renderSquadInjuryCell(key, p)}</td></tr>`).join('')}</tbody>`,
       toolbarHtml:`<div class="toolbar">${['ALL','GK','DF','MF','FW'].map(pos=>`<button class="toolbar-btn ${state.filter===pos?'active':''}" onclick="setSquadFilter('${key}','${pos}')">${pos==='ALL'?'전체':pos}</button>`).join('')}</div>`,
       paginationHtml:`<div class="pagination"><button class="page-btn" onclick="changeSquadPage('${key}',-1)" ${state.page===1?'disabled':''}>이전</button><span>${state.page} / ${totalPages}</span><button class="page-btn" onclick="changeSquadPage('${key}',1)" ${state.page===totalPages?'disabled':''}>다음</button></div>`
     };
@@ -2995,32 +3645,38 @@ function changeSquadPage(key, delta){squadState[key].page+=delta;renderSquad(key
 
 function renderEquipment(){
   clearDetailExtras();
+  ensureEquipmentEditorEntries();
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   document.getElementById('equipmentUserCol').classList.remove('hidden');
-  document.getElementById('detailTitle').textContent='공용장비 현황';
+  document.getElementById('equipmentSharedTab')?.classList.add('active');
+  document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table equipment-table';
   if(!renderCache.equipmentSharedTable){
-    const quantityOptions=Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('');
-    const userOptions='<option value="">선택</option><option>박재현</option><option>장후원</option><option>정상원</option><option>이주원</option><option>김진광</option><option>정재우</option>';
-    const rows=Array.from({length:12}).map(()=>`<tr><td></td><td></td><td></td><td><select>${quantityOptions}</select></td><td></td><td><select>${userOptions}</select></td></tr>`).join('');
-    renderCache.equipmentSharedTable=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼넘버</th><th>수량</th><th>비고</th><th>사용인원</th></tr></thead><tbody>${rows}</tbody>`;
+    renderCache.equipmentSharedTable=renderEquipmentTableHtml('shared');
   }
   document.getElementById('detailTable').innerHTML=renderCache.equipmentSharedTable;
   document.getElementById('detailCol').classList.remove('hidden');
 }
+function showEquipmentShared(el){
+  renderEquipment();
+  document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
 
 function showEquipmentPersonal(user, el){
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  if(!el){
+    el=Array.from(document.querySelectorAll('#equipmentUserCol .item')).find(item=>item.textContent.trim()===user)||null;
+  }
   if(el) el.classList.add('active');
   clearDetailExtras();
-  document.getElementById('detailTitle').textContent=`${user} 개인장비`;
+  ensureEquipmentEditorEntries();
+  document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('personal', user);
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table equipment-table';
   if(!renderCache.equipmentPersonalTables[user]){
-    const quantityOptions=Array.from({length:10}).map((_,i)=>`<option>${i+1}</option>`).join('');
-    const rows=Array.from({length:10}).map(()=>`<tr><td></td><td></td><td></td><td><select>${quantityOptions}</select></td><td></td></tr>`).join('');
-    renderCache.equipmentPersonalTables[user]=`<thead><tr><th>장비 모델명</th><th>제조사</th><th>시리얼</th><th>수량</th><th>비고</th></tr></thead><tbody>${rows}</tbody>`;
+    renderCache.equipmentPersonalTables[user]=renderEquipmentTableHtml('personal', user);
   }
   document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
   document.getElementById('detailCol').classList.remove('hidden');
@@ -3098,18 +3754,20 @@ function renderStadiumSlot(){
   return '<div class="group-match-wrap"><figure class="stadium-figure"><div class="stadium-slot">단면 사진 자리</div></figure></div>';
 }
 
-function renderMexicoStadiumDetail(stadium, sectionKey=''){
-  const sectionLabel=sectionKey?mexicoStadiumSections[sectionKey]:'';
+function renderMexicoStadiumDetail(stadiumKey, sectionKey=''){
+  ensureMexicoStadiumEditorEntries();
+  const stadium=mexicoStadiums[stadiumKey];
+  if(!stadium) return;
   const section=sectionKey?stadium.sections[sectionKey]:null;
-  const rows=section?[...stadium.rows,...section.rows]:stadium.rows;
+  const rows=getMexicoStadiumRows(stadiumKey, sectionKey);
   const cacheKey=`${stadium.title}:${sectionKey||'root'}`;
-  document.getElementById('detailTitle').textContent=sectionLabel?`${stadium.title} - ${sectionLabel}`:`${stadium.title}, ${stadium.city}`;
+  document.getElementById('detailTitle').innerHTML=renderMexicoStadiumTitle(stadiumKey, sectionKey);
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table mexico-stadium-table';
   if(!renderCache.mexicoStadiumDetails[cacheKey]){
     renderCache.mexicoStadiumDetails[cacheKey]={
       tableHtml:`<colgroup><col class="mexico-stadium-col-label"><col class="mexico-stadium-col-value"></colgroup><thead><tr><th>항목</th><th>내용</th></tr></thead><tbody>${rows.map(([label,value])=>`<tr><td>${label}</td><td>${value}</td></tr>`).join('')}</tbody>`,
-      extraHtml:section?renderStadiumSlot():renderStadiumFigure(stadium)
+      extraHtml:section?renderMexicoStadiumMediaGallery(stadiumKey, sectionKey):renderStadiumFigure(stadium)
     };
   }
   document.getElementById('detailTable').innerHTML=renderCache.mexicoStadiumDetails[cacheKey].tableHtml;
@@ -3123,19 +3781,20 @@ function showMexicoStadium(key, el){
   document.querySelectorAll('#mexicoStadiumSectionCol .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
   currentMexicoStadiumKey=key;
+  currentMexicoStadiumSectionKey='';
   clearDetailExtras();
   document.getElementById('mexicoStadiumSectionCol').classList.remove('hidden');
-  renderMexicoStadiumDetail(stadium);
+  renderMexicoStadiumDetail(key);
   updateHeaderTimes();
 }
 
 function showMexicoStadiumSection(sectionKey, el){
   if(!currentMexicoStadiumKey) return;
-  const stadium=mexicoStadiums[currentMexicoStadiumKey];
   document.querySelectorAll('#mexicoStadiumSectionCol .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
+  currentMexicoStadiumSectionKey=sectionKey;
   clearDetailExtras();
-  renderMexicoStadiumDetail(stadium, sectionKey);
+  renderMexicoStadiumDetail(currentMexicoStadiumKey, sectionKey);
   updateHeaderTimes();
 }
 
