@@ -13,10 +13,11 @@
       <div class="header-copy">
         <p class="header-kicker">FIFA WORLD CUP 2026</p>
         <h1>2026 북중미 월드컵 영상취재 가이드라인</h1>
-        <p class="header-slogan">찌릿하게 다채롭게 월드컵은 JTBC</p>
+        <p class="header-slogan">짜릿하게 다채롭게 월드컵은 JTBC</p>
       </div>
       <div class="header-side">
         <div class="header-time-guide">
+          <div id="headerLocalTimePlace" class="header-time-guide-place">에스타디오 과달라하라</div>
           <div class="header-time-guide-row">
             <span id="headerLocalTimeLabel" class="header-time-guide-label">현지시각</span>
             <span id="headerLocalTime" class="header-time-guide-value">--:--</span>
@@ -26,18 +27,17 @@
             <span id="headerKoreaTime" class="header-time-guide-value">--:--</span>
           </div>
         </div>
-        <div id="headerCountdown" class="header-countdown">
-          <div class="header-countdown-meta">
-            <span class="header-countdown-label">월드컵 개막</span>
-            <span class="header-countdown-prefix">D-</span>
-          </div>
-          <span class="header-countdown-number">DAY</span>
+        <div id="headerCountdown" class="header-countdown" aria-label="월드컵 개막 디데이">
+          <span class="header-countdown-number">00</span>
         </div>
       </div>
     </div>
   </div>
   <div id="headerReportBoard" class="header-report-board" aria-live="polite">
-    <span class="header-report-board-label">업무 보고</span>
+    <div class="header-report-board-label">
+      <span class="header-report-board-label-title">업무 현황</span>
+      <span id="headerReportBoardMeta" class="header-report-board-label-meta">4월 5일</span>
+    </div>
     <div class="header-report-board-window">
       <div id="headerReportBoardTrack" class="header-report-board-track"></div>
     </div>
@@ -53,15 +53,15 @@
     </div>
 
     <div id="newsCol" class="column hidden">
-      <div class="item" onclick="showNewsYear('2022', this)">2022 카타르 월드컵</div>
-      <div class="item" onclick="showNewsYear('2018', this)">2018 러시아 월드컵</div>
-      <div class="item" onclick="showNewsYear('2014', this)">2014 브라질 월드컵</div>
+      <div class="item news-year-item news-year-item-2022" onclick="showNewsYear('2022', this)" aria-label="2022 카타르 월드컵"><span class="sr-only">2022 카타르 월드컵</span></div>
+      <div class="item news-year-item news-year-item-2018" onclick="showNewsYear('2018', this)" aria-label="2018 러시아 월드컵"><span class="sr-only">2018 러시아 월드컵</span></div>
+      <div class="item news-year-item news-year-item-2014" onclick="showNewsYear('2014', this)" aria-label="2014 브라질 월드컵"><span class="sr-only">2014 브라질 월드컵</span></div>
     </div>
 
     <div id="newsBroadcasterCol" class="column hidden">
-      <div class="item" onclick="activateBroadcaster(this, 'KBS')">KBS</div>
-      <div class="item" onclick="activateBroadcaster(this, 'MBC')">MBC</div>
-      <div class="item" onclick="activateBroadcaster(this, 'SBS')">SBS</div>
+      <div class="item broadcaster-item broadcaster-item-kbs" onclick="activateBroadcaster(this, 'KBS')" aria-label="KBS"><span class="broadcaster-ci broadcaster-ci-kbs"><span class="sr-only">KBS</span></span></div>
+      <div class="item broadcaster-item broadcaster-item-mbc" onclick="activateBroadcaster(this, 'MBC')" aria-label="MBC"><span class="broadcaster-ci broadcaster-ci-mbc"><span class="sr-only">MBC</span></span></div>
+      <div class="item broadcaster-item broadcaster-item-sbs" onclick="activateBroadcaster(this, 'SBS')" aria-label="SBS"><span class="broadcaster-ci broadcaster-ci-sbs"><span class="sr-only">SBS</span></span></div>
     </div>
 
     <div id="bracketStageCol" class="column hidden">
