@@ -870,7 +870,7 @@ function renderEquipmentTitle(mode, user=''){
 function renderEquipmentTableHtml(mode, user=''){
   const headers=getEquipmentHeaders(mode);
   const rows=getEquipmentRows(mode, user);
-  return `<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value)||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  return `<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((value, index)=>`<td data-label="${escapeHtml(headers[index]||'')}">${escapeHtml(value)||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -1065,6 +1065,10 @@ const scheduleStadiumAliases = [
 ];
 
 const PAGE_SIZE = 8;
+function getSquadPageSize(){
+  if(typeof window!=='undefined'&&window.innerWidth<=480) return 5;
+  return PAGE_SIZE;
+}
 const teamTimelineRows = [
   {label:'대한민국',type:'team'},
   {label:'멕시코',type:'team'},
@@ -1196,6 +1200,12 @@ const headerLocalClockState = {
   fallbackTimeZone:'America/Mexico_City'
 };
 let currentNewsYear = '';
+const NEWS_YEAR_META = {
+  '2022': {logo:'assets/news-year-2022.png', aria:'2022 카타르 월드컵'},
+  '2018': {logo:'assets/news-year-2018.png', aria:'2018 러시아 월드컵'},
+  '2014': {logo:'assets/news-year-2014.png', aria:'2014 브라질 월드컵'}
+};
+const NEWS_BROADCASTERS = ['KBS','MBC','SBS'];
 let currentMexicoStadiumKey = '';
 let currentMexicoStadiumSectionKey = '';
 let currentTimelineView = 'personal';
@@ -1220,6 +1230,17 @@ let headerTimeTimerId = null;
 let headerReportBoardTimerId = null;
 let headerReportBoardResetTimerId = null;
 let headerReportBoardPageDurations = [];
+let headerReportBoardAnimationFrameId = null;
+let headerReportBoardLastFrameAt = 0;
+let headerReportBoardLastActiveAt = 0;
+const headerReportBoardLaneStates = {
+  top:{items:[], node:null},
+  bottom:{items:[], node:null}
+};
+const headerReportBoardLaneSnapshots = {
+  top:[],
+  bottom:[]
+};
 const personalTimelineDetailSelections = Object.create(null);
 const personalTimelineSharedEntries = Object.create(null);
 const headerReportBoardRecentMarks = Object.create(null);
@@ -1737,6 +1758,13 @@ function getPersonalTimelineScheduleSortValue(dateKey='', localTime=''){
   if(!dateMatch||!timeMatch) return Number.MAX_SAFE_INTEGER;
   return Number(`${dateMatch[1]}${dateMatch[2]}${dateMatch[3]}${timeMatch[1]}${timeMatch[2]}`);
 }
+function getPersonalTimelineDetailSavedAt(detail, dateKey='', entryIndex=0){
+  const savedAtValue=Number(detail?._savedAt||0);
+  if(Number.isFinite(savedAtValue)&&savedAtValue>0) return savedAtValue;
+  const dateMatch=String(dateKey||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!dateMatch) return entryIndex;
+  return Number(`${dateMatch[1]}${dateMatch[2]}${dateMatch[3]}${String(entryIndex).padStart(3,'0')}`);
+}
 function getPersonalTimelineEntryTimeZone(detail){
   const place=String(detail?.장소||'').trim();
   const cityContext=resolveScheduleCityContext(place);
@@ -1763,6 +1791,7 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     dateKey,
     detail,
     entryIndex,
+    savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
     timeSort:getPersonalTimelineTimeSortValue(detail.시간),
     text:buildPersonalTimelineReportText(name, detail)
   }))).filter(item=>item.text).sort((a,b)=>{
@@ -1773,7 +1802,7 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
 }
 function getAllPersonalTimelineGeneratedReports(){
   loadPersonalTimelineDetailSelections();
-  return Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
+  const reports=Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
     const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
     return items.map((item, index)=>{
       const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
@@ -1791,9 +1820,18 @@ function getAllPersonalTimelineGeneratedReports(){
         urgencyDelta
       };
     }).filter(item=>item.isUpcoming);
-  }).sort((a,b)=>{
+  });
+  const latestReportsByName=new Map();
+  reports.forEach(item=>{
+    const previous=latestReportsByName.get(item.name);
+    if(!previous||item.savedAt>previous.savedAt||item.savedAt===previous.savedAt&&item.scheduleSort>=previous.scheduleSort){
+      latestReportsByName.set(item.name, item);
+    }
+  });
+  return [...latestReportsByName.values()].sort((a,b)=>{
     if(a.urgencyDelta!==b.urgencyDelta) return a.urgencyDelta-b.urgencyDelta;
     if(a.scheduleSort!==b.scheduleSort) return a.scheduleSort-b.scheduleSort;
+    if(a.savedAt!==b.savedAt) return a.savedAt-b.savedAt;
     return a.sortOrder-b.sortOrder;
   });
 }
@@ -1874,6 +1912,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
     if(text) normalized[field]=text;
   });
   if(Object.keys(normalized).length){
+    normalized._savedAt=Date.now();
     const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
     const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
     const lastEntry=entries[entries.length-1]||null;
@@ -1965,12 +2004,24 @@ function formatHeaderReportBoardTextLines(item){
     ]
   };
 }
+function renderHeaderReportBoardItemInner(item){
+  const textLines=formatHeaderReportBoardTextLines(item).lines;
+  const textHtml=textLines.map(line=>`<span class="header-report-board-text-line">${escapeHtml(line)}</span>`).join('');
+  return `<span class="header-report-board-date">${escapeHtml(item.name||'-')}</span><span class="header-report-board-text-shell"><span class="header-report-board-text-track"><span class="header-report-board-text">${textHtml}</span><span class="header-report-board-text header-report-board-text-copy" aria-hidden="true">${textHtml}</span></span></span>`;
+}
+function renderHeaderReportBoardMarqueeItemInner(item){
+  const textLines=formatHeaderReportBoardTextLines(item).lines;
+  const textHtml=textLines.map(line=>`<span class="header-report-board-text-line">${escapeHtml(line)}</span>`).join('');
+  return `<span class="header-report-board-date">${escapeHtml(item.name||'-')}</span><span class="header-report-board-text">${textHtml}</span>`;
+}
 function renderHeaderReportBoardItem(item){
   if(!item){
     return '<div class="header-report-board-empty">업무 보고 대기 중</div>';
   }
-  const textLines=formatHeaderReportBoardTextLines(item).lines;
-  return `<div class="header-report-board-item"><span class="header-report-board-date">${escapeHtml(item.name||'-')}</span><span class="header-report-board-text-shell"><span class="header-report-board-text">${textLines.map(line=>`<span class="header-report-board-text-line">${escapeHtml(line)}</span>`).join('')}</span></span></div>`;
+  const recentState=getHeaderReportBoardRecentState(item.id);
+  const recentClass=recentState ? ' is-recent' : '';
+  const recentStyle=recentState ? ` style="--header-report-board-recent-delay:-${Math.round(recentState.elapsedMs%1800)}ms;--header-report-board-recent-iterations:${Math.max(0.001, recentState.remainingMs/1800).toFixed(3)}"` : '';
+  return `<div class="header-report-board-item${recentClass}"${recentStyle}>${renderHeaderReportBoardItemInner(item)}</div>`;
 }
 function splitHeaderReportBoardPages(items, pageSize=2){
   const pages=[];
@@ -1980,13 +2031,146 @@ function splitHeaderReportBoardPages(items, pageSize=2){
   return pages;
 }
 function renderHeaderReportBoardRow(item){
-  const recentState=item ? getHeaderReportBoardRecentState(item.id) : null;
-  const recentClass=recentState ? ' is-recent' : '';
-  const recentStyle=recentState ? ` style="--header-report-board-recent-delay:-${Math.round(recentState.elapsedMs%1800)}ms;--header-report-board-recent-iterations:${Math.max(0.001, recentState.remainingMs/1800).toFixed(3)}"` : '';
-  return `<div class="header-report-board-row${item?'':' is-idle'}${recentClass}"${recentStyle}><div class="header-report-board-line">${renderHeaderReportBoardItem(item)}</div></div>`;
+  return `<div class="header-report-board-row${item?'':' is-idle'}"><div class="header-report-board-line">${renderHeaderReportBoardItem(item)}</div></div>`;
 }
 function renderHeaderReportBoardPage(items){
   return `<div class="header-report-board-page">${renderHeaderReportBoardRow(items[0]||null)}${renderHeaderReportBoardRow(items[1]||null)}</div>`;
+}
+function splitHeaderReportBoardRows(items){
+  const pivot=Math.ceil(items.length/2);
+  const topItems=items.slice(0, pivot);
+  const bottomItems=items.slice(pivot);
+  return [topItems, bottomItems];
+}
+function renderHeaderReportBoardMarqueeRow(items){
+  if(!items.length){
+    return `<div class="header-report-board-row is-idle"><div class="header-report-board-line">${renderHeaderReportBoardItem(null)}</div></div>`;
+  }
+  return `<div class="header-report-board-row header-report-board-row-marquee"><div class="header-report-board-line"><div class="header-report-board-marquee-track"></div></div></div>`;
+}
+function createHeaderReportBoardMarqueeItemNode(item){
+  const node=document.createElement('div');
+  const recentState=getHeaderReportBoardRecentState(item.id);
+  const recentClass=recentState ? ' is-recent' : '';
+  const recentStyle=recentState ? `--header-report-board-recent-delay:-${Math.round(recentState.elapsedMs%1800)}ms;--header-report-board-recent-iterations:${Math.max(0.001, recentState.remainingMs/1800).toFixed(3)};` : '';
+  node.className=`header-report-board-item header-report-board-item-marquee${recentClass}`;
+  if(recentStyle) node.style.cssText=recentStyle;
+  node.dataset.itemId=item.id;
+  node.innerHTML=renderHeaderReportBoardMarqueeItemInner(item);
+  return node;
+}
+function clearHeaderReportBoardAnimation(){
+  if(headerReportBoardAnimationFrameId!==null){
+    window.cancelAnimationFrame(headerReportBoardAnimationFrameId);
+    headerReportBoardAnimationFrameId=null;
+  }
+  headerReportBoardLastActiveAt=Date.now();
+  headerReportBoardLastFrameAt=0;
+  Object.values(headerReportBoardLaneStates).forEach(state=>{
+    state.items.forEach(entry=>{
+      if(entry.node) entry.node.remove();
+    });
+    state.items=[];
+    state.node=null;
+  });
+}
+function syncHeaderReportBoardLane(laneName, items){
+  const state=headerReportBoardLaneStates[laneName];
+  const laneNode=state.node;
+  if(!laneNode) return;
+  const snapshotMap=new Map((headerReportBoardLaneSnapshots[laneName]||[]).map(entry=>[entry.id, entry]));
+  const nextIds=new Set(items.map(item=>item.id));
+  state.items=state.items.filter(entry=>{
+    if(nextIds.has(entry.id)) return true;
+    entry.node.remove();
+    return false;
+  });
+  const existingMap=new Map(state.items.map(entry=>[entry.id, entry]));
+  let tailX=laneNode.clientWidth||0;
+  state.items.forEach(entry=>{
+    tailX=Math.max(tailX, entry.x+entry.width+36);
+  });
+  items.forEach(item=>{
+    if(existingMap.has(item.id)) return;
+    const node=createHeaderReportBoardMarqueeItemNode(item);
+    laneNode.appendChild(node);
+    const width=Math.ceil(node.getBoundingClientRect().width);
+    const snapshot=snapshotMap.get(item.id);
+    const x=snapshot&&Number.isFinite(snapshot.x) ? snapshot.x : tailX;
+    state.items.push({id:item.id,node,width,x});
+    tailX=Math.max(tailX, x+width+36);
+  });
+  state.items.sort((a,b)=>a.x-b.x);
+}
+function saveHeaderReportBoardLaneSnapshots(){
+  Object.entries(headerReportBoardLaneStates).forEach(([laneName, state])=>{
+    headerReportBoardLaneSnapshots[laneName]=state.items.map(entry=>({
+      id:entry.id,
+      x:entry.x,
+      width:entry.width
+    }));
+  });
+}
+function stepHeaderReportBoardMarquee(timestamp){
+  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
+  const speed=isMobile ? 48 : 56;
+  const deltaSeconds=headerReportBoardLastFrameAt ? Math.min(0.05, (timestamp-headerReportBoardLastFrameAt)/1000) : 0;
+  headerReportBoardLastFrameAt=timestamp;
+  headerReportBoardLastActiveAt=Date.now();
+  Object.values(headerReportBoardLaneStates).forEach(state=>{
+    if(!state.node||!state.items.length) return;
+    const laneWidth=state.node.clientWidth||0;
+    state.items.sort((a,b)=>a.x-b.x);
+    state.items.forEach(entry=>{
+      entry.x-=speed*deltaSeconds;
+    });
+    let tailX=laneWidth;
+    state.items.forEach(entry=>{
+      tailX=Math.max(tailX, entry.x+entry.width+36);
+    });
+    state.items.forEach(entry=>{
+      if(entry.x+entry.width<0){
+        entry.x=tailX;
+        tailX=entry.x+entry.width+36;
+      }
+      entry.node.style.transform=`translate3d(${Math.round(entry.x)}px,-50%,0)`;
+    });
+  });
+  saveHeaderReportBoardLaneSnapshots();
+  headerReportBoardAnimationFrameId=window.requestAnimationFrame(stepHeaderReportBoardMarquee);
+}
+function renderHeaderReportBoardMarqueeTrack(track, items){
+  const [topItems, bottomItems]=splitHeaderReportBoardRows(items);
+  track.classList.add('is-marquee-mode');
+  track.innerHTML=`<div class="header-report-board-page header-report-board-page-marquee">${renderHeaderReportBoardMarqueeRow(topItems)}${renderHeaderReportBoardMarqueeRow(bottomItems)}</div>`;
+  track.style.transition='none';
+  track.style.transform='translateX(0)';
+  const syncMarquee=()=>{
+    clearHeaderReportBoardAnimation();
+    const laneNodes=track.querySelectorAll('.header-report-board-marquee-track');
+    headerReportBoardLaneStates.top.node=laneNodes[0]||null;
+    headerReportBoardLaneStates.bottom.node=laneNodes[1]||null;
+    const topWidth=headerReportBoardLaneStates.top.node?.clientWidth||0;
+    const bottomWidth=headerReportBoardLaneStates.bottom.node?.clientWidth||0;
+    if(!topWidth&&!bottomWidth){
+      window.requestAnimationFrame(syncMarquee);
+      return;
+    }
+    syncHeaderReportBoardLane('top', topItems);
+    syncHeaderReportBoardLane('bottom', bottomItems);
+    const elapsedSeconds=headerReportBoardLastActiveAt ? Math.max(0, (Date.now()-headerReportBoardLastActiveAt)/1000) : 0;
+    if(elapsedSeconds>0){
+      const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
+      const speed=isMobile ? 48 : 56;
+      Object.values(headerReportBoardLaneStates).forEach(state=>{
+        state.items.forEach(entry=>{
+          entry.x-=speed*elapsedSeconds;
+        });
+      });
+    }
+    headerReportBoardAnimationFrameId=window.requestAnimationFrame(stepHeaderReportBoardMarquee);
+  };
+  requestAnimationFrame(syncMarquee);
 }
 function getHeaderReportBoardTimings(){
   const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
@@ -2003,11 +2187,13 @@ function clearHeaderReportBoardTimer(){
     window.clearTimeout(headerReportBoardResetTimerId);
     headerReportBoardResetTimerId=null;
   }
+  clearHeaderReportBoardAnimation();
 }
 function renderHeaderReportBoardTrack(track, pages){
   if(!track) return;
   track.ontransitionend=null;
   track.dataset.sliding='false';
+  track.classList.remove('is-marquee-mode');
   if(!pages.length){
     track.innerHTML=renderHeaderReportBoardPage([]);
     track.style.transition='none';
@@ -2021,29 +2207,26 @@ function renderHeaderReportBoardTrack(track, pages){
 function measureHeaderReportBoardPages(track){
   const pages=Array.from(track.querySelectorAll('.header-report-board-page'));
   return pages.map(page=>{
-    let maxOverflow=0;
     let pageDuration=3000;
     const pauseDuration=3000;
-    page.classList.remove('is-overflow');
-    page.style.removeProperty('--header-report-board-scroll-distance');
-    page.style.removeProperty('--header-report-board-scroll-duration');
-    page.style.removeProperty('--header-report-board-scroll-delay');
     page.querySelectorAll('.header-report-board-row').forEach(row=>{
       const shell=row.querySelector('.header-report-board-text-shell');
       const text=row.querySelector('.header-report-board-text');
+      row.classList.remove('is-overflow');
+      row.style.removeProperty('--header-report-board-scroll-distance');
+      row.style.removeProperty('--header-report-board-scroll-duration');
+      row.style.removeProperty('--header-report-board-scroll-delay');
       if(!shell||!text) return;
       const overflow=Math.max(0, Math.ceil(text.scrollWidth-shell.clientWidth));
       if(overflow<=0) return;
-      maxOverflow=Math.max(maxOverflow, overflow);
+      const scrollDistance=overflow+40;
+      const scrollDuration=Math.max(7000, Math.round((scrollDistance/14)*1000));
+      row.classList.add('is-overflow');
+      row.style.setProperty('--header-report-board-scroll-distance', `${scrollDistance}px`);
+      row.style.setProperty('--header-report-board-scroll-duration', `${scrollDuration}ms`);
+      row.style.setProperty('--header-report-board-scroll-delay', `${pauseDuration}ms`);
+      pageDuration=Math.max(pageDuration, pauseDuration+scrollDuration+600);
     });
-    if(maxOverflow>0){
-      const scrollDuration=Math.max(9000, Math.round((maxOverflow/10)*1000));
-      page.classList.add('is-overflow');
-      page.style.setProperty('--header-report-board-scroll-distance', `${maxOverflow}px`);
-      page.style.setProperty('--header-report-board-scroll-duration', `${scrollDuration}ms`);
-      page.style.setProperty('--header-report-board-scroll-delay', `${pauseDuration}ms`);
-      pageDuration=pauseDuration+scrollDuration+600;
-    }
     return pageDuration;
   });
 }
@@ -2089,10 +2272,17 @@ function updateHeaderReportBoard(){
     meta.textContent=formatHeaderReportBoardDailyDate();
   }
   const items=getAllPersonalTimelineGeneratedReports();
-  const pages=splitHeaderReportBoardPages(items, 2);
   clearHeaderReportBoardTimer();
   headerReportBoardPageDurations = [];
   board.classList.toggle('is-empty', items.length===0);
+  if(items.length>0){
+    board.classList.add('is-animated');
+    board.classList.add('is-marquee-mode');
+    renderHeaderReportBoardMarqueeTrack(track, items);
+    return;
+  }
+  board.classList.remove('is-marquee-mode');
+  const pages=splitHeaderReportBoardPages(items, 2);
   board.classList.toggle('is-animated', pages.length>1);
   renderHeaderReportBoardTrack(track, pages);
   requestAnimationFrame(()=>{
@@ -2155,6 +2345,10 @@ function getTimelineDates(){
 }
 function formatTimelineDate(date){
   return `${date.getMonth()+1}/${date.getDate()}`;
+}
+function formatPersonalTimelineRailDate(date){
+  const weekdays=['일','월','화','수','목','금','토'];
+  return `${date.getDate()}일 (${weekdays[date.getDay()]})`;
 }
 function getTodayTimelineKey(){
   const today=getKstDateParts();
@@ -2370,16 +2564,19 @@ function renderPersonalTimelinePersonRow(name, dateKey){
   const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
   const disabledAttr=isPastTimelineDateKey(dateKey)?' disabled aria-disabled="true"':'';
   const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}"${disabledAttr}>${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
-  return `<div class="personal-timeline-person-row"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}"${disabledAttr}>저장</button></div></div>`;
+  return `<div class="personal-timeline-person-row" data-person-name="${escapeHtml(name)}"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}"${disabledAttr}>저장</button></div></div>`;
 }
 function renderPersonalTimelinePersonalColumn(dateKey){
-  return `<div class="personal-timeline-person-list">${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}${renderPersonalTimelineSummaryBoard(dateKey)}</div>`;
+  const activeName=personalTimelineMemberNames[0]||'';
+  const tabsHtml=`<div class="personal-timeline-person-tabs">${personalTimelineMemberNames.map(name=>`<button type="button" class="personal-timeline-person-tab${name===activeName?' is-active':''}" data-person="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}</div>`;
+  return `<div class="personal-timeline-person-list" data-active-person="${escapeHtml(activeName)}">${tabsHtml}${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}${renderPersonalTimelineSummaryBoard(dateKey)}</div>`;
 }
 function renderPersonalTimelineItem(date, index, rows){
   const dateKey=formatTimelineKey(date);
   const isToday=dateKey===getTodayTimelineKey();
   const phase=getPersonalTimelinePhase(date);
   const dateLabel=`${date.getMonth()+1}월 ${date.getDate()}일`;
+  const railDateLabel=formatPersonalTimelineRailDate(date);
   const generatedReports=getPersonalTimelineGeneratedReportsForDate(dateKey);
   const assignments=rows.map(row=>({
     label:row.label,
@@ -2388,7 +2585,7 @@ function renderPersonalTimelineItem(date, index, rows){
   })).filter(item=>item.value);
   const columnsHtml=`<div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header-wrap">${renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel)}</div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(dateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(dateKey)}</div></section></div>`;
   const entriesHtml=columnsHtml;
-  return `<article class="personal-timeline-item ${assignments.length||generatedReports.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}${isToday?' is-open':''}" data-month="${date.getMonth()+1}" data-date-key="${dateKey}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${date.getDate()}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+  return `<article class="personal-timeline-item ${assignments.length||generatedReports.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}${isToday?' is-open':''}" data-month="${date.getMonth()+1}" data-date-key="${dateKey}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${railDateLabel}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
 }
 function renderPersonalTimelineMonthGroups(dates, rows){
   const groups=dates.reduce((result, date, index)=>{
@@ -2414,6 +2611,79 @@ function updatePersonalTimelineHoverWave(list, activeItem){
     const target=items[activeIndex+offset];
     if(target) target.classList.add(className);
   });
+}
+function activatePersonalTimelinePersonTab(personList, name=''){
+  if(!personList||!name) return;
+  personList.dataset.activePerson=name;
+  personList.querySelectorAll('.personal-timeline-person-tab').forEach(button=>{
+    button.classList.toggle('is-active', button.dataset.person===name);
+  });
+  personList.querySelectorAll('.personal-timeline-person-row').forEach(row=>{
+    row.classList.toggle('is-open', row.dataset.personName===name);
+  });
+}
+function formatPersonalTimelineNavigatorLabel(dateKey=''){
+  const [year, month, day]=String(dateKey).split('-').map(Number);
+  if(!year||!month||!day) return '';
+  const date=new Date(year, month-1, day);
+  const weekNames=['일','월','화','수','목','금','토'];
+  return `${month}월 ${day}일 (${weekNames[date.getDay()]})`;
+}
+function updatePersonalTimelineMobileNavigator(detailCol, list){
+  if(!detailCol||!list) return;
+  const nav=detailCol.querySelector('.personal-timeline-mobile-nav');
+  if(!nav) return;
+  const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+  const activeIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
+  const activeItem=items[activeIndex]||items[0];
+  const labelEl=nav.querySelector('.personal-timeline-mobile-nav-label');
+  const pickerInput=nav.querySelector('.personal-timeline-mobile-nav-picker');
+  const prevButton=nav.querySelector('.personal-timeline-mobile-nav-prev');
+  const nextButton=nav.querySelector('.personal-timeline-mobile-nav-next');
+  if(labelEl&&activeItem){
+    labelEl.textContent=formatPersonalTimelineNavigatorLabel(activeItem.dataset.dateKey||'');
+  }
+  if(pickerInput){
+    const firstDateKey=items[0]?.dataset.dateKey||'';
+    const lastDateKey=items[items.length-1]?.dataset.dateKey||'';
+    pickerInput.min=firstDateKey;
+    pickerInput.max=lastDateKey;
+    pickerInput.value=activeItem?.dataset.dateKey||firstDateKey;
+  }
+  if(prevButton){
+    prevButton.disabled=activeIndex<=0;
+  }
+  if(nextButton){
+    nextButton.disabled=activeIndex>=items.length-1;
+  }
+}
+function setPersonalTimelineOpenItem(list, item){
+  if(!list||!item) return;
+  list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+  item.classList.add('is-open');
+  updateHeaderTimes();
+  if(isMobileViewport()){
+    const detailCol=document.getElementById('detailCol');
+    updatePersonalTimelineMobileNavigator(detailCol, list);
+  }
+}
+function syncPersonalTimelineOpenItemFromScroll(list){
+  if(!isMobileViewport()||!list) return;
+  const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+  if(!items.length) return;
+  const listBox=list.getBoundingClientRect();
+  const anchorLeft=listBox.left + 20;
+  let nearestItem=items[0];
+  let nearestDistance=Number.POSITIVE_INFINITY;
+  items.forEach(item=>{
+    const itemBox=item.getBoundingClientRect();
+    const distance=Math.abs(itemBox.left - anchorLeft);
+    if(distance<nearestDistance){
+      nearestDistance=distance;
+      nearestItem=item;
+    }
+  });
+  setPersonalTimelineOpenItem(list, nearestItem);
 }
 function setupPersonalTimelineStickyMonth(detailCol){
   if(personalTimelineStickyMonthCleanup){
@@ -2456,6 +2726,9 @@ function scrollPersonalTimelineToDate(dateKey=''){
     || items.find(item=>String(item.dataset.dateKey||'')>=dateKey)
     || items[items.length-1];
   if(!target) return;
+  if(isMobileViewport()){
+    setPersonalTimelineOpenItem(list, target);
+  }
   const board=document.getElementById('headerReportBoard');
   const boardHeight=board ? board.getBoundingClientRect().height : 0;
   const header=document.querySelector('.header');
@@ -2476,9 +2749,10 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
+  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-mobile-nav"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
+    let personalTimelineScrollTimer=null;
     list.onmouseover=event=>{
       const trigger=event.target.closest('.personal-timeline-rail');
       if(!trigger||!list.contains(trigger)) return;
@@ -2507,6 +2781,11 @@ function renderPersonalTimelineSchedule(view){
     };
     list.onclick=event=>{
       event.stopPropagation();
+      const personTab=event.target.closest('.personal-timeline-person-tab');
+      if(personTab&&list.contains(personTab)){
+        activatePersonalTimelinePersonTab(personTab.closest('.personal-timeline-person-list'), personTab.dataset.person||'');
+        return;
+      }
       const saveButton=event.target.closest('.personal-timeline-save-btn');
       if(saveButton&&list.contains(saveButton)){
         savePersonalTimelinePersonRow(saveButton.closest('.personal-timeline-person-row'));
@@ -2556,17 +2835,64 @@ function renderPersonalTimelineSchedule(view){
       const item=event.target.closest('.personal-timeline-item');
       if(!trigger||!item||!list.contains(item)) return;
       const wasOpen=item.classList.contains('is-open');
-      list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
-      if(!wasOpen) item.classList.add('is-open');
-      updateHeaderTimes();
+      if(!wasOpen) setPersonalTimelineOpenItem(list, item);
     };
+    list.querySelectorAll('.personal-timeline-person-list').forEach(personList=>{
+      const activeName=personList.dataset.activePerson||'';
+      if(activeName){
+        activatePersonalTimelinePersonTab(personList, activeName);
+      }
+    });
+    const mobilePrevButton=detailCol.querySelector('.personal-timeline-mobile-nav-prev');
+    const mobileNextButton=detailCol.querySelector('.personal-timeline-mobile-nav-next');
+    const mobileCalendarButton=detailCol.querySelector('.personal-timeline-mobile-nav-calendar');
+    const mobilePickerInput=detailCol.querySelector('.personal-timeline-mobile-nav-picker');
+    if(mobilePrevButton){
+      mobilePrevButton.onclick=event=>{
+        event.stopPropagation();
+        const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+        const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
+        const nextItem=items[Math.max(0, currentIndex-1)];
+        if(nextItem) setPersonalTimelineOpenItem(list, nextItem);
+      };
+    }
+    if(mobileNextButton){
+      mobileNextButton.onclick=event=>{
+        event.stopPropagation();
+        const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
+        const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
+        const nextItem=items[Math.min(items.length-1, currentIndex+1)];
+        if(nextItem) setPersonalTimelineOpenItem(list, nextItem);
+      };
+    }
+    if(mobileCalendarButton&&mobilePickerInput){
+      mobileCalendarButton.onclick=event=>{
+        event.stopPropagation();
+        if(typeof mobilePickerInput.showPicker==='function'){
+          mobilePickerInput.showPicker();
+        }else{
+          mobilePickerInput.click();
+        }
+      };
+      mobilePickerInput.onchange=event=>{
+        event.stopPropagation();
+        const nextDateKey=String(mobilePickerInput.value||'').trim();
+        if(nextDateKey){
+          scrollPersonalTimelineToDate(nextDateKey);
+        }
+      };
+    }
+    updatePersonalTimelineMobileNavigator(detailCol, list);
   }
   detailCol.onclick=event=>{
-    if(event.target.closest('.personal-timeline-list')) return;
+    if(event.target.closest('.personal-timeline-list, .personal-timeline-mobile-nav')) return;
+    if(isMobileViewport()) return;
     detailCol.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
+    updatePersonalTimelineMobileNavigator(detailCol, list);
     if(list) updatePersonalTimelineHoverWave(list, null);
   };
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 function renderTimelineHeaderCell(date){
   const classes=getTimelineDayClasses(date);
@@ -2995,7 +3321,92 @@ function updateHeaderCountdown(){
   numberEl.innerHTML=renderHeaderCountdownDisplay(displayState.value, displayState.prefix);
   countdownEl.setAttribute('aria-label', `월드컵 개막 ${displayState.prefix}${displayState.value}`);
 }
-function hideAllPanels(){['newsCol','newsBroadcasterCol','bracketStageCol','groupCol','groupASquadCol','equipmentUserCol','mexicoStadiumCol','mexicoStadiumSectionCol','detailCol'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
+function isMobileViewport(){
+  return typeof window!=='undefined'&&window.matchMedia('(max-width: 768px)').matches;
+}
+function getMobilePanelIds(){
+  return ['newsCol','newsBroadcasterCol','bracketStageCol','groupCol','groupASquadCol','equipmentUserCol','mexicoStadiumCol','mexicoStadiumSectionCol','detailCol'];
+}
+function getVisibleMobilePanels(){
+  return getMobilePanelIds().map(id=>document.getElementById(id)).filter(panel=>panel&&!panel.classList.contains('hidden'));
+}
+function updateMobileSubviewPanels(){
+  getMobilePanelIds().forEach(id=>document.getElementById(id)?.classList.remove('mobile-hidden-panel'));
+  if(!isMobileViewport()) return;
+  const visiblePanels=getVisibleMobilePanels();
+  const detailVisible=visiblePanels.some(panel=>panel.id==='detailCol');
+  if(detailVisible){
+    visiblePanels.filter(panel=>panel.id!=='detailCol').forEach(panel=>panel.classList.add('mobile-hidden-panel'));
+    return;
+  }
+  const newsYearVisible=visiblePanels.some(panel=>panel.id==='newsCol');
+  const newsBroadcasterVisible=visiblePanels.some(panel=>panel.id==='newsBroadcasterCol');
+  if(newsYearVisible&&newsBroadcasterVisible){
+    visiblePanels.filter(panel=>panel.id!=='newsCol'&&panel.id!=='newsBroadcasterCol').forEach(panel=>panel.classList.add('mobile-hidden-panel'));
+    return;
+  }
+  visiblePanels.slice(0,-1).forEach(panel=>panel.classList.add('mobile-hidden-panel'));
+}
+function getMobileSubviewTitle(){
+  const detailCol=document.getElementById('detailCol');
+  const detailTitle=document.getElementById('detailTitle')?.textContent?.trim();
+  if(detailCol&&!detailCol.classList.contains('hidden')&&!detailCol.classList.contains('mobile-hidden-panel')&&detailTitle) return detailTitle;
+  const activeItem=document.querySelector('.column:not(.hidden):not(.mobile-hidden-panel) .item.active');
+  if(activeItem){
+    const itemText=activeItem.textContent.trim();
+    if(itemText) return itemText;
+  }
+  const activeMenu=document.querySelector('.sidebar .menu.active');
+  return activeMenu?.textContent.trim()||'메뉴';
+}
+function updateMobileSubviewBar(){
+  const bar=document.getElementById('mobileSubviewBar');
+  const title=document.getElementById('mobileSubviewTitle');
+  if(!bar||!title) return;
+  const hasOpenSubview=getVisibleMobilePanels().length>0;
+  const shouldShow=isMobileViewport()&&hasOpenSubview;
+  bar.classList.toggle('hidden', !shouldShow);
+  if(shouldShow){
+    title.textContent=getMobileSubviewTitle();
+  }
+}
+function goBackMobileSubview(){
+  const visiblePanels=getVisibleMobilePanels();
+  if(!visiblePanels.length) return;
+  const lastPanel=visiblePanels[visiblePanels.length-1];
+  if(lastPanel.id==='detailCol'){
+    if(currentMexicoStadiumKey&&currentMexicoStadiumSectionKey&&isMobileViewport()){
+      currentMexicoStadiumSectionKey='';
+      clearDetailExtras();
+      renderMexicoStadiumDetail(currentMexicoStadiumKey);
+      updateHeaderTimes();
+      updateMobileHeaderReportBoardVisibility();
+      return;
+    }
+    clearDetailExtras();
+  }
+  lastPanel.classList.add('hidden');
+  if(!getVisibleMobilePanels().length){
+    clearAllActive();
+  }
+  updateMobileHeaderReportBoardVisibility();
+}
+function updateMobileHeaderReportBoardVisibility(){
+  if(typeof document==='undefined'||!document.body) return;
+  const hasOpenSubview=getVisibleMobilePanels().length>0;
+  updateMobileSubviewPanels();
+  document.body.classList.toggle('mobile-subview-open', isMobileViewport()&&hasOpenSubview);
+  updateMobileSubviewBar();
+  if(isMobileViewport()&&hasOpenSubview){
+    clearHeaderReportBoardAnimation();
+  }else if(isMobileViewport()&&!hasOpenSubview){
+    window.requestAnimationFrame(updateHeaderReportBoard);
+  }
+}
+function hideAllPanels(){
+  getMobilePanelIds().forEach(id=>document.getElementById(id).classList.add('hidden'));
+  updateMobileHeaderReportBoardVisibility();
+}
 function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','personalTimelineMenu','mexicoStadiumMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
 function clearDetailExtras(){
   const detailCol=document.getElementById('detailCol');
@@ -3028,8 +3439,14 @@ function clearDetailExtras(){
   while(next){const cur=next;next=next.nextElementSibling;cur.remove();}
 }
 
-function toggleMain(){const panel=document.getElementById('newsCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');}}
-function toggleBracket(){const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}}
+function renderMobileNewsMenu(){
+  if(!isMobileViewport()) return;
+  const panel=document.getElementById('newsCol');
+  if(!panel) return;
+  panel.innerHTML=Object.entries(NEWS_YEAR_META).map(([year, meta])=>`<div class="news-mobile-year-block"><div class="item news-year-item ${currentNewsYear===year?'active':''}" aria-label="${escapeHtml(meta.aria)}"><span class="news-year-frame"><img class="news-year-logo" src="${meta.logo}" alt="${escapeHtml(meta.aria)} 로고"></span></div><div class="news-mobile-broadcasters">${NEWS_BROADCASTERS.map(broadcaster=>`<div class="item broadcaster-item broadcaster-item-${broadcaster.toLowerCase()} ${currentNewsYear===year&&currentNewsBroadcaster===broadcaster?'active':''}" onclick="openNewsDetail('${year}','${broadcaster}', this)" aria-label="${escapeHtml(broadcaster)}"><span class="broadcaster-frame">${renderNewsBroadcasterCiMarkup(broadcaster)}</span></div>`).join('')}</div></div>`).join('');
+}
+function toggleMain(){const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
+function toggleBracket(){const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
 function toggleGroupASquads(){
   const panel=document.getElementById('groupASquadCol');
   const willOpen=panel.classList.contains('hidden');
@@ -3039,6 +3456,7 @@ function toggleGroupASquads(){
     document.getElementById('groupASquadMenu').classList.add('active');
     panel.classList.remove('hidden');
   }
+  updateMobileHeaderReportBoardVisibility();
 }
 function showGroupASquad(key, el){
   document.querySelectorAll('#groupASquadCol .item').forEach(n=>n.classList.remove('active'));
@@ -3056,6 +3474,7 @@ function toggleEquipment(){
     document.getElementById('equipmentMenu').classList.add('active');
     renderEquipment();
   }
+  updateMobileHeaderReportBoardVisibility();
 }
 function togglePersonalTimeline(){
   const detailCol=document.getElementById('detailCol');
@@ -3067,6 +3486,7 @@ function togglePersonalTimeline(){
     renderTimelineSchedule('personal');
     requestAnimationFrame(()=>scrollPersonalTimelineToDate(getTodayTimelineKey()));
   }
+  updateMobileHeaderReportBoardVisibility();
 }
 function toggleMexicoStadium(){
   const panel=document.getElementById('mexicoStadiumCol');
@@ -3079,10 +3499,12 @@ function toggleMexicoStadium(){
     panel.classList.remove('hidden');
   }
   updateHeaderTimes();
+  updateMobileHeaderReportBoardVisibility();
 }
 
-function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');}
-function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);}
+function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');updateMobileHeaderReportBoardVisibility();}
+function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);updateMobileHeaderReportBoardVisibility();}
+function openNewsDetail(year, broadcaster){currentNewsYear=year;currentNewsBroadcaster=broadcaster;if(isMobileViewport()) renderMobileNewsMenu();renderNewsTable(year, broadcaster);updateMobileHeaderReportBoardVisibility();}
 function getNewsBroadcasterLogoPath(broadcaster){
   const map={KBS:'assets/news-ci-kbs-clean.png',MBC:'assets/news-ci-mbc-clean.png',SBS:'assets/news-ci-sbs-clean.png'};
   return map[broadcaster]||'';
@@ -3242,6 +3664,7 @@ function renderNewsTable(year,broadcaster){
     : `<tr><td class="news-empty" colspan="${isEditMode||isDeleteMode?5:4}">해당 연도 데이터가 아직 비어 있습니다.</td></tr>`;
   document.getElementById('detailTable').innerHTML=`${colGroup}${header}<tbody>${body}</tbody>`;
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function normalizeSquadInjuryValue(value=''){
@@ -3516,18 +3939,24 @@ function renderSquadInjuryCell(squadKey, player){
   return `<div class="squad-injury-cell"><span class="squad-injury-text">${injuryText}</span>${actions}</div>`;
 }
 
-function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);}
+function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');updateMobileHeaderReportBoardVisibility();return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);updateMobileHeaderReportBoardVisibility();}
+function renderScheduleMatchRow(number, mainHtml, date, time, stadium){
+  const local=kstToLocal(date,time);
+  return `<tr class="schedule-match-row"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${local.date} / ${date}</div><div class="match-meta">시간: 현지 ${local.time} / ${time}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
+}
 function renderKnockoutTable(stage){
   clearDetailExtras();
   const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
   document.getElementById('detailTitle').textContent=stageNames[stage]||'';
   document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
   if(!renderCache.knockoutTables[stage]){
     const rows=knockoutTemplates[stage]||[];
-    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const local=kstToLocal(info.date,info.time);return `<tr><td class="match-cell"><div class="match-badge">${matchNum}</div><div class="match-text">${matchText}</div><div class="match-meta">날짜: 현지 ${local.date} / ${info.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${info.time}</div><div class="match-meta">경기장: ${info.stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(info.stadium)}</td></tr>`;}).join('')}</tbody>`;
+    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};return renderScheduleMatchRow(matchNum, `<div class="match-text">${matchText}</div>`, info.date, info.time, info.stadium);}).join('')}</tbody>`;
   }
   document.getElementById('detailTable').innerHTML=renderCache.knockoutTables[stage];
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function showGroup(groupKey, el){
@@ -3538,7 +3967,7 @@ function showGroup(groupKey, el){
     const matches=groupMatches[groupKey]||[];
     const header='<colgroup><col class="group-col-team"><col class="group-col-rank"><col class="group-col-coach"></colgroup><thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
     const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
-    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table"><tbody>${matches.map(match=>{const local=kstToLocal(match.date,match.time);const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return `<tr><td><span class="group-match-number">${match.number}</span></td><td><div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div><div class="match-meta">날짜: 현지 ${local.date} / ${match.date}</div><div class="match-meta">시간: 현지 ${local.time} / ${match.time}</div><div class="match-meta">경기장: ${match.stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(match.stadium)}</td></tr>`;}).join('')}</tbody></table></div></div>`:'';
+    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>{const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return renderScheduleMatchRow(match.number, `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`, match.date, match.time, match.stadium);}).join('')}</tbody></table></div></div>`:'';
     renderCache.groupViews[groupKey]={tableHtml:header+body,matchSection};
   }
   document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
@@ -3548,6 +3977,7 @@ function showGroup(groupKey, el){
   document.getElementById('detailTable').innerHTML=renderCache.groupViews[groupKey].tableHtml;
   document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.groupViews[groupKey].matchSection);
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function renderSquadPlayerCell(player){
@@ -3620,10 +4050,11 @@ function renderSquad(key){
   const state=squadState[key];
   const squad=squads[key];
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
-  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  const pageSize=getSquadPageSize();
+  const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
   state.page=Math.min(totalPages,Math.max(1,state.page));
-  const rows=filtered.slice((state.page-1)*PAGE_SIZE,state.page*PAGE_SIZE);
-  const cacheKey=`${key}:${state.filter}:${state.page}`;
+  const rows=filtered.slice((state.page-1)*pageSize,state.page*pageSize);
+  const cacheKey=`${key}:${state.filter}:${state.page}:${pageSize}`;
   document.getElementById('detailTitle').textContent=state.title;
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table squad-table';
@@ -3639,6 +4070,7 @@ function renderSquad(key){
   document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.squadViews[cacheKey].paginationHtml);
   document.getElementById('detailCol').classList.remove('hidden');
   scheduleSquadPhotoHydration();
+  updateMobileHeaderReportBoardVisibility();
 }
 function setSquadFilter(key, filter){squadState[key].filter=filter;squadState[key].page=1;renderSquad(key);}
 function changeSquadPage(key, delta){squadState[key].page+=delta;renderSquad(key);}
@@ -3648,6 +4080,16 @@ function renderEquipment(){
   ensureEquipmentEditorEntries();
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   document.getElementById('equipmentUserCol').classList.remove('hidden');
+  if(isMobileViewport()){
+    document.getElementById('detailCol').classList.add('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  renderEquipmentSharedDetail();
+  updateMobileHeaderReportBoardVisibility();
+}
+
+function renderEquipmentSharedDetail(){
   document.getElementById('equipmentSharedTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
   document.getElementById('detailSubtitle').textContent='';
@@ -3659,9 +4101,16 @@ function renderEquipment(){
   document.getElementById('detailCol').classList.remove('hidden');
 }
 function showEquipmentShared(el){
-  renderEquipment();
+  if(isMobileViewport()){
+    clearDetailExtras();
+    ensureEquipmentEditorEntries();
+    renderEquipmentSharedDetail();
+  }else{
+    renderEquipment();
+  }
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function showEquipmentPersonal(user, el){
@@ -3680,6 +4129,7 @@ function showEquipmentPersonal(user, el){
   }
   document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function renderTimelineSchedule(viewKey='personal'){
@@ -3744,6 +4194,7 @@ function renderTimelineSchedule(viewKey='personal'){
   detailTable.ondragstart=()=>false;
   document.onmouseup=stopTimelinePaint;
   document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function renderStadiumFigure(stadium){
@@ -3752,6 +4203,11 @@ function renderStadiumFigure(stadium){
 
 function renderStadiumSlot(){
   return '<div class="group-match-wrap"><figure class="stadium-figure"><div class="stadium-slot">단면 사진 자리</div></figure></div>';
+}
+
+function renderMexicoStadiumInlineSections(stadiumKey, activeSectionKey=''){
+  const keys=['shooting','mixedZone','route','conferenceRoom','ground','arrival'];
+  return `<div class="mexico-stadium-inline-sections">${keys.map(sectionKey=>`<div class="item ${activeSectionKey===sectionKey?'active':''}" onclick="showMexicoStadiumSection('${sectionKey}', this)">${mexicoStadiumSections[sectionKey]||sectionKey}</div>`).join('')}</div>`;
 }
 
 function renderMexicoStadiumDetail(stadiumKey, sectionKey=''){
@@ -3771,7 +4227,8 @@ function renderMexicoStadiumDetail(stadiumKey, sectionKey=''){
     };
   }
   document.getElementById('detailTable').innerHTML=renderCache.mexicoStadiumDetails[cacheKey].tableHtml;
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.mexicoStadiumDetails[cacheKey].extraHtml);
+  const extraHtml=isMobileViewport()&&!section ? `${renderCache.mexicoStadiumDetails[cacheKey].extraHtml}${renderMexicoStadiumInlineSections(stadiumKey, sectionKey)}` : renderCache.mexicoStadiumDetails[cacheKey].extraHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',extraHtml);
   document.getElementById('detailCol').classList.remove('hidden');
 }
 
@@ -3779,23 +4236,27 @@ function showMexicoStadium(key, el){
   const stadium=mexicoStadiums[key];
   document.querySelectorAll('#mexicoStadiumCol .item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('#mexicoStadiumSectionCol .item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.mexico-stadium-inline-sections .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
   currentMexicoStadiumKey=key;
   currentMexicoStadiumSectionKey='';
   clearDetailExtras();
-  document.getElementById('mexicoStadiumSectionCol').classList.remove('hidden');
+  document.getElementById('mexicoStadiumSectionCol').classList.toggle('hidden', isMobileViewport());
   renderMexicoStadiumDetail(key);
   updateHeaderTimes();
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function showMexicoStadiumSection(sectionKey, el){
   if(!currentMexicoStadiumKey) return;
   document.querySelectorAll('#mexicoStadiumSectionCol .item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.mexico-stadium-inline-sections .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
   currentMexicoStadiumSectionKey=sectionKey;
   clearDetailExtras();
   renderMexicoStadiumDetail(currentMexicoStadiumKey, sectionKey);
   updateHeaderTimes();
+  updateMobileHeaderReportBoardVisibility();
 }
 
 function runTests(){
@@ -3887,3 +4348,7 @@ function runTests(){
 updateHeaderCountdown();
 updateHeaderReportBoard();
 startHeaderTimeTicker();
+if(typeof window!=='undefined'){
+  window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
+}
+updateMobileHeaderReportBoardVisibility();
