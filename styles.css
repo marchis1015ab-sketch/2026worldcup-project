@@ -490,6 +490,8 @@ body{
   background:linear-gradient(90deg,#3aa0ff 0%,#7ac5ff 52%,#d8eefc 100%);
 }
 .column{width:240px;max-height:70vh;overflow-y:auto}
+#newsCol{width:208px}
+#newsBroadcasterCol{width:178px}
 #groupASquadCol{width:198px}
 #equipmentUserCol{width:156px}
 #equipmentUserCol .item{padding:12px 10px;text-align:center;white-space:nowrap}
@@ -536,24 +538,40 @@ body{
   transform:translateY(-1px);
   outline:none;
 }
-.news-year-item{
-  min-height:96px;
-  padding:10px;
+#newsCol .news-year-item{
+  min-height:112px;
+  padding:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   background-color:#fff;
-  background-repeat:no-repeat;
-  background-position:center;
-  background-size:contain;
+  transition:none !important;
 }
-.news-year-item-2022{background-image:url("assets/news-year-2022.png")}
-.news-year-item-2018{background-image:url("assets/news-year-2018.png")}
-.news-year-item-2014{background-image:url("assets/news-year-2014.png")}
-.news-year-item.active{
-  background-color:#fff;
-  background-image:var(--news-year-active-image);
+#newsCol .news-year-item:hover,
+#newsCol .news-year-item:focus-visible,
+#newsCol .news-year-item.active,
+#newsCol .news-year-item.active:hover,
+#newsCol .news-year-item.active:focus-visible{
+  transform:none !important;
+  box-shadow:none !important;
+  transition:none !important;
+  filter:none !important;
+  background-color:#fff !important;
+  border-color:#e2e8f0 !important;
 }
-.news-year-item-2022.active{--news-year-active-image:url("assets/news-year-2022.png")}
-.news-year-item-2018.active{--news-year-active-image:url("assets/news-year-2018.png")}
-.news-year-item-2014.active{--news-year-active-image:url("assets/news-year-2014.png")}
+#newsCol .news-year-item.active{
+  background-color:#fff !important;
+  border-color:#e2e8f0 !important;
+}
+#newsCol .news-year-logo{
+  display:block;
+  width:100%;
+  max-width:100%;
+  max-height:88px;
+  object-fit:contain;
+  pointer-events:none;
+  user-select:none;
+}
 .broadcaster-item{
   display:flex;
   align-items:center;
