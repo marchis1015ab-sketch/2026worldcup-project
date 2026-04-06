@@ -1835,6 +1835,44 @@ function getAllPersonalTimelineGeneratedReports(){
     return a.sortOrder-b.sortOrder;
   });
 }
+function renderEquipmentSharedTvuIndicatorHtml(){
+  return `<div class="equipment-user-note equipment-user-note-shared equipment-user-note-shared-inline">
+    <span class="equipment-user-note-text">
+      <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="2번">TVU 2번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="3번">TVU 3번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="4번">TVU 4번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="5번">TVU 5번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="6번">TVU 6번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+    </span>
+  </div>`;
+}
+function updateEquipmentSharedTvuIndicators(){
+  if(typeof document==='undefined') return;
+  const reports=getAllPersonalTimelineGeneratedReports();
+  const activeTvus=new Set(
+    reports
+      .map(item=>String(item.detail?.TVU||'').trim())
+      .filter(Boolean)
+  );
+  const activeTvuByName=new Map(
+    reports.map(item=>[item.name, String(item.detail?.TVU||'').trim()])
+  );
+  document.querySelectorAll('#equipmentUserCol .equipment-user-tvu, .equipment-user-note-shared-inline .equipment-user-tvu').forEach(node=>{
+    const tvu=String(node.dataset.tvu||'').trim();
+    node.classList.toggle('is-active', activeTvus.has(tvu));
+  });
+  document.querySelectorAll('#equipmentUserCol .equipment-user-slot .item[data-user]').forEach(node=>{
+    const user=String(node.dataset.user||'').trim();
+    const slot=node.closest('.equipment-user-slot');
+    const tvuText=slot?.querySelector('.equipment-user-current-tvu');
+    const activeTvu=activeTvuByName.get(user)||'';
+    if(tvuText){
+      tvuText.textContent=activeTvu ? `TVU ${activeTvu}` : '';
+    }
+    slot?.classList.toggle('is-in-use', Boolean(activeTvu));
+  });
+}
 function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   if(!dateKey||!name||!personalTimelineDetailFields.includes(field)) return;
   const nextValues={...(getPersonalTimelineDetailSelection(dateKey, name)||{})};
@@ -2268,6 +2306,7 @@ function updateHeaderReportBoard(){
   const meta=document.getElementById('headerReportBoardMeta');
   const track=document.getElementById('headerReportBoardTrack');
   if(!board||!track) return;
+  updateEquipmentSharedTvuIndicators();
   if(meta){
     meta.textContent=formatHeaderReportBoardDailyDate();
   }
@@ -4092,13 +4131,14 @@ function renderEquipment(){
 function renderEquipmentSharedDetail(){
   document.getElementById('equipmentSharedTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
-  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailSubtitle').innerHTML=isMobileViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
   document.getElementById('detailTable').className='data-table equipment-table';
   if(!renderCache.equipmentSharedTable){
     renderCache.equipmentSharedTable=renderEquipmentTableHtml('shared');
   }
   document.getElementById('detailTable').innerHTML=renderCache.equipmentSharedTable;
   document.getElementById('detailCol').classList.remove('hidden');
+  updateEquipmentSharedTvuIndicators();
 }
 function showEquipmentShared(el){
   if(isMobileViewport()){

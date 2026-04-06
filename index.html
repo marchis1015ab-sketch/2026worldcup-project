@@ -106,14 +106,38 @@
     </div>
 
       <div id="equipmentUserCol" class="column hidden">
-        <div id="equipmentSharedTab" class="item" onclick="showEquipmentShared(this)">공용장비</div>
-        <div class="item" onclick="showEquipmentPersonal('박재현', this)">박재현</div>
-        <div class="item" onclick="showEquipmentPersonal('장후원', this)">장후원</div>
-        <div class="item" onclick="showEquipmentPersonal('정상원', this)">정상원</div>
-      <div class="item" onclick="showEquipmentPersonal('이주원', this)">이주원</div>
-      <div class="item" onclick="showEquipmentPersonal('김진광', this)">김진광</div>
-      <div class="item" onclick="showEquipmentPersonal('정재우', this)">정재우</div>
-    </div>
+        <div class="equipment-user-slot equipment-user-slot-shared">
+          <div id="equipmentSharedTab" class="item" onclick="showEquipmentShared(this)">공용장비</div>
+          <div class="equipment-user-note equipment-user-note-shared">
+            <span class="equipment-user-note-text">
+              <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="2번">TVU 2번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="3번">TVU 3번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="4번">TVU 4번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="5번">TVU 5번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="6번">TVU 6번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+            </span>
+          </div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="박재현" onclick="showEquipmentPersonal('박재현', this)"><span class="equipment-user-name">박재현</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="장후원" onclick="showEquipmentPersonal('장후원', this)"><span class="equipment-user-name">장후원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="정상원" onclick="showEquipmentPersonal('정상원', this)"><span class="equipment-user-name">정상원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="이주원" onclick="showEquipmentPersonal('이주원', this)"><span class="equipment-user-name">이주원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="김진광" onclick="showEquipmentPersonal('김진광', this)"><span class="equipment-user-name">김진광</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="정재우" onclick="showEquipmentPersonal('정재우', this)"><span class="equipment-user-name">정재우</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+      </div>
 
     <div id="mexicoStadiumCol" class="column hidden">
       <div class="item" onclick="showMexicoStadium('akron', this)">아크론스타디움, 과달라하라</div>
@@ -137,5 +161,82 @@
   </div>
 </div>
 <script src="app.js"></script>
+<div id="schedule-test" style="font-size:18px; color:red; text-align:center; margin:40px; white-space:pre-wrap;">
+  시작 전
+</div>
+
+<script>
+  const el = document.getElementById('schedule-test');
+  el.innerText = '1. 인라인 스크립트 시작됨';
+
+  function appendLine(text) {
+    el.innerText += '\n' + text;
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => resolve(src);
+      s.onerror = () => reject(new Error('script load failed: ' + src));
+      document.body.appendChild(s);
+    });
+  }
+
+  async function boot() {
+    try {
+      appendLine('2. unpkg 로드 시도');
+      try {
+        await loadScript('https://unpkg.com/@supabase/supabase-js@2');
+        appendLine('3. unpkg 로드 성공');
+      } catch (e1) {
+        appendLine('3. unpkg 실패');
+        appendLine('4. jsdelivr 로드 시도');
+        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+        appendLine('5. jsdelivr 로드 성공');
+      }
+
+      if (!window.supabase) {
+        appendLine('6. window.supabase 없음');
+        throw new Error('window.supabase is undefined');
+      }
+
+      appendLine('6. window.supabase 확인됨');
+
+      const supabaseUrl = 'https://dwujummgbntrtvnldqmz.supabase.co';
+      const supabaseKey = 'sb_publishable_LIbUjDMb1BFXZtuBuNqVcg_DM0MTX8';
+
+      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
+      appendLine('7. createClient 성공');
+
+      const { data, error } = await client
+        .from('schedules')
+        .select('*')
+        .limit(1);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        appendLine('8. DB 에러: ' + (error.message || 'unknown'));
+        return;
+      }
+
+      appendLine('8. DB 응답 성공');
+
+      if (data && data.length > 0) {
+        const item = data[0];
+        appendLine('9. 데이터 표시 성공');
+        appendLine(item.team + ' vs ' + item.opponent + ' (' + item.match_time + ')');
+      } else {
+        appendLine('9. 데이터 없음');
+      }
+    } catch (e) {
+      console.error('Boot error:', e);
+      appendLine('실패: ' + (e.message || e.toString()));
+    }
+  }
+
+  boot();
+</script>
 </body>
 </html>

@@ -57,7 +57,7 @@ body{
   display:grid;
   gap:4px;
   justify-items:stretch;
-  min-width:158px;
+  min-width:174px;
   align-self:flex-end;
   margin-right:-12px;
   position:relative;
@@ -69,17 +69,17 @@ body{
   justify-content:flex-start;
   justify-self:start;
   width:max-content;
-  min-height:14px;
+  min-height:16px;
   padding-left:0;
   color:rgba(255,255,255,.82);
-  font-size:11px;
+  font-size:12px;
   font-weight:800;
   letter-spacing:-.2px;
   white-space:nowrap;
 }
 .header-time-guide-row{
   display:grid;
-  grid-template-columns:48px minmax(0,1fr);
+  grid-template-columns:56px minmax(0,1fr);
   align-items:center;
   gap:4px;
 }
@@ -87,9 +87,9 @@ body{
   display:inline-flex;
   align-items:center;
   justify-content:flex-end;
-  min-height:28px;
+  min-height:30px;
   color:rgba(255,255,255,.82);
-  font-size:15px;
+  font-size:17px;
   font-weight:800;
   letter-spacing:-.3px;
   white-space:nowrap;
@@ -100,12 +100,12 @@ body{
   justify-self:start;
   width:max-content;
   max-width:100%;
-  min-height:28px;
-  padding:0 7px 0 8px;
+  min-height:30px;
+  padding:0 8px 0 9px;
   border-radius:999px;
   background:rgba(255,255,255,.08);
   color:#f8fbff;
-  font-size:16px;
+  font-size:18px;
   font-weight:900;
   letter-spacing:-.2px;
   white-space:nowrap;
@@ -589,6 +589,126 @@ body{
 #equipmentUserCol{width:121px}
 #mexicoStadiumCol{width:auto}
 #equipmentUserCol .item{padding:12px 10px;text-align:center;white-space:nowrap}
+#equipmentUserCol .equipment-user-slot{
+  display:flex;
+  flex-direction:column;
+  margin-bottom:8px;
+}
+#equipmentUserCol .equipment-user-slot-shared{
+  order:-1;
+}
+#equipmentUserCol .equipment-user-slot .item{margin-bottom:0}
+#equipmentUserCol .equipment-user-person-item{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:4px;
+}
+#equipmentUserCol .equipment-user-name{
+  display:inline-block;
+}
+#equipmentUserCol .equipment-user-current-wrap{
+  display:none;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+#equipmentUserCol .equipment-user-current-tvu{
+  display:none;
+  color:#0f766e;
+  font-size:10px;
+  font-weight:800;
+  line-height:1;
+  white-space:nowrap;
+}
+#equipmentUserCol .equipment-user-status{
+  display:none;
+  min-height:16px;
+  width:auto;
+  padding:0 6px;
+  border-radius:6px;
+  background:#c1121f;
+  color:#fff;
+  font-size:9px;
+  font-weight:900;
+  line-height:1;
+  align-items:center;
+  justify-content:center;
+  letter-spacing:.02em;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15);
+}
+#equipmentUserCol .equipment-user-slot.is-in-use .equipment-user-current-wrap{
+  display:inline-flex;
+}
+#equipmentUserCol .equipment-user-slot.is-in-use .equipment-user-current-tvu{
+  display:inline-flex;
+}
+#equipmentUserCol .equipment-user-slot.is-in-use .equipment-user-status{
+  display:flex;
+}
+#equipmentUserCol .equipment-user-note-shared{
+  min-height:22px;
+  margin-top:4px;
+  border:1px solid #dbe2ea;
+  border-radius:6px;
+  background:#fff;
+  font-size:10px;
+  line-height:1.2;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 6px;
+}
+#equipmentUserCol .equipment-user-note-shared{
+  display:none;
+}
+.equipment-user-note-shared-inline{
+  display:flex;
+  width:max-content;
+  max-width:100%;
+  margin-top:10px;
+}
+#equipmentUserCol .equipment-user-note-text,
+.equipment-user-note-shared-inline .equipment-user-note-text{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:0;
+  flex:1 1 auto;
+}
+#equipmentUserCol .equipment-user-tvu,
+.equipment-user-note-shared-inline .equipment-user-tvu{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  color:#475569;
+}
+#equipmentUserCol .equipment-user-bulb,
+.equipment-user-note-shared-inline .equipment-user-bulb{
+  flex:0 0 auto;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  border:1px solid #b8c4d1;
+  background:radial-gradient(circle at 35% 35%, #ffffff 0 18%, #d7dee6 19% 52%, #b6c0cb 53% 100%);
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.7);
+}
+#equipmentUserCol .equipment-user-tvu.is-active,
+.equipment-user-note-shared-inline .equipment-user-tvu.is-active{
+  color:#166534;
+}
+#equipmentUserCol .equipment-user-tvu.is-active .equipment-user-bulb,
+.equipment-user-note-shared-inline .equipment-user-tvu.is-active .equipment-user-bulb{
+  border-color:#3f8f36;
+  background:radial-gradient(circle at 35% 35%, #f2ffd8 0 18%, #69d34d 19% 52%, #2f8d2f 53% 100%);
+  box-shadow:
+    0 0 6px rgba(84,214,82,.6),
+    0 0 12px rgba(84,214,82,.28),
+    inset 0 1px 1px rgba(255,255,255,.68);
+}
 #mexicoStadiumSectionCol{width:168px}
 .table-column{flex:1;min-width:0;min-height:560px}
 
@@ -1873,11 +1993,11 @@ body.timeline-modal-open{overflow:hidden}
   .header h1{font-size:30px}
   .header-slogan{font-size:20px;line-height:1.1}
   .header-side{width:100%;justify-content:flex-start;align-items:flex-end;gap:0}
-  .header-time-guide{min-width:138px;gap:4px;margin-right:-8px}
-  .header-time-guide-row{grid-template-columns:40px minmax(0,1fr);gap:4px}
-  .header-time-guide-label{min-height:24px;font-size:12px}
-  .header-time-guide-place{min-height:12px;padding-left:0;font-size:9px}
-  .header-time-guide-value{min-height:24px;width:max-content;max-width:100%;padding:0 6px 0 7px;font-size:12px}
+  .header-time-guide{min-width:150px;gap:4px;margin-right:-8px}
+  .header-time-guide-row{grid-template-columns:46px minmax(0,1fr);gap:4px}
+  .header-time-guide-label{min-height:26px;font-size:13px}
+  .header-time-guide-place{min-height:13px;padding-left:0;font-size:10px}
+  .header-time-guide-value{min-height:26px;width:max-content;max-width:100%;padding:0 7px 0 8px;font-size:13px}
   .header-countdown{min-width:0;width:170px;height:102px;padding:7px}
   .header-countdown-number{padding:5px 5px 3px}
   .header-countdown-display{gap:5px}
@@ -2105,9 +2225,17 @@ body.timeline-modal-open{overflow:hidden}
   }
 
   #equipmentUserCol:not(.hidden){
-    display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
+    display:flex;
+    flex-direction:column;
     gap:8px;
+  }
+  #equipmentUserCol .equipment-user-slot{
+    width:100%;
+    min-width:0;
+    margin-bottom:0;
+  }
+  #equipmentUserCol .equipment-user-slot-shared{
+    order:-1;
   }
 
   #bracketStageCol:not(.hidden){
@@ -2118,16 +2246,18 @@ body.timeline-modal-open{overflow:hidden}
     max-width:none;
   }
 
-  #equipmentSharedTab{
-    grid-column:1 / -1;
-  }
-
   #equipmentUserCol .item{
     width:100%;
     min-width:0;
     margin-bottom:0;
     justify-content:center;
     text-align:center;
+  }
+  #equipmentUserCol .equipment-user-note-shared{
+    display:flex;
+  }
+  #equipmentUserCol .equipment-user-person-item{
+    justify-content:center;
   }
 
   #bracketStageCol .item{
