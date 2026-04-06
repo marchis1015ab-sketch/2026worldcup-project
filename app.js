@@ -747,6 +747,7 @@ function openMexicoStadiumEditorModal(stadiumKey, sectionKey, mode='write'){
   renderMexicoStadiumEditorMediaList();
   document.body.classList.add('news-editor-modal-open');
   document.getElementById('mexicoStadiumEditorModal').classList.remove('hidden');
+  syncMobileHistoryState();
   const firstInput=document.querySelector('.mexico-stadium-editor-input');
   if(firstInput) firstInput.focus();
 }
@@ -755,6 +756,7 @@ function closeMexicoStadiumEditorModal(){
   if(modal) modal.classList.add('hidden');
   document.body.classList.remove('news-editor-modal-open');
   pendingMexicoStadiumEditorContext=null;
+  syncMobileHistoryState();
 }
 function saveMexicoStadiumEditorModal(){
   if(!pendingMexicoStadiumEditorContext) return;
@@ -893,6 +895,7 @@ function openEquipmentEditorModal(mode, user=''){
   document.getElementById('equipmentEditorTableWrap').innerHTML=`<table class="data-table equipment-editor-table"><thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>`<tr>${row.map((value, colIndex)=>`<td><input type="text" class="equipment-editor-input" data-row-index="${rowIndex}" data-col-index="${colIndex}" value="${escapeHtml(value)}"></td>`).join('')}</tr>`).join('')}</tbody></table>`;
   document.body.classList.add('news-editor-modal-open');
   document.getElementById('equipmentEditorModal').classList.remove('hidden');
+  syncMobileHistoryState();
   const firstInput=document.querySelector('.equipment-editor-input');
   if(firstInput) firstInput.focus();
 }
@@ -901,6 +904,7 @@ function closeEquipmentEditorModal(){
   if(modal) modal.classList.add('hidden');
   document.body.classList.remove('news-editor-modal-open');
   pendingEquipmentEditorContext=null;
+  syncMobileHistoryState();
 }
 function saveEquipmentEditorModal(){
   if(!pendingEquipmentEditorContext) return;
@@ -3049,6 +3053,7 @@ function openTimelineModal(){
   renderTimelineModalMediaList();
   document.body.classList.add('timeline-modal-open');
   modal.classList.remove('hidden');
+  syncMobileHistoryState();
   input.focus();
   input.select();
 }
@@ -3102,6 +3107,7 @@ function closeTimelineModal(){
   document.body.classList.remove('timeline-modal-open');
   pendingTimelineSelection=null;
   clearTimelinePreview();
+  syncMobileHistoryState();
 }
 function writeTimelineSelection(value){
   if(!pendingTimelineSelection) return;
@@ -3369,6 +3375,16 @@ function getMobilePanelIds(){
 function getVisibleMobilePanels(){
   return getMobilePanelIds().map(id=>document.getElementById(id)).filter(panel=>panel&&!panel.classList.contains('hidden'));
 }
+function getVisibleMobileModalCount(){
+  const modalIds=['timelineModal','newsEditorModal','squadInjuryModal','mexicoStadiumEditorModal','equipmentEditorModal'];
+  return modalIds.reduce((count, id)=>{
+    const modal=document.getElementById(id);
+    return count + (modal&&!modal.classList.contains('hidden') ? 1 : 0);
+  }, 0);
+}
+function getMobileNavigationDepth(){
+  return isMobileViewport() ? getVisibleMobilePanels().length + getVisibleMobileModalCount() : 0;
+}
 function updateMobileSubviewPanels(){
   getMobilePanelIds().forEach(id=>document.getElementById(id)?.classList.remove('mobile-hidden-panel'));
   if(!isMobileViewport()) return;
@@ -3409,6 +3425,102 @@ function updateMobileSubviewBar(){
     title.textContent=getMobileSubviewTitle();
   }
 }
+const MOBILE_HISTORY_GUARD_KEY='__worldcupMobileGuard';
+let mobileHistoryGuardInitialized=false;
+let mobileHistoryHandlingPop=false;
+let mobileHistoryDepth=0;
+function closeMobileOverlayModalIfOpen(){
+  const closers=[
+    {id:'timelineModal', close:closeTimelineModal},
+    {id:'newsEditorModal', close:closeNewsEditorModal},
+    {id:'squadInjuryModal', close:closeSquadInjuryModal},
+    {id:'mexicoStadiumEditorModal', close:closeMexicoStadiumEditorModal},
+    {id:'equipmentEditorModal', close:closeEquipmentEditorModal}
+  ];
+  for(const entry of closers){
+    const modal=document.getElementById(entry.id);
+    if(modal&&!modal.classList.contains('hidden')){
+      entry.close();
+      updateMobileHeaderReportBoardVisibility();
+      return true;
+    }
+  }
+  return false;
+}
+function syncMobileHistoryState(){
+  if(typeof window==='undefined'||!isMobileViewport()||!mobileHistoryGuardInitialized||mobileHistoryHandlingPop) return;
+  const nextDepth=getMobileNavigationDepth();
+  if(nextDepth<=mobileHistoryDepth){
+    mobileHistoryDepth=nextDepth;
+    return;
+  }
+  for(let depth=mobileHistoryDepth+1;depth<=nextDepth;depth+=1){
+    try{
+      window.history.pushState({[MOBILE_HISTORY_GUARD_KEY]:true,depth},'',window.location.href);
+    }catch(error){
+      console.warn('mobile history state push failed', error);
+      break;
+    }
+  }
+  mobileHistoryDepth=nextDepth;
+}
+function goMobileHomeView(){
+  clearDetailExtras();
+  hideAllPanels();
+  clearAllActive();
+  currentMexicoStadiumKey='';
+  currentMexicoStadiumSectionKey='';
+  updateHeaderTimes();
+  updateMobileHeaderReportBoardVisibility();
+}
+function handleMobileInternalBackNavigation(){
+  if(!isMobileViewport()) return false;
+  if(closeMobileOverlayModalIfOpen()) return true;
+  if(getVisibleMobilePanels().length){
+    goBackMobileSubview();
+    return true;
+  }
+  goMobileHomeView();
+  return true;
+}
+function pushMobileHistoryGuard(){
+  if(typeof window==='undefined'||!isMobileViewport()) return;
+  try{
+    const nextState={...(window.history.state&&typeof window.history.state==='object'?window.history.state:{}),[MOBILE_HISTORY_GUARD_KEY]:true,depth:0};
+    window.history.pushState(nextState,'',window.location.href);
+  }catch(error){
+    console.warn('mobile history guard push failed', error);
+  }
+}
+function ensureMobileHistoryGuard(){
+  if(typeof window==='undefined'||mobileHistoryGuardInitialized) return;
+  mobileHistoryGuardInitialized=true;
+  try{
+    const baseState={...(window.history.state&&typeof window.history.state==='object'?window.history.state:{}),[MOBILE_HISTORY_GUARD_KEY]:true,depth:0};
+    window.history.replaceState(baseState,'',window.location.href);
+  }catch(error){
+    console.warn('mobile history state replace failed', error);
+  }
+  pushMobileHistoryGuard();
+  mobileHistoryDepth=getMobileNavigationDepth();
+  window.addEventListener('popstate', event=>{
+    if(!isMobileViewport()) return;
+    const targetDepth=event.state&&event.state[MOBILE_HISTORY_GUARD_KEY]&&typeof event.state.depth==='number'
+      ? Math.max(0, event.state.depth)
+      : 0;
+    mobileHistoryHandlingPop=true;
+    let safety=12;
+    while(getMobileNavigationDepth()>targetDepth&&safety>0){
+      if(!handleMobileInternalBackNavigation()) break;
+      safety-=1;
+    }
+    mobileHistoryDepth=getMobileNavigationDepth();
+    mobileHistoryHandlingPop=false;
+    if(targetDepth===0&&mobileHistoryDepth===0){
+      pushMobileHistoryGuard();
+    }
+  });
+}
 function goBackMobileSubview(){
   const visiblePanels=getVisibleMobilePanels();
   if(!visiblePanels.length) return;
@@ -3436,6 +3548,7 @@ function updateMobileHeaderReportBoardVisibility(){
   updateMobileSubviewPanels();
   document.body.classList.toggle('mobile-subview-open', isMobileViewport()&&hasOpenSubview);
   updateMobileSubviewBar();
+  syncMobileHistoryState();
   if(isMobileViewport()&&hasOpenSubview){
     clearHeaderReportBoardAnimation();
   }else if(isMobileViewport()&&!hasOpenSubview){
@@ -4388,7 +4501,9 @@ function runTests(){
 updateHeaderCountdown();
 updateHeaderReportBoard();
 startHeaderTimeTicker();
+ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
+  window.addEventListener('resize', ensureMobileHistoryGuard);
 }
 updateMobileHeaderReportBoardVisibility();
