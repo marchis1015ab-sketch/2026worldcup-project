@@ -2052,6 +2052,43 @@ body.timeline-modal-open{overflow:hidden}
     --personal-mobile-inline:14px;
   }
 
+  .news-editor-modal,
+  .timeline-modal{
+    align-items:flex-start;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:12px 0;
+    box-sizing:border-box;
+  }
+
+  .news-editor-modal-panel,
+  .timeline-modal-panel,
+  .equipment-editor-modal-panel{
+    width:min(100vw - 20px, 560px);
+    max-height:calc(100dvh - 24px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    box-sizing:border-box;
+    margin:0 auto;
+  }
+
+  .news-editor-form,
+  .mexico-stadium-editor-fields{
+    min-height:0;
+    max-height:none;
+    overflow:visible;
+  }
+
+  .equipment-editor-table-wrap{
+    max-height:44dvh;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .timeline-modal-media{
+    max-height:none;
+    overflow:visible;
+  }
+
   body {
     overflow-x: hidden;
   }
