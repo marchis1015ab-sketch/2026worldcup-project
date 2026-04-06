@@ -3733,6 +3733,7 @@ function openNewsEditorModal(year, broadcaster, entryIndex=-1){
   document.getElementById('newsEditorAnalysis').value=currentEntry?.analysis||'';
   document.body.classList.add('news-editor-modal-open');
   document.getElementById('newsEditorModal').classList.remove('hidden');
+  syncMobileHistoryState();
   document.getElementById('newsEditorTitle').focus();
 }
 function closeNewsEditorModal(){
@@ -3740,6 +3741,7 @@ function closeNewsEditorModal(){
   if(modal) modal.classList.add('hidden');
   document.body.classList.remove('news-editor-modal-open');
   pendingNewsEditorContext=null;
+  syncMobileHistoryState();
 }
 function saveNewsEditorModal(){
   if(!pendingNewsEditorContext) return;
@@ -4050,6 +4052,7 @@ function openSquadInjuryModal(squadKey, playerBaseKey){
   document.getElementById('squadInjuryInput').value=player.injury&&player.injury!=='-' ? player.injury : '';
   document.body.classList.add('news-editor-modal-open');
   document.getElementById('squadInjuryModal').classList.remove('hidden');
+  syncMobileHistoryState();
   document.getElementById('squadPlayerPosition').focus();
 }
 function closeSquadInjuryModal(){
@@ -4059,6 +4062,7 @@ function closeSquadInjuryModal(){
   const photoInput=document.getElementById('squadPlayerPhotoFile');
   if(photoInput) photoInput.value='';
   pendingSquadInjuryContext=null;
+  syncMobileHistoryState();
 }
 function saveSquadInjuryModal(){
   if(!pendingSquadInjuryContext) return;

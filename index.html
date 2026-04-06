@@ -161,55 +161,5 @@
   </div>
 </div>
 <script src="app.js"></script>
-<div id="schedule-test" style="font-size:20px; color:red; text-align:center; margin:40px;">
-  불러오는 중...
-</div>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script>
-  const supabaseUrl = 'https://dwujummgbntrtvnldqmz.supabase.co'
-  const supabaseKey = 'sb_publishable_LIbUjDMb1BFXZtuBuNqVcg_DM0MTX8'
-
-  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
-
-  async function loadSchedules() {
-    try {
-      const { data, error } = await supabase
-        .from('schedules')
-        .select('*')
-        .limit(1)
-
-      if (error) {
-        console.error('Supabase error:', error)
-        document.getElementById('schedule-test').innerText = '에러 발생'
-        return
-      }
-
-      if (data && data.length > 0) {
-        const item = data[0]
-        document.getElementById('schedule-test').innerText =
-          item.team + ' vs ' + item.opponent + ' (' + item.match_time + ')'
-      } else {
-        document.getElementById('schedule-test').innerText = '데이터 없음'
-      }
-    } catch (e) {
-      console.error('Unexpected error:', e)
-      document.getElementById('schedule-test').innerText = '실행 오류'
-    }
-  }
-
-  loadSchedules()
-</script>
 </body>
 </html>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script>
-  const supabase = window.supabase.createClient(
-    'https://dwujummgbntrtvnldqmz.supabase.co',
-    'sb_publishable_LIbUjDMb1BFXZtuBuNqVcg_DM0MTX8'
-  );
-
-  supabase.from('schedules').select('*').then(res => {
-    console.log(res);
-    alert(JSON.stringify(res));
-  });
-</script>
