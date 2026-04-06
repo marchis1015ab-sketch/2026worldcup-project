@@ -701,6 +701,7 @@
         const response = await fetch(`${SCHEDULES_ENDPOINT}?select=*`, {
           method: 'GET',
           mode: 'cors',
+          cache: 'no-store',
           headers: scheduleHeaders(false)
         });
 
@@ -740,6 +741,16 @@
     document.addEventListener('DOMContentLoaded', () => {
       fetchSchedules();
       startScheduleAutoSync();
+    });
+
+    window.addEventListener('focus', () => {
+      fetchSchedules({ silentLoading: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'visible'){
+        fetchSchedules({ silentLoading: true });
+      }
     });
   })();
 </script>
