@@ -28,6 +28,66 @@ const groupMatches = {
   L:[{number:'M67',home:'England',homeCode:'gb-eng',away:'Croatia',awayCode:'hr',date:'2026-06-23',time:'07:00 KST',stadium:'BMO Field (Toronto)'},{number:'M68',home:'Ghana',homeCode:'gh',away:'Panama',awayCode:'pa',date:'2026-06-23',time:'10:00 KST',stadium:'BC Place (Vancouver)'},{number:'M69',home:'England',homeCode:'gb-eng',away:'Ghana',awayCode:'gh',date:'2026-06-29',time:'10:00 KST',stadium:'Lumen Field (Seattle)'},{number:'M70',home:'Croatia',homeCode:'hr',away:'Panama',awayCode:'pa',date:'2026-06-29',time:'07:00 KST',stadium:'SoFi Stadium (Los Angeles)'},{number:'M71',home:'Panama',homeCode:'pa',away:'England',awayCode:'gb-eng',date:'2026-07-04',time:'07:00 KST',stadium:'Hard Rock Stadium (Miami)'},{number:'M72',home:'Croatia',homeCode:'hr',away:'Ghana',awayCode:'gh',date:'2026-07-04',time:'07:00 KST',stadium:'Mercedes-Benz Stadium (Atlanta)'}]
 };
 
+const officialGroupStageMatchDaysET = {
+  '2026-06-11':[['M1','15:00','Mexico City Stadium'],['M2','22:00','Estadio Guadalajara']],
+  '2026-06-12':[['M3','15:00','Toronto Stadium'],['M4','21:00','Los Angeles Stadium']],
+  '2026-06-13':[['M5','21:00','Boston Stadium'],['M6','00:00','BC Place Vancouver'],['M7','18:00','New York New Jersey Stadium'],['M8','15:00','San Francisco Bay Area Stadium']],
+  '2026-06-14':[['M9','19:00','Philadelphia Stadium'],['M10','13:00','Houston Stadium'],['M11','16:00','Dallas Stadium'],['M12','22:00','Estadio Monterrey']],
+  '2026-06-15':[['M13','18:00','Miami Stadium'],['M14','12:00','Atlanta Stadium'],['M15','21:00','Los Angeles Stadium'],['M16','15:00','Seattle Stadium']],
+  '2026-06-16':[['M17','15:00','New York New Jersey Stadium'],['M18','18:00','Boston Stadium'],['M19','21:00','Kansas City Stadium'],['M20','00:00','San Francisco Bay Area Stadium']],
+  '2026-06-17':[['M21','19:00','Toronto Stadium'],['M22','16:00','Dallas Stadium'],['M23','13:00','Houston Stadium'],['M24','22:00','Mexico City Stadium']],
+  '2026-06-18':[['M25','12:00','Atlanta Stadium'],['M26','15:00','Los Angeles Stadium'],['M27','18:00','BC Place Vancouver'],['M28','21:00','Estadio Guadalajara']],
+  '2026-06-19':[['M29','20:30','Philadelphia Stadium'],['M30','18:00','Boston Stadium'],['M31','23:00','San Francisco Bay Area Stadium'],['M32','15:00','Seattle Stadium']],
+  '2026-06-20':[['M33','16:00','Toronto Stadium'],['M34','20:00','Kansas City Stadium'],['M35','13:00','Houston Stadium'],['M36','22:00','Estadio Monterrey']],
+  '2026-06-21':[['M37','18:00','Miami Stadium'],['M38','12:00','Atlanta Stadium'],['M39','15:00','Los Angeles Stadium'],['M40','21:00','BC Place Vancouver']],
+  '2026-06-22':[['M41','20:00','New York New Jersey Stadium'],['M42','17:00','Philadelphia Stadium'],['M43','13:00','Dallas Stadium'],['M44','23:00','San Francisco Bay Area Stadium']],
+  '2026-06-23':[['M45','16:00','Boston Stadium'],['M46','19:00','Toronto Stadium'],['M47','13:00','Houston Stadium'],['M48','22:00','Estadio Guadalajara']],
+  '2026-06-24':[['M49','18:00','Miami Stadium'],['M50','18:00','Atlanta Stadium'],['M51','15:00','BC Place Vancouver'],['M52','15:00','Seattle Stadium'],['M53','21:00','Mexico City Stadium'],['M54','21:00','Estadio Monterrey']],
+  '2026-06-25':[['M55','16:00','Philadelphia Stadium'],['M56','16:00','New York New Jersey Stadium'],['M57','19:00','Dallas Stadium'],['M58','19:00','Kansas City Stadium'],['M59','22:00','Los Angeles Stadium'],['M60','22:00','San Francisco Bay Area Stadium']],
+  '2026-06-26':[['M61','15:00','Boston Stadium'],['M62','15:00','Toronto Stadium'],['M63','23:00','Seattle Stadium'],['M64','23:00','BC Place Vancouver'],['M65','20:00','Houston Stadium'],['M66','20:00','Estadio Guadalajara']],
+  '2026-06-27':[['M67','17:00','New York New Jersey Stadium'],['M68','17:00','Philadelphia Stadium'],['M69','22:00','Kansas City Stadium'],['M70','22:00','Dallas Stadium'],['M71','19:30','Miami Stadium'],['M72','19:30','Atlanta Stadium']]
+};
+function convertEasternSlotToKst(date,timeStr){
+  const sourceDate=new Date(`${date}T${timeStr}:00-04:00`);
+  const formatter=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Asia/Seoul',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit',
+    hour12:false
+  });
+  const parts=Object.fromEntries(formatter.formatToParts(sourceDate).filter(part=>part.type!=='literal').map(part=>[part.type, part.value]));
+  return {
+    date:`${parts.year}-${parts.month}-${parts.day}`,
+    time:`${parts.hour}:${parts.minute} KST`
+  };
+}
+function buildOfficialGroupStageMatchSlots(){
+  return Object.fromEntries(
+    Object.entries(officialGroupStageMatchDaysET).flatMap(([date, matches])=>
+      matches.map(([number, time, stadium])=>{
+        const kst=convertEasternSlotToKst(date, time);
+        return [number,{date:kst.date,time:kst.time,stadium}];
+      })
+    )
+  );
+}
+function applyOfficialGroupStageMatchSlots(){
+  const officialSlots=buildOfficialGroupStageMatchSlots();
+  Object.values(groupMatches).forEach(matches=>{
+    matches.forEach(match=>{
+      const officialSlot=officialSlots[match.number];
+      if(!officialSlot) return;
+      match.date=officialSlot.date;
+      match.time=officialSlot.time;
+      match.stadium=officialSlot.stadium;
+    });
+  });
+}
+applyOfficialGroupStageMatchSlots();
+
 const knockoutTemplates = {
   round32:[
     ['M73 A조 2위 vs B조 2위'],
@@ -1036,6 +1096,7 @@ const scheduleStadiumAliases = [
   ['estadio azteca','azteca'],
   ['에스타디오 아즈테카','azteca'],
   ['mexico city stadium','azteca'],
+  ['estadio guadalajara','akron'],
   ['estadio akron','akron'],
   ['아크론스타디움','akron'],
   ['아크론스타디움, 과달라하라','akron'],
@@ -1072,6 +1133,8 @@ const scheduleStadiumAliases = [
   ['에스타디오 bbva, 몬테레이','bbva'],
   ['에스타디오 몬테레이','bbva'],
   ['monterrey stadium','bbva']
+  ,
+  ['estadio monterrey','bbva']
 ];
 
 const PAGE_SIZE = 8;
@@ -1577,28 +1640,35 @@ function initSharedStateSync(){
   flushPendingSharedStateWrites();
 }
 const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
-const timelineOfficialTeamSchedules = {
-  대한민국:[
-    {date:'2026-06-12',label:'vs 체코/덴마크 · 11:00 · Estadio Guadalajara'},
-    {date:'2026-06-18',label:'vs 멕시코 · 10:00 · Estadio Guadalajara'},
-    {date:'2026-06-24',label:'vs 남아공 · 07:00 · Estadio Monterrey'}
-  ],
-  멕시코:[
-    {date:'2026-06-12',label:'vs 남아공 · 09:00 · Mexico City Stadium'},
-    {date:'2026-06-18',label:'vs 대한민국 · 10:00 · Estadio Guadalajara'},
-    {date:'2026-06-24',label:'vs 체코/덴마크 · 07:00 · Mexico City Stadium'}
-  ],
-  남아공:[
-    {date:'2026-06-12',label:'vs 멕시코 · 09:00 · Mexico City Stadium'},
-    {date:'2026-06-18',label:'vs 체코/덴마크 · 07:00 · Atlanta Stadium'},
-    {date:'2026-06-24',label:'vs 대한민국 · 07:00 · Estadio Monterrey'}
-  ],
-  체코:[
-    {date:'2026-06-12',label:'vs 대한민국 · 11:00 · Estadio Guadalajara'},
-    {date:'2026-06-18',label:'vs 남아공 · 07:00 · Atlanta Stadium'},
-    {date:'2026-06-24',label:'vs 멕시코 · 07:00 · Mexico City Stadium'}
-  ]
+const timelineOfficialTeamNameMap = {
+  'South Korea':'대한민국',
+  'Mexico':'멕시코',
+  'South Africa':'남아공',
+  'Czechia':'체코'
 };
+function buildTimelineOfficialTeamSchedules(){
+  const schedules=Object.values(timelineOfficialTeamNameMap).reduce((acc, label)=>{
+    acc[label]=[];
+    return acc;
+  }, {});
+  (groupMatches.A||[]).forEach(match=>{
+    const homeLabel=timelineOfficialTeamNameMap[match.home];
+    const awayLabel=timelineOfficialTeamNameMap[match.away];
+    if(!homeLabel||!awayLabel) return;
+    const matchTime=String(match.time||'').replace(' KST','');
+    const venue=match.stadium||'-';
+    schedules[homeLabel].push({
+      date:match.date,
+      label:`vs ${awayLabel} · ${matchTime} · ${venue}`
+    });
+    schedules[awayLabel].push({
+      date:match.date,
+      label:`vs ${homeLabel} · ${matchTime} · ${venue}`
+    });
+  });
+  return schedules;
+}
+const timelineOfficialTeamSchedules = buildTimelineOfficialTeamSchedules();
 function seedTimelineTeamSchedules(){
   Object.entries(timelineOfficialTeamSchedules).forEach(([rowLabel, matches])=>{
     const rowAssignments=timelineAssignments[rowLabel];
@@ -4782,9 +4852,9 @@ function runTests(){
   console.assert(personalTimelineDetailFields.length===5,'Personal timeline detail fields should exist');
   console.assert(teamTimelineRows[0].label==='대한민국'&&teamTimelineRows[3].label==='체코','Team timeline row ordering should exist');
   console.assert(personalTimelineRows[0].label==='영상취재팀 공동'&&personalTimelineRows[6].label==='정재우','Personal timeline row ordering should exist');
-  console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코/덴마크'),'Korea official timeline should include opponent');
+  console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코'),'Korea official timeline should include opponent');
   console.assert(timelineOfficialTeamSchedules['멕시코'][1].label.includes('vs 대한민국'),'Mexico official timeline should include opponent');
-  console.assert(timelineOfficialTeamSchedules['남아공'][2].label.includes('Estadio Monterrey'),'South Africa official timeline should include venue');
+  console.assert(timelineOfficialTeamSchedules['남아공'][2].label.includes('대한민국'),'South Africa official timeline should include opponent');
   console.assert(Array.isArray(dates)&&dates.length===153,'Timeline dates should exist');
   console.assert(formatTimelineDate(dates[0])==='3/1','Timeline should start on March 1');
   console.assert(formatTimelineDate(dates[dates.length-1])==='7/31','Timeline should end on July 31');
