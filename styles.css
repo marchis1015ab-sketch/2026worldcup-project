@@ -14,7 +14,7 @@
   --text-soft:#64748b;
   --line:#e5e7eb;
   --today:#d24c5b;
-  --tomorrow:#c88918;
+--tomorrow:#1d4f86;
 }
 
 *{box-sizing:border-box}
@@ -1444,7 +1444,7 @@ body.timeline-modal-open{overflow:hidden}
 .personal-timeline-legend{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .personal-timeline-legend-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid transparent;font-size:12px;font-weight:800;letter-spacing:-.1px}
 .personal-timeline-legend-chip.is-today{background:#fbe6e8;color:#8f2130;border-color:#f2bcc2}
-.personal-timeline-legend-chip.is-tomorrow{background:#fff2d9;color:#925f05;border-color:#f1d59a}
+.personal-timeline-legend-chip.is-tomorrow{background:#e5effa;color:#184678;border-color:#bfd1e7}
 .personal-timeline-legend-chip.is-upcoming{background:#e5effa;color:#184678;border-color:#bfd1e7}
 .personal-timeline-legend-chip.is-shared{background:#0f2740;color:#fff}
 .personal-timeline-legend-chip.is-personal{background:#ecf3fb;color:#17314c;border-color:#c9d9ea}
@@ -1501,7 +1501,7 @@ body.timeline-modal-open{overflow:hidden}
 .personal-timeline-dot{position:relative;z-index:1;display:block;width:18px;height:18px;border:4px solid #1d4f86;border-radius:999px;background:#fff;box-shadow:0 0 0 5px #eef3f8;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
 .personal-timeline-phase-past .personal-timeline-dot{border-color:#94a3b8}
 .personal-timeline-phase-today .personal-timeline-dot{border-color:#d24c5b}
-.personal-timeline-phase-tomorrow .personal-timeline-dot{border-color:#c88918}
+.personal-timeline-phase-tomorrow .personal-timeline-dot{border-color:#1d4f86}
 .personal-timeline-date{
   position:relative;
   z-index:1;
@@ -1520,7 +1520,7 @@ body.timeline-modal-open{overflow:hidden}
 .personal-timeline-dday{font-size:12px;font-weight:900;letter-spacing:.1px;color:#1d4f86}
 .personal-timeline-dday-past{color:#64748b}
 .personal-timeline-dday-today{color:#d24c5b}
-.personal-timeline-dday-tomorrow{color:#c88918}
+.personal-timeline-dday-tomorrow{color:#1d4f86}
 .personal-timeline-dday-upcoming{color:#1d4f86}
 .personal-timeline-day{font-size:18px;font-weight:900;color:#334155;line-height:1.2;white-space:nowrap}
 .personal-timeline-item.is-open .personal-timeline-dot{
