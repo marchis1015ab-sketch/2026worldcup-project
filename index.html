@@ -161,82 +161,520 @@
   </div>
 </div>
 <script src="app.js"></script>
-<div id="schedule-test" style="display:block !important; visibility:visible !important; min-height:80px; font-size:18px; color:red; text-align:center; margin:40px; white-space:pre-wrap; background:yellow;">
-  시작 전
+<style>
+  #schedule-list {
+    display: grid;
+    gap: 12px;
+    margin: 24px 40px 40px;
+  }
+
+  .schedule-card {
+    border: 1px solid #d7dfec;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(10, 31, 68, 0.08);
+    padding: 16px 18px;
+  }
+
+  .schedule-card-title {
+    margin: 0 0 8px;
+    color: #0f2f57;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .schedule-card-meta,
+  .schedule-card-row {
+    margin: 0;
+    color: #4b617d;
+    font-size: 14px;
+    line-height: 1.5;
+    word-break: keep-all;
+  }
+
+  .schedule-card-body {
+    margin-top: 10px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .schedule-card-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  .schedule-card-label {
+    color: #28476b;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+    letter-spacing: 0.02em;
+  }
+
+  .schedule-card-value {
+    min-width: 0;
+    color: #5d7390;
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+
+  .schedule-state-card {
+    text-align: center;
+  }
+
+  .schedule-state-title {
+    margin: 0;
+    color: #0f2f57;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.4;
+  }
+
+  .schedule-state-text {
+    margin: 8px 0 0;
+    color: #5d7390;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 768px) {
+    #schedule-list {
+      margin: 18px 14px 28px;
+      gap: 10px;
+    }
+
+    .schedule-card {
+      padding: 14px 15px;
+      border-radius: 14px;
+    }
+
+    .schedule-card-title {
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .schedule-card-meta {
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: normal;
+    }
+
+    .schedule-card-body {
+      margin-top: 8px;
+      gap: 6px;
+    }
+
+    .schedule-card-row {
+      grid-template-columns: 56px minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .schedule-card-label {
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .schedule-card-value {
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: normal;
+    }
+
+    .schedule-state-title {
+      font-size: 17px;
+    }
+
+    .schedule-state-text {
+      font-size: 13px;
+    }
+  }
+</style>
+<div id="schedule-list"></div>
+<div id="schedule-test" style="display:none !important; visibility:visible !important; min-height:120px; font-size:18px; color:red; text-align:center; margin:40px; white-space:pre-wrap; background:yellow; padding:16px; box-sizing:border-box;">
+  <div id="schedule-test-summary" style="font-size:24px; font-weight:900; line-height:1.35; margin-bottom:12px;">시작 전</div>
+  <div id="schedule-test-log" style="font-size:16px; line-height:1.55; text-align:left; white-space:pre-wrap;">진단 대기</div>
 </div>
 
 <script>
-  const el = document.getElementById('schedule-test');
-  el.innerText = '1. 인라인 스크립트 시작됨';
+  const scheduleTestEl = document.getElementById('schedule-test');
+  const scheduleListEl = document.getElementById('schedule-list');
+  const scheduleTestSummaryEl = document.getElementById('schedule-test-summary');
+  const scheduleTestLogEl = document.getElementById('schedule-test-log');
 
-  function appendLine(text) {
-    el.innerText += '\n' + text;
+  const SUPABASE_URL = 'https://dwujummgbntrtvmldqmz.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l';
+  const DEBUG_MODE = false;
+  const SUPABASE_REST_BASE = `${SUPABASE_URL}/rest/v1/schedules`;
+
+  /*
+    운영 구조 메모
+    - 기자: 일정/상태 보기 전용
+    - 팀원: 담당/메모/상태 일부 수정 예정
+    - 헤드: 일정 배정/상태/우선순위 관리 예정
+    - 개발자: 스키마/권한/관리 UI 전체 확장 예정
+  */
+
+  function setSummary(text) {
+    scheduleTestSummaryEl.innerText = text;
   }
 
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.onload = () => resolve(src);
-      s.onerror = () => reject(new Error('script load failed: ' + src));
-      document.body.appendChild(s);
-    });
+  function setLines(lines) {
+    scheduleTestLogEl.innerText = lines.join('\n');
   }
 
-  async function boot() {
-    try {
-      appendLine('2. unpkg 로드 시도');
-      try {
-        await loadScript('https://unpkg.com/@supabase/supabase-js@2');
-        appendLine('3. unpkg 로드 성공');
-      } catch (e1) {
-        appendLine('3. unpkg 실패');
-        appendLine('4. jsdelivr 로드 시도');
-        await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
-        appendLine('5. jsdelivr 로드 성공');
-      }
+  function appendLog(lines, text) {
+    lines.push(text);
+    setLines(lines);
+    console.log(text);
+  }
 
-      if (!window.supabase) {
-        appendLine('6. window.supabase 없음');
-        throw new Error('window.supabase is undefined');
-      }
-
-      appendLine('6. window.supabase 확인됨');
-
-      const supabaseUrl = 'https://dwujummgbntrtvnldqmz.supabase.co';
-      const supabaseKey = 'sb_publishable_LIbUjDMb1BFXZtuBuNqVcg_DM0MTX8';
-
-      const client = window.supabase.createClient(supabaseUrl, supabaseKey);
-      appendLine('7. createClient 성공');
-
-      const { data, error } = await client
-        .from('schedules')
-        .select('*')
-        .limit(1);
-
-      if (error) {
-        console.error('Supabase error:', error);
-        appendLine('8. DB 에러: ' + (error.message || 'unknown'));
-        return;
-      }
-
-      appendLine('8. DB 응답 성공');
-
-      if (data && data.length > 0) {
-        const item = data[0];
-        appendLine('9. 데이터 표시 성공');
-        appendLine(item.team + ' vs ' + item.opponent + ' (' + item.match_time + ')');
-      } else {
-        appendLine('9. 데이터 없음');
-      }
-    } catch (e) {
-      console.error('Boot error:', e);
-      appendLine('실패: ' + (e.message || e.toString()));
+  function setDebugLayout(enabled) {
+    if (enabled) {
+      scheduleTestEl.style.display = 'block';
+      scheduleTestEl.style.background = 'yellow';
+      scheduleTestLogEl.style.display = 'block';
+      scheduleTestSummaryEl.style.marginBottom = '12px';
+      scheduleTestSummaryEl.style.fontSize = '24px';
+    } else {
+      scheduleTestEl.style.display = 'none';
+      scheduleTestEl.style.background = 'transparent';
+      scheduleTestLogEl.style.display = 'none';
+      scheduleTestSummaryEl.style.marginBottom = '0';
+      scheduleTestSummaryEl.style.fontSize = '18px';
     }
   }
 
-  boot();
+  function previewBody(bodyText) {
+    const text = String(bodyText || '(empty)').replace(/\s+/g, ' ').trim();
+    return text.length > 180 ? text.slice(0, 180) + ' ...' : text;
+  }
+
+  function buildSchedulesUrl(limit) {
+    const params = new URLSearchParams();
+    params.set('select', '*');
+    if (typeof limit === 'number') {
+      params.set('limit', String(limit));
+    }
+    return `${SUPABASE_REST_BASE}?${params.toString()}`;
+  }
+
+  function formatScheduleMeta(item) {
+    const date = item.match_date ? String(item.match_date) : '날짜 미정';
+    const time = item.match_time ? String(item.match_time) : '시간 미정';
+    return `${date} · ${time}`;
+  }
+
+  function getScheduleLocation(item) {
+    return item.venue || item.location || '';
+  }
+
+  function getScheduleAssignee(item) {
+    return item.assignee || item.manager || item.owner || item.staff || '';
+  }
+
+  function getScheduleStatus(item) {
+    return item.status || '';
+  }
+
+  function createScheduleRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'schedule-card-row';
+
+    const heading = document.createElement('span');
+    heading.className = 'schedule-card-label';
+    heading.textContent = label;
+
+    const body = document.createElement('span');
+    body.className = 'schedule-card-value';
+    body.textContent = value;
+
+    row.appendChild(heading);
+    row.appendChild(body);
+    return row;
+  }
+
+  function renderStateCard(title, text) {
+    scheduleListEl.innerHTML = '';
+    const card = document.createElement('article');
+    card.className = 'schedule-card schedule-state-card';
+
+    const heading = document.createElement('p');
+    heading.className = 'schedule-state-title';
+    heading.textContent = title;
+
+    card.appendChild(heading);
+
+    if (text) {
+      const body = document.createElement('p');
+      body.className = 'schedule-state-text';
+      body.textContent = text;
+      card.appendChild(body);
+    }
+
+    scheduleListEl.appendChild(card);
+  }
+
+  function renderLoadingState() {
+    renderStateCard('일정 불러오는 중...', '잠시만 기다려 주세요.');
+  }
+
+  function renderEmptyState() {
+    scheduleListEl.innerHTML = '';
+  }
+
+  function renderErrorState() {
+    renderStateCard('일정을 불러오지 못했습니다.', '잠시 후 다시 시도해 주세요.');
+  }
+
+  function collectScheduleExtras(item) {
+    const extras = [];
+
+    if (item.venue || item.location) {
+      extras.push(`장소 · ${item.venue || item.location}`);
+    }
+
+    if (item.assignee || item.manager || item.owner || item.staff) {
+      extras.push(`담당 · ${item.assignee || item.manager || item.owner || item.staff}`);
+    }
+
+    if (item.status) {
+      extras.push(`상태 · ${item.status}`);
+    }
+
+    return extras;
+  }
+
+  function renderSchedules(data) {
+    scheduleListEl.innerHTML = '';
+
+    if (!Array.isArray(data) || data.length === 0) {
+      renderEmptyState();
+      return;
+    }
+
+    const items = [...data].sort((a, b) => {
+      const aKey = `${a.match_date || ''} ${a.match_time || ''}`.trim();
+      const bKey = `${b.match_date || ''} ${b.match_time || ''}`.trim();
+      return aKey.localeCompare(bKey);
+    });
+
+    items.forEach((item) => {
+      const card = document.createElement('article');
+      card.className = 'schedule-card';
+
+      const title = document.createElement('p');
+      title.className = 'schedule-card-title';
+      title.textContent = `${item.team || '-'} vs ${item.opponent || '-'}`;
+
+      const meta = document.createElement('p');
+      meta.className = 'schedule-card-meta';
+      meta.textContent = formatScheduleMeta(item);
+
+      card.appendChild(title);
+      card.appendChild(meta);
+
+      const body = document.createElement('div');
+      body.className = 'schedule-card-body';
+
+      const location = getScheduleLocation(item);
+      const assignee = getScheduleAssignee(item);
+      const status = getScheduleStatus(item);
+
+      if (location) {
+        body.appendChild(createScheduleRow('장소', location));
+      }
+
+      if (assignee) {
+        body.appendChild(createScheduleRow('담당', assignee));
+      }
+
+      if (status) {
+        body.appendChild(createScheduleRow('상태', status));
+      }
+
+      if (body.childNodes.length > 0) {
+        card.appendChild(body);
+      }
+
+      scheduleListEl.appendChild(card);
+    });
+  }
+
+  async function runFetchStep(lines, step, label, url) {
+    appendLog(lines, `${step}. 요청 URL: ${url}`);
+    appendLog(lines, `${step + 1}. ${label} 시도`);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Accept': 'application/json'
+        }
+      });
+      setSummary(`✅ ${label} / status ${response.status}`);
+      appendLog(lines, `${step + 2}. 성공: ${response.status} ${response.statusText}`);
+      const bodyText = await response.text();
+      appendLog(lines, `${step + 3}. body 앞부분: ${previewBody(bodyText)}`);
+      return { response, bodyText };
+    } catch (error) {
+      console.error('fetch error:', error);
+      setSummary(`❌ ${label} / ${error.message || error.toString()}`);
+      appendLog(lines, `${step + 2}. 실패`);
+      appendLog(lines, `${step + 3}. error.name: ${error.name || '-'}`);
+      appendLog(lines, `${step + 4}. error.message: ${error.message || error.toString()}`);
+      appendLog(lines, `${step + 5}. error.stack: ${String(error.stack || '-').split('\n').slice(0, 2).join(' | ')}`);
+      if (String(error.name || '') === 'TypeError') {
+        appendLog(lines, `${step + 6}. 안내: status 없이 실패했으므로 인증/RLS 이전의 네트워크 단계 실패입니다.`);
+      }
+      return { response: null, bodyText: '', error };
+    }
+  }
+
+  async function runSdkStyleFetch(lines) {
+    const url = buildSchedulesUrl();
+    appendLog(lines, `30. SDK fetch 흉내 요청 URL: ${url}`);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Accept': 'application/json'
+        }
+      });
+      appendLog(lines, `31. SDK fetch status: ${response.status} ${response.statusText}`);
+      const text = await response.text();
+      appendLog(lines, `32. SDK fetch body 앞부분: ${previewBody(text)}`);
+      return { response, text };
+    } catch (error) {
+      console.error('sdk-style fetch error:', error);
+      appendLog(lines, `31. SDK fetch 실패`);
+      appendLog(lines, `32. error.name: ${error.name || '-'}`);
+      appendLog(lines, `33. error.message: ${error.message || error.toString()}`);
+      appendLog(lines, `${error.name === 'TypeError' ? '34. 현재 문제는 인증/RLS보다 앞단의 네트워크 접근 실패입니다. 가능성: 잘못된 Project URL, 프로젝트 비활성/중지, DNS/브라우저/망 차단' : '34. SDK fetch 예외 발생'}`);
+      return { response: null, text: '', error };
+    }
+  }
+
+  async function runSupabaseDiagnostics() {
+    const lines = [];
+    setDebugLayout(true);
+    setSummary('진단 시작');
+    appendLog(lines, '1. 진단 시작');
+    appendLog(lines, `2. href: ${window.location.href}`);
+    appendLog(lines, `3. origin: ${window.location.origin}`);
+    appendLog(lines, `4. protocol: ${window.location.protocol}`);
+    appendLog(lines, `5. online: ${navigator.onLine}`);
+    appendLog(lines, `6. userAgent: ${navigator.userAgent}`);
+    appendLog(lines, `7. SUPABASE_URL(raw): ${JSON.stringify(SUPABASE_URL)}`);
+    appendLog(lines, `8. SUPABASE_URL(normalized): ${JSON.stringify(SUPABASE_URL.trim().replace(/\/+$/, ''))}`);
+    appendLog(lines, `9. SUPABASE_URL length: ${SUPABASE_URL.length}`);
+    appendLog(lines, `10. REST 요청 URL: ${buildSchedulesUrl(1)}`);
+
+    if (location.protocol === 'http:') {
+      setSummary('❌ HTTP 환경');
+      appendLog(lines, '11. ❌ 현재 HTTP 환경 → Supabase 요청 차단될 수 있음');
+      appendLog(lines, '12. 👉 GitHub Pages(HTTPS) 또는 HTTPS 로컬 서버 사용 필요');
+    }
+
+    await runFetchStep(lines, 13, '루트 URL fetch', SUPABASE_URL);
+    await runFetchStep(lines, 19, 'REST 루트 fetch', `${SUPABASE_URL}/rest/v1/`);
+    const directResult = await runFetchStep(lines, 25, 'schedules direct fetch', `${SUPABASE_URL}/rest/v1/schedules?select=*&limit=1`);
+    const sdkResult = await runSdkStyleFetch(lines);
+
+    if (directResult.error && sdkResult.error) {
+      setSummary('❌ 네트워크 접근 실패');
+      appendLog(lines, '35. 현재 문제는 인증/RLS보다 앞단의 네트워크 접근 실패입니다.');
+      appendLog(lines, '36. 가능성: 잘못된 Project URL, 프로젝트 비활성/중지, DNS/브라우저/망 차단');
+    }
+  }
+
+  async function runSupabaseLive() {
+    const lines = [];
+    setDebugLayout(false);
+    renderLoadingState();
+
+    try {
+      const response = await fetch(buildSchedulesUrl(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let label = '에러 발생';
+        if (response.status === 401) label = '401 인증 오류';
+        else if (response.status === 403) label = '403 접근 거부';
+        else if (response.status === 404) label = '404 경로 오류';
+        const bodyText = await response.text();
+        console.error('Supabase HTTP error:', response.status, response.statusText, bodyText);
+        renderErrorState();
+        if (DEBUG_MODE) {
+          setDebugLayout(true);
+          setSummary(`❌ ${label}`);
+          appendLog(lines, `3. ${label}`);
+          appendLog(lines, `4. status: ${response.status} ${response.statusText}`);
+          appendLog(lines, `5. body 앞부분: ${previewBody(bodyText)}`);
+        }
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Supabase data:', data);
+
+      if (!Array.isArray(data) || data.length === 0) {
+        renderEmptyState();
+        if (DEBUG_MODE) {
+          setDebugLayout(true);
+          setSummary('표시할 일정 없음');
+          appendLog(lines, '3. 데이터 없음');
+        }
+        return;
+      }
+
+      renderSchedules(data);
+      if (DEBUG_MODE) {
+        setSummary('✅ Supabase 연결 정상');
+        setLines([]);
+      }
+    } catch (error) {
+      console.error('Supabase fetch error:', error);
+      renderErrorState();
+      if (DEBUG_MODE) {
+        setDebugLayout(true);
+        setSummary('❌ 네트워크 에러');
+        appendLog(lines, '3. 네트워크 에러');
+        appendLog(lines, `4. message: ${error.message || error.toString()}`);
+      }
+    }
+  }
+
+  function fetchSchedules() {
+    if (DEBUG_MODE) {
+      runSupabaseDiagnostics();
+    } else {
+      runSupabaseLive();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('페이지 로드 완료');
+    fetchSchedules();
+  });
 </script>
 </body>
 </html>
