@@ -298,6 +298,9 @@ let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
 let currentNewsBroadcaster = '';
+let currentSquadKey = '';
+let currentEquipmentMode = 'shared';
+let currentEquipmentUser = '';
 let currentNewsEditingKey = '';
 let currentNewsDeletingKey = '';
 let pendingNewsEditorContext = null;
@@ -421,6 +424,7 @@ function writeNewsEditorRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(NEWS_EDITOR_STORAGE_KEY, raw);
 }
 function normalizeNewsEditorEntry(entry, fallbackYear=''){
   const date=normalizeNewsDate(entry?.date||'', fallbackYear);
@@ -632,6 +636,7 @@ function writeMexicoStadiumEditorRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(MEXICO_STADIUM_EDITOR_STORAGE_KEY, raw);
 }
 function normalizeMexicoStadiumEditorEntry(entry, stadiumKey, sectionKey=''){
   const rows=getMexicoStadiumDefaultRows(stadiumKey, sectionKey).map(([label], index)=>{
@@ -822,6 +827,7 @@ function writeEquipmentEditorRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(EQUIPMENT_EDITOR_STORAGE_KEY, raw);
 }
 function ensureEquipmentEditorEntries(){
   if(hasLoadedEquipmentEditorEntries) return;
@@ -1114,6 +1120,28 @@ const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
 const HEADER_REPORT_BOARD_RECENT_STORAGE_KEY = 'worldcup-guide-header-report-board-recent-v1';
 const HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY = '__worldcupGuideHeaderReportBoardRecent__';
+const SHARED_STATE_SYNC_SUPABASE_URL = 'https://dwujummgbntrtvmldqmz.supabase.co';
+const SHARED_STATE_SYNC_SUPABASE_ANON_KEY = 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l';
+const SHARED_STATE_SYNC_TABLE = 'shared_state';
+const SHARED_STATE_SYNC_REGISTRY = {
+  [NEWS_EDITOR_STORAGE_KEY]: {windowNameKey: NEWS_EDITOR_WINDOW_NAME_KEY},
+  [SQUAD_INJURY_STORAGE_KEY]: {windowNameKey: SQUAD_INJURY_WINDOW_NAME_KEY},
+  [MEXICO_STADIUM_EDITOR_STORAGE_KEY]: {windowNameKey: MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY},
+  [EQUIPMENT_EDITOR_STORAGE_KEY]: {windowNameKey: EQUIPMENT_EDITOR_WINDOW_NAME_KEY},
+  [TIMELINE_STORAGE_KEY]: {windowNameKey: TIMELINE_WINDOW_NAME_KEY},
+  [PERSONAL_TIMELINE_SHARED_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY},
+  [PERSONAL_TIMELINE_DETAILS_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY},
+  [HEADER_REPORT_BOARD_RECENT_STORAGE_KEY]: {windowNameKey: HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY}
+};
+const SHARED_STATE_SYNC_KEYS = Object.keys(SHARED_STATE_SYNC_REGISTRY);
+let sharedStateSyncClient = null;
+let sharedStateSyncChannel = null;
+let sharedStateSyncReady = false;
+let sharedStateSyncDisabled = false;
+let sharedStateSyncFetchInProgress = false;
+let sharedStateSyncNeedsRefetch = false;
+let sharedStateSyncWriteInProgress = false;
+const sharedStatePendingWrites = new Map();
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
 const personalTimelineDetailFields = ['시간','장소','취재기자','TVU','업무내용'];
@@ -1249,6 +1277,305 @@ const personalTimelineDetailSelections = Object.create(null);
 const personalTimelineSharedEntries = Object.create(null);
 const headerReportBoardRecentMarks = Object.create(null);
 let hasLoadedHeaderReportBoardRecentMarks = false;
+
+function clearObjectEntries(target){
+  Object.keys(target).forEach(key=>delete target[key]);
+}
+function readSharedStateWindowPayload(){
+  if(typeof window==='undefined'||!window.name) return {};
+  try{
+    const payload=JSON.parse(window.name);
+    return payload&&typeof payload==='object' ? payload : {};
+  }catch(error){
+    return {};
+  }
+}
+function writeSharedStateWindowPayload(payload){
+  if(typeof window==='undefined') return;
+  try{
+    window.name=JSON.stringify(payload&&typeof payload==='object' ? payload : {});
+  }catch(error){
+    window.name='';
+  }
+}
+function getSharedStateLocalRaw(storageKey){
+  const config=SHARED_STATE_SYNC_REGISTRY[storageKey];
+  if(!config) return '';
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(storageKey);
+    if(raw!==null) return raw;
+  }
+  const payload=readSharedStateWindowPayload();
+  return typeof payload?.[config.windowNameKey]==='string' ? payload[config.windowNameKey] : '';
+}
+function setSharedStateLocalRaw(storageKey, raw=''){
+  const config=SHARED_STATE_SYNC_REGISTRY[storageKey];
+  if(!config) return;
+  const normalized=String(raw??'');
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>{
+    if(normalized){
+      storage.setItem(storageKey, normalized);
+    }else{
+      storage.removeItem(storageKey);
+    }
+  });
+  const payload=readSharedStateWindowPayload();
+  if(normalized){
+    payload[config.windowNameKey]=normalized;
+  }else{
+    delete payload[config.windowNameKey];
+  }
+  writeSharedStateWindowPayload(payload);
+}
+function resetNewsEditorSyncState(){
+  hasLoadedNewsEditorEntries=false;
+  currentNewsEditingKey='';
+  currentNewsDeletingKey='';
+  clearObjectEntries(newsEditorEntries);
+  renderCache.newsTables=Object.create(null);
+}
+function resetSquadSyncState(){
+  hasLoadedSquadInjuryEntries=false;
+  clearObjectEntries(squadInjuryEntries);
+  Object.values(squads).forEach(players=>{
+    players.forEach(player=>{
+      ensureSquadPlayerMeta(player);
+      applySquadPlayerEntry(player, {...player.__defaults});
+    });
+  });
+  clearObjectEntries(playerPhotoCache);
+  invalidateSquadViews();
+}
+function resetMexicoStadiumSyncState(){
+  hasLoadedMexicoStadiumEditorEntries=false;
+  clearObjectEntries(mexicoStadiumEditorEntries);
+  renderCache.mexicoStadiumDetails=Object.create(null);
+}
+function resetEquipmentSyncState(){
+  hasLoadedEquipmentEditorEntries=false;
+  clearObjectEntries(equipmentEditorEntries);
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+}
+function resetTimelineSyncState(){
+  timelineEditableLabels.forEach(label=>timelineAssignments[label]?.clear());
+  hasSeededTimelineTeamSchedules=false;
+  hasLoadedTimelineSavedAssignments=false;
+  hasLoadedPersonalTimelineSharedEntries=false;
+  hasLoadedPersonalTimelineDetailSelections=false;
+  hasLoadedHeaderReportBoardRecentMarks=false;
+  clearObjectEntries(personalTimelineSharedEntries);
+  clearObjectEntries(personalTimelineDetailSelections);
+  clearObjectEntries(headerReportBoardRecentMarks);
+}
+function resetSharedStateSyncCaches(changedKeys=[]){
+  const changed=new Set(changedKeys);
+  if(changed.has(NEWS_EDITOR_STORAGE_KEY)) resetNewsEditorSyncState();
+  if(changed.has(SQUAD_INJURY_STORAGE_KEY)) resetSquadSyncState();
+  if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)) resetMexicoStadiumSyncState();
+  if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)) resetEquipmentSyncState();
+  if(changed.has(TIMELINE_STORAGE_KEY)
+    ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
+    ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
+    ||changed.has(HEADER_REPORT_BOARD_RECENT_STORAGE_KEY)){
+    resetTimelineSyncState();
+  }
+}
+function isSharedStatePanelVisible(id){
+  const panel=document.getElementById(id);
+  return Boolean(panel&&!panel.classList.contains('hidden')&&!panel.classList.contains('mobile-hidden-panel'));
+}
+function isSharedStateMenuActive(id){
+  return Boolean(document.getElementById(id)?.classList.contains('active'));
+}
+function rerenderVisibleSharedStateViews(changedKeys=[]){
+  const changed=new Set(changedKeys);
+  const timelineChanged=changed.has(TIMELINE_STORAGE_KEY)
+    ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
+    ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
+    ||changed.has(HEADER_REPORT_BOARD_RECENT_STORAGE_KEY);
+  if(changed.has(NEWS_EDITOR_STORAGE_KEY)){
+    if(currentNewsYear&&currentNewsBroadcaster&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('newsMenu')){
+      renderNewsTable(currentNewsYear, currentNewsBroadcaster);
+    }else if(isMobileViewport()&&isSharedStatePanelVisible('newsCol')){
+      renderMobileNewsMenu();
+    }
+  }
+  if(changed.has(SQUAD_INJURY_STORAGE_KEY)&&currentSquadKey&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('groupASquadMenu')){
+    renderSquad(currentSquadKey);
+  }
+  if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)&&currentMexicoStadiumKey&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('mexicoStadiumMenu')){
+    renderMexicoStadiumDetail(currentMexicoStadiumKey, currentMexicoStadiumSectionKey);
+  }
+  if((changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)||timelineChanged)&&isSharedStateMenuActive('equipmentMenu')){
+    if(isSharedStatePanelVisible('detailCol')){
+      if(currentEquipmentMode==='personal'&&currentEquipmentUser){
+        showEquipmentPersonal(currentEquipmentUser);
+      }else{
+        renderEquipmentSharedDetail();
+      }
+    }
+    updateEquipmentSharedTvuIndicators();
+  }
+  if(timelineChanged){
+    if(isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('personalTimelineMenu')){
+      renderTimelineSchedule(currentTimelineView);
+    }
+    updateHeaderReportBoard();
+    updateHeaderTimes();
+  }else{
+    updateHeaderTimes();
+  }
+  updateMobileHeaderReportBoardVisibility();
+}
+function disableSharedStateSync(error){
+  if(sharedStateSyncDisabled) return;
+  sharedStateSyncDisabled=true;
+  console.warn('Shared state sync disabled.', error);
+  if(sharedStateSyncChannel){
+    try{
+      sharedStateSyncChannel.unsubscribe();
+    }catch(unsubscribeError){}
+    sharedStateSyncChannel=null;
+  }
+}
+function getSharedStateSyncClient(){
+  if(sharedStateSyncDisabled||typeof window==='undefined'||!window.supabase?.createClient) return null;
+  if(sharedStateSyncClient) return sharedStateSyncClient;
+  try{
+    sharedStateSyncClient=window.supabase.createClient(SHARED_STATE_SYNC_SUPABASE_URL, SHARED_STATE_SYNC_SUPABASE_ANON_KEY);
+  }catch(error){
+    disableSharedStateSync(error);
+    return null;
+  }
+  return sharedStateSyncClient;
+}
+async function flushPendingSharedStateWrites(){
+  const client=getSharedStateSyncClient();
+  if(!client||sharedStateSyncWriteInProgress||!sharedStatePendingWrites.size) return;
+  sharedStateSyncWriteInProgress=true;
+  const pendingEntries=[...sharedStatePendingWrites.entries()];
+  sharedStatePendingWrites.clear();
+  try{
+    const {error}=await client
+      .from(SHARED_STATE_SYNC_TABLE)
+      .upsert(
+        pendingEntries.map(([state_key, state_value])=>({
+          state_key,
+          state_value,
+          updated_at:new Date().toISOString()
+        })),
+        {onConflict:'state_key'}
+      );
+    if(error){
+      pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
+      if(error.code==='42P01'){
+        disableSharedStateSync(error);
+      }else{
+        console.warn('Shared state write failed.', error);
+      }
+    }
+  }catch(error){
+    pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
+    console.warn('Shared state write failed.', error);
+  }finally{
+    sharedStateSyncWriteInProgress=false;
+    if(sharedStatePendingWrites.size&&sharedStateSyncReady){
+      window.setTimeout(flushPendingSharedStateWrites, 120);
+    }
+  }
+}
+function scheduleSharedStateSyncWrite(storageKey, raw=''){
+  if(sharedStateSyncDisabled||!SHARED_STATE_SYNC_REGISTRY[storageKey]) return;
+  sharedStatePendingWrites.set(storageKey, String(raw??''));
+  if(sharedStateSyncReady){
+    flushPendingSharedStateWrites();
+  }
+}
+function applySharedStateSnapshot(rows=[]){
+  const nextStateByKey=Object.create(null);
+  rows.forEach(row=>{
+    const stateKey=String(row?.state_key||'').trim();
+    if(!stateKey||!SHARED_STATE_SYNC_REGISTRY[stateKey]) return;
+    nextStateByKey[stateKey]=String(row?.state_value??'');
+  });
+  const changedKeys=[];
+  SHARED_STATE_SYNC_KEYS.forEach(storageKey=>{
+    const currentRaw=getSharedStateLocalRaw(storageKey);
+    const nextRaw=Object.prototype.hasOwnProperty.call(nextStateByKey, storageKey) ? nextStateByKey[storageKey] : '';
+    if(currentRaw!==nextRaw){
+      setSharedStateLocalRaw(storageKey, nextRaw);
+      changedKeys.push(storageKey);
+    }
+  });
+  if(!changedKeys.length) return;
+  resetSharedStateSyncCaches(changedKeys);
+  rerenderVisibleSharedStateViews(changedKeys);
+}
+async function fetchSharedStateSnapshot(){
+  const client=getSharedStateSyncClient();
+  if(!client) return;
+  if(sharedStateSyncFetchInProgress){
+    sharedStateSyncNeedsRefetch=true;
+    return;
+  }
+  sharedStateSyncFetchInProgress=true;
+  try{
+    const {data, error}=await client
+      .from(SHARED_STATE_SYNC_TABLE)
+      .select('state_key,state_value')
+      .in('state_key', SHARED_STATE_SYNC_KEYS);
+    if(error){
+      if(error.code==='42P01'){
+        disableSharedStateSync(error);
+      }else{
+        console.warn('Shared state fetch failed.', error);
+      }
+      return;
+    }
+    applySharedStateSnapshot(data||[]);
+  }catch(error){
+    console.warn('Shared state fetch failed.', error);
+  }finally{
+    sharedStateSyncFetchInProgress=false;
+    if(sharedStateSyncNeedsRefetch){
+      sharedStateSyncNeedsRefetch=false;
+      fetchSharedStateSnapshot();
+    }
+  }
+}
+function startSharedStateRealtimeSync(){
+  const client=getSharedStateSyncClient();
+  if(!client||sharedStateSyncChannel) return;
+  sharedStateSyncChannel=client
+    .channel('worldcup-shared-state')
+    .on(
+      'postgres_changes',
+      {
+        event:'*',
+        schema:'public',
+        table:SHARED_STATE_SYNC_TABLE
+      },
+      ()=>fetchSharedStateSnapshot()
+    )
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED'){
+        sharedStateSyncReady=true;
+        flushPendingSharedStateWrites();
+      }
+    });
+}
+function initSharedStateSync(){
+  if(sharedStateSyncDisabled) return;
+  const client=getSharedStateSyncClient();
+  if(!client) return;
+  sharedStateSyncReady=true;
+  fetchSharedStateSnapshot();
+  startSharedStateRealtimeSync();
+  flushPendingSharedStateWrites();
+}
 const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
 const timelineOfficialTeamSchedules = {
   대한민국:[
@@ -1334,6 +1661,7 @@ function writeTimelineAssignmentsRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(TIMELINE_STORAGE_KEY, raw);
 }
 function hasTimelineCleanupFlag(flagKey){
   const storages=getTimelineStorageAreas();
@@ -1443,6 +1771,7 @@ function writePersonalTimelineSharedRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
 }
 function createTimelineModalMediaId(){
   timelineModalMediaSeq+=1;
@@ -1569,6 +1898,7 @@ function writePersonalTimelineDetailsRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw);
 }
 function readHeaderReportBoardRecentRaw(){
   const storages=getTimelineStorageAreas();
@@ -1602,6 +1932,7 @@ function writeHeaderReportBoardRecentRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(HEADER_REPORT_BOARD_RECENT_STORAGE_KEY, raw);
 }
 function pruneHeaderReportBoardRecentMarks(now=Date.now()){
   let changed=false;
@@ -3613,6 +3944,7 @@ function toggleGroupASquads(){
 function showGroupASquad(key, el){
   document.querySelectorAll('#groupASquadCol .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
+  currentSquadKey=key;
   squadState[key].filter='ALL';
   squadState[key].page=1;
   renderSquad(key);
@@ -3875,6 +4207,7 @@ function writeSquadInjuryRaw(raw){
   }catch(error){
     window.name='';
   }
+  scheduleSharedStateSyncWrite(SQUAD_INJURY_STORAGE_KEY, raw);
 }
 function normalizeSquadPlayerEntryValue(entry, player){
   ensureSquadPlayerMeta(player);
@@ -4203,6 +4536,7 @@ function scheduleSquadPhotoHydration(){
 function renderSquad(key){
   clearDetailExtras();
   ensureSquadInjuryEntries();
+  currentSquadKey=key;
   const state=squadState[key];
   const squad=squads[key];
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
@@ -4246,6 +4580,8 @@ function renderEquipment(){
 }
 
 function renderEquipmentSharedDetail(){
+  currentEquipmentMode='shared';
+  currentEquipmentUser='';
   document.getElementById('equipmentSharedTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
   document.getElementById('detailSubtitle').innerHTML=isMobileViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
@@ -4258,6 +4594,8 @@ function renderEquipmentSharedDetail(){
   updateEquipmentSharedTvuIndicators();
 }
 function showEquipmentShared(el){
+  currentEquipmentMode='shared';
+  currentEquipmentUser='';
   if(isMobileViewport()){
     clearDetailExtras();
     ensureEquipmentEditorEntries();
@@ -4271,6 +4609,8 @@ function showEquipmentShared(el){
 }
 
 function showEquipmentPersonal(user, el){
+  currentEquipmentMode='personal';
+  currentEquipmentUser=user;
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(!el){
     el=Array.from(document.querySelectorAll('#equipmentUserCol .item')).find(item=>item.textContent.trim()===user)||null;
@@ -4507,7 +4847,14 @@ updateHeaderReportBoard();
 startHeaderTimeTicker();
 ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
+  window.addEventListener('load', initSharedStateSync);
+  window.addEventListener('focus', fetchSharedStateSnapshot);
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
   window.addEventListener('resize', ensureMobileHistoryGuard);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible'){
+      fetchSharedStateSnapshot();
+    }
+  });
 }
 updateMobileHeaderReportBoardVisibility();
