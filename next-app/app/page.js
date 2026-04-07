@@ -1,8 +1,8 @@
 'use client';
 
 import {useLegacyWorldCupData} from '../src/data/useLegacyWorldCupData';
-import {getLegacyDataPreviewModel} from '../src/data/legacyDataPreview';
 import { useLegacyWorldCupStatus } from '../src/data/useLegacyWorldCupStatus';
+import { useLegacyWorldCupPreview } from '../src/data/useLegacyWorldCupPreview';
 
 const plannedLayers = ['data', 'render', 'events', 'store', 'modal'];
 
@@ -14,7 +14,14 @@ export default function Page(){
     hasBridge,
     snapshot,
   });
-  const preview = getLegacyDataPreviewModel(legacyData);
+  const {groupData, groupMatches, squads, newsData} = legacyData;
+  const preview = useLegacyWorldCupPreview({
+    snapshot,
+    groupData,
+    groupMatches,
+    squads,
+    newsData,
+  });
 
   return (
     <main className="page">
