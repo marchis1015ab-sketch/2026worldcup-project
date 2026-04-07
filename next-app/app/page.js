@@ -2,14 +2,14 @@
 
 import {useLegacyWorldCupData} from '../src/data/useLegacyWorldCupData';
 import {getLegacyDataPreviewModel} from '../src/data/legacyDataPreview';
-import { getLegacyDataStatus } from '../src/data/legacyDataStatus';
+import { useLegacyWorldCupStatus } from '../src/data/useLegacyWorldCupStatus';
 
 const plannedLayers = ['data', 'render', 'events', 'store', 'modal'];
 
 export default function Page(){
   const legacyData = useLegacyWorldCupData();
   const {isClient, hasBridge, snapshot} = legacyData;
-  const status = getLegacyDataStatus({
+  const status = useLegacyWorldCupStatus({
     isClient,
     hasBridge,
     snapshot,
