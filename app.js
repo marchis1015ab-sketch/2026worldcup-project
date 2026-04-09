@@ -339,10 +339,13 @@ const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-
 const MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideMexicoStadiumEditor__';
 const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
 const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
+const MAP_LOCATION_PIN_STORAGE_KEY = 'worldcup-guide-map-location-pins-v1';
+const MAP_LOCATION_PIN_WINDOW_NAME_KEY = '__worldcupGuideMapLocationPins__';
 let hasLoadedNewsEditorEntries = false;
 let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
+let hasLoadedMapLocationPinEntries = false;
 let currentNewsBroadcaster = '';
 let currentSquadKey = '';
 let currentGroupKey = '';
@@ -352,13 +355,36 @@ let currentEquipmentUser = '';
 let isEquipmentCarnetComposerOpen = false;
 let currentMapSubTab = 'region';
 let currentMapActionMode = '';
-let currentNewsProgrammingActionMode = '';
 let currentNewsProgrammingDate = getTodayTimelineKey();
-let currentNewsProgrammingEditId = '';
-let isNewsProgrammingComposerOpen = false;
-let newsProgrammingEntries = [];
-let newsProgrammingComposerImages = [];
+const JTBC_SCHEDULE_PROXY_URL = typeof window!=='undefined' ? String(window.__JTBC_SCHEDULE_PROXY_URL__||'').trim() : '';
+const JTBC_SCHEDULE_CHANNEL_KEY = 'jtbc';
+let newsProgrammingRequestSeq = 0;
+const newsProgrammingScheduleCache = new Map();
+let currentNewsProgrammingState = {
+  status:'idle',
+  items:[],
+  errorMessage:'',
+  warningMessage:'',
+  lastUpdated:'',
+  fetchedAt:'',
+  source:'idle',
+  lastFetchedDate:'',
+  activeRequestDate:''
+};
+let currentMapLocationPinEditId = {region:'',lodging:''};
+let isMapLocationPinComposerOpen = {region:false,lodging:false};
+let mapLocationPinEntries = {region:[],lodging:[]};
+let mapLocationPinComposerImages = {region:[],lodging:[]};
 const mapSectionComposerState = {region:false,lodging:false};
+const MAP_LOCATION_PIN_CATEGORIES = [
+  {value:'restaurant', label:'식당', tone:'restaurant'},
+  {value:'lodging', label:'숙소', tone:'lodging'},
+  {value:'stadium', label:'경기장 관련', tone:'stadium'},
+  {value:'broadcast', label:'방송거점', tone:'broadcast'},
+  {value:'hospital', label:'병원', tone:'hospital'},
+  {value:'mart', label:'마트/편의점', tone:'mart'},
+  {value:'other', label:'기타', tone:'other'}
+];
 let currentNewsEditingKey = '';
 let currentNewsDeletingKey = '';
 let pendingNewsEditorContext = null;
@@ -1129,71 +1155,561 @@ function renderSimpleActionRow(actionMap){
 function renderUploadField(fieldId, label){
   return `<div class="simple-upload-field"><label class="simple-upload-label" for="${escapeHtml(fieldId)}">${escapeHtml(label)}</label><div class="simple-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가할 수 있는 영역입니다.</div><input id="${escapeHtml(fieldId)}" class="simple-upload-input" type="file" accept="image/*"></div></div>`;
 }
-function renderNewsProgrammingImagePreviewHtml(images=[]){
-  if(!Array.isArray(images)||!images.length){
-    return '<div class="news-programming-upload-empty">등록된 사진이 없습니다.</div>';
+function createMapLocationPinId(){
+  return `map-location-pin-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+}
+function normalizeMapLocationPinSectionKey(sectionKey='region'){
+  return sectionKey==='lodging'?'lodging':'region';
+}
+function createEmptyMapLocationPinEntryGroups(){
+  return {region:[],lodging:[]};
+}
+function createEmptyMapLocationPinImageState(){
+  return {region:[],lodging:[]};
+}
+function createEmptyMapLocationPinEditState(){
+  return {region:'',lodging:''};
+}
+function createEmptyMapLocationPinComposerState(){
+  return {region:false,lodging:false};
+}
+function getMapLocationPinSectionMeta(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  return normalized==='lodging'
+    ? {
+      title:'숙소 장소 기록',
+      description:'숙소 거점, 주변 식당, 체크포인트를 핀처럼 저장하고 숙박 운영 메모를 함께 관리합니다.',
+      formDescription:'숙소와 연결된 장소를 핀 카드처럼 누적 관리합니다. 체크인 거점, 주변 편의시설, 필요 장소를 함께 기록할 수 있습니다.',
+      formTitle:'숙소 핀',
+      placeholderName:'예: 선수단 숙소 정문',
+      placeholderLocation:'예: 호텔 로비 옆 / 체크인 데스크 맞은편',
+      placeholderMemo:'체크인 동선, 보안 포인트, 주변 식당/편의시설 메모를 기록하세요.',
+      emptyHint:'아직 저장된 숙소 핀이 없습니다. 숙소, 체크포인트, 주변 편의시설부터 등록해보세요.'
+    }
+    : {
+      title:'현장 장소 기록',
+      description:'주요 식당, 필요한 장소, 체크포인트를 핀처럼 저장하고 현장 운영 메모를 함께 관리합니다.',
+      formDescription:'식당, 방송거점, 병원, 체크포인트를 지역정보 안에서 핀 카드처럼 누적 관리합니다.',
+      formTitle:'장소 핀',
+      placeholderName:'예: 메인 경기장 북문 식당',
+      placeholderLocation:'예: 경기장 북문 도보 5분 / Av. Example 123',
+      placeholderMemo:'현장 접근 동선, 운영 시간, 체크사항을 기록하세요.',
+      emptyHint:'아직 저장된 현장 핀이 없습니다. 주요 식당, 병원, 방송거점부터 차근차근 기록해보세요.'
+    };
+}
+function getMapLocationPinCategoryMeta(category=''){
+  const normalized=String(category||'').trim();
+  return MAP_LOCATION_PIN_CATEGORIES.find(item=>item.value===normalized)||MAP_LOCATION_PIN_CATEGORIES[MAP_LOCATION_PIN_CATEGORIES.length-1];
+}
+function normalizeMapLocationPinEntry(entry){
+  const name=String(entry?.name||'').trim();
+  const categoryMeta=getMapLocationPinCategoryMeta(entry?.category||'');
+  const locationText=String(entry?.locationText||'').trim();
+  const memo=String(entry?.memo||'').trim();
+  const mapLink=String(entry?.mapLink||'').trim();
+  const lat=String(entry?.lat||'').trim();
+  const lng=String(entry?.lng||'').trim();
+  const images=(Array.isArray(entry?.images)?entry.images:[entry?.image]).map(value=>String(value||'').trim()).filter(Boolean);
+  if(!name&&!locationText&&!memo&&!mapLink&&!images.length) return null;
+  const createdAt=Number(entry?.createdAt)||Date.now();
+  return {
+    id:String(entry?.id||createMapLocationPinId()),
+    name:name||'현장 장소',
+    category:categoryMeta.value,
+    locationText,
+    memo,
+    mapLink,
+    lat,
+    lng,
+    images,
+    createdAt,
+    updatedAt:Number(entry?.updatedAt)||createdAt
+  };
+}
+function sortMapLocationPinEntries(entries){
+  return [...entries].sort((a,b)=>{
+    const createdCompare=Number(a.createdAt||0)-Number(b.createdAt||0);
+    if(createdCompare!==0) return createdCompare;
+    return String(a.id||'').localeCompare(String(b.id||''));
+  });
+}
+function readMapLocationPinRaw(){
+  return getSharedStateLocalRaw(MAP_LOCATION_PIN_STORAGE_KEY);
+}
+function writeMapLocationPinRaw(raw){
+  setSharedStateLocalRaw(MAP_LOCATION_PIN_STORAGE_KEY, raw);
+  scheduleSharedStateSyncWrite(MAP_LOCATION_PIN_STORAGE_KEY, raw);
+}
+function loadMapLocationPinEntries(){
+  if(hasLoadedMapLocationPinEntries) return;
+  hasLoadedMapLocationPinEntries=true;
+  mapLocationPinEntries=createEmptyMapLocationPinEntryGroups();
+  const raw=readMapLocationPinRaw();
+  if(!raw) return;
+  try{
+    const savedEntries=JSON.parse(raw);
+    if(Array.isArray(savedEntries)){
+      mapLocationPinEntries.region=sortMapLocationPinEntries(savedEntries.map(normalizeMapLocationPinEntry).filter(Boolean));
+    }else{
+      ['region','lodging'].forEach(sectionKey=>{
+        mapLocationPinEntries[sectionKey]=sortMapLocationPinEntries((Array.isArray(savedEntries?.[sectionKey])?savedEntries[sectionKey]:[]).map(normalizeMapLocationPinEntry).filter(Boolean));
+      });
+    }
+    saveMapLocationPinEntries();
+  }catch(error){
+    console.warn('Failed to load map location pin entries.', error);
   }
-  return `<div class="news-programming-upload-list">${images.map((src,index)=>`<figure class="news-programming-upload-item"><img class="news-programming-upload-image" src="${escapeHtml(src)}" alt="뉴스편성 첨부 이미지 ${index+1}"><button type="button" class="news-programming-upload-remove" onclick="removeNewsProgrammingImage(${index})" aria-label="첨부 이미지 삭제">삭제</button></figure>`).join('')}</div>`;
+}
+function saveMapLocationPinEntries(){
+  writeMapLocationPinRaw(JSON.stringify({
+    region:sortMapLocationPinEntries(Array.isArray(mapLocationPinEntries.region)?mapLocationPinEntries.region:[]),
+    lodging:sortMapLocationPinEntries(Array.isArray(mapLocationPinEntries.lodging)?mapLocationPinEntries.lodging:[])
+  }));
+}
+function getMapLocationPinEntries(sectionKey='region'){
+  loadMapLocationPinEntries();
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  if(!Array.isArray(mapLocationPinEntries[normalized])) mapLocationPinEntries[normalized]=[];
+  return mapLocationPinEntries[normalized];
+}
+function getMapLocationPinEntryById(sectionKey='region', entryId=''){
+  return getMapLocationPinEntries(sectionKey).find(entry=>String(entry.id)===String(entryId))||null;
+}
+function formatMapLocationPinSavedAt(timestamp){
+  const value=Number(timestamp||0);
+  if(!Number.isFinite(value)||value<=0) return '';
+  try{
+    return new Date(value).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch(error){
+    return '';
+  }
+}
+function renderMapLocationPinImagePreviewHtml(images=[], sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  if(!Array.isArray(images)||!images.length){
+    return '<div class="map-location-pin-upload-empty">등록된 사진이 없습니다.</div>';
+  }
+  return `<div class="map-location-pin-upload-preview-grid">${images.map((src,index)=>`<figure class="map-location-pin-upload-item"><img class="map-location-pin-upload-image" src="${escapeHtml(src)}" alt="장소 핀 첨부 이미지 ${index+1}"><button type="button" class="map-location-pin-upload-remove" onclick="removeMapLocationPinImage(${index}, '${normalized}')" aria-label="장소 핀 첨부 이미지 삭제">삭제</button></figure>`).join('')}</div>`;
+}
+function renderMapLocationPinComposer(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  if(!isMapLocationPinComposerOpen[normalized]) return '';
+  const sectionMeta=getMapLocationPinSectionMeta(normalized);
+  const editingEntry=getMapLocationPinEntryById(normalized, currentMapLocationPinEditId[normalized]);
+  const composerMode=editingEntry?'수정':'작성';
+  const categoryOptions=MAP_LOCATION_PIN_CATEGORIES.map(item=>`<option value="${escapeHtml(item.value)}"${(editingEntry?.category||'restaurant')===item.value?' selected':''}>${escapeHtml(item.label)}</option>`).join('');
+  return `<section class="simple-form-card map-location-pin-form-card"><div class="map-location-pin-form-header"><div class="simple-form-title">${escapeHtml(sectionMeta.formTitle)} ${composerMode}</div><p class="map-location-pin-form-description">${escapeHtml(sectionMeta.formDescription)}</p></div><div class="simple-form-grid map-location-pin-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="mapLocationPinName-${normalized}" value="${escapeHtml(editingEntry?.name||'')}" placeholder="${escapeHtml(sectionMeta.placeholderName)}"></label><label class="simple-form-field"><span class="simple-form-label">분류</span><select class="simple-form-input map-location-pin-select" id="mapLocationPinCategory-${normalized}">${categoryOptions}</select></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">주소 또는 위치 설명</span><input type="text" class="simple-form-input" id="mapLocationPinLocationText-${normalized}" value="${escapeHtml(editingEntry?.locationText||'')}" placeholder="${escapeHtml(sectionMeta.placeholderLocation)}"></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="mapLocationPinMemo-${normalized}" placeholder="${escapeHtml(sectionMeta.placeholderMemo)}">${escapeHtml(editingEntry?.memo||'')}</textarea></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">지도 링크 (선택)</span><input type="text" class="simple-form-input" id="mapLocationPinMapLink-${normalized}" value="${escapeHtml(editingEntry?.mapLink||'')}" placeholder="추후 Google Maps / Naver Map / Kakao Map 링크 연결"></label><div class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">현장 사진</span><div class="simple-upload-dropzone map-location-pin-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가하면 핀 카드와 함께 미리보기로 표시됩니다.</div><input id="mapLocationPinImages-${normalized}" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleMapLocationPinImageChange(this, '${normalized}')"></div><div id="mapLocationPinImagePreview-${normalized}" class="map-location-pin-upload-preview">${renderMapLocationPinImagePreviewHtml(mapLocationPinComposerImages[normalized], normalized)}</div></div><div class="map-location-pin-form-field-full map-location-pin-future"><div class="map-location-pin-future-title">지도 확장 준비</div><div class="map-location-pin-future-note">좌표(lat/lng)와 실제 지도 링크 버튼을 나중에 바로 붙일 수 있도록 구조를 분리해 두었습니다.</div><input type="hidden" id="mapLocationPinLatitude-${normalized}" value="${escapeHtml(editingEntry?.lat||'')}"><input type="hidden" id="mapLocationPinLongitude-${normalized}" value="${escapeHtml(editingEntry?.lng||'')}"></div></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="saveMapLocationPinEntry('${normalized}')">저장</button><button type="button" class="section-title-action-btn" onclick="cancelMapLocationPinComposer('${normalized}')">취소</button></div></section>`;
+}
+function renderMapLocationPinPreview(entries=[], sectionKey='region'){
+  const sectionMeta=getMapLocationPinSectionMeta(sectionKey);
+  const countsHtml=MAP_LOCATION_PIN_CATEGORIES.map(item=>{
+    const count=entries.filter(entry=>entry.category===item.value).length;
+    return count?`<span class="map-location-pin-stat is-${escapeHtml(item.tone)}">${escapeHtml(item.label)} ${count}</span>`:'';
+  }).join('');
+  const previewCards=entries.slice(-4).reverse();
+  return `<section class="map-location-pin-preview"><div class="map-location-pin-preview-header"><div><h5 class="map-location-pin-preview-title">간이 지도 보드</h5><p class="map-location-pin-preview-meta">저장된 핀 ${entries.length}개${entries.length?' · 최신 현장 포인트 순으로 표시':''}</p></div>${countsHtml?`<div class="map-location-pin-preview-stats">${countsHtml}</div>`:''}</div>${previewCards.length?`<div class="map-location-pin-preview-grid">${previewCards.map((entry,index)=>{const categoryMeta=getMapLocationPinCategoryMeta(entry.category); return `<article class="map-location-pin-preview-card is-${escapeHtml(categoryMeta.tone)}"><div class="map-location-pin-preview-badge">${entries.length-index}</div><div class="map-location-pin-preview-body"><div class="map-location-pin-preview-category">${escapeHtml(categoryMeta.label)}</div><div class="map-location-pin-preview-name">${escapeHtml(entry.name||'현장 장소')}</div><div class="map-location-pin-preview-location">${escapeHtml(entry.locationText||'위치 설명 준비 중')}</div></div></article>`;}).join('')}</div>`:`<div class="map-location-pin-preview-empty">${escapeHtml(sectionMeta.emptyHint)}</div>`}</section>`;
+}
+function renderMapLocationPinList(entries=[], sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  if(!entries.length){
+    return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">장소 데이터가 쌓이면 이 영역에 핀 카드가 누적됩니다.</p></div></header><div class="map-location-pin-list-empty">저장된 핀이 없습니다. 먼저 핀 추가를 눌러 장소를 등록하세요.</div></section>`;
+  }
+  return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">${entries.length}개 장소가 핀 카드로 정리되어 있습니다.</p></div></header><div class="map-location-pin-list">${entries.map((entry,index)=>{const categoryMeta=getMapLocationPinCategoryMeta(entry.category); const savedAt=formatMapLocationPinSavedAt(entry.updatedAt||entry.createdAt); return `<article class="map-location-pin-card is-${escapeHtml(categoryMeta.tone)}"><div class="map-location-pin-card-badge-wrap"><span class="map-location-pin-card-badge">${index+1}</span></div><div class="map-location-pin-card-body"><header class="map-location-pin-card-header"><div><div class="map-location-pin-card-category is-${escapeHtml(categoryMeta.tone)}">${escapeHtml(categoryMeta.label)}</div><h6 class="map-location-pin-card-title">${escapeHtml(entry.name||'현장 장소')}</h6></div>${savedAt?`<div class="map-location-pin-card-time">${escapeHtml(savedAt)}</div>`:''}</header><div class="map-location-pin-card-location">${escapeHtml(entry.locationText||'위치 설명 없음')}</div>${entry.memo?`<p class="map-location-pin-card-memo">${escapeHtml(entry.memo)}</p>`:''}<div class="map-location-pin-card-meta">${entry.mapLink?`<a class="map-location-pin-card-link" href="${escapeHtml(entry.mapLink)}" target="_blank" rel="noreferrer">지도 링크 열기</a>`:'<span class="map-location-pin-card-link-placeholder">지도 링크 연결 자리</span>'}<span class="map-location-pin-card-coordinates">${entry.lat||entry.lng?escapeHtml(`lat ${entry.lat||'-'} / lng ${entry.lng||'-'}`):'좌표 필드 확장 예정'}</span></div>${Array.isArray(entry.images)&&entry.images.length?`<div class="map-location-pin-card-media">${entry.images.map((src,mediaIndex)=>`<img class="map-location-pin-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(entry.name||'현장 장소')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}<div class="simple-info-actions map-location-pin-card-actions"><button type="button" class="section-title-action-btn" onclick="openMapLocationPinComposer('${normalized}', '${escapeHtml(entry.id)}')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMapLocationPin('${normalized}', '${escapeHtml(entry.id)}')">삭제</button></div></div></article>`;}).join('')}</div></section>`;
+}
+function renderMapLocationPinSection(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  const sectionMeta=getMapLocationPinSectionMeta(normalized);
+  const entries=sortMapLocationPinEntries(getMapLocationPinEntries(normalized));
+  const actions=renderSimpleActionRow([
+    {label:'핀 추가', onclick:`openMapLocationPinComposer('${normalized}')`},
+    {label:'초기화', onclick:`clearAllMapLocationPins('${normalized}')`, variant:'delete'}
+  ]);
+  return `<section class="map-location-pin-shell" aria-label="${escapeHtml(sectionMeta.title)}"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">${escapeHtml(sectionMeta.title)}</h4><p class="map-location-pin-description">${escapeHtml(sectionMeta.description)}</p></div>${actions}</header>${renderMapLocationPinComposer(normalized)}${renderMapLocationPinPreview(entries, normalized)}${renderMapLocationPinList(entries, normalized)}</section>`;
+}
+async function handleMapLocationPinImageChange(input, sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  const files=Array.from(input?.files||[]);
+  if(!files.length) return;
+  const nextImages=(await Promise.all(files.map(file=>new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>resolve('');
+    reader.readAsDataURL(file);
+  })))).filter(Boolean);
+  mapLocationPinComposerImages[normalized].push(...nextImages);
+  renderMapLocationPinImagePreview(normalized);
+  if(input) input.value='';
+}
+function renderMapLocationPinImagePreview(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  const preview=document.getElementById(`mapLocationPinImagePreview-${normalized}`);
+  if(!preview) return;
+  preview.innerHTML=renderMapLocationPinImagePreviewHtml(mapLocationPinComposerImages[normalized], normalized);
+}
+function removeMapLocationPinImage(index, sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  mapLocationPinComposerImages[normalized]=mapLocationPinComposerImages[normalized].filter((_, imageIndex)=>imageIndex!==Number(index));
+  renderMapLocationPinImagePreview(normalized);
+}
+function openMapLocationPinComposer(sectionKey='region', pinId=''){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  currentMapSubTab=normalized;
+  currentMapLocationPinEditId[normalized]=String(pinId||'').trim();
+  const editingEntry=getMapLocationPinEntryById(normalized, currentMapLocationPinEditId[normalized]);
+  if(!editingEntry) currentMapLocationPinEditId[normalized]='';
+  mapLocationPinComposerImages[normalized]=Array.isArray(editingEntry?.images)?[...editingEntry.images]:[];
+  isMapLocationPinComposerOpen[normalized]=true;
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function cancelMapLocationPinComposer(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  currentMapLocationPinEditId[normalized]='';
+  isMapLocationPinComposerOpen[normalized]=false;
+  mapLocationPinComposerImages[normalized]=[];
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function saveMapLocationPinEntry(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  const nameInput=document.getElementById(`mapLocationPinName-${normalized}`);
+  const categorySelect=document.getElementById(`mapLocationPinCategory-${normalized}`);
+  const locationInput=document.getElementById(`mapLocationPinLocationText-${normalized}`);
+  const memoInput=document.getElementById(`mapLocationPinMemo-${normalized}`);
+  const mapLinkInput=document.getElementById(`mapLocationPinMapLink-${normalized}`);
+  const latInput=document.getElementById(`mapLocationPinLatitude-${normalized}`);
+  const lngInput=document.getElementById(`mapLocationPinLongitude-${normalized}`);
+  const name=String(nameInput?.value||'').trim();
+  const locationText=String(locationInput?.value||'').trim();
+  if(!name){
+    nameInput?.focus();
+    return;
+  }
+  if(!locationText){
+    locationInput?.focus();
+    return;
+  }
+  const category=getMapLocationPinCategoryMeta(categorySelect?.value||'restaurant').value;
+  const memo=String(memoInput?.value||'').trim();
+  const mapLink=String(mapLinkInput?.value||'').trim();
+  const lat=String(latInput?.value||'').trim();
+  const lng=String(lngInput?.value||'').trim();
+  const editingEntry=getMapLocationPinEntryById(normalized, currentMapLocationPinEditId[normalized]);
+  const nextEntry=normalizeMapLocationPinEntry({
+    id:editingEntry?.id||createMapLocationPinId(),
+    name,
+    category,
+    locationText,
+    memo,
+    mapLink,
+    lat,
+    lng,
+    images:[...mapLocationPinComposerImages[normalized]],
+    createdAt:editingEntry?.createdAt||Date.now(),
+    updatedAt:Date.now()
+  });
+  if(!nextEntry) return;
+  if(editingEntry){
+    mapLocationPinEntries[normalized]=sortMapLocationPinEntries(getMapLocationPinEntries(normalized).map(entry=>String(entry.id)===String(editingEntry.id)?nextEntry:entry));
+  }else{
+    mapLocationPinEntries[normalized]=sortMapLocationPinEntries([...getMapLocationPinEntries(normalized), nextEntry]);
+  }
+  saveMapLocationPinEntries();
+  currentMapLocationPinEditId[normalized]='';
+  isMapLocationPinComposerOpen[normalized]=false;
+  mapLocationPinComposerImages[normalized]=[];
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function deleteMapLocationPin(sectionKey='region', pinId=''){
+  const normalizedSection=normalizeMapLocationPinSectionKey(sectionKey);
+  const normalized=String(pinId||'').trim();
+  mapLocationPinEntries[normalizedSection]=getMapLocationPinEntries(normalizedSection).filter(entry=>String(entry.id)!==normalized);
+  saveMapLocationPinEntries();
+  if(currentMapLocationPinEditId[normalizedSection]===normalized){
+    currentMapLocationPinEditId[normalizedSection]='';
+    isMapLocationPinComposerOpen[normalizedSection]=false;
+    mapLocationPinComposerImages[normalizedSection]=[];
+  }
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function clearAllMapLocationPins(sectionKey='region'){
+  const normalized=normalizeMapLocationPinSectionKey(sectionKey);
+  mapLocationPinEntries[normalized]=[];
+  saveMapLocationPinEntries();
+  currentMapLocationPinEditId[normalized]='';
+  isMapLocationPinComposerOpen[normalized]=false;
+  mapLocationPinComposerImages[normalized]=[];
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
 }
 function renderMapSectionPanel(sectionKey){
   const sectionMeta=sectionKey==='lodging'
-    ? {title:'숙소정보', description:'숙소명, 주소, 메모를 여기에 정리합니다.', uploadLabel:'숙소 사진 업로드', formLabel:'숙소 정보 작성 준비'}
-    : {title:'지역정보', description:'지역 설명, 위치, 메모를 여기에 정리합니다.', uploadLabel:'지역 사진 업로드', formLabel:'지역 정보 작성 준비'};
+    ? {title:'숙소정보', description:'', uploadLabel:'숙소 사진 업로드', formLabel:'숙소 정보 작성 준비'}
+    : {title:'지역정보', description:'', uploadLabel:'지역 사진 업로드', formLabel:'지역 정보 작성 준비'};
   const isComposerOpen=!!mapSectionComposerState[sectionKey];
-  const actions=renderSimpleActionRow([
-    {label:'작성', onclick:`openMapSectionComposer('${sectionKey}')`},
-    {label:'삭제', onclick:`clearMapSectionComposer('${sectionKey}')`, variant:'delete'}
-  ]);
   const composerHtml=isComposerOpen?`<div class="simple-form-card"><div class="simple-form-title">${escapeHtml(sectionMeta.formLabel)}</div><div class="simple-form-grid"><label class="simple-form-field"><span class="simple-form-label">기본 메모</span><textarea class="simple-form-input simple-form-textarea" placeholder="${escapeHtml(sectionMeta.description)}"></textarea></label>${renderUploadField(`map-${sectionKey}-photo`, sectionMeta.uploadLabel)}</div></div>`:'';
-  return `<section class="simple-info-subpanel${currentMapSubTab===sectionKey?' is-active':''}" data-map-section="${escapeHtml(sectionKey)}"><header class="simple-info-subheader"><div><h4 class="simple-info-subtitle">${escapeHtml(sectionMeta.title)}</h4><p class="simple-info-subdescription">${escapeHtml(sectionMeta.description)}</p></div>${actions}</header>${composerHtml}<div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(sectionMeta.title)} 관련 카드, 표, 위치 정보를 이 영역에 추가할 수 있습니다.</div></div></section>`;
+  const descriptionHtml=sectionMeta.description?`<p class="simple-info-subdescription">${escapeHtml(sectionMeta.description)}</p>`:'';
+  const locationPinSectionHtml=renderMapLocationPinSection(sectionKey);
+  return `<section class="simple-info-subpanel${currentMapSubTab===sectionKey?' is-active':''}" data-map-section="${escapeHtml(sectionKey)}"><header class="simple-info-subheader"><div><h4 class="simple-info-subtitle">${escapeHtml(sectionMeta.title)}</h4>${descriptionHtml}</div></header>${composerHtml}${locationPinSectionHtml}<div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(sectionMeta.title)} 관련 카드, 표, 위치 정보를 이 영역에 추가할 수 있습니다.</div></div></section>`;
 }
 function renderMapPanelHtml(){
+  loadMapLocationPinEntries();
   const tabsHtml=`<div class="simple-subtabs" role="tablist" aria-label="MAP 하위탭"><button type="button" class="item simple-subtab${currentMapSubTab==='region'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='region'?'true':'false'}" onclick="showMapSubTab('region')">지역정보</button><button type="button" class="item simple-subtab${currentMapSubTab==='lodging'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='lodging'?'true':'false'}" onclick="showMapSubTab('lodging')">숙소정보</button></div>`;
   const activeSectionHtml=currentMapSubTab==='lodging'?renderMapSectionPanel('lodging'):renderMapSectionPanel('region');
   return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${tabsHtml}${activeSectionHtml}</section></td></tr></tbody>`;
 }
-function sortNewsProgrammingEntries(entries){
-  return [...entries].sort((a,b)=>{
-    const dateCompare=String(b.date||'').localeCompare(String(a.date||''));
-    if(dateCompare!==0) return dateCompare;
-    const timeCompare=String(a.time||'').localeCompare(String(b.time||''));
-    if(timeCompare!==0) return timeCompare;
-    return Number(a.createdOrder||0)-Number(b.createdOrder||0);
-  });
+function buildJtbcSchedulePageUrl(dateKey=''){
+  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  return `https://jtbc.co.kr/schedule/jtbc/${normalizedDate.replace(/-/g,'')}`;
 }
-function getNewsProgrammingEntryById(entryId=''){
-  return newsProgrammingEntries.find(entry=>String(entry.id)===String(entryId))||null;
-}
-function getNewsProgrammingEntriesByDate(dateKey=''){
-  const normalizedDate=String(dateKey||'').trim();
-  return sortNewsProgrammingEntries(newsProgrammingEntries.filter(entry=>String(entry?.date||'').trim()===normalizedDate));
-}
-function renderNewsProgrammingComposer(){
-  if(!isNewsProgrammingComposerOpen) return '';
-  const editingEntry=getNewsProgrammingEntryById(currentNewsProgrammingEditId);
-  const composerDate=editingEntry?.date||currentNewsProgrammingDate||getTodayTimelineKey();
-  const composerTime=editingEntry?.time||'09:00';
-  const composerTitle=editingEntry?.title||'';
-  const composerMeta=editingEntry?.meta||'';
-  const composerNote=editingEntry?.note||editingEntry?.content||'';
-  const composerMode=editingEntry?'수정':'작성';
-  return `<div class="simple-form-card news-programming-composer"><div class="simple-form-title">편성표 ${composerMode}</div><div class="simple-form-grid news-programming-form-grid"><label class="simple-form-field"><span class="simple-form-label">날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(composerDate)}" onchange="setNewsProgrammingComposerDate(this.value)"></label><label class="simple-form-field"><span class="simple-form-label">시간</span><input type="time" class="simple-form-input" id="newsProgrammingComposerTime" value="${escapeHtml(composerTime)}"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">편성명</span><input type="text" class="simple-form-input" id="newsProgrammingComposerTitle" value="${escapeHtml(composerTitle)}" placeholder="예: 메인뉴스 리허설"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">보조 정보</span><input type="text" class="simple-form-input" id="newsProgrammingComposerMeta" value="${escapeHtml(composerMeta)}" placeholder="예: 잠실 / 박재현 / TVU 1번"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="newsProgrammingComposerInput" placeholder="세부 편성 내용, 송출 메모, 준비 사항을 입력하세요.">${escapeHtml(composerNote)}</textarea></label><div class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">사진 첨부</span><div class="simple-upload-dropzone news-programming-upload-dropzone"><div class="simple-upload-placeholder">사진을 첨부해 타임라인 항목과 함께 표시할 수 있습니다.</div><input id="newsProgrammingComposerImages" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleNewsProgrammingImageChange(this)"></div><div id="newsProgrammingImagePreview" class="news-programming-upload-preview">${renderNewsProgrammingImagePreviewHtml(newsProgrammingComposerImages)}</div></div></div><div class="simple-info-actions"><button type="button" class="section-title-action-btn" onclick="saveNewsProgrammingEntry()">저장</button><button type="button" class="section-title-action-btn" onclick="cancelNewsProgrammingComposer()">취소</button></div></div>`;
-}
-function renderNewsProgrammingTimeline(){
-  const items=getNewsProgrammingEntriesByDate(currentNewsProgrammingDate||getTodayTimelineKey());
-  if(!items.length){
-    return `<div class="simple-info-body news-programming-empty"><div class="simple-info-placeholder">${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())} 기준 편성 항목이 아직 없습니다.</div></div>`;
+function buildJtbcScheduleProxyUrl(dateKey=''){
+  if(!JTBC_SCHEDULE_PROXY_URL||typeof window==='undefined') return '';
+  try{
+    const targetUrl=new URL(JTBC_SCHEDULE_PROXY_URL, window.location.href);
+    targetUrl.searchParams.set('date', String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey());
+    targetUrl.searchParams.set('channel', JTBC_SCHEDULE_CHANNEL_KEY);
+    return targetUrl.toString();
+  }catch(error){
+    return '';
   }
-  return `<section class="news-programming-timeline-shell"><header class="news-programming-timeline-header"><div class="news-programming-timeline-title-wrap"><h4 class="news-programming-timeline-title">${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}</h4><p class="news-programming-timeline-meta">${items.length}개 항목</p></div><div class="simple-info-actions news-programming-day-actions"><button type="button" class="section-title-action-btn" onclick="editNewsProgrammingDay('${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteNewsProgrammingDay('${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}')">삭제</button></div></header><div class="news-programming-timeline-scroll"><div class="news-programming-timeline-track">${items.map((item,index)=>`<article class="news-programming-timeline-item"><div class="news-programming-timeline-node"><span class="news-programming-timeline-node-dot"></span><span class="news-programming-timeline-node-time">${escapeHtml(item.time||'시간 미정')}</span></div><div class="news-programming-timeline-card"><div class="news-programming-timeline-order">${index+1}</div><div class="news-programming-timeline-card-body"><h5 class="news-programming-timeline-card-title">${escapeHtml(item.title||item.content||'편성 항목')}</h5>${item.meta?`<div class="news-programming-timeline-card-meta">${escapeHtml(item.meta)}</div>`:''}${item.note||item.content?`<p class="news-programming-timeline-card-note">${escapeHtml(item.note||item.content)}</p>`:''}${Array.isArray(item.images)&&item.images.length?`<div class="news-programming-timeline-card-media">${item.images.map((src, mediaIndex)=>`<img class="news-programming-timeline-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(item.title||'편성 항목')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}</div></div></article>`).join('')}</div></div></section>`;
+}
+function slugifyNewsProgrammingTitle(title=''){
+  return String(title||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .slice(0,48)||'jtbc-schedule';
+}
+function parseJtbcScheduleStatusChunk(chunk=''){
+  const tokens=String(chunk||'').trim().split(/\s+/).filter(Boolean);
+  const gradeTokens=['A','7','12','15','19'];
+  const infoTokens=['HD','본','재','생','자','수','수+','해','ON','No-ON'];
+  if(!tokens.length||!tokens.every(token=>gradeTokens.includes(token)||infoTokens.includes(token))){
+    return {hasAny:false, grade:null, status:[], badges:[]};
+  }
+  const grade=tokens.find(token=>gradeTokens.includes(token))||null;
+  const status=tokens.filter(token=>['본','재','생'].includes(token));
+  const badges=tokens.filter(token=>!['본','재','생','ON','No-ON'].includes(token)&&token!==grade);
+  return {hasAny:true, grade, status, badges};
+}
+function normalizeJtbcScheduleItem(item, index=0, dateKey=''){
+  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const startTime=String(item?.startTime||item?.time||'').trim();
+  if(!startTime) return null;
+  const title=String(item?.title||item?.name||'').trim()||'JTBC 편성 항목';
+  const status=Array.isArray(item?.status)?item.status.map(value=>String(value||'').trim()).filter(Boolean):[];
+  const badges=Array.isArray(item?.badges)?item.badges.map(value=>String(value||'').trim()).filter(Boolean):[];
+  return {
+    id:String(item?.id||`${normalizedDate}-${startTime.replace(':','')}-${slugifyNewsProgrammingTitle(title)}-${index}`),
+    title,
+    startTime,
+    endTime:String(item?.endTime||'').trim(),
+    status,
+    episode:item?.episode?String(item.episode).trim():null,
+    grade:item?.grade?String(item.grade).trim():null,
+    badges,
+    info:String(item?.info||item?.description||item?.summary||'').trim()
+  };
+}
+function normalizeJtbcScheduleItems(items=[], dateKey=''){
+  const normalizedItems=(Array.isArray(items)?items:[]).map((item,index)=>normalizeJtbcScheduleItem(item, index, dateKey)).filter(Boolean).sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
+  return normalizedItems.map((item,index)=>({
+    ...item,
+    endTime:item.endTime||normalizedItems[index+1]?.startTime||''
+  }));
+}
+function parseJtbcScheduleBlock(blockText='', dateKey='', startTime=''){
+  if(!blockText||!startTime) return null;
+  const chunks=String(blockText||'').replace(/\u00a0/g,' ').trim().split(/\s{2,}/).map(chunk=>chunk.trim()).filter(Boolean);
+  if(!chunks.length) return null;
+  const statusMeta=parseJtbcScheduleStatusChunk(chunks[chunks.length-1]||'');
+  const contentChunks=statusMeta.hasAny?chunks.slice(0,-1):[...chunks];
+  const titleChunk=(contentChunks.shift()||'').trim();
+  if(!titleChunk) return null;
+  let episode=null;
+  let title=titleChunk;
+  const titleEpisodeMatch=titleChunk.match(/^(.*?)(\d+회)\s*$/);
+  if(titleEpisodeMatch){
+    title=String(titleEpisodeMatch[1]||'').trim()||titleChunk;
+    episode=String(titleEpisodeMatch[2]||'').trim()||null;
+  }
+  let info=contentChunks.join(' ').trim();
+  if(info){
+    const dedupeTargets=[`${title} ${episode||''}`.trim(), title].filter(Boolean);
+    dedupeTargets.forEach(target=>{
+      if(info===target){
+        info='';
+      }else if(info.startsWith(`${target} `)){
+        info=info.slice(target.length).trim();
+      }
+    });
+  }
+  return normalizeJtbcScheduleItem({
+    id:`${dateKey}-${startTime.replace(':','')}-${slugifyNewsProgrammingTitle(title)}`,
+    title,
+    startTime,
+    endTime:'',
+    status:statusMeta.status,
+    episode,
+    grade:statusMeta.grade,
+    badges:statusMeta.badges,
+    info
+  }, 0, dateKey);
+}
+function parseJtbcSchedule(raw, dateKey=''){
+  const sourceText=String(raw||'');
+  if(!sourceText.trim()){
+    return {items:[], lastUpdated:''};
+  }
+  let bodyText=sourceText.replace(/\u00a0/g,' ');
+  if(typeof DOMParser!=='undefined'){
+    try{
+      const parsedDoc=new DOMParser().parseFromString(sourceText, 'text/html');
+      if(parsedDoc?.body?.textContent){
+        bodyText=parsedDoc.body.textContent.replace(/\u00a0/g,' ');
+      }
+    }catch(error){}
+  }
+  const lines=bodyText.split(/\r?\n/).map(line=>line.replace(/\u00a0/g,' ').replace(/\t+/g,' ').trimEnd()).map(line=>line.trimStart()).filter(Boolean);
+  const items=[];
+  for(let index=0; index<lines.length; index+=1){
+    const line=lines[index].trim();
+    if(!/^\d{2}:\d{2}$/.test(line)) continue;
+    const startTime=line;
+    const blockLines=[];
+    let nextIndex=index+1;
+    while(nextIndex<lines.length&&!/^\d{2}:\d{2}$/.test(lines[nextIndex].trim())&&!/^수정일시\s*:/.test(lines[nextIndex])){
+      const candidate=lines[nextIndex].trim();
+      if(candidate&&!['다시보기','NOW ON','인쇄하기','오늘','달력보기'].includes(candidate)){
+        blockLines.push(candidate);
+      }
+      nextIndex+=1;
+    }
+    const parsedItem=parseJtbcScheduleBlock(blockLines.join('  ').replace(/\s{3,}/g,'  ').trim(), dateKey, startTime);
+    if(parsedItem) items.push(parsedItem);
+    index=nextIndex-1;
+  }
+  const updateMatch=bodyText.match(/수정일시\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s*[0-9]{2}:\d{2})/);
+  return {
+    items:normalizeJtbcScheduleItems(items, dateKey),
+    lastUpdated:updateMatch?String(updateMatch[1]||'').replace(/\s+/g,' ').trim():''
+  };
+}
+function buildJtbcScheduleMockData(dateKey=''){
+  return normalizeJtbcScheduleItems([
+    {title:'아침&', startTime:'07:30', endTime:'08:00', status:['본','생'], grade:'A', badges:['HD','자'], info:'개발용 fallback 예시 데이터'},
+    {title:'이가혁 라이브', startTime:'17:00', endTime:'18:30', status:['본','생'], grade:'A', badges:['HD','자'], info:'프록시가 준비되면 JTBC 공식 편성표 기준으로 자동 교체됩니다.'},
+    {title:'JTBC 뉴스룸', startTime:'18:30', endTime:'19:50', status:['본','생'], grade:'A', badges:['HD','자','수','수+'], info:'개발 단계 fallback schedule'},
+    {title:'사건반장', startTime:'19:50', endTime:'20:50', status:['본','생'], grade:'A', badges:['HD','자'], info:'일정 구조 확인용 예시'}
+  ], dateKey);
+}
+async function fetchJtbcSchedule(dateKey=''){
+  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const proxyUrl=buildJtbcScheduleProxyUrl(normalizedDate);
+  if(proxyUrl){
+    try{
+      const response=await fetch(proxyUrl, {headers:{Accept:'application/json, text/html;q=0.9, text/plain;q=0.8, */*;q=0.5'}});
+      if(!response.ok){
+        throw new Error(`schedule proxy returned ${response.status}`);
+      }
+      const contentType=String(response.headers.get('content-type')||'').toLowerCase();
+      if(contentType.includes('application/json')){
+        const payload=await response.json();
+        if(Array.isArray(payload)||Array.isArray(payload?.items)){
+          return {
+            items:normalizeJtbcScheduleItems(Array.isArray(payload)?payload:payload.items, normalizedDate),
+            lastUpdated:String(payload?.lastUpdated||payload?.updatedAt||'').trim(),
+            source:'proxy-json',
+            warningMessage:''
+          };
+        }
+        if(typeof payload?.html==='string'){
+          const parsed=parseJtbcSchedule(payload.html, normalizedDate);
+          return {
+            items:parsed.items,
+            lastUpdated:String(payload?.lastUpdated||parsed.lastUpdated||'').trim(),
+            source:'proxy-html',
+            warningMessage:''
+          };
+        }
+        throw new Error('unsupported proxy payload');
+      }
+      const rawHtml=await response.text();
+      const parsed=parseJtbcSchedule(rawHtml, normalizedDate);
+      if(parsed.items.length){
+        return {
+          items:parsed.items,
+          lastUpdated:parsed.lastUpdated,
+          source:'proxy-html',
+          warningMessage:''
+        };
+      }
+      throw new Error('empty parsed schedule');
+    }catch(error){
+      return {
+        items:buildJtbcScheduleMockData(normalizedDate),
+        lastUpdated:'',
+        source:'mock',
+        warningMessage:'프록시 응답을 확인하지 못해 개발용 예시 데이터를 표시합니다.'
+      };
+    }
+  }
+  return {
+    items:buildJtbcScheduleMockData(normalizedDate),
+    lastUpdated:'',
+    source:'mock',
+    warningMessage:'프록시 URL이 설정되지 않아 개발용 예시 데이터를 표시합니다.'
+  };
+}
+function formatScheduleTimeRange(startTime='', endTime=''){
+  const start=String(startTime||'').trim()||'시간 미정';
+  const end=String(endTime||'').trim();
+  return end?`${start} - ${end}`:`${start} - 종료 미정`;
+}
+function formatNewsProgrammingFetchedAt(value=''){
+  const normalized=String(value||'').trim();
+  if(!normalized) return '';
+  try{
+    return new Date(normalized).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch(error){
+    return normalized;
+  }
+}
+function renderScheduleLoading(){
+  return `<div class="news-programming-status-card is-loading">JTBC 편성표 불러오는 중...</div>`;
+}
+function renderScheduleError(message=''){
+  return `<div class="news-programming-status-card is-error">${escapeHtml(message||'편성표를 불러오지 못했습니다.')}</div>`;
+}
+function renderScheduleEmpty(){
+  return '<div class="news-programming-status-card is-empty">해당 날짜의 편성 정보가 없습니다.</div>';
+}
+function renderNewsSchedule(items=[]){
+  if(!items.length) return renderScheduleEmpty();
+  return `<section class="news-programming-timeline-shell"><div class="news-programming-timeline-scroll"><div class="news-programming-timeline-track">${items.map((item,index)=>`<article class="news-programming-timeline-item"><div class="news-programming-timeline-node"><span class="news-programming-timeline-node-dot"></span><span class="news-programming-timeline-node-time">${escapeHtml(item.startTime||'--:--')}</span></div><div class="news-programming-timeline-card"><div class="news-programming-timeline-order">${index+1}</div><div class="news-programming-timeline-card-body"><div class="news-programming-timeline-card-topline"><span class="news-programming-timeline-card-range">${escapeHtml(formatScheduleTimeRange(item.startTime, item.endTime))}</span>${item.status.length||item.grade||item.badges.length?`<div class="news-programming-timeline-card-badges">${item.status.map(status=>`<span class="news-programming-badge is-status">${escapeHtml(status)}</span>`).join('')}${item.grade?`<span class="news-programming-badge is-grade">${escapeHtml(item.grade)}</span>`:''}${item.badges.map(badge=>`<span class="news-programming-badge">${escapeHtml(badge)}</span>`).join('')}</div>`:''}</div><h5 class="news-programming-timeline-card-title">${escapeHtml(item.title||'JTBC 편성 항목')}</h5>${item.episode||item.info?`<div class="news-programming-timeline-card-meta">${item.episode?`<span>${escapeHtml(item.episode)}</span>`:''}${item.info?`<span>${escapeHtml(item.info)}</span>`:''}</div>`:''}</div></div></article>`).join('')}</div></div></section>`;
+}
+function renderNewsProgrammingScheduleContent(){
+  if(currentNewsProgrammingState.status==='loading') return renderScheduleLoading();
+  if(currentNewsProgrammingState.status==='error') return renderScheduleError(currentNewsProgrammingState.errorMessage);
+  return renderNewsSchedule(currentNewsProgrammingState.items);
 }
 function renderNewsProgrammingPanelHtml(){
-  const topActions=renderSimpleActionRow([
-    {label:'작성', onclick:`setNewsProgrammingActionMode('write')`},
-    {label:'수정', onclick:`setNewsProgrammingActionMode('edit')`},
-    {label:'삭제', onclick:`deleteCurrentNewsProgrammingDate()`, variant:'delete'}
-  ]);
-  const datePicker=`<div class="news-programming-toolbar"><label class="simple-form-field news-programming-date-field"><span class="simple-form-label">기준 날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}" onchange="setNewsProgrammingDate(this.value)"></label></div>`;
-  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel news-programming-panel" aria-label="뉴스편성"><header class="simple-info-header"><h3 class="simple-info-title">편성표</h3></header>${topActions}${datePicker}${renderNewsProgrammingComposer()}${renderNewsProgrammingTimeline()}</section></td></tr></tbody>`;
+  const selectedDate=String(currentNewsProgrammingDate||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const lastUpdatedText=currentNewsProgrammingState.lastUpdated||formatNewsProgrammingFetchedAt(currentNewsProgrammingState.fetchedAt)||'-';
+  const sourceNote=currentNewsProgrammingState.source==='mock' ? `<p class="news-programming-source-note">${escapeHtml(currentNewsProgrammingState.warningMessage||'개발용 예시 데이터를 표시하고 있습니다.')}</p>` : currentNewsProgrammingState.warningMessage?`<p class="news-programming-source-note">${escapeHtml(currentNewsProgrammingState.warningMessage)}</p>`:'';
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel news-programming-panel" aria-label="뉴스편성"><header class="simple-info-header"><h3 class="simple-info-title">편성표</h3></header><section class="news-programming-channel-shell"><header class="news-programming-channel-header"><div class="news-programming-channel-copy"><h4 class="news-programming-channel-title">오늘의 JTBC 편성표</h4><p class="news-programming-channel-description">JTBC 공식 편성표 기준으로 날짜별 편성을 다시 조회해 표시합니다.</p></div><div class="news-programming-channel-meta"><span class="news-programming-update-label">마지막 업데이트</span><strong class="news-programming-update-value">${escapeHtml(lastUpdatedText)}</strong></div></header><div class="news-programming-toolbar"><label class="simple-form-field news-programming-date-field"><span class="simple-form-label">기준 날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(selectedDate)}" onchange="setNewsProgrammingDate(this.value)"></label><div class="news-programming-toolbar-actions"><button type="button" class="section-title-action-btn" onclick="jumpToTodayNewsProgramming()">오늘</button><button type="button" class="section-title-action-btn" onclick="refreshNewsProgrammingSchedule()">새로고침</button></div></div>${sourceNote}<div class="news-programming-status-line"><span class="news-programming-status-source">${currentNewsProgrammingState.source==='mock'?'개발용 fallback':'JTBC 편성표'}</span><a class="news-programming-source-link" href="${escapeHtml(buildJtbcSchedulePageUrl(selectedDate))}" target="_blank" rel="noreferrer">JTBC 공식 편성표 보기</a></div>${renderNewsProgrammingScheduleContent()}</section></section></td></tr></tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -1446,6 +1962,7 @@ const SHARED_STATE_SYNC_REGISTRY = {
   [SQUAD_INJURY_STORAGE_KEY]: {windowNameKey: SQUAD_INJURY_WINDOW_NAME_KEY},
   [MEXICO_STADIUM_EDITOR_STORAGE_KEY]: {windowNameKey: MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY},
   [EQUIPMENT_EDITOR_STORAGE_KEY]: {windowNameKey: EQUIPMENT_EDITOR_WINDOW_NAME_KEY},
+  [MAP_LOCATION_PIN_STORAGE_KEY]: {windowNameKey: MAP_LOCATION_PIN_WINDOW_NAME_KEY},
   [TIMELINE_STORAGE_KEY]: {windowNameKey: TIMELINE_WINDOW_NAME_KEY},
   [PERSONAL_TIMELINE_SHARED_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY},
   [PERSONAL_TIMELINE_DETAILS_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY},
@@ -1685,6 +2202,14 @@ function resetEquipmentSyncState(){
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
 }
+function resetMapLocationPinSyncState(){
+  hasLoadedMapLocationPinEntries=false;
+  currentMapLocationPinEditId=createEmptyMapLocationPinEditState();
+  isMapLocationPinComposerOpen=createEmptyMapLocationPinComposerState();
+  mapLocationPinEntries=createEmptyMapLocationPinEntryGroups();
+  mapLocationPinComposerImages=createEmptyMapLocationPinImageState();
+  renderCache.mapPanel='';
+}
 function resetTimelineSyncState(){
   timelineEditableLabels.forEach(label=>timelineAssignments[label]?.clear());
   hasSeededTimelineTeamSchedules=false;
@@ -1702,6 +2227,7 @@ function resetSharedStateSyncCaches(changedKeys=[]){
   if(changed.has(SQUAD_INJURY_STORAGE_KEY)) resetSquadSyncState();
   if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)) resetMexicoStadiumSyncState();
   if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)) resetEquipmentSyncState();
+  if(changed.has(MAP_LOCATION_PIN_STORAGE_KEY)) resetMapLocationPinSyncState();
   if(changed.has(TIMELINE_STORAGE_KEY)
     ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
     ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
@@ -1744,6 +2270,9 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
       }
     }
     updateEquipmentSharedTvuIndicators();
+  }
+  if(changed.has(MAP_LOCATION_PIN_STORAGE_KEY)&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('mapMenu')){
+    renderMapPanel();
   }
   if(timelineChanged){
     if(isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('personalTimelineMenu')){
@@ -4424,6 +4953,7 @@ function renderNewsProgrammingPanel(){
   renderCache.newsProgrammingPanel=renderNewsProgrammingPanelHtml();
   document.getElementById('detailTable').innerHTML=renderCache.newsProgrammingPanel;
   document.getElementById('detailCol').classList.remove('hidden');
+  ensureNewsProgrammingScheduleLoaded();
 }
 function showMapSubTab(tabKey='region'){
   currentMapSubTab=tabKey==='lodging'?'lodging':'region';
@@ -4463,145 +4993,93 @@ function clearMapSectionComposer(sectionKey){
     updateMobileHeaderReportBoardVisibility();
   }
 }
-function setNewsProgrammingActionMode(mode='write'){
-  currentNewsProgrammingActionMode=mode==='edit'?'edit':'write';
-  if(currentNewsProgrammingActionMode==='edit'){
-    const latestEntry=getNewsProgrammingEntriesByDate(currentNewsProgrammingDate)[0]||sortNewsProgrammingEntries(newsProgrammingEntries)[0]||null;
-    currentNewsProgrammingEditId=latestEntry?.id||'';
-    newsProgrammingComposerImages=Array.isArray(latestEntry?.images)?[...latestEntry.images]:[];
-  }else{
-    currentNewsProgrammingEditId='';
-    newsProgrammingComposerImages=[];
-  }
-  isNewsProgrammingComposerOpen=true;
+function applyNewsProgrammingState(nextState={}){
+  currentNewsProgrammingState={
+    ...currentNewsProgrammingState,
+    ...nextState
+  };
+}
+function rerenderNewsProgrammingPanelIfActive(){
   if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
     renderNewsProgrammingPanel();
     updateMobileHeaderReportBoardVisibility();
   }
 }
-function clearNewsProgrammingActionMode(){
-  currentNewsProgrammingActionMode='';
-  currentNewsProgrammingEditId='';
-  isNewsProgrammingComposerOpen=false;
-  newsProgrammingComposerImages=[];
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
+function ensureNewsProgrammingScheduleLoaded(force=false){
+  const targetDate=String(currentNewsProgrammingDate||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  if(!force&&currentNewsProgrammingState.status==='loading'&&currentNewsProgrammingState.activeRequestDate===targetDate) return;
+  if(!force&&currentNewsProgrammingState.status==='success'&&currentNewsProgrammingState.lastFetchedDate===targetDate) return;
+  loadNewsProgrammingSchedule(targetDate, {force});
+}
+async function loadNewsProgrammingSchedule(dateKey='', {force=false}={}){
+  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  if(!force&&newsProgrammingScheduleCache.has(normalizedDate)){
+    applyNewsProgrammingState(newsProgrammingScheduleCache.get(normalizedDate));
+    rerenderNewsProgrammingPanelIfActive();
+    return;
   }
+  const requestId=++newsProgrammingRequestSeq;
+  applyNewsProgrammingState({
+    status:'loading',
+    items:[],
+    errorMessage:'',
+    warningMessage:'',
+    lastFetchedDate:normalizedDate,
+    activeRequestDate:normalizedDate
+  });
+  rerenderNewsProgrammingPanelIfActive();
+  try{
+    const scheduleResult=await fetchJtbcSchedule(normalizedDate);
+    if(requestId!==newsProgrammingRequestSeq) return;
+    const nextState={
+      status:'success',
+      items:normalizeJtbcScheduleItems(scheduleResult.items, normalizedDate),
+      errorMessage:'',
+      warningMessage:String(scheduleResult.warningMessage||'').trim(),
+      lastUpdated:String(scheduleResult.lastUpdated||'').trim(),
+      fetchedAt:new Date().toISOString(),
+      source:String(scheduleResult.source||'proxy').trim()||'proxy',
+      lastFetchedDate:normalizedDate,
+      activeRequestDate:''
+    };
+    newsProgrammingScheduleCache.set(normalizedDate, nextState);
+    applyNewsProgrammingState(nextState);
+  }catch(error){
+    if(requestId!==newsProgrammingRequestSeq) return;
+    applyNewsProgrammingState({
+      status:'error',
+      items:[],
+      errorMessage:'편성표를 불러오지 못했습니다.',
+      warningMessage:'',
+      lastUpdated:'',
+      fetchedAt:'',
+      source:'error',
+      lastFetchedDate:normalizedDate,
+      activeRequestDate:''
+    });
+  }
+  rerenderNewsProgrammingPanelIfActive();
 }
 function setNewsProgrammingDate(value=''){
   currentNewsProgrammingDate=String(value||'').trim()||getTodayTimelineKey();
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
+  newsProgrammingScheduleCache.delete(currentNewsProgrammingDate);
+  applyNewsProgrammingState({
+    status:'loading',
+    items:[],
+    errorMessage:'',
+    warningMessage:'',
+    activeRequestDate:currentNewsProgrammingDate,
+    lastFetchedDate:''
+  });
+  rerenderNewsProgrammingPanelIfActive();
+  ensureNewsProgrammingScheduleLoaded(true);
 }
-function setNewsProgrammingComposerDate(value=''){
-  currentNewsProgrammingDate=String(value||'').trim()||getTodayTimelineKey();
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
+function jumpToTodayNewsProgramming(){
+  setNewsProgrammingDate(getTodayTimelineKey());
 }
-function cancelNewsProgrammingComposer(){
-  currentNewsProgrammingActionMode='';
-  currentNewsProgrammingEditId='';
-  isNewsProgrammingComposerOpen=false;
-  newsProgrammingComposerImages=[];
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
-}
-async function handleNewsProgrammingImageChange(input){
-  const files=Array.from(input?.files||[]);
-  if(!files.length) return;
-  const nextImages=(await Promise.all(files.map(file=>new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve(String(reader.result||''));
-    reader.onerror=()=>resolve('');
-    reader.readAsDataURL(file);
-  })))).filter(Boolean);
-  newsProgrammingComposerImages.push(...nextImages);
-  renderNewsProgrammingImagePreview();
-  if(input) input.value='';
-}
-function renderNewsProgrammingImagePreview(){
-  const preview=document.getElementById('newsProgrammingImagePreview');
-  if(!preview) return;
-  preview.innerHTML=renderNewsProgrammingImagePreviewHtml(newsProgrammingComposerImages);
-}
-function removeNewsProgrammingImage(index){
-  newsProgrammingComposerImages=newsProgrammingComposerImages.filter((_, imageIndex)=>imageIndex!==Number(index));
-  renderNewsProgrammingImagePreview();
-}
-function saveNewsProgrammingEntry(){
-  const textarea=document.getElementById('newsProgrammingComposerInput');
-  const titleInput=document.getElementById('newsProgrammingComposerTitle');
-  const timeInput=document.getElementById('newsProgrammingComposerTime');
-  const metaInput=document.getElementById('newsProgrammingComposerMeta');
-  const note=String(textarea?.value||'').trim();
-  const title=String(titleInput?.value||'').trim();
-  const time=String(timeInput?.value||'').trim()||'09:00';
-  const meta=String(metaInput?.value||'').trim();
-  const dateKey=String(currentNewsProgrammingDate||'').trim()||getTodayTimelineKey();
-  if(!title&&!note){
-    titleInput?.focus();
-    return;
-  }
-  const content=title&&note?`${title}\n${note}`:(title||note);
-  if(currentNewsProgrammingEditId){
-    newsProgrammingEntries=newsProgrammingEntries.map(entry=>String(entry.id)===String(currentNewsProgrammingEditId)?{...entry, date:dateKey, time, title, meta, note, content, images:[...newsProgrammingComposerImages]}:entry);
-  }else{
-    newsProgrammingEntries.push({
-      id:`news-programming-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-      date:dateKey,
-      time,
-      title,
-      meta,
-      note,
-      content,
-      images:[...newsProgrammingComposerImages],
-      createdOrder:Date.now()
-    });
-  }
-  currentNewsProgrammingActionMode='';
-  currentNewsProgrammingEditId='';
-  isNewsProgrammingComposerOpen=false;
-  newsProgrammingComposerImages=[];
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
-}
-function editNewsProgrammingDay(dateKey=''){
-  const latestEntry=getNewsProgrammingEntriesByDate(dateKey)[0];
-  currentNewsProgrammingDate=String(dateKey||'').trim()||getTodayTimelineKey();
-  currentNewsProgrammingActionMode='edit';
-  currentNewsProgrammingEditId=latestEntry?.id||'';
-  isNewsProgrammingComposerOpen=true;
-  newsProgrammingComposerImages=Array.isArray(latestEntry?.images)?[...latestEntry.images]:[];
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
-}
-function deleteNewsProgrammingDay(dateKey=''){
-  const normalizedDate=String(dateKey||'').trim();
-  newsProgrammingEntries=newsProgrammingEntries.filter(entry=>entry.date!==normalizedDate);
-  if(currentNewsProgrammingDate===normalizedDate){
-    currentNewsProgrammingActionMode='';
-    currentNewsProgrammingEditId='';
-    isNewsProgrammingComposerOpen=false;
-    newsProgrammingComposerImages=[];
-  }
-  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
-    renderNewsProgrammingPanel();
-    updateMobileHeaderReportBoardVisibility();
-  }
-}
-function deleteCurrentNewsProgrammingDate(){
-  deleteNewsProgrammingDay(currentNewsProgrammingDate||getTodayTimelineKey());
+function refreshNewsProgrammingSchedule(){
+  newsProgrammingScheduleCache.delete(currentNewsProgrammingDate);
+  ensureNewsProgrammingScheduleLoaded(true);
 }
 function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
 function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
