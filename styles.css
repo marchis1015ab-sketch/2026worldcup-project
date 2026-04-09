@@ -206,6 +206,19 @@ body{
   transform:translateX(-50%);
   white-space:nowrap;
 }
+.content-shell{
+  display:block;
+}
+.header-top-menu-shell{
+  display:none;
+}
+.content-main{
+  display:block;
+  min-width:0;
+}
+.header-top-menu{
+  display:none;
+}
 .header-countdown-digits{
   display:flex;
   align-items:center;
@@ -556,6 +569,8 @@ body{
 }
 
 .container{display:flex;gap:12px;align-items:flex-start}
+.desktop-tab-pane{display:contents}
+.tab-stack{display:contents}
 .sidebar,.column,.table-column{
   background:var(--panel-bg);
   border:1px solid var(--panel-border);
@@ -647,6 +662,198 @@ body{
 #equipmentUserCol .equipment-user-slot.is-in-use .equipment-user-status{
   display:flex;
 }
+@media (min-width:1201px){
+  .content-shell{
+    display:grid;
+    grid-template-columns:240px minmax(0,1fr);
+    gap:12px;
+    align-items:stretch;
+    margin-bottom:18px;
+  }
+  .header-top-menu-shell{
+    display:block;
+    align-self:stretch;
+    border-radius:8px;
+    background:linear-gradient(180deg,#102235 0%,#162d47 100%);
+    border:1px solid #193a5d;
+    box-shadow:0 10px 28px rgba(15,23,42,.05);
+    position:relative;
+  }
+  .header-top-menu-shell::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:0;
+    width:100%;
+    height:3px;
+    background:linear-gradient(90deg,#3aa0ff 0%,#7ac5ff 52%,#d8eefc 100%);
+  }
+  .content-main{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    min-width:0;
+  }
+  .header-top-menu{
+    display:block;
+    width:100%;
+    padding:16px;
+    position:sticky;
+    top:20px;
+    align-self:start;
+  }
+  .header-top-menu .menu:last-child{
+    margin-bottom:0;
+  }
+  .header-report-board{
+    position:relative;
+    top:auto;
+    z-index:auto;
+    margin-bottom:12px;
+  }
+  .container{
+    display:block;
+  }
+  .desktop-tab-pane{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-width:0;
+    position:relative;
+    top:auto;
+    align-self:start;
+  }
+  .tab-stack:not(.hidden){
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:100%;
+  }
+  .desktop-tab-pane>.sidebar{
+    display:none;
+  }
+  .desktop-tab-pane>.column{
+    width:100%;
+    max-width:100%;
+    max-height:none;
+    overflow:visible;
+  }
+  .desktop-tab-pane .tab-stack > .column{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    max-height:none !important;
+    overflow:visible !important;
+  }
+  .desktop-tab-pane>#newsCol,
+  .desktop-tab-pane>#newsBroadcasterCol,
+  .desktop-tab-pane>#bracketStageCol,
+  .desktop-tab-pane>#groupCol,
+  .desktop-tab-pane>#groupASquadCol,
+  .desktop-tab-pane>#equipmentUserCol,
+  .desktop-tab-pane>#mexicoStadiumCol,
+  .desktop-tab-pane>#mexicoStadiumSectionCol{
+    width:100%;
+  }
+  #newsCol:not(.hidden),
+  #newsBroadcasterCol:not(.hidden),
+  #bracketStageCol:not(.hidden),
+  #groupCol:not(.hidden),
+  #groupASquadCol:not(.hidden),
+  #mexicoStadiumCol:not(.hidden),
+  #mexicoStadiumSectionCol:not(.hidden){
+    display:block;
+    padding:12px;
+  }
+  #equipmentUserCol:not(.hidden){
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:10px;
+    padding:12px;
+  }
+  .primary-tab-row{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:10px;
+    width:100%;
+  }
+  #newsYearTabs{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:10px;
+    width:100%;
+  }
+  #newsCol .news-year-item,
+  #bracketStageCol .item,
+  #groupASquadCol .item,
+  #mexicoStadiumCol .item,
+  #equipmentUserCol .item{
+    flex:0 1 auto;
+    width:auto;
+    min-width:120px;
+    margin-bottom:0;
+  }
+  #newsCol .news-year-item{
+    min-width:148px;
+  }
+  #newsBroadcasterCol .broadcaster-item{
+    flex:0 1 140px;
+    min-width:140px;
+    margin-bottom:0;
+  }
+  #newsBroadcasterCol:not(.hidden),
+  #groupCol:not(.hidden),
+  #mexicoStadiumSectionCol:not(.hidden){
+    display:grid;
+    width:100%;
+    justify-self:stretch;
+    align-items:stretch;
+  }
+  #newsBroadcasterCol:not(.hidden){
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  #groupCol:not(.hidden){
+    grid-template-columns:repeat(6,minmax(0,1fr));
+  }
+  #mexicoStadiumSectionCol:not(.hidden){
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  #newsBroadcasterCol .item,
+  #groupCol .item,
+  #mexicoStadiumSectionCol .item{
+    width:100%;
+    min-width:0;
+    margin-bottom:0;
+    justify-content:center;
+  }
+  #equipmentUserCol .equipment-user-slot{
+    flex:0 1 148px;
+    margin-bottom:0;
+  }
+  #bracketStageTabs{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:10px;
+    width:100%;
+  }
+  #bracketStageTabs .item{
+    flex:0 0 auto;
+    width:auto;
+    min-width:120px;
+    margin-bottom:0;
+    justify-content:center;
+    text-align:center;
+  }
+  #detailCol{
+    grid-column:2;
+    width:auto;
+    min-width:0;
+  }
+}
 #equipmentUserCol .equipment-user-note-shared{
   min-height:22px;
   margin-top:4px;
@@ -711,7 +918,6 @@ body{
 }
 #mexicoStadiumSectionCol{width:168px}
 .table-column{flex:1;min-width:0;min-height:560px}
-
 .menu,.item{
   cursor:pointer;
   padding:12px 14px;
@@ -831,6 +1037,67 @@ body{
   padding-left:14px;
   padding-right:14px;
   white-space:nowrap;
+}
+@media (min-width:1201px){
+  #newsCol .news-year-item,
+  #bracketStageCol .item,
+  #groupASquadCol .item,
+  #equipmentUserCol .item,
+  #mexicoStadiumCol .item{
+    width:auto;
+    min-width:132px;
+    margin-bottom:0;
+  }
+  #newsBroadcasterCol .item,
+  #groupCol .item,
+  #mexicoStadiumSectionCol .item{
+    width:auto;
+    min-width:0;
+    min-height:40px;
+    margin-bottom:0;
+    padding:8px 12px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.25;
+    white-space:nowrap;
+  }
+  #groupCol .item{
+    justify-content:center;
+  }
+  #newsBroadcasterCol .broadcaster-item{
+    min-width:124px;
+    padding:4px 6px;
+  }
+  #newsBroadcasterCol .broadcaster-frame{
+    min-height:34px;
+    padding:4px 6px;
+  }
+  #equipmentUserCol .equipment-user-slot{
+    flex:0 1 148px;
+    margin-bottom:0;
+  }
+}
+
+@media (min-width:1201px){
+  #newsCol:not(.hidden) #newsYearTabs,
+  #bracketStageCol:not(.hidden) #bracketStageTabs{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:wrap !important;
+    align-items:stretch !important;
+    gap:10px !important;
+    width:100% !important;
+  }
+
+  #newsCol:not(.hidden) #newsYearTabs > .news-year-item,
+  #bracketStageCol:not(.hidden) #bracketStageTabs > .item{
+    display:flex !important;
+    flex:0 0 auto !important;
+    width:auto !important;
+    min-width:132px !important;
+    margin:0 !important;
+  }
 }
 .broadcaster-item{
   display:flex;
@@ -1206,11 +1473,11 @@ body.news-editor-modal-open{overflow:hidden}
 .squad-injury-btn{display:inline-flex;align-items:center;justify-content:center;min-width:46px;min-height:28px;padding:0 10px;border-radius:999px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .squad-injury-write-btn,.squad-injury-edit-btn{border:1px solid #b3c6da;background:#f7fbff;color:#17314c}
 .squad-injury-delete-btn{border:1px solid #d7858d;background:#fff1f2;color:#b42334}
-.player-cell{display:flex;align-items:center;justify-content:center;gap:14px;min-width:0}
+.player-cell{display:flex;align-items:center;justify-content:flex-start;gap:14px;min-width:0}
 .player-photo-shell{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:74px;height:94px;border-radius:8px;overflow:hidden;background:linear-gradient(180deg,#f8fafc 0%,#dbe4ef 100%);box-shadow:0 8px 18px rgba(15,23,42,.08),inset 0 0 0 1px rgba(15,23,42,.08)}
 .player-photo{display:block;width:74px;height:94px;border-radius:8px;object-fit:cover;object-position:center top;background:#eef1f7}
 .player-photo-official{background:linear-gradient(180deg,#eef2f7 0%,#dae3ef 100%)}
-.player-name-text{font-weight:700;line-height:1.35;word-break:keep-all}
+.player-name-text{font-weight:700;line-height:1.35;word-break:keep-all;text-align:left}
 .photo-placeholder{width:74px;height:94px;padding:10px;border-radius:8px;font-size:11px;line-height:1.35;text-align:center}
 .squad-player-photo-preview{display:inline-flex;align-items:center;justify-content:center;width:74px;height:94px;border-radius:8px;overflow:hidden;background:linear-gradient(180deg,#f8fafc 0%,#dbe4ef 100%);box-shadow:0 8px 18px rgba(15,23,42,.08),inset 0 0 0 1px rgba(15,23,42,.08)}
 .squad-player-photo-preview .player-photo{width:74px;height:94px;border-radius:8px;object-fit:cover;object-position:center top}
@@ -1979,6 +2246,7 @@ body.timeline-modal-open{overflow:hidden}
 
 @media (max-width:1200px){
   .container{flex-direction:column}
+  .desktop-tab-pane{display:contents}
   .sidebar,.column,.table-column{width:100%;max-height:none}
   .sidebar{position:relative;top:auto}
 }

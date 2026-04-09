@@ -108,14 +108,14 @@ const squads = {
   korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
   mexico:[{position:'GK',number:23,name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'GK',number:'-',name:'Guillermo Ochoa',club:'AEL Limassol',age:'-',injury:'-'},{position:'GK',number:12,name:'Carlos Acevedo',club:'Santos Laguna',age:'-',injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Richard Ledezma',club:'Chivas',age:'-',injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa FC',age:'-',injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Lokomotiv Moscú',age:'-',injury:'-'},{position:'DF',number:4,name:'Jesús Angulo',club:'Tigres',age:'-',injury:'-'},{position:'DF',number:19,name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Gallardo',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:6,name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Denzell García',club:'FC Juárez',age:'-',injury:'-'},{position:'MF',number:8,name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:17,name:'Orbelín Pineda',club:'AEK Athens',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Atlético de Madrid',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chivas',age:'-',injury:'-'},{position:'MF',number:14,name:'Erick Sánchez',club:'América',age:'-',injury:'-'},{position:'MF',number:'-',name:'Álvaro Fidalgo',club:'Real Betis',age:'-',injury:'-'},{position:'MF',number:25,name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:9,name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'FW',number:10,name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'FW',number:7,name:'Germán Berterame',club:'Inter Miami',age:'-',injury:'-'},{position:'FW',number:22,name:'Guillermo Martínez',club:'Club Universidad Nacional',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Chivas',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham FC',age:'-',injury:'-'}],
   southAfrica:[{position:'GK',number:1,name:'Ronwen Williams',club:'Mamelodi Sundowns',age:34,injury:'-'},{position:'GK',number:16,name:'Ricardo Goss',club:'SuperSport United',age:31,injury:'-'},{position:'GK',number:23,name:'Veli Mothwa',club:'AmaZulu',age:34,injury:'-'},{position:'DF',number:20,name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:14,name:'Grant Kekana',club:'Mamelodi Sundowns',age:32,injury:'-'},{position:'DF',number:3,name:'Mothobi Mvala',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:5,name:'Siyanda Xulu',club:'Richards Bay',age:33,injury:'-'},{position:'DF',number:2,name:'Nyiko Mobbie',club:'Sekhukhune United',age:30,injury:'-'},{position:'MF',number:4,name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:29,injury:'-'},{position:'MF',number:8,name:'Sphephelo Sithole',club:'Tondela',age:27,injury:'-'},{position:'MF',number:10,name:'Themba Zwane',club:'Mamelodi Sundowns',age:36,injury:'-'},{position:'MF',number:15,name:'Bathusi Aubaas',club:'TS Galaxy',age:30,injury:'-'},{position:'FW',number:11,name:'Percy Tau',club:'Qatar SC',age:32,injury:'-'},{position:'FW',number:9,name:'Evidence Makgopa',club:'Orlando Pirates',age:25,injury:'-'},{position:'FW',number:17,name:'Lyle Foster',club:'Burnley',age:25,injury:'-'}],
-  czech:[{position:'GK',number:'-',name:'Lukáš Horníček',club:'Braga SC',age:23,injury:'-'},{position:'GK',number:'-',name:'Vítězslav Jaroš',club:'AFC Ajax',age:24,injury:'-'},{position:'GK',number:'-',name:'Martin Jedlička',club:'FC Baník Ostrava',age:28,injury:'-'},{position:'GK',number:'-',name:'Antonín Kinský',club:'Tottenham Hotspur FC',age:22,injury:'-'},{position:'GK',number:'-',name:'Matěj Kovář',club:'PSV Eindhoven',age:25,injury:'-'},{position:'GK',number:'-',name:'Jakub Markovič',club:'SK Slavia Praha',age:24,injury:'-'},{position:'GK',number:'-',name:'Jindřich Staněk',club:'SK Slavia Praha',age:29,injury:'-'},{position:'GK',number:'-',name:'Tomáš Vaclík',club:'-',age:36,injury:'-'},{position:'DF',number:'-',name:'Jan Bořil',club:'SK Slavia Praha',age:35,injury:'-'},{position:'DF',number:'-',name:'Martin Cedidla',club:'FK Jablonec',age:24,injury:'-'},{position:'DF',number:'-',name:'Vladimír Coufal',club:'TSG 1899 Hoffenheim',age:33,injury:'-'},{position:'DF',number:'-',name:'David Douděra',club:'SK Slavia Praha',age:27,injury:'-'},{position:'DF',number:'-',name:'Adam Gabriel',club:'FC Midtjylland',age:24,injury:'-'},{position:'DF',number:'-',name:'Milan Havel',club:'Bohemians Praha 1905',age:31,injury:'-'},{position:'DF',number:'-',name:'Tomáš Holeš',club:'SK Slavia Praha',age:32,injury:'-'},{position:'DF',number:'-',name:'Robin Hranáč',club:'TSG 1899 Hoffenheim',age:26,injury:'-'},{position:'DF',number:'-',name:'Václav Jemelka',club:'FC Viktoria Plzeň',age:30,injury:'-'},{position:'DF',number:'-',name:'David Jurásek',club:'SK Slavia Praha',age:25,injury:'-'},{position:'DF',number:'-',name:'Ladislav Krejčí',club:'Wolverhampton Wanderers FC',age:26,injury:'-'},{position:'DF',number:'-',name:'Matěj Ryneš',club:'AC Sparta Praha',age:24,injury:'-'},{position:'DF',number:'-',name:'Patrizio Stronati',club:'Újpest FC',age:31,injury:'-'},{position:'DF',number:'-',name:'Martin Vitík',club:'Bologna FC 1909',age:23,injury:'-'},{position:'DF',number:'-',name:'Tomáš Vlček',club:'SK Slavia Praha',age:25,injury:'-'},{position:'DF',number:'-',name:'Jaroslav Zelený',club:'AC Sparta Praha',age:33,injury:'-'},{position:'DF',number:'-',name:'David Zima',club:'SK Slavia Praha',age:25,injury:'-'},{position:'MF',number:'-',name:'Antonín Barák',club:'UC Sampdoria',age:31,injury:'-'},{position:'MF',number:'-',name:'Michal Beran',club:'SK Sigma Olomouc',age:25,injury:'-'},{position:'MF',number:'-',name:'Václav Černý',club:'Beşiktaş JK',age:28,injury:'-'},{position:'MF',number:'-',name:'Lukáš Červ',club:'FC Viktoria Plzeň',age:24,injury:'-'},{position:'MF',number:'-',name:'Matěj Jurásek',club:'Norwich City FC',age:22,injury:'-'},{position:'MF',number:'-',name:'Lukáš Kalvach',club:'Katar SC',age:30,injury:'-'},{position:'MF',number:'-',name:'Adam Karabec',club:'Olympique Lyon',age:22,injury:'-'},{position:'MF',number:'-',name:'Alex Král',club:'1. FC Union Berlín',age:27,injury:'-'},{position:'MF',number:'-',name:'Ondřej Lingr',club:'Houston Dynamo FC',age:27,injury:'-'},{position:'MF',number:'-',name:'Lukáš Provod',club:'SK Slavia Praha',age:29,injury:'-'},{position:'MF',number:'-',name:'Michal Sadílek',club:'SK Slavia Praha',age:26,injury:'-'},{position:'MF',number:'-',name:'Tomáš Souček',club:'West Ham United FC',age:31,injury:'-'},{position:'MF',number:'-',name:'Petr Ševčík',club:'SK Slavia Praha',age:31,injury:'-'},{position:'MF',number:'-',name:'Pavel Šulc',club:'Olympique Lyon',age:25,injury:'-'},{position:'MF',number:'-',name:'Filip Zorvan',club:'FK Jablonec',age:29,injury:'-'},{position:'FW',number:'-',name:'Adam Hložek',club:'TSG 1899 Hoffenheim',age:23,injury:'-'},{position:'FW',number:'-',name:'Tomáš Chorý',club:'SK Slavia Praha',age:31,injury:'-'},{position:'FW',number:'-',name:'Jan Chramosta',club:'FK Jablonec',age:35,injury:'-'},{position:'FW',number:'-',name:'Mojmír Chytil',club:'SK Slavia Praha',age:26,injury:'-'},{position:'FW',number:'-',name:'Jan Kuchta',club:'AC Sparta Praha',age:29,injury:'-'},{position:'FW',number:'-',name:'Vasil Kušej',club:'SK Slavia Praha',age:25,injury:'-'},{position:'FW',number:'-',name:'Patrik Schick',club:'Bayer 04 Leverkusen',age:30,injury:'-'},{position:'FW',number:'-',name:'Matěj Vydra',club:'FC Viktoria Plzeň',age:33,injury:'-'}]
+  czech:[{position:'GK',number:'-',name:'마테이 코바르',club:'PSV',age:'-',injury:'-'},{position:'GK',number:'-',name:'마틴 예들리츠카',club:'바닉 오스트라바',age:'-',injury:'-'},{position:'GK',number:'-',name:'루카스 호르니첵',club:'브라가',age:'-',injury:'-'},{position:'DF',number:'-',name:'블라디미르 쿠팔',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'토마스 홀스',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'라디슬라브 크레이치',club:'울버햄튼 원더러스',age:'-',injury:'-'},{position:'DF',number:'-',name:'야로슬라프 젤레니',club:'스파르타 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'데이비드 주라섹',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'로빈 흐라낙',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'마틴 비틱',club:'볼로냐',age:'-',injury:'-'},{position:'DF',number:'-',name:'스테판 찰루펙',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 수첵',club:'웨스트햄 유나이티드',age:'-',injury:'-'},{position:'MF',number:'-',name:'블라디미르 다리다',club:'흐라데츠 크라로베',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 프로보드',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'마이클 사딜렉',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 술츠',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 체르브',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'아담 카라벡',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 라드라',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'데니스 비신스키',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 부차',club:'신시내티',age:'-',injury:'-'},{position:'FW',number:'-',name:'파트릭 쉬크',club:'바이엘 레버쿠젠',age:'-',injury:'-'},{position:'FW',number:'-',name:'모이미르 치틸',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'토마스 초리',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'얀 클리멘트',club:'시그마 올로모우츠',age:'-',injury:'-'}]
 };
 
 const squadState = {
-  korea:{filter:'ALL',page:1,title:'대한민국 선수단'},
-  mexico:{filter:'ALL',page:1,title:'멕시코 선수단'},
-  southAfrica:{filter:'ALL',page:1,title:'남아프리카 공화국 선수단'},
-  czech:{filter:'ALL',page:1,title:'체코 선수단'}
+  korea:{filter:'ALL',page:1,title:'대한민국 대표팀 선수단'},
+  mexico:{filter:'ALL',page:1,title:'멕시코 대표팀 선수단'},
+  southAfrica:{filter:'ALL',page:1,title:'남아프리카 공화국 대표팀 선수단'},
+  czech:{filter:'ALL',page:1,title:'체코 대표팀 선수단'}
 };
 
 let playerPhotoSources = null;
@@ -152,6 +152,39 @@ function getPlayerPhotoSources(){
   'Adam Hložek':'https://b04-ep-media-prod.azureedge.net/pickerimages/crop_20220527_NB_Adam_Hlozek_37641_435464_M.jpg'
   };
   return playerPhotoSources;
+}
+
+let playerPhotoAliases = null;
+function getPlayerPhotoAliases(){
+  if(playerPhotoAliases) return playerPhotoAliases;
+  playerPhotoAliases = {
+  '마테이 코바르':'Matěj Kovář',
+  '마틴 예들리츠카':'Martin Jedlička',
+  '루카스 호르니첵':'Lukáš Horníček',
+  '블라디미르 쿠팔':'Vladimír Coufal',
+  '토마스 홀스':'Tomáš Holeš',
+  '라디슬라브 크레이치':'Ladislav Krejčí',
+  '야로슬라프 젤레니':'Jaroslav Zelený',
+  '데이비드 주라섹':'David Jurásek',
+  '로빈 흐라낙':'Robin Hranáč',
+  '마틴 비틱':'Martin Vitík',
+  '스테판 찰루펙':'Štěpán Chaloupek',
+  '토마스 수첵':'Tomáš Souček',
+  '블라디미르 다리다':'Vladimír Darida',
+  '루카스 프로보드':'Lukáš Provod',
+  '마이클 사딜렉':'Michal Sadílek',
+  '파벨 술츠':'Pavel Šulc',
+  '루카스 체르브':'Lukáš Červ',
+  '아담 카라벡':'Adam Karabec',
+  '토마스 라드라':'Tomáš Ladra',
+  '데니스 비신스키':'Denis Višinský',
+  '파벨 부차':'Pavel Bucha',
+  '파트릭 쉬크':'Patrik Schick',
+  '모이미르 치틸':'Mojmír Chytil',
+  '토마스 초리':'Tomáš Chorý',
+  '얀 클리멘트':'Jan Kliment'
+  };
+  return playerPhotoAliases;
 }
 
 let playerPhotoTitles = null;
@@ -241,6 +274,7 @@ function getPlayerPhotoTitles(){
   'Martin Vitík':'Martin Vitík',
   'Tomáš Vlček':'Tomáš Vlček',
   'Jaroslav Zelený':'Jaroslav Zelený',
+  'Štěpán Chaloupek':'Štěpán Chaloupek',
   'Michal Beran':'Michal Beran',
   'Lukáš Červ':'Lukáš Červ',
   'Matěj Jurásek':'Matěj Jurásek',
@@ -251,6 +285,11 @@ function getPlayerPhotoTitles(){
   'Michal Sadílek':'Michal Sadílek',
   'Petr Ševčík':'Petr Ševčík',
   'Pavel Šulc':'Pavel Šulc',
+  'Vladimír Darida':'Vladimír Darida',
+  'Tomáš Ladra':'Tomáš Ladra',
+  'Denis Višinský':'Denis Višinský',
+  'Pavel Bucha':'Pavel Bucha',
+  'Jan Kliment':'Jan Kliment',
   'Filip Zorvan':'Filip Zorvan',
   'Jiří Pavlenka':'Jiří Pavlenka',
   'Tomáš Vaclík':'Tomáš Vaclík',
@@ -1109,7 +1148,7 @@ const personalTimelineDetailFieldOptions = {
   업무내용:['경기취재','외곽취재','밀착카메라','라이브연결','인터뷰']
 };
 const timelineViews = {
-  personal:{title:'개인일정 타임라인', rows:personalTimelineRows}
+  personal:{title:'일정타임라인', rows:personalTimelineRows}
 };
 const timelineRows = [...teamTimelineRows, ...personalTimelineRows];
 const timelineEditableRows = timelineRows.filter(row=>row.type!=='section');
@@ -3710,6 +3749,9 @@ function updateHeaderCountdown(){
 function isMobileViewport(){
   return typeof window!=='undefined'&&window.matchMedia('(max-width: 768px)').matches;
 }
+function getDesktopTabStackIds(){
+  return ['newsTabStack','bracketTabStack','mexicoStadiumTabStack'];
+}
 function getMobilePanelIds(){
   return ['newsCol','newsBroadcasterCol','bracketStageCol','groupCol','groupASquadCol','equipmentUserCol','mexicoStadiumCol','mexicoStadiumSectionCol','detailCol'];
 }
@@ -3897,6 +3939,7 @@ function updateMobileHeaderReportBoardVisibility(){
   }
 }
 function hideAllPanels(){
+  getDesktopTabStackIds().forEach(id=>document.getElementById(id)?.classList.add('hidden'));
   getMobilePanelIds().forEach(id=>document.getElementById(id).classList.add('hidden'));
   updateMobileHeaderReportBoardVisibility();
 }
@@ -3938,8 +3981,8 @@ function renderMobileNewsMenu(){
   if(!panel) return;
   panel.innerHTML=Object.entries(NEWS_YEAR_META).map(([year, meta])=>`<div class="news-mobile-year-block"><div class="item news-year-item ${currentNewsYear===year?'active':''}" aria-label="${escapeHtml(meta.aria)}"><span class="news-year-frame"><img class="news-year-logo" src="${meta.logo}" alt="${escapeHtml(meta.aria)} 로고"></span></div><div class="news-mobile-broadcasters">${NEWS_BROADCASTERS.map(broadcaster=>`<div class="item broadcaster-item broadcaster-item-${broadcaster.toLowerCase()} ${currentNewsYear===year&&currentNewsBroadcaster===broadcaster?'active':''}" onclick="openNewsDetail('${year}','${broadcaster}', this)" aria-label="${escapeHtml(broadcaster)}"><span class="broadcaster-frame">${renderNewsBroadcasterCiMarkup(broadcaster)}</span></div>`).join('')}</div></div>`).join('');
 }
-function toggleMain(){const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
-function toggleBracket(){const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
+function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
+function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
 function toggleGroupASquads(){
   const panel=document.getElementById('groupASquadCol');
   const willOpen=panel.classList.contains('hidden');
@@ -3983,12 +4026,14 @@ function togglePersonalTimeline(){
   updateMobileHeaderReportBoardVisibility();
 }
 function toggleMexicoStadium(){
+  const stack=document.getElementById('mexicoStadiumTabStack');
   const panel=document.getElementById('mexicoStadiumCol');
   const willOpen=panel.classList.contains('hidden');
   hideAllPanels();
   clearAllActive();
   currentMexicoStadiumKey='';
   if(willOpen){
+    stack?.classList.remove('hidden');
     document.getElementById('mexicoStadiumMenu').classList.add('active');
     panel.classList.remove('hidden');
   }
@@ -3996,7 +4041,7 @@ function toggleMexicoStadium(){
   updateMobileHeaderReportBoardVisibility();
 }
 
-function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');updateMobileHeaderReportBoardVisibility();}
+function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsTabStack')?.classList.remove('hidden');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');updateMobileHeaderReportBoardVisibility();}
 function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);updateMobileHeaderReportBoardVisibility();}
 function openNewsDetail(year, broadcaster){currentNewsYear=year;currentNewsBroadcaster=broadcaster;if(isMobileViewport()) renderMobileNewsMenu();renderNewsTable(year, broadcaster);updateMobileHeaderReportBoardVisibility();}
 function getNewsBroadcasterLogoPath(broadcaster){
@@ -4438,7 +4483,7 @@ function renderSquadInjuryCell(squadKey, player){
   return `<div class="squad-injury-cell"><span class="squad-injury-text">${injuryText}</span>${actions}</div>`;
 }
 
-function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');updateMobileHeaderReportBoardVisibility();return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);updateMobileHeaderReportBoardVisibility();}
+function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('bracketTabStack')?.classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');updateMobileHeaderReportBoardVisibility();return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);updateMobileHeaderReportBoardVisibility();}
 function renderScheduleMatchRow(number, mainHtml, date, time, stadium){
   const local=kstToLocal(date,time);
   return `<tr class="schedule-match-row"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${local.date} / ${date}</div><div class="match-meta">시간: 현지 ${local.time} / ${time}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
@@ -4487,7 +4532,8 @@ function renderSquadPlayerCell(player){
 }
 
 async function fetchWikipediaPlayerPhoto(name){
-  const title=getPlayerPhotoTitles()[name];
+  const lookupName=getPlayerPhotoAliases()[name]||name;
+  const title=getPlayerPhotoTitles()[lookupName]||getPlayerPhotoTitles()[name];
   if(!title||typeof fetch!=='function') return null;
   try{
     const response=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,{
@@ -4503,12 +4549,13 @@ async function fetchWikipediaPlayerPhoto(name){
 
 async function fetchPlayerPhoto(name){
   if(Object.prototype.hasOwnProperty.call(playerPhotoCache,name)) return playerPhotoCache[name];
-  const officialUrl=getPlayerPhotoSources()[name];
+  const lookupName=getPlayerPhotoAliases()[name]||name;
+  const officialUrl=getPlayerPhotoSources()[lookupName]||getPlayerPhotoSources()[name];
   if(officialUrl){
     playerPhotoCache[name]=officialUrl;
     return officialUrl;
   }
-  const fallbackUrl=await fetchWikipediaPlayerPhoto(name);
+  const fallbackUrl=await fetchWikipediaPlayerPhoto(lookupName);
   if(fallbackUrl){
     playerPhotoCache[name]=fallbackUrl;
     return fallbackUrl;
@@ -4550,7 +4597,8 @@ function renderSquad(key){
   const state=squadState[key];
   const squad=squads[key];
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
-  const pageSize=getSquadPageSize();
+  const isMobile=isMobileViewport();
+  const pageSize=isMobile ? getSquadPageSize() : Math.max(filtered.length,1);
   const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
   state.page=Math.min(totalPages,Math.max(1,state.page));
   const rows=filtered.slice((state.page-1)*pageSize,state.page*pageSize);
@@ -4567,7 +4615,9 @@ function renderSquad(key){
   }
   document.getElementById('detailTable').innerHTML=renderCache.squadViews[cacheKey].tableHtml;
   document.getElementById('detailTable').insertAdjacentHTML('beforebegin',renderCache.squadViews[cacheKey].toolbarHtml);
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.squadViews[cacheKey].paginationHtml);
+  if(isMobile){
+    document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.squadViews[cacheKey].paginationHtml);
+  }
   document.getElementById('detailCol').classList.remove('hidden');
   scheduleSquadPhotoHydration();
   updateMobileHeaderReportBoardVisibility();
@@ -4748,6 +4798,7 @@ function showMexicoStadium(key, el){
   currentMexicoStadiumKey=key;
   currentMexicoStadiumSectionKey='';
   clearDetailExtras();
+   document.getElementById('mexicoStadiumTabStack')?.classList.remove('hidden');
   document.getElementById('mexicoStadiumSectionCol').classList.toggle('hidden', isMobileViewport());
   renderMexicoStadiumDetail(key);
   updateHeaderTimes();
@@ -4759,6 +4810,7 @@ function showMexicoStadiumSection(sectionKey, el){
   document.querySelectorAll('#mexicoStadiumSectionCol .item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.mexico-stadium-inline-sections .item').forEach(n=>n.classList.remove('active'));
   if(el) el.classList.add('active');
+  document.getElementById('mexicoStadiumTabStack')?.classList.remove('hidden');
   currentMexicoStadiumSectionKey=sectionKey;
   clearDetailExtras();
   renderMexicoStadiumDetail(currentMexicoStadiumKey, sectionKey);
@@ -4836,7 +4888,7 @@ function runTests(){
   showEquipmentPersonal('박재현', document.querySelector('#equipmentUserCol .item'));
   console.assert(document.getElementById('detailTitle').textContent==='박재현 개인장비','Equipment personal detail should render');
   togglePersonalTimeline();
-  console.assert(document.getElementById('detailTitle').textContent==='개인일정 타임라인','Personal timeline detail should render');
+  console.assert(document.getElementById('detailTitle').textContent==='일정타임라인','Personal timeline detail should render');
   console.assert(document.querySelectorAll('.personal-timeline-item').length===dates.length,'Personal timeline items should render');
   console.assert(document.querySelector('.personal-timeline-dot')!==null,'Personal timeline daily dots should render');
   toggleMexicoStadium();
