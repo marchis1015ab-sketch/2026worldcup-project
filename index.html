@@ -47,6 +47,8 @@
         <div class="menu" onclick="toggleBracket()">월드컵 대진표</div>
         <div class="menu" onclick="toggleGroupASquads()">대표팀 선수단</div>
         <div class="menu" onclick="toggleMexicoStadium()">경기장</div>
+        <div class="menu" onclick="toggleMapPanel()">MAP</div>
+        <div class="menu" onclick="toggleNewsProgramming()">뉴스편성</div>
         <div class="menu" onclick="toggleMain()">월드컵 뉴스 추이</div>
       </div>
     </div>
@@ -72,6 +74,8 @@
       <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
       <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">대표팀 선수단</div>
       <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">경기장</div>
+      <div id="mapMenu" class="menu" onclick="toggleMapPanel()">MAP</div>
+      <div id="newsProgrammingMenu" class="menu" onclick="toggleNewsProgramming()">뉴스편성</div>
       <div id="newsMenu" class="menu" onclick="toggleMain()">월드컵 뉴스 추이</div>
     </div>
 
@@ -95,6 +99,7 @@
       <div id="bracketStageCol" class="column hidden">
         <div id="bracketStageTabs" class="tab-row primary-tab-row stage-tabs">
           <div class="item" onclick="showBracketStage('group', this)">조별리그</div>
+          <div class="item" onclick="showBracketStage('thirdPlaceRanking', this)">조별 3위 랭킹</div>
           <div class="item" onclick="showBracketStage('round32', this)">32강</div>
           <div class="item" onclick="showBracketStage('round16', this)">16강</div>
           <div class="item" onclick="showBracketStage('quarterfinal', this)">8강</div>
@@ -142,6 +147,9 @@
             </span>
           </div>
         </div>
+        <div class="equipment-user-slot equipment-user-slot-carnet">
+          <div id="equipmentCarnetTab" class="item" onclick="showEquipmentCarnet(this)">까르네 목록</div>
+        </div>
         <div class="equipment-user-slot">
           <div class="item equipment-user-person-item" data-user="박재현" onclick="showEquipmentPersonal('박재현', this)"><span class="equipment-user-name">박재현</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
         </div>
@@ -165,20 +173,22 @@
     <div id="mexicoStadiumTabStack" class="tab-stack hidden">
       <div id="mexicoStadiumCol" class="column hidden">
         <div id="mexicoStadiumTabs" class="tab-row primary-tab-row">
-          <div class="item" onclick="showMexicoStadium('akron', this)">아크론스타디움, 과달라하라</div>
-          <div class="item" onclick="showMexicoStadium('bbva', this)">에스타디오 BBVA, 몬테레이</div>
+          <div class="item" onclick="showMexicoStadium('akron', this)">아크론스타디움 [과달라하라]</div>
+          <div class="item" onclick="showMexicoStadium('bbva', this)">에스타디오 BBVA [멕시코시티]</div>
+          <div class="item" onclick="showMexicoStadium('mexicoCityStadium', this)">멕시코시티 스타디움 [멕시코시티]</div>
+          <div class="item" onclick="showMexicoStadium('laStadium', this)">LA 스타디움 [로스앤젤레스]</div>
+          <div class="item" onclick="showMexicoStadium('seattleStadium', this)">시애틀 스타디움 [시애틀]</div>
+          <div class="item" onclick="showMexicoStadium('bostonStadium', this)">보스턴 스타디움 [보스턴]</div>
         </div>
       </div>
 
       <div id="mexicoStadiumSectionCol" class="column hidden">
-        <div class="item" onclick="showMexicoStadiumSection('shooting', this)">촬영 구역</div>
-        <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
-        <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부 동선</div>
+        <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부동선</div>
         <div class="item" onclick="showMexicoStadiumSection('conferenceRoom', this)">컨퍼런스 룸</div>
+        <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
         <div class="item" onclick="showMexicoStadiumSection('ground', this)">그라운드</div>
-        <div class="item" onclick="showMexicoStadiumSection('playerArrival', this)">선수 도착</div>
-      </div>
-        </div>
+        <div class="item" onclick="showMexicoStadiumSection('shooting', this)">powerade zone</div>
+        <div class="item" onclick="showMexicoStadiumSection('playerArrival', this)">선수도착</div>
       </div>
     </div>
 

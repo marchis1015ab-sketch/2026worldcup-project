@@ -67,7 +67,10 @@ const knockoutTemplates = {
     ['M101 승자 M97 vs 승자 M98'],
     ['M102 승자 M99 vs 승자 M100']
   ],
-  final:[['M104 승자 M101 vs 승자 M102']]
+  final:[
+    ['M104 승자 M101 vs 승자 M102'],
+    ['M103 패자 M101 vs 패자 M102']
+  ]
 };
 
 const knockoutSchedule = {
@@ -101,6 +104,7 @@ const knockoutSchedule = {
   M100:{date:'2026-07-12',time:'10:00 KST',stadium:'Kansas City Stadium'},
   M101:{date:'2026-07-15',time:'04:00 KST',stadium:'Dallas Stadium'},
   M102:{date:'2026-07-16',time:'04:00 KST',stadium:'Atlanta Stadium'},
+  M103:{date:'2026-07-19',time:'06:00 KST',stadium:'Miami Stadium'},
   M104:{date:'2026-07-20',time:'04:00 KST',stadium:'New York New Jersey Stadium'}
 };
 
@@ -319,7 +323,10 @@ const renderCache = {
   groupViews:Object.create(null),
   squadViews:Object.create(null),
   equipmentSharedTable:'',
+  equipmentCarnetPanel:'',
   equipmentPersonalTables:Object.create(null),
+  mapPanel:'',
+  newsProgrammingPanel:'',
   mexicoStadiumDetails:Object.create(null),
   timelineHeader:''
 };
@@ -338,14 +345,49 @@ let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
 let currentNewsBroadcaster = '';
 let currentSquadKey = '';
+let currentGroupKey = '';
+let currentBracketStage = '';
 let currentEquipmentMode = 'shared';
 let currentEquipmentUser = '';
+let isEquipmentCarnetComposerOpen = false;
+let currentMapSubTab = 'region';
+let currentMapActionMode = '';
+let currentNewsProgrammingActionMode = '';
+let currentNewsProgrammingDate = getTodayTimelineKey();
+let currentNewsProgrammingEditId = '';
+let isNewsProgrammingComposerOpen = false;
+let newsProgrammingEntries = [];
+let newsProgrammingComposerImages = [];
+const mapSectionComposerState = {region:false,lodging:false};
 let currentNewsEditingKey = '';
 let currentNewsDeletingKey = '';
 let pendingNewsEditorContext = null;
 let pendingSquadInjuryContext = null;
 let pendingMexicoStadiumEditorContext = null;
 let pendingEquipmentEditorContext = null;
+const groupRankSelections = Object.create(null);
+const thirdPlaceRankingState = {
+  thirdPlaceRanking:[],
+  qualifiedThirdPlaceTeams:[],
+  eliminatedThirdPlaceTeams:[],
+  qualifiedThirdPlaceGroups:[],
+  thirdPlaceSlotAssignments:Object.create(null),
+  thirdPlaceSlotDescriptors:[]
+};
+const tournamentState = {
+  groupStandings:Object.create(null),
+  groupStandingsReady:Object.create(null),
+  thirdPlaceRanking:[],
+  qualifiedThirdPlaceTeams:[],
+  eliminatedThirdPlaceTeams:[],
+  roundOf32Matches:[],
+  roundOf16Matches:[],
+  quarterFinalMatches:[],
+  semiFinalMatches:[],
+  thirdPlaceMatch:null,
+  finalMatch:null
+};
+const knockoutResultState = Object.create(null);
 let newsEditorEntrySeq = 0;
 const newsEditorEntries = Object.create(null);
 const squadInjuryEntries = Object.create(null);
@@ -535,38 +577,60 @@ function setNewsEntries(year, broadcaster, entries){
   saveNewsEditorEntries();
 }
 
+function createMexicoStadiumSections(title, details){
+  return {
+    shooting:{
+      subtitle:`${title} 촬영 구역 정보`,
+      rows:[['세부 폴더','촬영 구역'],['기준 위치',details.shootingLocation],['운영 포인트',details.shootingGuide],['비고',details.shootingNote]]
+    },
+    mixedZone:{
+      subtitle:`${title} mixed zone 정보`,
+      rows:[['세부 폴더','mixed zone'],['기준 위치',details.mixedZoneLocation],['운영 포인트',details.mixedZoneGuide],['비고',details.mixedZoneNote]]
+    },
+    route:{
+      subtitle:`${title} 내부 동선 정보`,
+      rows:[['세부 폴더','경기장 내부 동선'],['기준 이동',details.routeFlow],['운영 포인트',details.routeGuide],['비고',details.routeNote]]
+    },
+    conferenceRoom:{
+      subtitle:`${title} 컨퍼런스 룸 정보`,
+      rows:[['세부 폴더','컨퍼런스 룸'],['기준 위치',details.conferenceLocation],['운영 포인트',details.conferenceGuide],['비고',details.conferenceNote]]
+    },
+    ground:{
+      subtitle:`${title} 그라운드 정보`,
+      rows:[['세부 폴더','그라운드'],['기준 위치',details.groundLocation],['운영 포인트',details.groundGuide],['비고',details.groundNote]]
+    },
+    playerArrival:{
+      subtitle:`${title} 선수 도착 정보`,
+      rows:[['세부 폴더','선수 도착'],['기준 위치',details.arrivalLocation],['운영 포인트',details.arrivalGuide],['비고',details.arrivalNote]]
+    }
+  };
+}
 const mexicoStadiums = {
   akron:{
     title:'아크론스타디움',
     city:'과달라하라',
     subtitle:'멕시코 개최 경기장 정보',
     rows:[['경기장명','아크론스타디움'],['도시','과달라하라'],['국가','멕시코'],['비고','공식 구조 이미지 반영']],
-    sections:{
-      shooting:{
-        subtitle:'아크론스타디움 촬영 구역 정보',
-        rows:[['세부 폴더','촬영 구역'],['기준 위치','메인 스탠드 하단 카메라 존'],['운영 포인트','터치라인 접근 전 승인 필요'],['비고','경기 전 장비 반입 시간 확인']]
-      },
-      mixedZone:{
-        subtitle:'아크론스타디움 mixed zone 정보',
-        rows:[['세부 폴더','mixed zone'],['기준 위치','선수단 인터뷰 동선 끝 구간'],['운영 포인트','인터뷰 라인 유지 후 역방향 이동 금지'],['비고','경기 종료 직후 혼잡 가능']]
-      },
-      route:{
-        subtitle:'아크론스타디움 내부 동선 정보',
-        rows:[['세부 폴더','경기장 내부 동선'],['기준 이동','미디어 입구 -> 작업 구역 -> 피치 접근'],['운영 포인트','보안 게이트 재통과 시간 여유 확보'],['비고','출입 패스 우선 확인']]
-      },
-      conferenceRoom:{
-        subtitle:'아크론스타디움 컨퍼런스 룸 정보',
-        rows:[['세부 폴더','컨퍼런스 룸'],['기준 위치','프레스 구역 인접 공식 회견실'],['운영 포인트','브리핑 시작 전 오디오 라인 점검'],['비고','감독·선수 공식 기자회견 진행']]
-      },
-      ground:{
-        subtitle:'아크론스타디움 그라운드 정보',
-        rows:[['세부 폴더','그라운드'],['기준 위치','피치 레벨 촬영 허용 구역'],['운영 포인트','워밍업 및 입장 장면 촬영 포인트 사전 확보'],['비고','잔디 보호 구간 출입 제한 확인']]
-      },
-      playerArrival:{
-        subtitle:'아크론스타디움 선수 도착 정보',
-        rows:[['세부 폴더','선수 도착'],['기준 위치','팀 버스 하차 지점'],['운영 포인트','도착 시간대 대기 위치 사전 지정'],['비고','보안 통제선 변동 가능성 확인']]
-      }
-    },
+    sections:createMexicoStadiumSections('아크론스타디움',{
+      shootingLocation:'메인 스탠드 하단 카메라 존',
+      shootingGuide:'터치라인 접근 전 승인 필요',
+      shootingNote:'경기 전 장비 반입 시간 확인',
+      mixedZoneLocation:'선수단 인터뷰 동선 끝 구간',
+      mixedZoneGuide:'인터뷰 라인 유지 후 역방향 이동 금지',
+      mixedZoneNote:'경기 종료 직후 혼잡 가능',
+      routeFlow:'미디어 입구 -> 작업 구역 -> 피치 접근',
+      routeGuide:'보안 게이트 재통과 시간 여유 확보',
+      routeNote:'출입 패스 우선 확인',
+      conferenceLocation:'프레스 구역 인접 공식 회견실',
+      conferenceGuide:'브리핑 시작 전 오디오 라인 점검',
+      conferenceNote:'감독·선수 공식 기자회견 진행',
+      groundLocation:'피치 레벨 촬영 허용 구역',
+      groundGuide:'워밍업 및 입장 장면 촬영 포인트 사전 확보',
+      groundNote:'잔디 보호 구간 출입 제한 확인',
+      arrivalLocation:'팀 버스 하차 지점',
+      arrivalGuide:'도착 시간대 대기 위치 사전 지정',
+      arrivalNote:'보안 통제선 변동 가능성 확인'
+    }),
     imagePath:'images/akron-architecture.jpg',
     imageAlt:'아크론스타디움 내부 구조 이미지',
     imageCaption:'아크론스타디움 내부 구조',
@@ -578,46 +642,164 @@ const mexicoStadiums = {
     city:'몬테레이',
     subtitle:'멕시코 개최 경기장 정보',
     rows:[['경기장명','에스타디오 BBVA'],['도시','몬테레이'],['국가','멕시코'],['비고','공식 내부 이미지 반영']],
-    sections:{
-      shooting:{
-        subtitle:'에스타디오 BBVA 촬영 구역 정보',
-        rows:[['세부 폴더','촬영 구역'],['기준 위치','메인 스탠드 상단 미디어 플랫폼'],['운영 포인트','롱렌즈 장비는 사전 배치 권장'],['비고','광량 변화 대비 필요']]
-      },
-      mixedZone:{
-        subtitle:'에스타디오 BBVA mixed zone 정보',
-        rows:[['세부 폴더','mixed zone'],['기준 위치','라커룸 출구 인접 인터뷰 구역'],['운영 포인트','방송사별 인터뷰 슬롯 순서 확인'],['비고','케이블 정리 동선 확보']]
-      },
-      route:{
-        subtitle:'에스타디오 BBVA 내부 동선 정보',
-        rows:[['세부 폴더','경기장 내부 동선'],['기준 이동','미디어 체크인 -> 혼합구역 -> 스탠드 작업석'],['운영 포인트','엘리베이터 대기 시간 감안'],['비고','경기 종료 후 퇴장 동선 분리']]
-      },
-      conferenceRoom:{
-        subtitle:'에스타디오 BBVA 컨퍼런스 룸 정보',
-        rows:[['세부 폴더','컨퍼런스 룸'],['기준 위치','미디어 센터 옆 공식 회견실'],['운영 포인트','인터뷰 전 마이크와 백드롭 확인'],['비고','공식 기자회견 및 브리핑 진행']]
-      },
-      ground:{
-        subtitle:'에스타디오 BBVA 그라운드 정보',
-        rows:[['세부 폴더','그라운드'],['기준 위치','터치라인 인접 피치 촬영 구역'],['운영 포인트','킥오프 전 워밍업 촬영 동선 우선 확인'],['비고','장비 배치 허용 범위 사전 체크']]
-      },
-      playerArrival:{
-        subtitle:'에스타디오 BBVA 선수 도착 정보',
-        rows:[['세부 폴더','선수 도착'],['기준 위치','선수단 버스 진입 게이트'],['운영 포인트','도착 컷 확보용 스탠드업 위치 지정'],['비고','보안 펜스 외 촬영 가능 범위 확인']]
-      }
-    },
+    sections:createMexicoStadiumSections('에스타디오 BBVA',{
+      shootingLocation:'메인 스탠드 상단 미디어 플랫폼',
+      shootingGuide:'롱렌즈 장비는 사전 배치 권장',
+      shootingNote:'광량 변화 대비 필요',
+      mixedZoneLocation:'라커룸 출구 인접 인터뷰 구역',
+      mixedZoneGuide:'방송사별 인터뷰 슬롯 순서 확인',
+      mixedZoneNote:'케이블 정리 동선 확보',
+      routeFlow:'미디어 체크인 -> 혼합구역 -> 스탠드 작업석',
+      routeGuide:'엘리베이터 대기 시간 감안',
+      routeNote:'경기 종료 후 퇴장 동선 분리',
+      conferenceLocation:'미디어 센터 옆 공식 회견실',
+      conferenceGuide:'인터뷰 전 마이크와 백드롭 확인',
+      conferenceNote:'공식 기자회견 및 브리핑 진행',
+      groundLocation:'터치라인 인접 피치 촬영 구역',
+      groundGuide:'킥오프 전 워밍업 촬영 동선 우선 확인',
+      groundNote:'장비 배치 허용 범위 사전 체크',
+      arrivalLocation:'선수단 버스 진입 게이트',
+      arrivalGuide:'도착 컷 확보용 스탠드업 위치 지정',
+      arrivalNote:'보안 펜스 외 촬영 가능 범위 확인'
+    }),
     imagePath:'images/bbva-interior.webp',
     imageAlt:'에스타디오 BBVA 내부 전경 이미지',
     imageCaption:'에스타디오 BBVA 내부 전경',
     sourceLabel:'출처: FIFA World Cup Monterrey 공식 Stadium 페이지',
     sourceUrl:'https://www.fwc26monterrey.com/stadium'
+  },
+  mexicoCityStadium:{
+    title:'멕시코시티 스타디움',
+    city:'멕시코시티',
+    subtitle:'북중미 월드컵 경기장 정보',
+    rows:[['경기장명','멕시코시티 스타디움'],['도시','멕시코시티'],['국가','멕시코'],['비고','공식 경기장 정보 기본 틀 복제']],
+    sections:createMexicoStadiumSections('멕시코시티 스타디움',{
+      shootingLocation:'메인 스탠드 중앙 카메라 플랫폼',
+      shootingGuide:'고지대 환경 고려해 촬영 장비 세팅 시간 확보',
+      shootingNote:'킥오프 직전 접근 제한 시간 확인',
+      mixedZoneLocation:'선수 라커룸 출구 인접 인터뷰 동선',
+      mixedZoneGuide:'혼합구역 대기 라인과 방송 포지션 사전 조정',
+      mixedZoneNote:'경기 직후 혼잡도 높음',
+      routeFlow:'미디어 게이트 -> 작업실 -> 혼합구역 -> 피치 접근',
+      routeGuide:'보안 검색 2회 가능성 고려',
+      routeNote:'승인 스티커 부착 장비만 재반입 가능',
+      conferenceLocation:'프레스센터 인접 공식 회견실',
+      conferenceGuide:'회견 시작 전 오디오와 백월 점검',
+      conferenceNote:'공식 기자회견과 브리핑 운영',
+      groundLocation:'피치 레벨 촬영 허용선 주변',
+      groundGuide:'워밍업과 입장 장면 동시 확보 동선 확인',
+      groundNote:'잔디 보호 구역 출입 제한 수시 확인',
+      arrivalLocation:'팀 버스 드롭오프 구역',
+      arrivalGuide:'보안 펜스와 대기 라인 위치 먼저 확인',
+      arrivalNote:'팀별 도착 시간 편차 반영 필요'
+    }),
+    imagePath:'https://commons.wikimedia.org/wiki/Special:FilePath/Estadio_Azteca_desde_el_aire_1.jpg?width=1200',
+    imageAlt:'멕시코시티 스타디움 전경 이미지',
+    imageCaption:'멕시코시티 스타디움 전경',
+    sourceLabel:'출처: Wikimedia Commons',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Estadio_Azteca_desde_el_aire_1.jpg'
+  },
+  laStadium:{
+    title:'LA 스타디움',
+    city:'로스앤젤레스',
+    subtitle:'북중미 월드컵 경기장 정보',
+    rows:[['경기장명','LA 스타디움'],['도시','로스앤젤레스'],['국가','미국'],['비고','공식 경기장 정보 기본 틀 복제']],
+    sections:createMexicoStadiumSections('LA 스타디움',{
+      shootingLocation:'메인 볼 상단 미디어 플랫폼',
+      shootingGuide:'역광 대비 렌즈 세팅과 차광 장비 준비',
+      shootingNote:'현장 전원 포인트 위치 확인',
+      mixedZoneLocation:'선수단 인터뷰 라인 출구',
+      mixedZoneGuide:'방송 포지션별 인터뷰 순서 현장 공지 확인',
+      mixedZoneNote:'경기 종료 후 이동 동선 일방통행 가능',
+      routeFlow:'미디어 체크인 -> 프레스 작업 구역 -> 혼합구역 -> 스탠드',
+      routeGuide:'엘리베이터 대기 시간과 우회 동선 동시 확인',
+      routeNote:'장비 카트 이동 구간 사전 체크',
+      conferenceLocation:'미디어센터 연결 공식 회견실',
+      conferenceGuide:'조명과 음향 라인 사전 테스트',
+      conferenceNote:'감독/선수 기자회견 운영',
+      groundLocation:'터치라인 인접 촬영 허용 구역',
+      groundGuide:'입장 세리머니 컷 확보 위치 우선 점검',
+      groundNote:'현장 스태프 통제선 준수 필요',
+      arrivalLocation:'선수단 버스 진입 램프',
+      arrivalGuide:'스탠드업 위치와 안전선 동시 확보',
+      arrivalNote:'도착 동선 변경 가능성 수시 체크'
+    }),
+    imagePath:'https://commons.wikimedia.org/wiki/Special:FilePath/Aerial_view_of_SoFi_Stadium_(July_2022).jpg?width=1200',
+    imageAlt:'LA 스타디움 전경 이미지',
+    imageCaption:'LA 스타디움 전경',
+    sourceLabel:'출처: Wikimedia Commons',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Aerial_view_of_SoFi_Stadium_(July_2022).jpg'
+  },
+  seattleStadium:{
+    title:'시애틀 스타디움',
+    city:'시애틀',
+    subtitle:'북중미 월드컵 경기장 정보',
+    rows:[['경기장명','시애틀 스타디움'],['도시','시애틀'],['국가','미국'],['비고','공식 경기장 정보 기본 틀 복제']],
+    sections:createMexicoStadiumSections('시애틀 스타디움',{
+      shootingLocation:'메인 스탠드 측면 카메라 데크',
+      shootingGuide:'우천 대비 방수 장비와 케이블 정리 필요',
+      shootingNote:'기상 변화에 따른 가림막 위치 확인',
+      mixedZoneLocation:'선수단 이동 통로 끝 인터뷰 존',
+      mixedZoneGuide:'방송 포지션별 라인 간섭 최소화',
+      mixedZoneNote:'혼잡 시간대 역방향 이동 제한 가능',
+      routeFlow:'미디어 입구 -> 작업실 -> 인터뷰 존 -> 피치 접근',
+      routeGuide:'출입 스캔 포인트와 우회 경로 동시 확인',
+      routeNote:'경기 후 퇴장 동선 분리 운영 가능',
+      conferenceLocation:'프레스센터 연결 회견실',
+      conferenceGuide:'공식 마이크 라인과 통역 위치 확인',
+      conferenceNote:'회견 시작 20분 전 입장 권장',
+      groundLocation:'피치 레벨 촬영 허용 라인',
+      groundGuide:'워밍업 컷과 입장 컷 겹치지 않게 위치 선정',
+      groundNote:'현장 안전 요원 안내 우선 준수',
+      arrivalLocation:'선수단 버스 하차 게이트',
+      arrivalGuide:'대기 위치와 라이브 포인트 사전 배정',
+      arrivalNote:'현장 펜스 라인 변동 가능'
+    }),
+    imagePath:'https://commons.wikimedia.org/wiki/Special:FilePath/Aerial_CenturyLink_Field_November_2011.jpg?width=1200',
+    imageAlt:'시애틀 스타디움 전경 이미지',
+    imageCaption:'시애틀 스타디움 전경',
+    sourceLabel:'출처: Wikimedia Commons',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Aerial_CenturyLink_Field_November_2011.jpg'
+  },
+  bostonStadium:{
+    title:'보스턴 스타디움',
+    city:'보스턴',
+    subtitle:'북중미 월드컵 경기장 정보',
+    rows:[['경기장명','보스턴 스타디움'],['도시','보스턴'],['국가','미국'],['비고','공식 경기장 정보 기본 틀 복제']],
+    sections:createMexicoStadiumSections('보스턴 스타디움',{
+      shootingLocation:'메인 스탠드 상단 방송 플랫폼',
+      shootingGuide:'강풍 대비 삼각대 고정과 방풍 세팅 필요',
+      shootingNote:'야간 조도 변화 체크 권장',
+      mixedZoneLocation:'라커룸 인접 인터뷰 통로',
+      mixedZoneGuide:'방송사별 인터뷰 동선 충돌 최소화',
+      mixedZoneNote:'종료 직후 혼잡 시간 길 수 있음',
+      routeFlow:'미디어 체크인 -> 프레스 작업실 -> 혼합구역 -> 촬영석',
+      routeGuide:'보안 게이트 통과 시간과 우회 경로 확보',
+      routeNote:'현장 스태프 안내 라인 우선',
+      conferenceLocation:'공식 기자회견실',
+      conferenceGuide:'브리핑 전 음향/조명 테스트',
+      conferenceNote:'감독 및 선수 공식 회견 사용',
+      groundLocation:'터치라인 촬영 허용 구간',
+      groundGuide:'입장 씬과 경기 후 클로징 컷 포인트 확보',
+      groundNote:'현장 잔디 보호 규정 확인',
+      arrivalLocation:'선수단 버스 하차 동선',
+      arrivalGuide:'버스 도착 시간 전 포지션 선점 필요',
+      arrivalNote:'보안 통제 구간 즉시 변경 가능'
+    }),
+    imagePath:'https://commons.wikimedia.org/wiki/Special:FilePath/Gillette_stadium.jpg?width=1200',
+    imageAlt:'보스턴 스타디움 전경 이미지',
+    imageCaption:'보스턴 스타디움 전경',
+    sourceLabel:'출처: Wikimedia Commons',
+    sourceUrl:'https://commons.wikimedia.org/wiki/File:Gillette_stadium.jpg'
   }
 };
 const mexicoStadiumSections = {
-  shooting:'촬영 구역',
+  shooting:'powerade zone',
   mixedZone:'mixed zone',
-  route:'경기장 내부 동선',
+  route:'경기장 내부동선',
   conferenceRoom:'컨퍼런스 룸',
   ground:'그라운드',
-  playerArrival:'선수 도착'
+  playerArrival:'선수도착'
 };
 function getMexicoStadiumEditorKey(stadiumKey, sectionKey=''){
   return `${stadiumKey}::${sectionKey||'root'}`;
@@ -629,7 +811,7 @@ function getMexicoStadiumDefaultRows(stadiumKey, sectionKey=''){
   const stadium=mexicoStadiums[stadiumKey];
   if(!stadium) return [];
   const section=sectionKey?stadium.sections?.[sectionKey]:null;
-  return cloneMexicoStadiumRows(section?[...stadium.rows,...section.rows]:stadium.rows);
+  return cloneMexicoStadiumRows(section?section.rows:stadium.rows);
 }
 function getMexicoStadiumEditorEntry(stadiumKey, sectionKey=''){
   ensureMexicoStadiumEditorEntries();
@@ -728,13 +910,25 @@ function createMexicoStadiumEditorMediaId(){
   mexicoStadiumEditorMediaSeq+=1;
   return `mexico-media-${Date.now()}-${mexicoStadiumEditorMediaSeq}`;
 }
+function getMexicoStadiumDisplayTitle(stadiumKey=''){
+  const titleMap={
+    akron:'아크론 스타디움',
+    bbva:'에스타디오 BBVA',
+    mexicoCityStadium:'멕시코시티 스타디움',
+    laStadium:'LA 스타디움',
+    seattleStadium:'시애틀 스타디움',
+    bostonStadium:'보스턴 스타디움'
+  };
+  return titleMap[stadiumKey]||mexicoStadiums[stadiumKey]?.title||'';
+}
 function renderMexicoStadiumTitle(stadiumKey, sectionKey=''){
   const stadium=mexicoStadiums[stadiumKey];
   if(!stadium) return '';
+  const displayTitle=getMexicoStadiumDisplayTitle(stadiumKey);
   if(!sectionKey){
-    return escapeHtml(`${stadium.title}, ${stadium.city}`);
+    return escapeHtml(`${displayTitle||stadium.title}, ${stadium.city}`);
   }
-  return `<span class="section-title-row"><span>${escapeHtml(`${stadium.title} - ${mexicoStadiumSections[sectionKey]||sectionKey}`)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}')">작성</button><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}','edit')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMexicoStadiumEditorAndRender('${stadiumKey}','${sectionKey}')">삭제</button></span></span>`;
+  return `<span class="section-title-row section-title-row-stadium"><span class="section-title-text-group"><span class="section-title-main">${escapeHtml(displayTitle||stadium.title)}</span><span class="section-title-inline-sep" aria-hidden="true"> - </span><span class="section-title-sub">${escapeHtml(mexicoStadiumSections[sectionKey]||sectionKey)}</span></span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}')">작성</button><button type="button" class="section-title-action-btn" onclick="openMexicoStadiumEditorModal('${stadiumKey}','${sectionKey}','edit')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMexicoStadiumEditorAndRender('${stadiumKey}','${sectionKey}')">삭제</button></span></span>`;
 }
 function renderMexicoStadiumMediaGallery(stadiumKey, sectionKey=''){
   const mediaItems=getMexicoStadiumMediaItems(stadiumKey, sectionKey);
@@ -918,6 +1112,88 @@ function renderEquipmentTableHtml(mode, user=''){
   const headers=getEquipmentHeaders(mode);
   const rows=getEquipmentRows(mode, user);
   return `<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((value, index)=>`<td data-label="${escapeHtml(headers[index]||'')}">${escapeHtml(value)||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+function renderEquipmentCarnetTitle(){
+  return `<span class="section-title-row"><span>까르네 목록</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()">작성</button><button type="button" class="section-title-action-btn delete" onclick="closeEquipmentCarnetComposer()">삭제</button></span></span>`;
+}
+function renderEquipmentCarnetPanelHtml(){
+  const composerHtml=isEquipmentCarnetComposerOpen?`<div class="carnet-list-composer"><div class="carnet-list-composer-title">까르네 작성 준비</div><p class="carnet-list-composer-description">추후 까르네 입력 폼을 이 영역에 연결할 수 있습니다.</p></div>`:'';
+  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="까르네 목록"><header class="carnet-list-header"><h3 class="carnet-list-title">까르네 목록</h3><p class="carnet-list-description">등록된 까르네 정보를 여기에 정리합니다.</p></header>${composerHtml}<div class="carnet-list-body"><div class="carnet-list-placeholder">추후 표 또는 카드 목록을 이 영역에 추가할 수 있습니다.</div></div></section></td></tr></tbody>`;
+}
+function renderSimpleInfoPanelHtml(title, description, placeholder){
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel" aria-label="${escapeHtml(title)}"><header class="simple-info-header"><h3 class="simple-info-title">${escapeHtml(title)}</h3><p class="simple-info-description">${escapeHtml(description)}</p></header><div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(placeholder)}</div></div></section></td></tr></tbody>`;
+}
+function renderSimpleActionRow(actionMap){
+  return `<div class="simple-info-actions">${actionMap.map(action=>`<button type="button" class="section-title-action-btn${action.variant==='delete'?' delete':''}" onclick="${action.onclick}">${escapeHtml(action.label)}</button>`).join('')}</div>`;
+}
+function renderUploadField(fieldId, label){
+  return `<div class="simple-upload-field"><label class="simple-upload-label" for="${escapeHtml(fieldId)}">${escapeHtml(label)}</label><div class="simple-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가할 수 있는 영역입니다.</div><input id="${escapeHtml(fieldId)}" class="simple-upload-input" type="file" accept="image/*"></div></div>`;
+}
+function renderNewsProgrammingImagePreviewHtml(images=[]){
+  if(!Array.isArray(images)||!images.length){
+    return '<div class="news-programming-upload-empty">등록된 사진이 없습니다.</div>';
+  }
+  return `<div class="news-programming-upload-list">${images.map((src,index)=>`<figure class="news-programming-upload-item"><img class="news-programming-upload-image" src="${escapeHtml(src)}" alt="뉴스편성 첨부 이미지 ${index+1}"><button type="button" class="news-programming-upload-remove" onclick="removeNewsProgrammingImage(${index})" aria-label="첨부 이미지 삭제">삭제</button></figure>`).join('')}</div>`;
+}
+function renderMapSectionPanel(sectionKey){
+  const sectionMeta=sectionKey==='lodging'
+    ? {title:'숙소정보', description:'숙소명, 주소, 메모를 여기에 정리합니다.', uploadLabel:'숙소 사진 업로드', formLabel:'숙소 정보 작성 준비'}
+    : {title:'지역정보', description:'지역 설명, 위치, 메모를 여기에 정리합니다.', uploadLabel:'지역 사진 업로드', formLabel:'지역 정보 작성 준비'};
+  const isComposerOpen=!!mapSectionComposerState[sectionKey];
+  const actions=renderSimpleActionRow([
+    {label:'작성', onclick:`openMapSectionComposer('${sectionKey}')`},
+    {label:'삭제', onclick:`clearMapSectionComposer('${sectionKey}')`, variant:'delete'}
+  ]);
+  const composerHtml=isComposerOpen?`<div class="simple-form-card"><div class="simple-form-title">${escapeHtml(sectionMeta.formLabel)}</div><div class="simple-form-grid"><label class="simple-form-field"><span class="simple-form-label">기본 메모</span><textarea class="simple-form-input simple-form-textarea" placeholder="${escapeHtml(sectionMeta.description)}"></textarea></label>${renderUploadField(`map-${sectionKey}-photo`, sectionMeta.uploadLabel)}</div></div>`:'';
+  return `<section class="simple-info-subpanel${currentMapSubTab===sectionKey?' is-active':''}" data-map-section="${escapeHtml(sectionKey)}"><header class="simple-info-subheader"><div><h4 class="simple-info-subtitle">${escapeHtml(sectionMeta.title)}</h4><p class="simple-info-subdescription">${escapeHtml(sectionMeta.description)}</p></div>${actions}</header>${composerHtml}<div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(sectionMeta.title)} 관련 카드, 표, 위치 정보를 이 영역에 추가할 수 있습니다.</div></div></section>`;
+}
+function renderMapPanelHtml(){
+  const tabsHtml=`<div class="simple-subtabs" role="tablist" aria-label="MAP 하위탭"><button type="button" class="item simple-subtab${currentMapSubTab==='region'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='region'?'true':'false'}" onclick="showMapSubTab('region')">지역정보</button><button type="button" class="item simple-subtab${currentMapSubTab==='lodging'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='lodging'?'true':'false'}" onclick="showMapSubTab('lodging')">숙소정보</button></div>`;
+  const activeSectionHtml=currentMapSubTab==='lodging'?renderMapSectionPanel('lodging'):renderMapSectionPanel('region');
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${tabsHtml}${activeSectionHtml}</section></td></tr></tbody>`;
+}
+function sortNewsProgrammingEntries(entries){
+  return [...entries].sort((a,b)=>{
+    const dateCompare=String(b.date||'').localeCompare(String(a.date||''));
+    if(dateCompare!==0) return dateCompare;
+    const timeCompare=String(a.time||'').localeCompare(String(b.time||''));
+    if(timeCompare!==0) return timeCompare;
+    return Number(a.createdOrder||0)-Number(b.createdOrder||0);
+  });
+}
+function getNewsProgrammingEntryById(entryId=''){
+  return newsProgrammingEntries.find(entry=>String(entry.id)===String(entryId))||null;
+}
+function getNewsProgrammingEntriesByDate(dateKey=''){
+  const normalizedDate=String(dateKey||'').trim();
+  return sortNewsProgrammingEntries(newsProgrammingEntries.filter(entry=>String(entry?.date||'').trim()===normalizedDate));
+}
+function renderNewsProgrammingComposer(){
+  if(!isNewsProgrammingComposerOpen) return '';
+  const editingEntry=getNewsProgrammingEntryById(currentNewsProgrammingEditId);
+  const composerDate=editingEntry?.date||currentNewsProgrammingDate||getTodayTimelineKey();
+  const composerTime=editingEntry?.time||'09:00';
+  const composerTitle=editingEntry?.title||'';
+  const composerMeta=editingEntry?.meta||'';
+  const composerNote=editingEntry?.note||editingEntry?.content||'';
+  const composerMode=editingEntry?'수정':'작성';
+  return `<div class="simple-form-card news-programming-composer"><div class="simple-form-title">편성표 ${composerMode}</div><div class="simple-form-grid news-programming-form-grid"><label class="simple-form-field"><span class="simple-form-label">날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(composerDate)}" onchange="setNewsProgrammingComposerDate(this.value)"></label><label class="simple-form-field"><span class="simple-form-label">시간</span><input type="time" class="simple-form-input" id="newsProgrammingComposerTime" value="${escapeHtml(composerTime)}"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">편성명</span><input type="text" class="simple-form-input" id="newsProgrammingComposerTitle" value="${escapeHtml(composerTitle)}" placeholder="예: 메인뉴스 리허설"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">보조 정보</span><input type="text" class="simple-form-input" id="newsProgrammingComposerMeta" value="${escapeHtml(composerMeta)}" placeholder="예: 잠실 / 박재현 / TVU 1번"></label><label class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="newsProgrammingComposerInput" placeholder="세부 편성 내용, 송출 메모, 준비 사항을 입력하세요.">${escapeHtml(composerNote)}</textarea></label><div class="simple-form-field news-programming-form-field-full"><span class="simple-form-label">사진 첨부</span><div class="simple-upload-dropzone news-programming-upload-dropzone"><div class="simple-upload-placeholder">사진을 첨부해 타임라인 항목과 함께 표시할 수 있습니다.</div><input id="newsProgrammingComposerImages" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleNewsProgrammingImageChange(this)"></div><div id="newsProgrammingImagePreview" class="news-programming-upload-preview">${renderNewsProgrammingImagePreviewHtml(newsProgrammingComposerImages)}</div></div></div><div class="simple-info-actions"><button type="button" class="section-title-action-btn" onclick="saveNewsProgrammingEntry()">저장</button><button type="button" class="section-title-action-btn" onclick="cancelNewsProgrammingComposer()">취소</button></div></div>`;
+}
+function renderNewsProgrammingTimeline(){
+  const items=getNewsProgrammingEntriesByDate(currentNewsProgrammingDate||getTodayTimelineKey());
+  if(!items.length){
+    return `<div class="simple-info-body news-programming-empty"><div class="simple-info-placeholder">${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())} 기준 편성 항목이 아직 없습니다.</div></div>`;
+  }
+  return `<section class="news-programming-timeline-shell"><header class="news-programming-timeline-header"><div class="news-programming-timeline-title-wrap"><h4 class="news-programming-timeline-title">${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}</h4><p class="news-programming-timeline-meta">${items.length}개 항목</p></div><div class="simple-info-actions news-programming-day-actions"><button type="button" class="section-title-action-btn" onclick="editNewsProgrammingDay('${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteNewsProgrammingDay('${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}')">삭제</button></div></header><div class="news-programming-timeline-scroll"><div class="news-programming-timeline-track">${items.map((item,index)=>`<article class="news-programming-timeline-item"><div class="news-programming-timeline-node"><span class="news-programming-timeline-node-dot"></span><span class="news-programming-timeline-node-time">${escapeHtml(item.time||'시간 미정')}</span></div><div class="news-programming-timeline-card"><div class="news-programming-timeline-order">${index+1}</div><div class="news-programming-timeline-card-body"><h5 class="news-programming-timeline-card-title">${escapeHtml(item.title||item.content||'편성 항목')}</h5>${item.meta?`<div class="news-programming-timeline-card-meta">${escapeHtml(item.meta)}</div>`:''}${item.note||item.content?`<p class="news-programming-timeline-card-note">${escapeHtml(item.note||item.content)}</p>`:''}${Array.isArray(item.images)&&item.images.length?`<div class="news-programming-timeline-card-media">${item.images.map((src, mediaIndex)=>`<img class="news-programming-timeline-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(item.title||'편성 항목')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}</div></div></article>`).join('')}</div></div></section>`;
+}
+function renderNewsProgrammingPanelHtml(){
+  const topActions=renderSimpleActionRow([
+    {label:'작성', onclick:`setNewsProgrammingActionMode('write')`},
+    {label:'수정', onclick:`setNewsProgrammingActionMode('edit')`},
+    {label:'삭제', onclick:`deleteCurrentNewsProgrammingDate()`, variant:'delete'}
+  ]);
+  const datePicker=`<div class="news-programming-toolbar"><label class="simple-form-field news-programming-date-field"><span class="simple-form-label">기준 날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(currentNewsProgrammingDate||getTodayTimelineKey())}" onchange="setNewsProgrammingDate(this.value)"></label></div>`;
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel news-programming-panel" aria-label="뉴스편성"><header class="simple-info-header"><h3 class="simple-info-title">편성표</h3></header>${topActions}${datePicker}${renderNewsProgrammingComposer()}${renderNewsProgrammingTimeline()}</section></td></tr></tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -1191,6 +1467,14 @@ const personalTimelineTaskReportLabels = {
   경기취재:'경기 취재',
   외곽취재:'외곽 취재',
   라이브연결:'라이브 연결'
+};
+const personalTimelineTvuLabelMap = {
+  '1번':'TVU 1번 TRS 0001',
+  '2번':'TVU 2번 TRS 0002',
+  '3번':'TVU 3번 TRS 0003',
+  '4번':'TVU 4번 TRS 0004',
+  '5번':'TVU 5번 TRS 0005',
+  '6번':'TVU 6번 TRS 0006'
 };
 const headerClockModes = {
   venue:'venue',
@@ -2049,7 +2333,10 @@ function getHeaderReportBoardRecentState(itemId){
   return {remainingMs, elapsedMs};
 }
 function renderPersonalTimelineSummaryLine(item){
-  return `<div class="personal-timeline-summary-line"><span class="personal-timeline-summary-text">${escapeHtml(item.text)}</span><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>`;
+  const desktopText=escapeHtml(item.text);
+  const mobileLines=buildPersonalTimelineMobileReportLines(item);
+  const mobileText=mobileLines.map(line=>`<span class="personal-timeline-summary-text-mobile-line">${escapeHtml(line)}</span>`).join('');
+  return `<div class="personal-timeline-summary-line"><span class="personal-timeline-summary-text personal-timeline-summary-text-desktop">${desktopText}</span><span class="personal-timeline-summary-text personal-timeline-summary-text-mobile">${mobileText}</span><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>`;
 }
 function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
@@ -2156,17 +2443,33 @@ function getPersonalTimelineEntryTimeZone(detail){
 }
 function getPersonalTimelineOptionLabel(field, option){
   if(field==='시간') return formatPersonalTimelineTimeLabel(option);
+  if(field==='TVU') return personalTimelineTvuLabelMap[option]||option;
   return option;
 }
 function getPersonalTimelineTaskReportLabel(task){
   return personalTimelineTaskReportLabels[task]||task;
 }
+function buildPersonalTimelineParticipantLabel(name='', reporter=''){
+  const participantNames=[String(name||'').trim(), String(reporter||'').trim()].filter(Boolean);
+  return `[${participantNames.join(' / ').replace(/\s*\/\s*/g, ' / ')}]`;
+}
+function buildPersonalTimelineMobileReportLines(item){
+  const detail=item?.detail;
+  if(!detail) return [String(item?.text||'').trim()].filter(Boolean);
+  const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', detail.취재기자||'');
+  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'');
+  const taskPlaceLabel=`${String(detail.업무내용||'').trim()}를 ${String(detail.장소||'').trim()}에서`;
+  const equipmentLabel=`${getPersonalTimelineOptionLabel('TVU', detail.TVU)}을 가지고 진행`;
+  return [participantLabel, timeLabel, taskPlaceLabel, equipmentLabel];
+}
 function buildPersonalTimelineReportText(name, detail){
   if(!detail) return '';
   const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
   if(values.some(value=>!value)) return '';
-  const reporter=detail.취재기자.endsWith('기자') ? detail.취재기자 : `${detail.취재기자} 기자`;
-  return `${name}기자 ${formatPersonalTimelineTimeLabel(detail.시간)}부터 ${detail.장소}에서 ${reporter}와 티비유 ${detail.TVU}으로 ${getPersonalTimelineTaskReportLabel(detail.업무내용)} 진행`;
+  const participantLabel=buildPersonalTimelineParticipantLabel(name, detail.취재기자);
+  const taskLabel=String(detail.업무내용||'').trim();
+  const tvuLabel=getPersonalTimelineOptionLabel('TVU', detail.TVU);
+  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간)} ${taskLabel}를 ${detail.장소}에서 ${tvuLabel}을 가지고 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
@@ -2409,7 +2712,11 @@ function buildHeaderReportBoardItemText(item){
   const name=String(item?.name||'').trim();
   if(!rawText) return '';
   if(!name) return rawText;
-  return rawText.replace(new RegExp(`^${name}기자\\s*`), '');
+  const pairPrefix=`${name} / `;
+  if(rawText.startsWith(pairPrefix)) return rawText.slice(pairPrefix.length);
+  const singlePrefix=`${name} `;
+  if(rawText.startsWith(singlePrefix)) return rawText.slice(singlePrefix.length);
+  return rawText;
 }
 function formatHeaderReportBoardTextLines(item){
   const text=buildHeaderReportBoardItemText(item);
@@ -2848,8 +3155,8 @@ function renderPersonalTimelineHoverPanel(){
   const personalNames=['박재현','장후원','정상원','이주원','김진광','정재우'];
   return `<div class="personal-timeline-hover-panel"><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">공동 일정</span><div class="personal-timeline-hover-chip">영상취재팀 공동</div></div><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">개별 일정</span><div class="personal-timeline-hover-grid">${personalNames.map(name=>`<div class="personal-timeline-hover-cell">${name}</div>`).join('')}</div></div></div>`;
 }
-function renderPersonalTimelineLegend(){
-  return '<div class="personal-timeline-legend"><span class="personal-timeline-legend-chip is-today">오늘</span><span class="personal-timeline-legend-chip is-tomorrow">내일</span><span class="personal-timeline-legend-chip is-upcoming">예정</span><span class="personal-timeline-legend-chip is-shared">공동 일정</span><span class="personal-timeline-legend-chip is-personal">개별 일정</span></div>';
+function renderPersonalTimelineTopbar(){
+  return `<div class="personal-timeline-topbar"><div class="personal-timeline-topbar-main"><span class="personal-timeline-month-sticky"></span><div class="personal-timeline-quick-actions"><button type="button" class="personal-timeline-quick-btn" data-timeline-action="top">맨 위로</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div></div>`;
 }
 function renderPersonalTimelineEntries(entries, kind){
   return entries.map(item=>`<div class="personal-timeline-entry personal-timeline-entry-${item.kind}"><span class="personal-timeline-entry-name personal-timeline-entry-name-${item.kind}">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('');
@@ -2873,10 +3180,10 @@ function renderPersonalTimelineSharedColumn(dateKey){
   const isEditMode=personalTimelineSharedEditingDateKey===dateKey;
   const isDeleteMode=personalTimelineSharedDeletingDateKey===dateKey;
   return sharedEntries.map((sharedEntry, entryIndex)=>{
-    const sharedTextLines=(sharedEntry.text||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+    const sharedText=String(sharedEntry.text||'').replace(/\r\n/g,'\n').trim();
     const editButtonHtml=isEditMode ? `<button type="button" class="personal-timeline-shared-entry-edit-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 수정">수정</button>` : '';
     const deleteButtonHtml=isDeleteMode ? `<button type="button" class="personal-timeline-shared-entry-delete-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 삭제">삭제</button>` : '';
-    const textHtml=sharedTextLines.length ? `<div class="personal-timeline-entry-text personal-timeline-entry-text-shared-list">${sharedTextLines.map(line=>`<p class="personal-timeline-entry-text-shared-item"><span class="personal-timeline-entry-text-shared-bullet">·</span><span>${escapeHtml(line)}</span></p>`).join('')}</div>` : '';
+    const textHtml=sharedText ? `<div class="personal-timeline-entry-text personal-timeline-entry-text-shared-item"><span class="personal-timeline-entry-text-shared-bullet">•</span><span class="personal-timeline-entry-text-shared-body">${escapeHtml(sharedText)}</span></div>` : '';
     const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
     return `<div class="personal-timeline-entry personal-timeline-entry-shared"><div class="personal-timeline-entry-head">${deleteButtonHtml}${editButtonHtml}<span class="personal-timeline-entry-name personal-timeline-entry-name-shared">영상취재팀 공동</span></div>${textHtml}${mediaHtml}</div>`;
   }).join('');
@@ -3008,7 +3315,7 @@ function renderPersonalTimelineItem(date, index, rows){
   })).filter(item=>item.value);
   const columnsHtml=`<div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header-wrap">${renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel)}</div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(dateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(dateKey)}</div></section></div>`;
   const entriesHtml=columnsHtml;
-  return `<article class="personal-timeline-item ${assignments.length||generatedReports.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}${isToday?' is-open':''}" data-month="${date.getMonth()+1}" data-date-key="${dateKey}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${railDateLabel}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
+  return `<article class="personal-timeline-item ${assignments.length||generatedReports.length?'has-entry':'is-empty'} personal-timeline-phase-${phase.key}${isToday?' is-open':''}" data-month="${date.getMonth()+1}" data-date-key="${dateKey}" data-date="${dateKey}"><div class="personal-timeline-rail"><span class="personal-timeline-dot"></span><div class="personal-timeline-date"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day">${railDateLabel}</span></div></div><div class="personal-timeline-content"><div class="personal-timeline-card">${entriesHtml}</div></div></article>`;
 }
 function renderPersonalTimelineMonthGroups(dates, rows){
   const groups=dates.reduce((result, date, index)=>{
@@ -3085,8 +3392,9 @@ function setPersonalTimelineOpenItem(list, item){
   list.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
   item.classList.add('is-open');
   updateHeaderTimes();
+  const detailCol=document.getElementById('detailCol');
+  updatePersonalTimelineDisplayedMonth(detailCol, list);
   if(isMobileViewport()){
-    const detailCol=document.getElementById('detailCol');
     updatePersonalTimelineMobileNavigator(detailCol, list);
   }
 }
@@ -3108,6 +3416,39 @@ function syncPersonalTimelineOpenItemFromScroll(list){
   });
   setPersonalTimelineOpenItem(list, nearestItem);
 }
+function getVisiblePersonalTimelineItems(list){
+  return getPersonalTimelineItems(list).filter(item=>item.getClientRects().length>0);
+}
+function updatePersonalTimelineDisplayedMonth(detailCol, list){
+  if(!detailCol||!list) return;
+  const stickyEl=detailCol.querySelector('.personal-timeline-month-sticky');
+  if(!stickyEl) return;
+  const allItems=getPersonalTimelineItems(list);
+  if(!allItems.length) return;
+  const visibleItems=getVisiblePersonalTimelineItems(list);
+  let activeItem=null;
+  if(isMobileViewport()){
+    activeItem=visibleItems.find(item=>item.classList.contains('is-open'))
+      || allItems.find(item=>item.classList.contains('is-open'))
+      || visibleItems[0]
+      || allItems[0]
+      || null;
+  }else{
+    const items=visibleItems.length ? visibleItems : allItems;
+    const stickyTop=stickyEl.getBoundingClientRect().bottom + 12;
+    activeItem=items[0]||null;
+    items.forEach(item=>{
+      if(item.getBoundingClientRect().top<=stickyTop){
+        activeItem=item;
+      }
+    });
+  }
+  if(!activeItem) return;
+  const month=activeItem.dataset.month||'';
+  stickyEl.textContent=month?`${month}월`:'';
+  stickyEl.dataset.activeMonth=month;
+  stickyEl.dataset.activeDateKey=activeItem.dataset.dateKey||'';
+}
 function setupPersonalTimelineStickyMonth(detailCol){
   if(personalTimelineStickyMonthCleanup){
     personalTimelineStickyMonthCleanup();
@@ -3116,51 +3457,123 @@ function setupPersonalTimelineStickyMonth(detailCol){
   const stickyEl=detailCol.querySelector('.personal-timeline-month-sticky');
   const list=detailCol.querySelector('.personal-timeline-list');
   if(!stickyEl||!list) return;
-  const updateStickyMonth=()=>{
-    const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
-    if(!items.length) return;
-    const stickyTop=stickyEl.getBoundingClientRect().bottom + 12;
-    let activeItem=items[0];
-    items.forEach(item=>{
-      if(item.getBoundingClientRect().top<=stickyTop){
-        activeItem=item;
-      }
-    });
-    const month=activeItem.dataset.month||'';
-    stickyEl.textContent=month?`${month}월`:'';
-  };
+  const scrollContainer=getPersonalTimelineScrollContainer(list);
+  const updateStickyMonth=()=>updatePersonalTimelineDisplayedMonth(detailCol, list);
   const onScroll=()=>window.requestAnimationFrame(updateStickyMonth);
-  window.addEventListener('scroll', onScroll, {passive:true});
-  detailCol.addEventListener('scroll', onScroll, {passive:true});
+  if(scrollContainer===window){
+    window.addEventListener('scroll', onScroll, {passive:true});
+  }else{
+    scrollContainer.addEventListener('scroll', onScroll, {passive:true});
+  }
   window.addEventListener('resize', updateStickyMonth);
   updateStickyMonth();
   personalTimelineStickyMonthCleanup=()=>{
-    window.removeEventListener('scroll', onScroll);
-    detailCol.removeEventListener('scroll', onScroll);
+    if(scrollContainer===window){
+      window.removeEventListener('scroll', onScroll);
+    }else{
+      scrollContainer.removeEventListener('scroll', onScroll);
+    }
     window.removeEventListener('resize', updateStickyMonth);
   };
 }
-function scrollPersonalTimelineToDate(dateKey=''){
-  const list=document.querySelector('.personal-timeline-list');
-  if(!list) return;
-  const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
-  if(!items.length) return;
-  const target=items.find(item=>item.dataset.dateKey===dateKey)
-    || items.find(item=>String(item.dataset.dateKey||'')>=dateKey)
-    || items[items.length-1];
-  if(!target) return;
-  if(isMobileViewport()){
-    setPersonalTimelineOpenItem(list, target);
+function getPersonalTimelineItems(list){
+  return Array.from(list?.querySelectorAll('.personal-timeline-item')||[]);
+}
+function findBestPersonalTimelineTarget(items, dateKey=''){
+  if(!items.length) return null;
+  if(!dateKey) return items[0]||null;
+  return items.find(item=>item.dataset.dateKey===dateKey)
+    || items.find(item=>String(item.dataset.dateKey||'')>dateKey)
+    || [...items].reverse().find(item=>String(item.dataset.dateKey||'')<dateKey)
+    || items[0]
+    || null;
+}
+function findPersonalTimelineMonthStartTarget(items, monthValue=''){
+  if(!items.length) return null;
+  const normalizedMonth=String(parseInt(monthValue, 10)||'').trim();
+  if(!normalizedMonth) return items[0]||null;
+  const monthItems=items.filter(item=>String(item.dataset.month||'')===normalizedMonth);
+  if(!monthItems.length) return items[0]||null;
+  return monthItems.find(item=>String(item.dataset.dateKey||'').endsWith('-01'))
+    || monthItems[0]
+    || items[0]
+    || null;
+}
+function getActivePersonalTimelineMonth(detailCol, items=[]){
+  const stickyEl=detailCol?.querySelector('.personal-timeline-month-sticky');
+  const stickyMonth=String(stickyEl?.dataset.activeMonth||'').trim();
+  if(stickyMonth) return stickyMonth;
+  const stickyText=String(stickyEl?.textContent||'').trim();
+  const matchedMonth=stickyText.match(/(\d{1,2})월/);
+  if(matchedMonth?.[1]) return matchedMonth[1];
+  const activeItem=items.find(item=>item.classList.contains('is-open'));
+  return String(activeItem?.dataset.month||items[0]?.dataset.month||'').trim();
+}
+function getPersonalTimelineScrollContainer(list){
+  let node=list?.parentElement||null;
+  while(node&&node!==document.body){
+    const style=window.getComputedStyle(node);
+    const overflowY=style.overflowY||'';
+    if(node.scrollHeight>node.clientHeight+1&&/(auto|scroll|overlay)/.test(overflowY)){
+      return node;
+    }
+    node=node.parentElement;
   }
+  return window;
+}
+function getPersonalTimelineWindowOffset(){
   const board=document.getElementById('headerReportBoard');
   const boardHeight=board ? board.getBoundingClientRect().height : 0;
   const header=document.querySelector('.header');
   const headerHeight=header ? header.getBoundingClientRect().height : 0;
-  const top=Math.max(
-    0,
-    window.scrollY + target.getBoundingClientRect().top - Math.min(headerHeight + boardHeight + 24, 320)
-  );
-  window.scrollTo({top, behavior:'auto'});
+  const topbar=document.querySelector('.personal-timeline-topbar');
+  const topbarHeight=topbar ? topbar.getBoundingClientRect().height : 0;
+  return Math.min(headerHeight + boardHeight + topbarHeight + 36, 420);
+}
+function scrollPersonalTimelineNode(target, options={}){
+  if(!target) return;
+  const {behavior='smooth'}=options;
+  const detailCol=target.closest('#detailCol')||document.getElementById('detailCol');
+  const list=target.closest('.personal-timeline-list')
+    || detailCol?.querySelector('.personal-timeline-list')
+    || document.querySelector('.personal-timeline-list');
+  const container=getPersonalTimelineScrollContainer(list);
+  if(container===window){
+    const top=Math.max(0, window.scrollY + target.getBoundingClientRect().top - getPersonalTimelineWindowOffset());
+    window.scrollTo({top, behavior});
+    return;
+  }
+  const topbar=detailCol?.querySelector('.personal-timeline-topbar');
+  const topbarHeight=topbar ? topbar.getBoundingClientRect().height : 0;
+  const top=container.scrollTop + (target.getBoundingClientRect().top - container.getBoundingClientRect().top) - topbarHeight - 12;
+  container.scrollTo({top:Math.max(0, top), behavior});
+}
+function scrollPersonalTimelineToTop(options={}){
+  const detailCol=document.getElementById('detailCol');
+  const list=detailCol?.querySelector('.personal-timeline-list');
+  if(!list) return;
+  const items=getPersonalTimelineItems(list);
+  if(!items.length) return;
+  const activeMonth=getActivePersonalTimelineMonth(detailCol, items);
+  const target=findPersonalTimelineMonthStartTarget(items, activeMonth);
+  if(!target) return;
+  if(isMobileViewport()){
+    setPersonalTimelineOpenItem(list, target);
+  }
+  scrollPersonalTimelineNode(target, options);
+}
+function scrollPersonalTimelineToDate(dateKey='', options={}){
+  const detailCol=document.getElementById('detailCol');
+  const list=detailCol?.querySelector('.personal-timeline-list')||document.querySelector('.personal-timeline-list');
+  if(!list) return;
+  const items=getPersonalTimelineItems(list);
+  if(!items.length) return;
+  const target=findBestPersonalTimelineTarget(items, dateKey);
+  if(!target) return;
+  if(isMobileViewport()){
+    setPersonalTimelineOpenItem(list, target);
+  }
+  scrollPersonalTimelineNode(target, options);
 }
 function renderPersonalTimelineSchedule(view){
   const dates=getTimelineDates();
@@ -3172,7 +3585,7 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailTable.insertAdjacentHTML('afterend',`<div class="personal-timeline-mobile-nav"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
+  detailTable.insertAdjacentHTML('afterend',`${renderPersonalTimelineTopbar()}<div class="personal-timeline-mobile-nav"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
     let personalTimelineScrollTimer=null;
@@ -3301,10 +3714,21 @@ function renderPersonalTimelineSchedule(view){
         event.stopPropagation();
         const nextDateKey=String(mobilePickerInput.value||'').trim();
         if(nextDateKey){
-          scrollPersonalTimelineToDate(nextDateKey);
+          scrollPersonalTimelineToDate(nextDateKey, {behavior:'smooth'});
         }
       };
     }
+    detailCol.querySelectorAll('.personal-timeline-quick-btn').forEach(button=>{
+      button.onclick=event=>{
+        event.stopPropagation();
+        if(button.dataset.timelineAction==='top'){
+          scrollPersonalTimelineToTop({behavior:'smooth'});
+          return;
+        }
+        scrollPersonalTimelineToDate(getTodayTimelineKey(), {behavior:'smooth'});
+      };
+    });
+    setupPersonalTimelineStickyMonth(detailCol);
     updatePersonalTimelineMobileNavigator(detailCol, list);
   }
   detailCol.onclick=event=>{
@@ -3943,7 +4367,7 @@ function hideAllPanels(){
   getMobilePanelIds().forEach(id=>document.getElementById(id).classList.add('hidden'));
   updateMobileHeaderReportBoardVisibility();
 }
-function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','personalTimelineMenu','mexicoStadiumMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
+function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','personalTimelineMenu','mexicoStadiumMenu','mapMenu','newsProgrammingMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
 function clearDetailExtras(){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
@@ -3962,7 +4386,9 @@ function clearDetailExtras(){
   document.body.classList.remove('news-editor-modal-open');
   document.onmouseup=null;
   detailCol.classList.remove('timeline-mode');
+  detailCol.classList.remove('mexico-stadium-mode');
   detailTable.parentElement.classList.remove('timeline-card');
+  detailTable.parentElement.classList.remove('mobile-table-scroll-card');
   detailTable.className='data-table';
   detailTable.onmousedown=null;
   detailTable.onmouseover=null;
@@ -3981,8 +4407,226 @@ function renderMobileNewsMenu(){
   if(!panel) return;
   panel.innerHTML=Object.entries(NEWS_YEAR_META).map(([year, meta])=>`<div class="news-mobile-year-block"><div class="item news-year-item ${currentNewsYear===year?'active':''}" aria-label="${escapeHtml(meta.aria)}"><span class="news-year-frame"><img class="news-year-logo" src="${meta.logo}" alt="${escapeHtml(meta.aria)} 로고"></span></div><div class="news-mobile-broadcasters">${NEWS_BROADCASTERS.map(broadcaster=>`<div class="item broadcaster-item broadcaster-item-${broadcaster.toLowerCase()} ${currentNewsYear===year&&currentNewsBroadcaster===broadcaster?'active':''}" onclick="openNewsDetail('${year}','${broadcaster}', this)" aria-label="${escapeHtml(broadcaster)}"><span class="broadcaster-frame">${renderNewsBroadcasterCiMarkup(broadcaster)}</span></div>`).join('')}</div></div>`).join('');
 }
+function renderMapPanel(){
+  clearDetailExtras();
+  document.getElementById('detailTitle').textContent='MAP';
+  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table simple-info-table map-panel-table';
+  renderCache.mapPanel=renderMapPanelHtml();
+  document.getElementById('detailTable').innerHTML=renderCache.mapPanel;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+function renderNewsProgrammingPanel(){
+  clearDetailExtras();
+  document.getElementById('detailTitle').textContent='뉴스편성';
+  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table simple-info-table news-programming-table';
+  renderCache.newsProgrammingPanel=renderNewsProgrammingPanelHtml();
+  document.getElementById('detailTable').innerHTML=renderCache.newsProgrammingPanel;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+function showMapSubTab(tabKey='region'){
+  currentMapSubTab=tabKey==='lodging'?'lodging':'region';
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function setMapActionMode(mode='write'){
+  currentMapActionMode=mode==='edit'?'edit':'write';
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function clearMapActionMode(){
+  currentMapActionMode='';
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function openMapSectionComposer(sectionKey){
+  const normalized=sectionKey==='lodging'?'lodging':'region';
+  currentMapSubTab=normalized;
+  mapSectionComposerState[normalized]=true;
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function clearMapSectionComposer(sectionKey){
+  const normalized=sectionKey==='lodging'?'lodging':'region';
+  mapSectionComposerState[normalized]=false;
+  if(document.getElementById('mapMenu')?.classList.contains('active')){
+    renderMapPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function setNewsProgrammingActionMode(mode='write'){
+  currentNewsProgrammingActionMode=mode==='edit'?'edit':'write';
+  if(currentNewsProgrammingActionMode==='edit'){
+    const latestEntry=getNewsProgrammingEntriesByDate(currentNewsProgrammingDate)[0]||sortNewsProgrammingEntries(newsProgrammingEntries)[0]||null;
+    currentNewsProgrammingEditId=latestEntry?.id||'';
+    newsProgrammingComposerImages=Array.isArray(latestEntry?.images)?[...latestEntry.images]:[];
+  }else{
+    currentNewsProgrammingEditId='';
+    newsProgrammingComposerImages=[];
+  }
+  isNewsProgrammingComposerOpen=true;
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function clearNewsProgrammingActionMode(){
+  currentNewsProgrammingActionMode='';
+  currentNewsProgrammingEditId='';
+  isNewsProgrammingComposerOpen=false;
+  newsProgrammingComposerImages=[];
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function setNewsProgrammingDate(value=''){
+  currentNewsProgrammingDate=String(value||'').trim()||getTodayTimelineKey();
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function setNewsProgrammingComposerDate(value=''){
+  currentNewsProgrammingDate=String(value||'').trim()||getTodayTimelineKey();
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function cancelNewsProgrammingComposer(){
+  currentNewsProgrammingActionMode='';
+  currentNewsProgrammingEditId='';
+  isNewsProgrammingComposerOpen=false;
+  newsProgrammingComposerImages=[];
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+async function handleNewsProgrammingImageChange(input){
+  const files=Array.from(input?.files||[]);
+  if(!files.length) return;
+  const nextImages=(await Promise.all(files.map(file=>new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>resolve('');
+    reader.readAsDataURL(file);
+  })))).filter(Boolean);
+  newsProgrammingComposerImages.push(...nextImages);
+  renderNewsProgrammingImagePreview();
+  if(input) input.value='';
+}
+function renderNewsProgrammingImagePreview(){
+  const preview=document.getElementById('newsProgrammingImagePreview');
+  if(!preview) return;
+  preview.innerHTML=renderNewsProgrammingImagePreviewHtml(newsProgrammingComposerImages);
+}
+function removeNewsProgrammingImage(index){
+  newsProgrammingComposerImages=newsProgrammingComposerImages.filter((_, imageIndex)=>imageIndex!==Number(index));
+  renderNewsProgrammingImagePreview();
+}
+function saveNewsProgrammingEntry(){
+  const textarea=document.getElementById('newsProgrammingComposerInput');
+  const titleInput=document.getElementById('newsProgrammingComposerTitle');
+  const timeInput=document.getElementById('newsProgrammingComposerTime');
+  const metaInput=document.getElementById('newsProgrammingComposerMeta');
+  const note=String(textarea?.value||'').trim();
+  const title=String(titleInput?.value||'').trim();
+  const time=String(timeInput?.value||'').trim()||'09:00';
+  const meta=String(metaInput?.value||'').trim();
+  const dateKey=String(currentNewsProgrammingDate||'').trim()||getTodayTimelineKey();
+  if(!title&&!note){
+    titleInput?.focus();
+    return;
+  }
+  const content=title&&note?`${title}\n${note}`:(title||note);
+  if(currentNewsProgrammingEditId){
+    newsProgrammingEntries=newsProgrammingEntries.map(entry=>String(entry.id)===String(currentNewsProgrammingEditId)?{...entry, date:dateKey, time, title, meta, note, content, images:[...newsProgrammingComposerImages]}:entry);
+  }else{
+    newsProgrammingEntries.push({
+      id:`news-programming-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      date:dateKey,
+      time,
+      title,
+      meta,
+      note,
+      content,
+      images:[...newsProgrammingComposerImages],
+      createdOrder:Date.now()
+    });
+  }
+  currentNewsProgrammingActionMode='';
+  currentNewsProgrammingEditId='';
+  isNewsProgrammingComposerOpen=false;
+  newsProgrammingComposerImages=[];
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function editNewsProgrammingDay(dateKey=''){
+  const latestEntry=getNewsProgrammingEntriesByDate(dateKey)[0];
+  currentNewsProgrammingDate=String(dateKey||'').trim()||getTodayTimelineKey();
+  currentNewsProgrammingActionMode='edit';
+  currentNewsProgrammingEditId=latestEntry?.id||'';
+  isNewsProgrammingComposerOpen=true;
+  newsProgrammingComposerImages=Array.isArray(latestEntry?.images)?[...latestEntry.images]:[];
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function deleteNewsProgrammingDay(dateKey=''){
+  const normalizedDate=String(dateKey||'').trim();
+  newsProgrammingEntries=newsProgrammingEntries.filter(entry=>entry.date!==normalizedDate);
+  if(currentNewsProgrammingDate===normalizedDate){
+    currentNewsProgrammingActionMode='';
+    currentNewsProgrammingEditId='';
+    isNewsProgrammingComposerOpen=false;
+    newsProgrammingComposerImages=[];
+  }
+  if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
+    renderNewsProgrammingPanel();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function deleteCurrentNewsProgrammingDate(){
+  deleteNewsProgrammingDay(currentNewsProgrammingDate||getTodayTimelineKey());
+}
 function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
 function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
+function toggleMapPanel(){
+  const detailCol=document.getElementById('detailCol');
+  const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('mapMenu').classList.contains('active');
+  hideAllPanels();
+  clearAllActive();
+  if(willOpen){
+    document.getElementById('mapMenu').classList.add('active');
+    renderMapPanel();
+  }
+  updateMobileHeaderReportBoardVisibility();
+}
+function toggleNewsProgramming(){
+  const detailCol=document.getElementById('detailCol');
+  const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('newsProgrammingMenu').classList.contains('active');
+  hideAllPanels();
+  clearAllActive();
+  if(willOpen){
+    document.getElementById('newsProgrammingMenu').classList.add('active');
+    renderNewsProgrammingPanel();
+  }
+  updateMobileHeaderReportBoardVisibility();
+}
 function toggleGroupASquads(){
   const panel=document.getElementById('groupASquadCol');
   const willOpen=panel.classList.contains('hidden');
@@ -4483,45 +5127,928 @@ function renderSquadInjuryCell(squadKey, player){
   return `<div class="squad-injury-cell"><span class="squad-injury-text">${injuryText}</span>${actions}</div>`;
 }
 
-function showBracketStage(stage, el){document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('bracketTabStack')?.classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');if(stage==='group'){document.getElementById('groupCol').classList.remove('hidden');updateMobileHeaderReportBoardVisibility();return;}document.getElementById('groupCol').classList.add('hidden');renderKnockoutTable(stage);updateMobileHeaderReportBoardVisibility();}
-function renderScheduleMatchRow(number, mainHtml, date, time, stadium){
+function getGroupRankSelectionState(groupKey=''){
+  const key=String(groupKey||'').trim().toUpperCase();
+  if(!key) return Object.create(null);
+  if(!groupRankSelections[key]) groupRankSelections[key]=Object.create(null);
+  return groupRankSelections[key];
+}
+function getGroupTeamRank(groupKey='', teamName=''){
+  return getGroupRankSelectionState(groupKey)[String(teamName||'').trim()]||'';
+}
+function getGroupRankSlotTeam(groupKey='', rank=''){
+  const normalizedRank=String(rank||'').trim();
+  return (groupData[groupKey]||[]).find(team=>getGroupTeamRank(groupKey, team.name)===normalizedRank)||null;
+}
+function getGroupTeamStandingMetrics(team){
+  const standing=team?.standing&&typeof team.standing==='object' ? team.standing : null;
+  return {
+    points:Number(standing?.points??team?.points??0),
+    goalDifference:Number(standing?.goalDifference??team?.goalDifference??0),
+    goalsFor:Number(standing?.goalsFor??team?.goalsFor??0),
+    fairPlay:Number(standing?.fairPlay??team?.fairPlay??0)
+  };
+}
+function getThirdPlaceTeams(groups=groupData){
+  return Object.keys(groups||{}).sort().flatMap(groupKey=>{
+    const team=(groups[groupKey]||[]).find(entry=>getGroupTeamRank(groupKey, entry.name)==='3');
+    if(!team) return [];
+    const metrics=getGroupTeamStandingMetrics(team);
+    return [{
+      group:groupKey,
+      team:team.name,
+      code:team.code,
+      coach:team.coach,
+      rankInGroup:3,
+      points:metrics.points,
+      goalDifference:metrics.goalDifference,
+      goalsFor:metrics.goalsFor,
+      fairPlay:metrics.fairPlay
+    }];
+  });
+}
+function sortThirdPlaceTeams(thirdPlaceTeams=[]){
+  return [...thirdPlaceTeams].sort((a,b)=>{
+    if(b.points!==a.points) return b.points-a.points;
+    if(b.goalDifference!==a.goalDifference) return b.goalDifference-a.goalDifference;
+    if(b.goalsFor!==a.goalsFor) return b.goalsFor-a.goalsFor;
+    if(b.fairPlay!==a.fairPlay) return b.fairPlay-a.fairPlay;
+    return String(a.group||'').localeCompare(String(b.group||''));
+  }).map((team, index)=>({
+    ...team,
+    overallRank:index+1
+  }));
+}
+function getQualifiedThirdPlaceTeams(sortedTeams=[]){
+  return sortedTeams.slice(0,8).map(team=>({
+    ...team,
+    qualifiedThird:true,
+    eliminated:false
+  }));
+}
+function getEliminatedThirdPlaceTeams(sortedTeams=[]){
+  return sortedTeams.slice(8).map(team=>({
+    ...team,
+    qualifiedThird:false,
+    eliminated:true
+  }));
+}
+function getRound32ThirdPlaceSlotDescriptors(){
+  return (knockoutTemplates.round32||[]).map(([match])=>{
+    const firstSpace=match.indexOf(' ');
+    const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);
+    const matchText=firstSpace===-1?'':match.slice(firstSpace+1);
+    const thirdMatch=matchText.match(/([A-L](?:\/[A-L])*)조 3위/);
+    if(!thirdMatch) return null;
+    return {
+      matchNum,
+      token:thirdMatch[0],
+      allowedGroups:thirdMatch[1].split('/')
+    };
+  }).filter(Boolean);
+}
+function assignQualifiedThirdPlaceTeamsToSlots(qualifiedTeams=[], slotDescriptors=[]){
+  const teamNodes=qualifiedTeams.map(team=>({
+    team,
+    slotKeys:slotDescriptors.filter(slot=>slot.allowedGroups.includes(team.group)).map(slot=>slot.matchNum)
+  })).sort((a,b)=>{
+    if(a.slotKeys.length!==b.slotKeys.length) return a.slotKeys.length-b.slotKeys.length;
+    if(a.team.overallRank!==b.team.overallRank) return a.team.overallRank-b.team.overallRank;
+    return a.team.group.localeCompare(b.team.group);
+  });
+  const descriptorIndexMap=new Map(slotDescriptors.map((slot,index)=>[slot.matchNum,index]));
+  const nodeByGroup=new Map(teamNodes.map(node=>[node.team.group,node]));
+  const slotAssignments=Object.create(null);
+  function tryAssign(node, visited){
+    const orderedSlots=[...node.slotKeys].sort((a,b)=>(descriptorIndexMap.get(a)??0)-(descriptorIndexMap.get(b)??0));
+    for(const slotKey of orderedSlots){
+      if(visited.has(slotKey)) continue;
+      visited.add(slotKey);
+      const assignedTeam=slotAssignments[slotKey];
+      if(!assignedTeam){
+        slotAssignments[slotKey]=node.team;
+        return true;
+      }
+      const assignedNode=nodeByGroup.get(assignedTeam.group);
+      if(assignedNode&&tryAssign(assignedNode, visited)){
+        slotAssignments[slotKey]=node.team;
+        return true;
+      }
+    }
+    return false;
+  }
+  teamNodes.forEach(node=>tryAssign(node, new Set()));
+  return slotAssignments;
+}
+function updateThirdPlaceRankingState(){
+  const thirdPlaceTeams=getThirdPlaceTeams(groupData);
+  const sortedTeams=sortThirdPlaceTeams(thirdPlaceTeams);
+  const qualifiedTeams=getQualifiedThirdPlaceTeams(sortedTeams);
+  const eliminatedTeams=getEliminatedThirdPlaceTeams(sortedTeams);
+  const slotDescriptors=getRound32ThirdPlaceSlotDescriptors();
+  const slotAssignments=assignQualifiedThirdPlaceTeamsToSlots(qualifiedTeams, slotDescriptors);
+  thirdPlaceRankingState.thirdPlaceRanking=sortedTeams.map(team=>({
+    ...team,
+    qualifiedThird:team.overallRank<=8,
+    eliminated:team.overallRank>8,
+    statusLabel:team.overallRank<=8 ? '32강 진출' : '탈락'
+  }));
+  thirdPlaceRankingState.qualifiedThirdPlaceTeams=qualifiedTeams;
+  thirdPlaceRankingState.eliminatedThirdPlaceTeams=eliminatedTeams;
+  thirdPlaceRankingState.qualifiedThirdPlaceGroups=qualifiedTeams.map(team=>team.group);
+  thirdPlaceRankingState.thirdPlaceSlotDescriptors=slotDescriptors;
+  thirdPlaceRankingState.thirdPlaceSlotAssignments=slotAssignments;
+  return thirdPlaceRankingState;
+}
+function buildGroupRankControls(groupKey='', teamName=''){
+  const selectedRank=getGroupTeamRank(groupKey, teamName);
+  const buttons=[
+    ['1','1위'],
+    ['2','2위'],
+    ['3','3위'],
+    ['4','4위']
+  ].map(([rankValue,label])=>`<button type="button" class="group-rank-btn${selectedRank===rankValue?' is-active':''}" data-group-key="${escapeHtml(groupKey)}" data-team-name="${escapeHtml(teamName)}" data-rank-value="${rankValue}" aria-pressed="${selectedRank===rankValue?'true':'false'}">${label}</button>`).join('');
+  const thirdPlaceBadge=selectedRank==='3' ? '<span class="group-rank-third-status">조 3위 간 성적</span>' : '';
+  const eliminatedBadge=selectedRank==='4' ? '<span class="group-rank-eliminated">탈락</span>' : '';
+  return `<div class="group-rank-controls" role="group" aria-label="${escapeHtml(`${groupKey}조 ${teamName} 순위 선택`)}">${buttons}${thirdPlaceBadge}${eliminatedBadge}</div>`;
+}
+function buildGroupTableView(groupKey=''){
+  const data=groupData[groupKey]||[];
+  const matches=groupMatches[groupKey]||[];
+  const header='<colgroup><col class="group-col-team"><col class="group-col-coach"><col class="group-col-rank"><col class="group-col-placement"></colgroup><thead><tr><th>팀</th><th>감독</th><th>랭킹</th><th>순위</th></tr></thead>';
+  const body=`<tbody>${data.map(team=>{
+    const flag=getFlag(team.code);
+    const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';
+    const selectedRank=getGroupTeamRank(groupKey, team.name);
+    return `<tr class="group-team-row${selectedRank==='4'?' is-eliminated':''}"><td class="group-team-cell"><div class="flag-cell">${flagHtml}<span class="group-team-name">${team.name}</span></div></td><td class="group-coach-cell">${team.coach}</td><td class="group-rank-cell">${team.rank}</td><td class="group-placement-cell">${buildGroupRankControls(groupKey, team.name)}</td></tr>`;
+  }).join('')}</tbody>`;
+  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>{const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return renderScheduleMatchRow(match.number, `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`, match.date, match.time, match.stadium);}).join('')}</tbody></table></div></div>`:'';
+  return {tableHtml:header+body,matchSection};
+}
+function formatSignedNumber(value){
+  const number=Number(value||0);
+  return number>0 ? `+${number}` : `${number}`;
+}
+function renderThirdPlaceStatusBadge(team){
+  const badgeClass=team.qualifiedThird ? 'is-qualified' : 'is-eliminated';
+  const label=team.qualifiedThird ? '32강 진출' : '탈락';
+  return `<span class="third-place-status-badge ${badgeClass}">${label}</span>`;
+}
+function renderThirdPlaceRankingTable(){
+  clearDetailExtras();
+  currentBracketStage='thirdPlaceRanking';
+  updateThirdPlaceRankingState();
+  const rankingItems=thirdPlaceRankingState.thirdPlaceRanking;
+  const incompleteMessage=rankingItems.length<12 ? '3위 팀 데이터가 아직 모두 확정되지 않았습니다.' : '상위 8개 팀이 자동으로 32강 진출 대상이 됩니다.';
+  document.getElementById('detailTitle').textContent='조별 3위 랭킹';
+  document.getElementById('detailSubtitle').textContent=incompleteMessage;
+  document.getElementById('detailTable').className='data-table third-place-ranking-table';
+  document.getElementById('detailTable').parentElement.classList.add('mobile-table-scroll-card');
+  if(!rankingItems.length){
+    document.getElementById('detailTable').innerHTML='<thead><tr><th>안내</th></tr></thead><tbody><tr><td class="third-place-empty">아직 3위로 지정된 팀이 없습니다.</td></tr></tbody>';
+    document.getElementById('detailCol').classList.remove('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  document.getElementById('detailTable').innerHTML=`<colgroup><col class="third-place-col-rank"><col class="third-place-col-group"><col class="third-place-col-team"><col class="third-place-col-points"><col class="third-place-col-goal-diff"><col class="third-place-col-goals"><col class="third-place-col-fair-play"><col class="third-place-col-status"></colgroup><thead><tr><th>순위</th><th>조</th><th>팀</th><th>승점</th><th>골득실</th><th>득점</th><th>페어플레이</th><th>상태</th></tr></thead><tbody>${rankingItems.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${escapeHtml(team.team)} flag" loading="lazy">`:'';return `<tr class="third-place-row${team.qualifiedThird?' is-qualified':' is-eliminated'}"><td>${team.overallRank}</td><td>${team.group}조</td><td class="third-place-team-cell"><div class="flag-cell">${flagHtml}<span>${escapeHtml(team.team)}</span></div></td><td>${team.points}</td><td>${formatSignedNumber(team.goalDifference)}</td><td>${team.goalsFor}</td><td>${team.fairPlay}</td><td>${renderThirdPlaceStatusBadge(team)}</td></tr>`;}).join('')}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
+}
+function renderKnockoutTeamLabel(team){
+  if(!team) return '';
+  const flag=getFlag(team.code);
+  const flagHtml=flag ? `<img class="flag-icon knockout-flag-icon" src="${flag}" alt="${escapeHtml(team.name)} flag" loading="lazy">` : '';
+  return `<span class="knockout-slot-team">${flagHtml}<span>${escapeHtml(team.name)}</span></span>`;
+}
+function renderKnockoutThirdPlaceSlotLabel(slotDescriptor){
+  const assignedTeam=thirdPlaceRankingState.thirdPlaceSlotAssignments[slotDescriptor.matchNum]||null;
+  if(assignedTeam){
+    return `<span class="knockout-slot-label is-filled is-third-place" data-match-num="${escapeHtml(slotDescriptor.matchNum)}">${renderKnockoutTeamLabel({name:assignedTeam.team, code:assignedTeam.code})}</span>`;
+  }
+  return `<span class="knockout-slot-label is-third-place" data-match-num="${escapeHtml(slotDescriptor.matchNum)}">${escapeHtml(slotDescriptor.token)}</span>`;
+}
+function renderKnockoutSlotLabel(groupKey='', rank=''){
+  const assignedTeam=getGroupRankSlotTeam(groupKey, rank);
+  const label=assignedTeam ? assignedTeam.name : `${groupKey}조 ${rank}위`;
+  const content=assignedTeam ? renderKnockoutTeamLabel(assignedTeam) : escapeHtml(label);
+  return `<span class="knockout-slot-label${assignedTeam?' is-filled':''}" data-group-key="${escapeHtml(groupKey)}" data-rank-slot="${escapeHtml(rank)}">${content}</span>`;
+}
+function updateRoundOf32WithThirdPlaceTeams(){
+  return updateThirdPlaceRankingState();
+}
+function buildKnockoutMatchLabel(matchNum='', matchText=''){
+  let resolvedText=String(matchText||'').replace(/([A-L])조\s([12])위/g, (_, groupKey, rank)=>renderKnockoutSlotLabel(groupKey, rank));
+  const thirdPlaceSlot=thirdPlaceRankingState.thirdPlaceSlotDescriptors.find(slot=>slot.matchNum===matchNum);
+  if(thirdPlaceSlot){
+    resolvedText=resolvedText.replace(thirdPlaceSlot.token, renderKnockoutThirdPlaceSlotLabel(thirdPlaceSlot));
+  }
+  return resolvedText;
+}
+function getGroupMenuItem(groupKey=''){
+  return Array.from(document.querySelectorAll('#groupCol .item')).find(node=>node.textContent.trim()===`Group ${groupKey}`)||null;
+}
+function applyGroupRankSelection(groupKey='', teamName='', rankValue=''){
+  const normalizedGroupKey=String(groupKey||'').trim().toUpperCase();
+  const normalizedTeamName=String(teamName||'').trim();
+  const normalizedRank=String(rankValue||'').trim();
+  if(!normalizedGroupKey||!normalizedTeamName||!['1','2','3','4'].includes(normalizedRank)) return;
+  const state=getGroupRankSelectionState(normalizedGroupKey);
+  if(state[normalizedTeamName]===normalizedRank) return;
+  const duplicateTeamName=Object.keys(state).find(name=>name!==normalizedTeamName&&state[name]===normalizedRank);
+  if(duplicateTeamName){
+    delete state[duplicateTeamName];
+    delete state[normalizedTeamName];
+    return;
+  }
+  state[normalizedTeamName]=normalizedRank;
+}
+function handleGroupRankButtonClick(button){
+  if(!button) return;
+  const groupKey=String(button.dataset.groupKey||'').trim().toUpperCase();
+  const teamName=String(button.dataset.teamName||'').trim();
+  const rankValue=String(button.dataset.rankValue||'').trim();
+  if(!groupKey||!teamName||!rankValue) return;
+  applyGroupRankSelection(groupKey, teamName, rankValue);
+  updateThirdPlaceRankingState();
+  showGroup(groupKey, getGroupMenuItem(groupKey));
+  if(currentBracketStage==='thirdPlaceRanking'){
+    renderThirdPlaceRankingTable();
+  }else if(currentBracketStage==='round32'){
+    renderKnockoutTable('round32');
+  }
+}
+function showBracketStage(stage, el){
+  document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  currentBracketStage=stage;
+  document.getElementById('bracketTabStack')?.classList.remove('hidden');
+  document.getElementById('detailCol').classList.add('hidden');
+  if(stage==='group'){
+    document.getElementById('groupCol').classList.remove('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  document.getElementById('groupCol').classList.add('hidden');
+  if(stage==='thirdPlaceRanking'){
+    renderThirdPlaceRankingTable();
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  renderKnockoutTable(stage);
+  updateMobileHeaderReportBoardVisibility();
+}
+function renderScheduleMatchRow(number, mainHtml, date, time, stadium, rowClass=''){
   const local=kstToLocal(date,time);
-  return `<tr class="schedule-match-row"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${local.date} / ${date}</div><div class="match-meta">시간: 현지 ${local.time} / ${time}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
+  const normalizedRowClass=String(rowClass||'').trim();
+  const rowClassName=normalizedRowClass ? `schedule-match-row ${normalizedRowClass}` : 'schedule-match-row';
+  return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${local.date} / ${date}</div><div class="match-meta">시간: 현지 ${local.time} / ${time}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
 }
 function renderKnockoutTable(stage){
   clearDetailExtras();
+  currentBracketStage=stage;
+  updateRoundOf32WithThirdPlaceTeams();
   const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
   document.getElementById('detailTitle').textContent=stageNames[stage]||'';
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
-  if(!renderCache.knockoutTables[stage]){
-    const rows=knockoutTemplates[stage]||[];
-    renderCache.knockoutTables[stage]=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};return renderScheduleMatchRow(matchNum, `<div class="match-text">${matchText}</div>`, info.date, info.time, info.stadium);}).join('')}</tbody>`;
-  }
-  document.getElementById('detailTable').innerHTML=renderCache.knockoutTables[stage];
+  const rows=knockoutTemplates[stage]||[];
+  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const resolvedMatchText=stage==='round32'?buildKnockoutMatchLabel(matchNum, matchText):escapeHtml(matchText);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};return renderScheduleMatchRow(matchNum, `<div class="match-text">${resolvedMatchText}</div>`, info.date, info.time, info.stadium);}).join('')}</tbody>`;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
 }
 
 function showGroup(groupKey, el){
   document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
-  el.classList.add('active');
-  if(!renderCache.groupViews[groupKey]){
-    const data=groupData[groupKey]||[];
-    const matches=groupMatches[groupKey]||[];
-    const header='<colgroup><col class="group-col-team"><col class="group-col-rank"><col class="group-col-coach"></colgroup><thead><tr><th>팀</th><th>랭킹</th><th>감독</th></tr></thead>';
-    const body=`<tbody>${data.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';return `<tr><td><div class="flag-cell">${flagHtml}<span>${team.name}</span></div></td><td class="group-rank-cell">${team.rank}</td><td class="group-coach-cell">${team.coach}</td></tr>`;}).join('')}</tbody>`;
-    const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>{const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return renderScheduleMatchRow(match.number, `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`, match.date, match.time, match.stadium);}).join('')}</tbody></table></div></div>`:'';
-    renderCache.groupViews[groupKey]={tableHtml:header+body,matchSection};
-  }
+  if(el) el.classList.add('active');
+  currentGroupKey=groupKey;
+  currentBracketStage='group';
+  const view=buildGroupTableView(groupKey);
   document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
   document.getElementById('detailSubtitle').textContent='';
   clearDetailExtras();
   document.getElementById('detailTable').className='data-table group-table';
-  document.getElementById('detailTable').innerHTML=renderCache.groupViews[groupKey].tableHtml;
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.groupViews[groupKey].matchSection);
+  document.getElementById('detailTable').innerHTML=view.tableHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',view.matchSection);
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+}
+
+function findTournamentTeamMetaByName(teamName=''){
+  const normalizedName=String(teamName||'').trim();
+  if(!normalizedName) return null;
+  return Object.entries(groupData).flatMap(([groupKey, teams])=>teams.map((team, sourceIndex)=>({
+    ...team,
+    group:groupKey,
+    sourceIndex
+  }))).find(team=>team.name===normalizedName)||null;
+}
+function buildTournamentTeamRef(teamLike, extra={}){
+  if(!teamLike) return null;
+  const fallbackMeta=findTournamentTeamMetaByName(teamLike.name||teamLike.team||'');
+  return {
+    name:String(teamLike.name||teamLike.team||fallbackMeta?.name||'').trim(),
+    code:String(teamLike.code||fallbackMeta?.code||'').trim(),
+    group:String(teamLike.group||fallbackMeta?.group||'').trim(),
+    rankInGroup:Number(teamLike.rankInGroup??0)||0,
+    fifaRank:Number(teamLike.fifaRank??teamLike.rank??fallbackMeta?.rank??0)||0,
+    coach:String(teamLike.coach||fallbackMeta?.coach||'').trim(),
+    ...extra
+  };
+}
+function normalizeMatchScoreValue(value){
+  if(value===null||value===undefined||value==='') return null;
+  const number=Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+function getGroupMatchResult(match){
+  const homeScore=normalizeMatchScoreValue(match?.homeScore ?? match?.home_score ?? match?.score?.home ?? match?.score?.homeScore);
+  const awayScore=normalizeMatchScoreValue(match?.awayScore ?? match?.away_score ?? match?.score?.away ?? match?.score?.awayScore);
+  const homeFairPlay=Number(match?.homeFairPlay ?? match?.home_fair_play ?? match?.fairPlay?.home ?? 0) || 0;
+  const awayFairPlay=Number(match?.awayFairPlay ?? match?.away_fair_play ?? match?.fairPlay?.away ?? 0) || 0;
+  return {
+    homeScore,
+    awayScore,
+    homeFairPlay,
+    awayFairPlay,
+    isPlayed:homeScore!==null&&awayScore!==null
+  };
+}
+function hasSeedStandingData(team){
+  if(!team?.standing||typeof team.standing!=='object') return false;
+  return ['points','goalDifference','goalsFor','played','won','drawn','lost','goalsAgainst','fairPlay'].some(key=>team.standing[key]!==undefined&&team.standing[key]!==null);
+}
+function calculateGroupStandings(groupKey=''){
+  const teams=(groupData[groupKey]||[]).map((team, sourceIndex)=>({
+    group:groupKey,
+    name:team.name,
+    code:team.code,
+    coach:team.coach,
+    fifaRank:Number(team.rank||0),
+    sourceIndex,
+    played:0,
+    won:0,
+    drawn:0,
+    lost:0,
+    goalsFor:0,
+    goalsAgainst:0,
+    goalDifference:0,
+    points:0,
+    fairPlay:0,
+    rankInGroup:0
+  }));
+  const standingsByName=new Map(teams.map(team=>[team.name, team]));
+  let hasResolvedMatch=false;
+  (groupMatches[groupKey]||[]).forEach(match=>{
+    const result=getGroupMatchResult(match);
+    if(!result.isPlayed) return;
+    const home=standingsByName.get(match.home);
+    const away=standingsByName.get(match.away);
+    if(!home||!away) return;
+    hasResolvedMatch=true;
+    home.played+=1;
+    away.played+=1;
+    home.goalsFor+=result.homeScore;
+    home.goalsAgainst+=result.awayScore;
+    away.goalsFor+=result.awayScore;
+    away.goalsAgainst+=result.homeScore;
+    home.fairPlay+=result.homeFairPlay;
+    away.fairPlay+=result.awayFairPlay;
+    if(result.homeScore>result.awayScore){
+      home.won+=1;
+      home.points+=3;
+      away.lost+=1;
+    }else if(result.homeScore<result.awayScore){
+      away.won+=1;
+      away.points+=3;
+      home.lost+=1;
+    }else{
+      home.drawn+=1;
+      away.drawn+=1;
+      home.points+=1;
+      away.points+=1;
+    }
+  });
+  const hasSeedData=!hasResolvedMatch&&teams.some(hasSeedStandingData);
+  if(hasSeedData){
+    teams.forEach(team=>{
+      const standing=(groupData[groupKey]||[]).find(entry=>entry.name===team.name)?.standing||{};
+      team.played=Number(standing.played??standing.matchesPlayed??team.played)||0;
+      team.won=Number(standing.won??standing.wins??team.won)||0;
+      team.drawn=Number(standing.drawn??standing.draws??team.drawn)||0;
+      team.lost=Number(standing.lost??standing.losses??team.lost)||0;
+      team.goalsFor=Number(standing.goalsFor??standing.gf??team.goalsFor)||0;
+      team.goalsAgainst=Number(standing.goalsAgainst??standing.ga??team.goalsAgainst)||0;
+      team.goalDifference=Number(standing.goalDifference??standing.gd??(team.goalsFor-team.goalsAgainst))||0;
+      team.points=Number(standing.points??team.points)||0;
+      team.fairPlay=Number(standing.fairPlay??team.fairPlay)||0;
+    });
+  }else{
+    teams.forEach(team=>{
+      team.goalDifference=team.goalsFor-team.goalsAgainst;
+    });
+  }
+  const sortedTeams=[...teams].sort((a,b)=>{
+    if(b.points!==a.points) return b.points-a.points;
+    if(b.goalDifference!==a.goalDifference) return b.goalDifference-a.goalDifference;
+    if(b.goalsFor!==a.goalsFor) return b.goalsFor-a.goalsFor;
+    if(b.fairPlay!==a.fairPlay) return b.fairPlay-a.fairPlay;
+    return a.sourceIndex-b.sourceIndex;
+  }).map((team, index)=>({
+    ...team,
+    rankInGroup:index+1
+  }));
+  return {
+    items:sortedTeams,
+    isReady:hasResolvedMatch||hasSeedData
+  };
+}
+function calculateAllGroupStandings(){
+  tournamentState.groupStandings=Object.create(null);
+  tournamentState.groupStandingsReady=Object.create(null);
+  Object.keys(groupData).forEach(groupKey=>{
+    const {items, isReady}=calculateGroupStandings(groupKey);
+    tournamentState.groupStandings[groupKey]=items;
+    tournamentState.groupStandingsReady[groupKey]=isReady;
+  });
+  return tournamentState.groupStandings;
+}
+function getGroupStandings(groupKey=''){
+  if(!tournamentState.groupStandings[groupKey]){
+    calculateAllGroupStandings();
+  }
+  return tournamentState.groupStandings[groupKey]||[];
+}
+function isGroupStandingReady(groupKey=''){
+  if(tournamentState.groupStandingsReady[groupKey]===undefined){
+    calculateAllGroupStandings();
+  }
+  return Boolean(tournamentState.groupStandingsReady[groupKey]);
+}
+function getGroupTeamRank(groupKey='', teamName=''){
+  const standing=getGroupStandings(groupKey).find(item=>item.name===String(teamName||'').trim());
+  return standing ? String(standing.rankInGroup) : '';
+}
+function getGroupRankSlotTeam(groupKey='', rank=''){
+  const standing=getGroupStandings(groupKey).find(item=>item.rankInGroup===Number(rank));
+  return standing ? buildTournamentTeamRef(standing) : null;
+}
+function getThirdPlaceTeams(groups=groupData){
+  calculateAllGroupStandings();
+  return Object.keys(groups||{}).sort().flatMap(groupKey=>{
+    if(!isGroupStandingReady(groupKey)) return [];
+    const standing=getGroupStandings(groupKey).find(item=>item.rankInGroup===3);
+    if(!standing) return [];
+    return [{
+      group:groupKey,
+      team:standing.name,
+      code:standing.code,
+      coach:standing.coach,
+      rankInGroup:3,
+      points:standing.points,
+      goalDifference:standing.goalDifference,
+      goalsFor:standing.goalsFor,
+      fairPlay:standing.fairPlay
+    }];
+  });
+}
+function sortThirdPlaceTeams(thirdPlaceTeams=[]){
+  return [...thirdPlaceTeams].sort((a,b)=>{
+    if(b.points!==a.points) return b.points-a.points;
+    if(b.goalDifference!==a.goalDifference) return b.goalDifference-a.goalDifference;
+    if(b.goalsFor!==a.goalsFor) return b.goalsFor-a.goalsFor;
+    if(b.fairPlay!==a.fairPlay) return b.fairPlay-a.fairPlay;
+    return String(a.group||'').localeCompare(String(b.group||''));
+  }).map((team, index)=>({
+    ...team,
+    overallRank:index+1
+  }));
+}
+function getQualifiedThirdPlaceTeams(sortedTeams=[]){
+  return sortedTeams.slice(0,8).map(team=>({
+    ...team,
+    qualifiedThird:true,
+    eliminated:false
+  }));
+}
+function getEliminatedThirdPlaceTeams(sortedTeams=[]){
+  return sortedTeams.slice(8).map(team=>({
+    ...team,
+    qualifiedThird:false,
+    eliminated:true
+  }));
+}
+function getRound32ThirdPlaceSlotDescriptors(){
+  return (knockoutTemplates.round32||[]).map(([match])=>{
+    const firstSpace=match.indexOf(' ');
+    const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);
+    const matchText=firstSpace===-1?'':match.slice(firstSpace+1);
+    const thirdMatch=matchText.match(/([A-L](?:\/[A-L])*)조 3위/);
+    if(!thirdMatch) return null;
+    return {
+      matchNum,
+      token:thirdMatch[0],
+      allowedGroups:thirdMatch[1].split('/')
+    };
+  }).filter(Boolean);
+}
+function assignQualifiedThirdPlaceTeamsToSlots(qualifiedTeams=[], slotDescriptors=[]){
+  const teamNodes=qualifiedTeams.map(team=>({
+    team,
+    slotKeys:slotDescriptors.filter(slot=>slot.allowedGroups.includes(team.group)).map(slot=>slot.matchNum)
+  })).sort((a,b)=>{
+    if(a.slotKeys.length!==b.slotKeys.length) return a.slotKeys.length-b.slotKeys.length;
+    if(a.team.overallRank!==b.team.overallRank) return a.team.overallRank-b.team.overallRank;
+    return a.team.group.localeCompare(b.team.group);
+  });
+  const descriptorIndexMap=new Map(slotDescriptors.map((slot,index)=>[slot.matchNum,index]));
+  const nodeByGroup=new Map(teamNodes.map(node=>[node.team.group,node]));
+  const slotAssignments=Object.create(null);
+  function tryAssign(node, visited){
+    const orderedSlots=[...node.slotKeys].sort((a,b)=>(descriptorIndexMap.get(a)??0)-(descriptorIndexMap.get(b)??0));
+    for(const slotKey of orderedSlots){
+      if(visited.has(slotKey)) continue;
+      visited.add(slotKey);
+      const assignedTeam=slotAssignments[slotKey];
+      if(!assignedTeam){
+        slotAssignments[slotKey]=node.team;
+        return true;
+      }
+      const assignedNode=nodeByGroup.get(assignedTeam.group);
+      if(assignedNode&&tryAssign(assignedNode, visited)){
+        slotAssignments[slotKey]=node.team;
+        return true;
+      }
+    }
+    return false;
+  }
+  teamNodes.forEach(node=>tryAssign(node, new Set()));
+  return slotAssignments;
+}
+function updateThirdPlaceRankingState(){
+  calculateAllGroupStandings();
+  const thirdPlaceTeams=getThirdPlaceTeams(groupData);
+  const sortedTeams=sortThirdPlaceTeams(thirdPlaceTeams);
+  const qualifiedTeams=getQualifiedThirdPlaceTeams(sortedTeams);
+  const eliminatedTeams=getEliminatedThirdPlaceTeams(sortedTeams);
+  const slotDescriptors=getRound32ThirdPlaceSlotDescriptors();
+  const slotAssignments=assignQualifiedThirdPlaceTeamsToSlots(qualifiedTeams, slotDescriptors);
+  thirdPlaceRankingState.thirdPlaceRanking=sortedTeams.map(team=>({
+    ...team,
+    qualifiedThird:team.overallRank<=8,
+    eliminated:team.overallRank>8,
+    statusLabel:team.overallRank<=8 ? '32강 진출' : '탈락'
+  }));
+  thirdPlaceRankingState.qualifiedThirdPlaceTeams=qualifiedTeams;
+  thirdPlaceRankingState.eliminatedThirdPlaceTeams=eliminatedTeams;
+  thirdPlaceRankingState.qualifiedThirdPlaceGroups=qualifiedTeams.map(team=>team.group);
+  thirdPlaceRankingState.thirdPlaceSlotDescriptors=slotDescriptors;
+  thirdPlaceRankingState.thirdPlaceSlotAssignments=slotAssignments;
+  tournamentState.thirdPlaceRanking=thirdPlaceRankingState.thirdPlaceRanking;
+  tournamentState.qualifiedThirdPlaceTeams=qualifiedTeams;
+  tournamentState.eliminatedThirdPlaceTeams=eliminatedTeams;
+  return thirdPlaceRankingState;
+}
+function buildRoundOf32(){
+  tournamentState.roundOf32Matches=buildKnockoutStageMatches('round32');
+  return tournamentState.roundOf32Matches;
+}
+function getThirdPlaceOverallRank(groupKey='', teamName=''){
+  const normalizedGroupKey=String(groupKey||'').trim().toUpperCase();
+  const normalizedTeamName=String(teamName||'').trim();
+  if(!normalizedGroupKey||!normalizedTeamName) return 0;
+  const target=thirdPlaceRankingState.thirdPlaceRanking.find(team=>team.group===normalizedGroupKey&&team.team===normalizedTeamName);
+  return Number(target?.overallRank||0)||0;
+}
+function getThirdPlaceRankingEntry(groupKey='', teamName=''){
+  const normalizedGroupKey=String(groupKey||'').trim().toUpperCase();
+  const normalizedTeamName=String(teamName||'').trim();
+  if(!normalizedGroupKey||!normalizedTeamName) return null;
+  return thirdPlaceRankingState.thirdPlaceRanking.find(team=>team.group===normalizedGroupKey&&team.team===normalizedTeamName)||null;
+}
+function getGroupPlacementStateClass(standing){
+  if(!standing) return 'group-state-eliminated';
+  if(standing.rankInGroup<=2) return 'group-state-qualified';
+  if(standing.rankInGroup===3){
+    const thirdPlaceEntry=getThirdPlaceRankingEntry(standing.group, standing.name);
+    return thirdPlaceEntry?.qualifiedThird ? 'group-state-qualified' : 'group-state-eliminated';
+  }
+  return 'group-state-eliminated';
+}
+function buildGroupStandingCell(standing){
+  const rankBadge=`<span class="group-standing-rank-badge is-rank-${standing.rankInGroup}"><span class="group-standing-rank-number">${standing.rankInGroup}</span><span class="group-standing-rank-suffix">위</span></span>`;
+  let detailLabel='';
+  let resultLabel='';
+  let summaryStateClass=' is-eliminated';
+  if(standing.rankInGroup<=2){
+    summaryStateClass=' is-qualified';
+    resultLabel='<span class="group-rank-result-badge is-qualified">32강</span>';
+  }else if(standing.rankInGroup===3){
+    const thirdPlaceEntry=getThirdPlaceRankingEntry(standing.group, standing.name);
+    const overallRank=Number(thirdPlaceEntry?.overallRank||0)||0;
+    const isQualifiedThird=Boolean(thirdPlaceEntry?.qualifiedThird);
+    summaryStateClass=isQualifiedThird ? ' is-qualified' : ' is-eliminated';
+    detailLabel=`<span class="group-rank-third-status">전체 3위랭킹 ${overallRank||'-'}위</span>`;
+    resultLabel=`<span class="group-rank-result-badge ${isQualifiedThird?'is-qualified':'is-eliminated'}">${isQualifiedThird?'32강':'탈락'}</span>`;
+  }else if(standing.rankInGroup===4){
+    resultLabel='<span class="group-rank-result-badge is-eliminated">탈락</span>';
+  }
+  return `<div class="group-standing-summary${summaryStateClass}"><span class="group-standing-rank-slot">${rankBadge}</span>${detailLabel}${resultLabel}</div>`;
+}
+function renderGroupMatchMainHtml(match){
+  const homeFlag=getFlag(match.homeCode);
+  const awayFlag=getFlag(match.awayCode);
+  const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';
+  const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';
+  const result=getGroupMatchResult(match);
+  const scoreHtml=result.isPlayed?`<span class="match-score-chip">${result.homeScore} - ${result.awayScore}</span>`:'';
+  return `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span>${scoreHtml||'<span>vs</span>'}<span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`;
+}
+function buildGroupTableView(groupKey=''){
+  const standings=getGroupStandings(groupKey);
+  const matches=groupMatches[groupKey]||[];
+  updateThirdPlaceRankingState();
+  const header='<colgroup><col class="group-col-team"><col class="group-col-played"><col class="group-col-won"><col class="group-col-drawn"><col class="group-col-lost"><col class="group-col-goals-for"><col class="group-col-goals-against"><col class="group-col-goal-diff"><col class="group-col-points"><col class="group-col-placement"></colgroup><thead><tr><th>팀</th><th>경기수</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>골득실</th><th>승점</th><th>순위</th></tr></thead>';
+  const body=`<tbody>${standings.map(team=>{
+    const flag=getFlag(team.code);
+    const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${team.name} flag" loading="lazy">`:'';
+    const placementStateClass=getGroupPlacementStateClass(team);
+    return `<tr class="group-team-row ${placementStateClass}${team.rankInGroup===4?' is-eliminated':''}"><td class="group-team-cell"><div class="flag-cell">${flagHtml}<span class="group-team-name">${team.name}</span></div></td><td class="group-stat-cell">${team.played}</td><td class="group-stat-cell">${team.won}</td><td class="group-stat-cell">${team.drawn}</td><td class="group-stat-cell">${team.lost}</td><td class="group-stat-cell">${team.goalsFor}</td><td class="group-stat-cell">${team.goalsAgainst}</td><td class="group-stat-cell">${formatSignedNumber(team.goalDifference)}</td><td class="group-stat-cell group-points-cell">${team.points}</td><td class="group-placement-cell ${placementStateClass}">${buildGroupStandingCell(team)}</td></tr>`;
+  }).join('')}</tbody>`;
+  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>renderScheduleMatchRow(match.number, renderGroupMatchMainHtml(match), match.date, match.time, match.stadium)).join('')}</tbody></table></div></div>`:'';
+  return {tableHtml:header+body,matchSection};
+}
+function renderThirdPlaceStatusBadge(team){
+  const badgeClass=team.qualifiedThird ? 'is-qualified' : 'is-eliminated';
+  const label=team.qualifiedThird ? '32강 진출' : '탈락';
+  return `<span class="third-place-status-badge ${badgeClass}">${label}</span>`;
+}
+function renderThirdPlaceRankingTable(){
+  clearDetailExtras();
+  currentBracketStage='thirdPlaceRanking';
+  updateThirdPlaceRankingState();
+  const rankingItems=thirdPlaceRankingState.thirdPlaceRanking;
+  const totalReadyGroups=Object.keys(groupData).filter(groupKey=>isGroupStandingReady(groupKey)).length;
+  const incompleteMessage=totalReadyGroups<12 ? '' : '상위 8개 팀이 자동으로 32강 진출 대상이 됩니다.';
+  document.getElementById('detailTitle').textContent='조별 3위 랭킹';
+  document.getElementById('detailSubtitle').textContent=incompleteMessage;
+  document.getElementById('detailTable').className='data-table third-place-ranking-table';
+  if(!rankingItems.length){
+    document.getElementById('detailTable').innerHTML='<thead><tr><th>안내</th></tr></thead><tbody><tr><td class="third-place-empty">아직 자동 집계 가능한 3위 팀 데이터가 없습니다.</td></tr></tbody>';
+    document.getElementById('detailCol').classList.remove('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  document.getElementById('detailTable').innerHTML=`<colgroup><col class="third-place-col-rank"><col class="third-place-col-group"><col class="third-place-col-team"><col class="third-place-col-points"><col class="third-place-col-goal-diff"><col class="third-place-col-goals"><col class="third-place-col-fair-play"><col class="third-place-col-status"></colgroup><thead><tr><th>순위</th><th>조</th><th>팀</th><th>승점</th><th>골득실</th><th>득점</th><th>페어플레이</th><th>상태</th></tr></thead><tbody>${rankingItems.map(team=>{const flag=getFlag(team.code);const flagHtml=flag?`<img class="flag-icon" src="${flag}" alt="${escapeHtml(team.team)} flag" loading="lazy">`:'';return `<tr class="third-place-row${team.qualifiedThird?' is-qualified':' is-eliminated'}"><td>${team.overallRank}</td><td>${team.group}조</td><td class="third-place-team-cell"><div class="flag-cell">${flagHtml}<span>${escapeHtml(team.team)}</span></div></td><td>${team.points}</td><td>${formatSignedNumber(team.goalDifference)}</td><td>${team.goalsFor}</td><td>${team.fairPlay}</td><td>${renderThirdPlaceStatusBadge(team)}</td></tr>`;}).join('')}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
+}
+function renderKnockoutTeamLabel(team){
+  if(!team) return '';
+  const resolvedTeam=buildTournamentTeamRef(team);
+  const flag=getFlag(resolvedTeam.code);
+  const flagHtml=flag ? `<img class="flag-icon knockout-flag-icon" src="${flag}" alt="${escapeHtml(resolvedTeam.name)} flag" loading="lazy">` : '';
+  return `${flagHtml}<span>${escapeHtml(resolvedTeam.name)}</span>`;
+}
+function getKnockoutResultEntry(matchNum=''){
+  return knockoutResultState[String(matchNum||'').trim()]||{};
+}
+function getKnockoutStateMatch(matchNum=''){
+  const normalizedMatchNum=String(matchNum||'').trim();
+  const allMatches=[
+    ...(tournamentState.roundOf32Matches||[]),
+    ...(tournamentState.roundOf16Matches||[]),
+    ...(tournamentState.quarterFinalMatches||[]),
+    ...(tournamentState.semiFinalMatches||[])
+  ];
+  if(tournamentState.thirdPlaceMatch) allMatches.push(tournamentState.thirdPlaceMatch);
+  if(tournamentState.finalMatch) allMatches.push(tournamentState.finalMatch);
+  return allMatches.find(match=>match.matchNum===normalizedMatchNum)||null;
+}
+function resolveKnockoutToken(matchNum='', token=''){
+  const normalizedToken=String(token||'').trim();
+  const directSlotMatch=normalizedToken.match(/^([A-L])조\s([12])위$/);
+  if(directSlotMatch){
+    return getGroupRankSlotTeam(directSlotMatch[1], directSlotMatch[2]);
+  }
+  const thirdPlaceSlot=thirdPlaceRankingState.thirdPlaceSlotDescriptors.find(slot=>slot.matchNum===matchNum&&slot.token===normalizedToken);
+  if(thirdPlaceSlot){
+    return buildTournamentTeamRef(thirdPlaceRankingState.thirdPlaceSlotAssignments[matchNum]||null);
+  }
+  const winnerMatch=normalizedToken.match(/^승자\s+(M\d+)$/);
+  if(winnerMatch){
+    return buildTournamentTeamRef(getKnockoutStateMatch(winnerMatch[1])?.winner||null);
+  }
+  const loserMatch=normalizedToken.match(/^패자\s+(M\d+)$/);
+  if(loserMatch){
+    return buildTournamentTeamRef(getKnockoutStateMatch(loserMatch[1])?.loser||null);
+  }
+  return null;
+}
+function resolveKnockoutOutcome(matchNum='', homeTeam=null, awayTeam=null){
+  const result=getKnockoutResultEntry(matchNum);
+  const explicitWinnerName=String(result.winnerName||result.winner||'').trim();
+  let winner=null;
+  let loser=null;
+  const homeScore=normalizeMatchScoreValue(result.homeScore ?? result.home_score ?? result.score?.home);
+  const awayScore=normalizeMatchScoreValue(result.awayScore ?? result.away_score ?? result.score?.away);
+  if(explicitWinnerName){
+    if(homeTeam&&homeTeam.name===explicitWinnerName){
+      winner=homeTeam;
+      loser=awayTeam;
+    }else if(awayTeam&&awayTeam.name===explicitWinnerName){
+      winner=awayTeam;
+      loser=homeTeam;
+    }else{
+      winner=buildTournamentTeamRef({name:explicitWinnerName});
+    }
+  }else if(homeTeam&&awayTeam&&homeScore!==null&&awayScore!==null&&homeScore!==awayScore){
+    winner=homeScore>awayScore ? homeTeam : awayTeam;
+    loser=homeScore>awayScore ? awayTeam : homeTeam;
+  }
+  return {winner, loser, homeScore, awayScore};
+}
+function buildKnockoutStageMatches(stage=''){
+  return (knockoutTemplates[stage]||[]).map(([match])=>{
+    const firstSpace=match.indexOf(' ');
+    const matchNum=firstSpace===-1?match:match.slice(0, firstSpace);
+    const matchText=firstSpace===-1?'':match.slice(firstSpace+1);
+    const [homeToken='', awayToken='']=matchText.split(/\s+vs\s+/);
+    const homeTeam=resolveKnockoutToken(matchNum, homeToken);
+    const awayTeam=resolveKnockoutToken(matchNum, awayToken);
+    const outcome=resolveKnockoutOutcome(matchNum, homeTeam, awayTeam);
+    return {
+      stage,
+      matchNum,
+      matchText,
+      homeToken,
+      awayToken,
+      homeTeam,
+      awayTeam,
+      winner:outcome.winner,
+      loser:outcome.loser,
+      homeScore:outcome.homeScore,
+      awayScore:outcome.awayScore
+    };
+  });
+}
+function propagateBracketWinners(){
+  buildRoundOf32();
+  tournamentState.roundOf16Matches=buildKnockoutStageMatches('round16');
+  tournamentState.quarterFinalMatches=buildKnockoutStageMatches('quarterfinal');
+  tournamentState.semiFinalMatches=buildKnockoutStageMatches('semifinal');
+  const finalStageMatches=buildKnockoutStageMatches('final');
+  tournamentState.thirdPlaceMatch=finalStageMatches.find(match=>match.matchNum==='M103')||null;
+  tournamentState.finalMatch=finalStageMatches.find(match=>match.matchNum==='M104')||null;
+  return tournamentState;
+}
+function updateFinalAndThirdPlace(){
+  if(!tournamentState.finalMatch&&!tournamentState.thirdPlaceMatch){
+    propagateBracketWinners();
+  }
+  return {
+    thirdPlaceMatch:tournamentState.thirdPlaceMatch,
+    finalMatch:tournamentState.finalMatch
+  };
+}
+function refreshTournamentAutomationState(){
+  calculateAllGroupStandings();
+  updateThirdPlaceRankingState();
+  propagateBracketWinners();
+  return {
+    groupStandings:tournamentState.groupStandings,
+    thirdPlaceRanking:tournamentState.thirdPlaceRanking,
+    qualifiedThirdPlaceTeams:tournamentState.qualifiedThirdPlaceTeams,
+    roundOf32Matches:tournamentState.roundOf32Matches,
+    roundOf16Matches:tournamentState.roundOf16Matches,
+    quarterFinalMatches:tournamentState.quarterFinalMatches,
+    semiFinalMatches:tournamentState.semiFinalMatches,
+    thirdPlaceMatch:tournamentState.thirdPlaceMatch,
+    finalMatch:tournamentState.finalMatch
+  };
+}
+function updateRoundOf32WithThirdPlaceTeams(){
+  const state=refreshTournamentAutomationState();
+  return {
+    thirdPlaceRanking:state.thirdPlaceRanking,
+    qualifiedThirdPlaceTeams:state.qualifiedThirdPlaceTeams,
+    roundOf32Matches:state.roundOf32Matches
+  };
+}
+function buildKnockoutResolvedTokenLabel(matchNum='', token=''){
+  const normalizedToken=String(token||'').trim();
+  const directSlotMatch=normalizedToken.match(/^([A-L])조\s([12])위$/);
+  if(directSlotMatch){
+    return renderKnockoutSlotLabel(directSlotMatch[1], directSlotMatch[2]);
+  }
+  const thirdPlaceSlot=thirdPlaceRankingState.thirdPlaceSlotDescriptors.find(slot=>slot.matchNum===matchNum&&slot.token===normalizedToken);
+  if(thirdPlaceSlot){
+    return renderKnockoutThirdPlaceSlotLabel(thirdPlaceSlot);
+  }
+  const team=resolveKnockoutToken(matchNum, normalizedToken);
+  if(team){
+    return `<span class="knockout-slot-label is-filled">${renderKnockoutTeamLabel(team)}</span>`;
+  }
+  return `<span class="knockout-slot-label">${escapeHtml(normalizedToken)}</span>`;
+}
+function buildKnockoutMatchLabel(matchNum='', matchText=''){
+  const [homeToken='', awayToken='']=String(matchText||'').split(/\s+vs\s+/);
+  if(!awayToken){
+    return `<div class="match-text">${escapeHtml(matchText)}</div>`;
+  }
+  return `<div class="vs-cell"><span class="team-side">${buildKnockoutResolvedTokenLabel(matchNum, homeToken)}</span><span>vs</span><span class="team-side">${buildKnockoutResolvedTokenLabel(matchNum, awayToken)}</span></div>`;
+}
+function renderKnockoutTable(stage){
+  clearDetailExtras();
+  currentBracketStage=stage;
+  updateRoundOf32WithThirdPlaceTeams();
+  const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
+  document.getElementById('detailTitle').textContent=stageNames[stage]||'';
+  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
+  const rows=knockoutTemplates[stage]||[];
+  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const rowClass=stage==='final'?(matchNum==='M104'?'knockout-final-row':matchNum==='M103'?'knockout-third-place-row':''):'';return renderScheduleMatchRow(matchNum, buildKnockoutMatchLabel(matchNum, matchText), info.date, info.time, info.stadium, rowClass);}).join('')}</tbody>`;
+  document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
+}
+function showGroup(groupKey, el){
+  document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  currentGroupKey=groupKey;
+  currentBracketStage='group';
+  const view=buildGroupTableView(groupKey);
+  document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
+  document.getElementById('detailSubtitle').textContent='';
+  clearDetailExtras();
+  document.getElementById('detailTable').className='data-table group-table';
+  document.getElementById('detailTable').parentElement.classList.add('mobile-table-scroll-card');
+  document.getElementById('detailTable').innerHTML=view.tableHtml;
+  document.getElementById('detailTable').insertAdjacentHTML('afterend',view.matchSection);
+  document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
+}
+function showBracketStage(stage, el){
+  document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  currentBracketStage=stage;
+  document.getElementById('bracketTabStack')?.classList.remove('hidden');
+  document.getElementById('detailCol').classList.add('hidden');
+  if(stage==='group'){
+    document.getElementById('groupCol').classList.remove('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  document.getElementById('groupCol').classList.add('hidden');
+  if(stage==='thirdPlaceRanking'){
+    renderThirdPlaceRankingTable();
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
+  renderKnockoutTable(stage);
+  updateMobileHeaderReportBoardVisibility();
+}
+function getGroupMatchByNumber(matchNum=''){
+  const normalizedMatchNum=String(matchNum||'').trim();
+  for(const [groupKey, matches] of Object.entries(groupMatches)){
+    const match=(matches||[]).find(entry=>entry.number===normalizedMatchNum);
+    if(match) return {groupKey, match};
+  }
+  return null;
+}
+function rerenderTournamentViews(){
+  if(currentBracketStage==='group'&&currentGroupKey){
+    showGroup(currentGroupKey, getGroupMenuItem(currentGroupKey));
+    return;
+  }
+  if(currentBracketStage==='thirdPlaceRanking'){
+    renderThirdPlaceRankingTable();
+    return;
+  }
+  if(currentBracketStage&&currentBracketStage!=='group'){
+    renderKnockoutTable(currentBracketStage);
+  }
+}
+function setGroupMatchResult(matchNum, result={}){
+  const entry=getGroupMatchByNumber(matchNum);
+  if(!entry) return false;
+  Object.assign(entry.match, result||{});
+  rerenderTournamentViews();
+  return true;
+}
+function setKnockoutMatchResult(matchNum, result={}){
+  const normalizedMatchNum=String(matchNum||'').trim();
+  if(!normalizedMatchNum) return false;
+  knockoutResultState[normalizedMatchNum]={
+    ...(knockoutResultState[normalizedMatchNum]||{}),
+    ...(result||{})
+  };
+  rerenderTournamentViews();
+  return true;
+}
+if(typeof window!=='undefined'){
+  window.setGroupMatchResult=setGroupMatchResult;
+  window.setKnockoutMatchResult=setKnockoutMatchResult;
 }
 
 function renderSquadPlayerCell(player){
@@ -4598,8 +6125,11 @@ function renderSquad(key){
   const squad=squads[key];
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
   const isMobile=isMobileViewport();
-  const pageSize=isMobile ? getSquadPageSize() : Math.max(filtered.length,1);
+  const pageSize=Math.max(filtered.length,1);
   const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
+  if(isMobile){
+    state.page=1;
+  }
   state.page=Math.min(totalPages,Math.max(1,state.page));
   const rows=filtered.slice((state.page-1)*pageSize,state.page*pageSize);
   const cacheKey=`${key}:${state.filter}:${state.page}:${pageSize}`;
@@ -4615,9 +6145,6 @@ function renderSquad(key){
   }
   document.getElementById('detailTable').innerHTML=renderCache.squadViews[cacheKey].tableHtml;
   document.getElementById('detailTable').insertAdjacentHTML('beforebegin',renderCache.squadViews[cacheKey].toolbarHtml);
-  if(isMobile){
-    document.getElementById('detailTable').insertAdjacentHTML('afterend',renderCache.squadViews[cacheKey].paginationHtml);
-  }
   document.getElementById('detailCol').classList.remove('hidden');
   scheduleSquadPhotoHydration();
   updateMobileHeaderReportBoardVisibility();
@@ -4653,9 +6180,35 @@ function renderEquipmentSharedDetail(){
   document.getElementById('detailCol').classList.remove('hidden');
   updateEquipmentSharedTvuIndicators();
 }
+function renderEquipmentCarnetDetail(){
+  currentEquipmentMode='carnet';
+  currentEquipmentUser='';
+  document.getElementById('equipmentCarnetTab')?.classList.add('active');
+  document.getElementById('detailTitle').innerHTML=renderEquipmentCarnetTitle();
+  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailTable').className='data-table carnet-list-table';
+  renderCache.equipmentCarnetPanel=renderEquipmentCarnetPanelHtml();
+  document.getElementById('detailTable').innerHTML=renderCache.equipmentCarnetPanel;
+  document.getElementById('detailCol').classList.remove('hidden');
+}
+function openEquipmentCarnetComposer(){
+  isEquipmentCarnetComposerOpen=true;
+  if(currentEquipmentMode==='carnet'){
+    renderEquipmentCarnetDetail();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function closeEquipmentCarnetComposer(){
+  isEquipmentCarnetComposerOpen=false;
+  if(currentEquipmentMode==='carnet'){
+    renderEquipmentCarnetDetail();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
 function showEquipmentShared(el){
   currentEquipmentMode='shared';
   currentEquipmentUser='';
+  isEquipmentCarnetComposerOpen=false;
   if(isMobileViewport()){
     clearDetailExtras();
     ensureEquipmentEditorEntries();
@@ -4667,10 +6220,21 @@ function showEquipmentShared(el){
   if(el) el.classList.add('active');
   updateMobileHeaderReportBoardVisibility();
 }
+function showEquipmentCarnet(el){
+  currentEquipmentMode='carnet';
+  currentEquipmentUser='';
+  clearDetailExtras();
+  ensureEquipmentEditorEntries();
+  renderEquipmentCarnetDetail();
+  document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  updateMobileHeaderReportBoardVisibility();
+}
 
 function showEquipmentPersonal(user, el){
   currentEquipmentMode='personal';
   currentEquipmentUser=user;
+  isEquipmentCarnetComposerOpen=false;
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(!el){
     el=Array.from(document.querySelectorAll('#equipmentUserCol .item')).find(item=>item.textContent.trim()===user)||null;
@@ -4763,7 +6327,7 @@ function renderStadiumSlot(){
 }
 
 function renderMexicoStadiumInlineSections(stadiumKey, activeSectionKey=''){
-  const keys=['shooting','mixedZone','route','conferenceRoom','ground','arrival'];
+  const keys=['route','conferenceRoom','mixedZone','ground','shooting','playerArrival'];
   return `<div class="mexico-stadium-inline-sections">${keys.map(sectionKey=>`<div class="item ${activeSectionKey===sectionKey?'active':''}" onclick="showMexicoStadiumSection('${sectionKey}', this)">${mexicoStadiumSections[sectionKey]||sectionKey}</div>`).join('')}</div>`;
 }
 
@@ -4771,6 +6335,7 @@ function renderMexicoStadiumDetail(stadiumKey, sectionKey=''){
   ensureMexicoStadiumEditorEntries();
   const stadium=mexicoStadiums[stadiumKey];
   if(!stadium) return;
+  const detailCol=document.getElementById('detailCol');
   const section=sectionKey?stadium.sections[sectionKey]:null;
   const rows=getMexicoStadiumRows(stadiumKey, sectionKey);
   const cacheKey=`${stadium.title}:${sectionKey||'root'}`;
@@ -4786,7 +6351,8 @@ function renderMexicoStadiumDetail(stadiumKey, sectionKey=''){
   document.getElementById('detailTable').innerHTML=renderCache.mexicoStadiumDetails[cacheKey].tableHtml;
   const extraHtml=isMobileViewport()&&!section ? `${renderCache.mexicoStadiumDetails[cacheKey].extraHtml}${renderMexicoStadiumInlineSections(stadiumKey, sectionKey)}` : renderCache.mexicoStadiumDetails[cacheKey].extraHtml;
   document.getElementById('detailTable').insertAdjacentHTML('afterend',extraHtml);
-  document.getElementById('detailCol').classList.remove('hidden');
+  detailCol.classList.add('mexico-stadium-mode');
+  detailCol.classList.remove('hidden');
 }
 
 function showMexicoStadium(key, el){
@@ -4839,6 +6405,8 @@ function runTests(){
   console.assert(typeof clearTimelineSelectionEntries==='function','clearTimelineSelectionEntries should be defined');
   console.assert(typeof updateHeaderReportBoard==='function','updateHeaderReportBoard should be defined');
   console.assert(typeof buildPersonalTimelineReportText==='function','buildPersonalTimelineReportText should be defined');
+  console.assert(typeof getThirdPlaceTeams==='function','getThirdPlaceTeams should be defined');
+  console.assert(typeof renderThirdPlaceRankingTable==='function','renderThirdPlaceRankingTable should be defined');
   console.assert(Array.isArray(timelineRows)&&timelineRows.length===10,'Timeline rows should exist');
   console.assert(Array.isArray(timelineEditableRows)&&timelineEditableRows.length===10,'Editable timeline rows should exist');
   console.assert(personalTimelineDetailFields.length===5,'Personal timeline detail fields should exist');
