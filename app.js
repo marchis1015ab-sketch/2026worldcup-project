@@ -333,6 +333,8 @@ const renderCache = {
 let newsData = null;
 const NEWS_EDITOR_STORAGE_KEY = 'worldcup-guide-news-editor-v1';
 const NEWS_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideNewsEditor__';
+const NEWS_PROGRAMMING_STORAGE_KEY = 'worldcup-guide-news-programming-v1';
+const NEWS_PROGRAMMING_WINDOW_NAME_KEY = '__worldcupGuideNewsProgramming__';
 const SQUAD_INJURY_STORAGE_KEY = 'worldcup-guide-squad-injury-v1';
 const SQUAD_INJURY_WINDOW_NAME_KEY = '__worldcupGuideSquadInjury__';
 const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-v1';
@@ -342,6 +344,7 @@ const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 const MAP_LOCATION_PIN_STORAGE_KEY = 'worldcup-guide-map-location-pins-v1';
 const MAP_LOCATION_PIN_WINDOW_NAME_KEY = '__worldcupGuideMapLocationPins__';
 let hasLoadedNewsEditorEntries = false;
+let hasLoadedNewsProgrammingState = false;
 let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
@@ -355,21 +358,27 @@ let currentEquipmentUser = '';
 let isEquipmentCarnetComposerOpen = false;
 let currentMapSubTab = 'region';
 let currentMapActionMode = '';
-let currentNewsProgrammingDate = getTodayTimelineKey();
-const JTBC_SCHEDULE_PROXY_URL = typeof window!=='undefined' ? String(window.__JTBC_SCHEDULE_PROXY_URL__||'').trim() : '';
-const JTBC_SCHEDULE_CHANNEL_KEY = 'jtbc';
-let newsProgrammingRequestSeq = 0;
-const newsProgrammingScheduleCache = new Map();
-let currentNewsProgrammingState = {
-  status:'idle',
-  items:[],
-  errorMessage:'',
-  warningMessage:'',
-  lastUpdated:'',
-  fetchedAt:'',
-  source:'idle',
-  lastFetchedDate:'',
-  activeRequestDate:''
+const NEWS_PROGRAMMING_TEMPLATE = [
+  {baseId:'jtbc-program-1', title:'아침&', koreaTime:'07:30', status:'본방', memo:''},
+  {baseId:'jtbc-program-2', title:'장르가 머니', koreaTime:'10:00', status:'본방', memo:''},
+  {baseId:'jtbc-program-3', title:'이가혁 라이브', koreaTime:'17:00', status:'생방', memo:''},
+  {baseId:'jtbc-program-4', title:'JTBC 뉴스룸', koreaTime:'18:30', status:'생방', memo:''},
+  {baseId:'jtbc-program-5', title:'사건반장', koreaTime:'19:50', status:'본방', memo:''}
+];
+let currentNewsProgrammingFilters = {
+  date:getTodayTimelineKey(),
+  liveOnly:false
+};
+let currentNewsProgrammingMemoDrafts = {};
+let currentNewsProgrammingSavedMemos = {};
+let isNewsProgrammingSpecialComposerOpen = false;
+let isNewsProgrammingSpecialTimeMenuOpen = false;
+let newsProgrammingSpecialEntries = [];
+let currentNewsProgrammingSpecialForm = {
+  timeKey:'',
+  status:'본방',
+  title:'',
+  memo:''
 };
 let currentMapLocationPinEditId = {region:'',lodging:''};
 let isMapLocationPinComposerOpen = {region:false,lodging:false};
@@ -1178,7 +1187,7 @@ function getMapLocationPinSectionMeta(sectionKey='region'){
   return normalized==='lodging'
     ? {
       title:'숙소 장소 기록',
-      description:'숙소 거점, 주변 식당, 체크포인트를 핀처럼 저장하고 숙박 운영 메모를 함께 관리합니다.',
+      description:'',
       formDescription:'숙소와 연결된 장소를 핀 카드처럼 누적 관리합니다. 체크인 거점, 주변 편의시설, 필요 장소를 함께 기록할 수 있습니다.',
       formTitle:'숙소 핀',
       placeholderName:'예: 선수단 숙소 정문',
@@ -1188,7 +1197,7 @@ function getMapLocationPinSectionMeta(sectionKey='region'){
     }
     : {
       title:'현장 장소 기록',
-      description:'주요 식당, 필요한 장소, 체크포인트를 핀처럼 저장하고 현장 운영 메모를 함께 관리합니다.',
+      description:'',
       formDescription:'식당, 방송거점, 병원, 체크포인트를 지역정보 안에서 핀 카드처럼 누적 관리합니다.',
       formTitle:'장소 핀',
       placeholderName:'예: 메인 경기장 북문 식당',
@@ -1239,6 +1248,97 @@ function readMapLocationPinRaw(){
 function writeMapLocationPinRaw(raw){
   setSharedStateLocalRaw(MAP_LOCATION_PIN_STORAGE_KEY, raw);
   scheduleSharedStateSyncWrite(MAP_LOCATION_PIN_STORAGE_KEY, raw);
+}
+function readNewsProgrammingRaw(){
+  return getSharedStateLocalRaw(NEWS_PROGRAMMING_STORAGE_KEY);
+}
+function writeNewsProgrammingRaw(raw=''){
+  setSharedStateLocalRaw(NEWS_PROGRAMMING_STORAGE_KEY, raw);
+  scheduleSharedStateSyncWrite(NEWS_PROGRAMMING_STORAGE_KEY, raw);
+}
+function normalizeNewsProgrammingSpecialEntry(entry={}, index=0){
+  const normalizedDate=String(entry?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedTitle=String(entry?.title||'특보 편성').trim()||'특보 편성';
+  const normalizedMemo=String(entry?.memo||'').trim();
+  return {
+    id:String(entry?.id||`news-programming-special-restored-${Date.now()}-${index}`),
+    date:normalizedDate,
+    localDayOffset:Number(entry?.localDayOffset)||0,
+    localTime:String(entry?.localTime||'--:--').trim()||'--:--',
+    koreaTime:String(entry?.koreaTime||'--:--').trim()||'--:--',
+    title:normalizedTitle,
+    status:String(entry?.status||'본방').trim()==='생방' ? '생방' : '본방',
+    memo:normalizedMemo,
+    isSpecialEntry:true,
+    createdAt:Number(entry?.createdAt)||Date.now()+index
+  };
+}
+function loadNewsProgrammingState(){
+  if(hasLoadedNewsProgrammingState) return;
+  hasLoadedNewsProgrammingState=true;
+  const raw=readNewsProgrammingRaw();
+  if(!raw){
+    currentNewsProgrammingMemoDrafts={...currentNewsProgrammingSavedMemos};
+    console.log('[news-programming] load state', {memoCount:0, specialCount:0});
+    return;
+  }
+  try{
+    const parsed=JSON.parse(raw);
+    const nextSavedMemos={};
+    if(parsed?.savedMemos&&typeof parsed.savedMemos==='object'){
+      Object.entries(parsed.savedMemos).forEach(([key, value])=>{
+        const normalizedKey=String(key||'').trim();
+        if(!normalizedKey) return;
+        nextSavedMemos[normalizedKey]=String(value||'').trim();
+      });
+    }
+    currentNewsProgrammingSavedMemos=nextSavedMemos;
+    currentNewsProgrammingMemoDrafts={...nextSavedMemos};
+    newsProgrammingSpecialEntries=Array.isArray(parsed?.specialEntries)
+      ? parsed.specialEntries.map((entry, index)=>normalizeNewsProgrammingSpecialEntry(entry, index)).filter(Boolean)
+      : [];
+    if(parsed?.filters&&typeof parsed.filters==='object'){
+      currentNewsProgrammingFilters={
+        date:String(parsed.filters.date||currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey(),
+        liveOnly:Boolean(parsed.filters.liveOnly)
+      };
+    }
+    console.log('[news-programming] load state', {
+      memoCount:Object.keys(currentNewsProgrammingSavedMemos).filter(key=>String(currentNewsProgrammingSavedMemos[key]||'').trim()).length,
+      specialCount:newsProgrammingSpecialEntries.length
+    });
+  }catch(error){
+    console.warn('[news-programming] load failed', error);
+    currentNewsProgrammingSavedMemos={};
+    currentNewsProgrammingMemoDrafts={};
+    newsProgrammingSpecialEntries=[];
+  }
+}
+function saveNewsProgrammingState(){
+  loadNewsProgrammingState();
+  const payload={
+    savedMemos:currentNewsProgrammingSavedMemos,
+    specialEntries:newsProgrammingSpecialEntries.map(item=>({
+      id:item.id,
+      date:item.date,
+      localDayOffset:item.localDayOffset,
+      localTime:item.localTime,
+      koreaTime:item.koreaTime,
+      title:item.title,
+      status:item.status,
+      memo:item.memo,
+      createdAt:item.createdAt
+    })),
+    filters:{
+      date:currentNewsProgrammingFilters.date,
+      liveOnly:Boolean(currentNewsProgrammingFilters.liveOnly)
+    }
+  };
+  writeNewsProgrammingRaw(JSON.stringify(payload));
+  console.log('[news-programming] save state', {
+    memoCount:Object.keys(currentNewsProgrammingSavedMemos).filter(key=>String(currentNewsProgrammingSavedMemos[key]||'').trim()).length,
+    specialCount:newsProgrammingSpecialEntries.length
+  });
 }
 function loadMapLocationPinEntries(){
   if(hasLoadedMapLocationPinEntries) return;
@@ -1312,7 +1412,7 @@ function renderMapLocationPinPreview(entries=[], sectionKey='region'){
 function renderMapLocationPinList(entries=[], sectionKey='region'){
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
   if(!entries.length){
-    return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">장소 데이터가 쌓이면 이 영역에 핀 카드가 누적됩니다.</p></div></header><div class="map-location-pin-list-empty">저장된 핀이 없습니다. 먼저 핀 추가를 눌러 장소를 등록하세요.</div></section>`;
+    return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta"></p></div></header><div class="map-location-pin-list-empty">저장된 핀이 없습니다. 먼저 핀 추가를 눌러 장소를 등록하세요.</div></section>`;
   }
   return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">${entries.length}개 장소가 핀 카드로 정리되어 있습니다.</p></div></header><div class="map-location-pin-list">${entries.map((entry,index)=>{const categoryMeta=getMapLocationPinCategoryMeta(entry.category); const savedAt=formatMapLocationPinSavedAt(entry.updatedAt||entry.createdAt); return `<article class="map-location-pin-card is-${escapeHtml(categoryMeta.tone)}"><div class="map-location-pin-card-badge-wrap"><span class="map-location-pin-card-badge">${index+1}</span></div><div class="map-location-pin-card-body"><header class="map-location-pin-card-header"><div><div class="map-location-pin-card-category is-${escapeHtml(categoryMeta.tone)}">${escapeHtml(categoryMeta.label)}</div><h6 class="map-location-pin-card-title">${escapeHtml(entry.name||'현장 장소')}</h6></div>${savedAt?`<div class="map-location-pin-card-time">${escapeHtml(savedAt)}</div>`:''}</header><div class="map-location-pin-card-location">${escapeHtml(entry.locationText||'위치 설명 없음')}</div>${entry.memo?`<p class="map-location-pin-card-memo">${escapeHtml(entry.memo)}</p>`:''}<div class="map-location-pin-card-meta">${entry.mapLink?`<a class="map-location-pin-card-link" href="${escapeHtml(entry.mapLink)}" target="_blank" rel="noreferrer">지도 링크 열기</a>`:'<span class="map-location-pin-card-link-placeholder">지도 링크 연결 자리</span>'}<span class="map-location-pin-card-coordinates">${entry.lat||entry.lng?escapeHtml(`lat ${entry.lat||'-'} / lng ${entry.lng||'-'}`):'좌표 필드 확장 예정'}</span></div>${Array.isArray(entry.images)&&entry.images.length?`<div class="map-location-pin-card-media">${entry.images.map((src,mediaIndex)=>`<img class="map-location-pin-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(entry.name||'현장 장소')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}<div class="simple-info-actions map-location-pin-card-actions"><button type="button" class="section-title-action-btn" onclick="openMapLocationPinComposer('${normalized}', '${escapeHtml(entry.id)}')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMapLocationPin('${normalized}', '${escapeHtml(entry.id)}')">삭제</button></div></div></article>`;}).join('')}</div></section>`;
 }
@@ -1470,246 +1570,259 @@ function renderMapPanelHtml(){
   const activeSectionHtml=currentMapSubTab==='lodging'?renderMapSectionPanel('lodging'):renderMapSectionPanel('region');
   return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${tabsHtml}${activeSectionHtml}</section></td></tr></tbody>`;
 }
-function buildJtbcSchedulePageUrl(dateKey=''){
-  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  return `https://jtbc.co.kr/schedule/jtbc/${normalizedDate.replace(/-/g,'')}`;
+function getNewsProgrammingStatusClass(status=''){
+  const normalized=String(status||'').trim();
+  if(normalized==='생방') return 'is-live';
+  return 'is-recorded';
 }
-function buildJtbcScheduleProxyUrl(dateKey=''){
-  if(!JTBC_SCHEDULE_PROXY_URL||typeof window==='undefined') return '';
-  try{
-    const targetUrl=new URL(JTBC_SCHEDULE_PROXY_URL, window.location.href);
-    targetUrl.searchParams.set('date', String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey());
-    targetUrl.searchParams.set('channel', JTBC_SCHEDULE_CHANNEL_KEY);
-    return targetUrl.toString();
-  }catch(error){
-    return '';
-  }
+function padNewsProgrammingNumber(value){
+  return String(value).padStart(2,'0');
 }
-function slugifyNewsProgrammingTitle(title=''){
-  return String(title||'')
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣]+/g,'-')
-    .replace(/^-+|-+$/g,'')
-    .slice(0,48)||'jtbc-schedule';
+function shiftNewsProgrammingDate(dateKey='', dayOffset=0){
+  const normalized=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const baseDate=new Date(`${normalized}T12:00:00`);
+  if(Number.isNaN(baseDate.getTime())) return normalized;
+  baseDate.setDate(baseDate.getDate()+Number(dayOffset||0));
+  return `${baseDate.getFullYear()}-${padNewsProgrammingNumber(baseDate.getMonth()+1)}-${padNewsProgrammingNumber(baseDate.getDate())}`;
 }
-function parseJtbcScheduleStatusChunk(chunk=''){
-  const tokens=String(chunk||'').trim().split(/\s+/).filter(Boolean);
-  const gradeTokens=['A','7','12','15','19'];
-  const infoTokens=['HD','본','재','생','자','수','수+','해','ON','No-ON'];
-  if(!tokens.length||!tokens.every(token=>gradeTokens.includes(token)||infoTokens.includes(token))){
-    return {hasAny:false, grade:null, status:[], badges:[]};
-  }
-  const grade=tokens.find(token=>gradeTokens.includes(token))||null;
-  const status=tokens.filter(token=>['본','재','생'].includes(token));
-  const badges=tokens.filter(token=>!['본','재','생','ON','No-ON'].includes(token)&&token!==grade);
-  return {hasAny:true, grade, status, badges};
+function getNewsProgrammingWeekdayLabel(dateKey=''){
+  const normalized=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const baseDate=new Date(`${normalized}T12:00:00`);
+  if(Number.isNaN(baseDate.getTime())) return normalized;
+  const weekdayLabels=['일','월','화','수','목','금','토'];
+  return `${normalized} (${weekdayLabels[baseDate.getDay()]})`;
 }
-function normalizeJtbcScheduleItem(item, index=0, dateKey=''){
-  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  const startTime=String(item?.startTime||item?.time||'').trim();
-  if(!startTime) return null;
-  const title=String(item?.title||item?.name||'').trim()||'JTBC 편성 항목';
-  const status=Array.isArray(item?.status)?item.status.map(value=>String(value||'').trim()).filter(Boolean):[];
-  const badges=Array.isArray(item?.badges)?item.badges.map(value=>String(value||'').trim()).filter(Boolean):[];
+function convertKoreaTimeToLocalSlot(koreaTime='00:00'){
+  const [hourText='0', minuteText='0']=String(koreaTime||'00:00').split(':');
+  const koreaMinutes=(Number(hourText)||0)*60+(Number(minuteText)||0);
+  const localMinutes=koreaMinutes-(15*60);
+  const normalizedMinutes=((localMinutes%(24*60))+(24*60))%(24*60);
+  const localDayOffset=Math.floor(localMinutes/(24*60));
   return {
-    id:String(item?.id||`${normalizedDate}-${startTime.replace(':','')}-${slugifyNewsProgrammingTitle(title)}-${index}`),
-    title,
-    startTime,
-    endTime:String(item?.endTime||'').trim(),
-    status,
-    episode:item?.episode?String(item.episode).trim():null,
-    grade:item?.grade?String(item.grade).trim():null,
-    badges,
-    info:String(item?.info||item?.description||item?.summary||'').trim()
+    localDayOffset,
+    localTime:`${padNewsProgrammingNumber(Math.floor(normalizedMinutes/60))}:${padNewsProgrammingNumber(normalizedMinutes%60)}`
   };
 }
-function normalizeJtbcScheduleItems(items=[], dateKey=''){
-  const normalizedItems=(Array.isArray(items)?items:[]).map((item,index)=>normalizeJtbcScheduleItem(item, index, dateKey)).filter(Boolean).sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
-  return normalizedItems.map((item,index)=>({
-    ...item,
-    endTime:item.endTime||normalizedItems[index+1]?.startTime||''
+function buildBaseNewsProgrammingSchedules(dateKey=''){
+  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  return NEWS_PROGRAMMING_TEMPLATE.map(item=>{
+    const localSlot=convertKoreaTimeToLocalSlot(item.koreaTime);
+    return {
+      id:`${item.baseId}-${normalizedDate}`,
+      date:normalizedDate,
+      localDayOffset:localSlot.localDayOffset,
+      localTime:localSlot.localTime,
+      koreaTime:String(item.koreaTime||'').trim()||'00:00',
+      title:item.title,
+      status:item.status,
+      memo:String(item.memo||''),
+      isBaseSchedule:true
+    };
+  });
+}
+function getNewsProgrammingTimeOptionKey(item={}){
+  return [
+    String(item.date||'').trim(),
+    String(item.localHour??'').trim()
+  ].join('|');
+}
+function getNewsProgrammingTimeOptions(){
+  const selectedDate=String(currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  return Array.from({length:24}, (_, hour)=>({
+    date:selectedDate,
+    localHour:hour,
+    localDayOffset:0,
+    localTime:`${padNewsProgrammingNumber(hour)}:00`,
+    koreaTime:`${padNewsProgrammingNumber((hour+15)%24)}:00`,
+    koreaDayOffset:hour+15>=24?1:0,
+    key:getNewsProgrammingTimeOptionKey({date:selectedDate, localHour:hour})
   }));
 }
-function parseJtbcScheduleBlock(blockText='', dateKey='', startTime=''){
-  if(!blockText||!startTime) return null;
-  const chunks=String(blockText||'').replace(/\u00a0/g,' ').trim().split(/\s{2,}/).map(chunk=>chunk.trim()).filter(Boolean);
-  if(!chunks.length) return null;
-  const statusMeta=parseJtbcScheduleStatusChunk(chunks[chunks.length-1]||'');
-  const contentChunks=statusMeta.hasAny?chunks.slice(0,-1):[...chunks];
-  const titleChunk=(contentChunks.shift()||'').trim();
-  if(!titleChunk) return null;
-  let episode=null;
-  let title=titleChunk;
-  const titleEpisodeMatch=titleChunk.match(/^(.*?)(\d+회)\s*$/);
-  if(titleEpisodeMatch){
-    title=String(titleEpisodeMatch[1]||'').trim()||titleChunk;
-    episode=String(titleEpisodeMatch[2]||'').trim()||null;
-  }
-  let info=contentChunks.join(' ').trim();
-  if(info){
-    const dedupeTargets=[`${title} ${episode||''}`.trim(), title].filter(Boolean);
-    dedupeTargets.forEach(target=>{
-      if(info===target){
-        info='';
-      }else if(info.startsWith(`${target} `)){
-        info=info.slice(target.length).trim();
-      }
+function getNewsProgrammingTimeOptionLabel(option={}){
+  const localTime=String(option.localTime||'--:--').trim()||'--:--';
+  const koreaTime=String(option.koreaTime||'--:--').trim()||'--:--';
+  const koreaDayLabel=Number(option.koreaDayOffset||0)>0?'익일 ':'';
+  return `현지시각 ${localTime} / 한국시각 ${koreaDayLabel}${koreaTime}`;
+}
+function getSelectedNewsProgrammingTimeOption(){
+  loadNewsProgrammingState();
+  const options=getNewsProgrammingTimeOptions();
+  const selectedKey=String(currentNewsProgrammingSpecialForm.timeKey||'').trim();
+  return options.find(option=>option.key===selectedKey)||options[0]||null;
+}
+function getSortedNewsProgrammingItems(dateKey=''){
+  loadNewsProgrammingState();
+  const selectedDate=String(dateKey||currentNewsProgrammingFilters.date||'').trim()||getTodayTimelineKey();
+  return [...buildBaseNewsProgrammingSchedules(selectedDate), ...newsProgrammingSpecialEntries]
+    .filter(item=>!selectedDate||item.date===selectedDate)
+    .sort((a,b)=>{
+      const dayOffsetDiff=(Number(a.localDayOffset)||0)-(Number(b.localDayOffset)||0);
+      if(dayOffsetDiff!==0) return dayOffsetDiff;
+      const timeDiff=String(a.localTime||'').localeCompare(String(b.localTime||''));
+      if(timeDiff!==0) return timeDiff;
+      const specialOrderDiff=Number(Boolean(a.isSpecialEntry))-Number(Boolean(b.isSpecialEntry));
+      if(specialOrderDiff!==0) return specialOrderDiff;
+      return Number(a.createdAt||0)-Number(b.createdAt||0);
     });
-  }
-  return normalizeJtbcScheduleItem({
-    id:`${dateKey}-${startTime.replace(':','')}-${slugifyNewsProgrammingTitle(title)}`,
-    title,
-    startTime,
-    endTime:'',
-    status:statusMeta.status,
-    episode,
-    grade:statusMeta.grade,
-    badges:statusMeta.badges,
-    info
-  }, 0, dateKey);
 }
-function parseJtbcSchedule(raw, dateKey=''){
-  const sourceText=String(raw||'');
-  if(!sourceText.trim()){
-    return {items:[], lastUpdated:''};
+function getFilteredNewsProgrammingItems(){
+  const selectedDate=String(currentNewsProgrammingFilters.date||'').trim();
+  const liveOnly=Boolean(currentNewsProgrammingFilters.liveOnly);
+  return getSortedNewsProgrammingItems(selectedDate)
+    .filter(item=>!liveOnly||item.status==='생방');
+}
+function getNewsProgrammingMemoTickerSourceItems(){
+  return getSortedNewsProgrammingItems().map(item=>({
+    ...item,
+    memo:item.isSpecialEntry
+      ? String(item.memo||'').trim()
+      : String(currentNewsProgrammingSavedMemos[item.id]||'').trim()
+  }));
+}
+function getNewsProgrammingMemoTickerItems(){
+  const allItems=getNewsProgrammingMemoTickerSourceItems();
+  return allItems
+    .filter(item=>item.memo&&String(item.memo).trim()!=='')
+    .map(item=>`[${String(item.title||'프로그램').trim()||'프로그램'}] ${String(item.memo||'').trim()}`);
+}
+function getNewsProgrammingMemoTickerText(){
+  const items=getNewsProgrammingMemoTickerItems();
+  if(!items.length){
+    return '운영 메모 없음';
   }
-  let bodyText=sourceText.replace(/\u00a0/g,' ');
-  if(typeof DOMParser!=='undefined'){
-    try{
-      const parsedDoc=new DOMParser().parseFromString(sourceText, 'text/html');
-      if(parsedDoc?.body?.textContent){
-        bodyText=parsedDoc.body.textContent.replace(/\u00a0/g,' ');
-      }
-    }catch(error){}
+  return items.join('  •  ');
+}
+function refreshTicker(){
+  console.log('[news-programming] refresh ticker', {
+    items:getNewsProgrammingMemoTickerItems(),
+    text:getNewsProgrammingMemoTickerText()
+  });
+  updateHeaderReportBoard();
+}
+function buildNewsProgrammingTimeLabel(item={}){
+  const localTime=String(item.localTime||'--:--').trim()||'--:--';
+  const koreaTime=String(item.koreaTime||'--:--').trim()||'--:--';
+  const hasPreviousDay=Number(item.localDayOffset||0)<0;
+  return `<span class="news-programming-time-text"><span class="news-programming-time-prefix">현지시각</span>${hasPreviousDay?'<span class="news-programming-day-flag">전일</span>':''}<span class="news-programming-time-value">${escapeHtml(localTime)}</span><span class="news-programming-time-divider">/</span><span class="news-programming-time-prefix">한국시각</span><span class="news-programming-time-value">${escapeHtml(koreaTime)}</span></span>`;
+}
+function toggleNewsProgrammingSpecialComposer(forceOpen){
+  if(typeof forceOpen==='boolean'){
+    isNewsProgrammingSpecialComposerOpen=forceOpen;
+  }else{
+    isNewsProgrammingSpecialComposerOpen=!isNewsProgrammingSpecialComposerOpen;
   }
-  const lines=bodyText.split(/\r?\n/).map(line=>line.replace(/\u00a0/g,' ').replace(/\t+/g,' ').trimEnd()).map(line=>line.trimStart()).filter(Boolean);
-  const items=[];
-  for(let index=0; index<lines.length; index+=1){
-    const line=lines[index].trim();
-    if(!/^\d{2}:\d{2}$/.test(line)) continue;
-    const startTime=line;
-    const blockLines=[];
-    let nextIndex=index+1;
-    while(nextIndex<lines.length&&!/^\d{2}:\d{2}$/.test(lines[nextIndex].trim())&&!/^수정일시\s*:/.test(lines[nextIndex])){
-      const candidate=lines[nextIndex].trim();
-      if(candidate&&!['다시보기','NOW ON','인쇄하기','오늘','달력보기'].includes(candidate)){
-        blockLines.push(candidate);
-      }
-      nextIndex+=1;
-    }
-    const parsedItem=parseJtbcScheduleBlock(blockLines.join('  ').replace(/\s{3,}/g,'  ').trim(), dateKey, startTime);
-    if(parsedItem) items.push(parsedItem);
-    index=nextIndex-1;
+  if(!isNewsProgrammingSpecialComposerOpen){
+    isNewsProgrammingSpecialTimeMenuOpen=false;
+  }else if(!String(currentNewsProgrammingSpecialForm.timeKey||'').trim()){
+    currentNewsProgrammingSpecialForm.timeKey=getSelectedNewsProgrammingTimeOption()?.key||'';
   }
-  const updateMatch=bodyText.match(/수정일시\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s*[0-9]{2}:\d{2})/);
-  return {
-    items:normalizeJtbcScheduleItems(items, dateKey),
-    lastUpdated:updateMatch?String(updateMatch[1]||'').replace(/\s+/g,' ').trim():''
+  rerenderNewsProgrammingPanelIfActive();
+}
+function toggleNewsProgrammingSpecialTimeMenu(forceOpen){
+  if(typeof forceOpen==='boolean'){
+    isNewsProgrammingSpecialTimeMenuOpen=forceOpen;
+  }else{
+    isNewsProgrammingSpecialTimeMenuOpen=!isNewsProgrammingSpecialTimeMenuOpen;
+  }
+  rerenderNewsProgrammingPanelIfActive();
+}
+function selectNewsProgrammingSpecialTime(timeKey=''){
+  currentNewsProgrammingSpecialForm.timeKey=String(timeKey||'').trim();
+  isNewsProgrammingSpecialTimeMenuOpen=false;
+  rerenderNewsProgrammingPanelIfActive();
+}
+function setNewsProgrammingSpecialField(field='', value=''){
+  const normalizedField=String(field||'').trim();
+  if(!normalizedField||!Object.prototype.hasOwnProperty.call(currentNewsProgrammingSpecialForm, normalizedField)) return;
+  currentNewsProgrammingSpecialForm[normalizedField]=String(value||'');
+}
+function resetNewsProgrammingSpecialForm(){
+  currentNewsProgrammingSpecialForm={
+    timeKey:getSelectedNewsProgrammingTimeOption()?.key||getNewsProgrammingTimeOptions()[0]?.key||'',
+    status:'본방',
+    title:'',
+    memo:''
   };
+  isNewsProgrammingSpecialTimeMenuOpen=false;
 }
-function buildJtbcScheduleMockData(dateKey=''){
-  return normalizeJtbcScheduleItems([
-    {title:'아침&', startTime:'07:30', endTime:'08:00', status:['본','생'], grade:'A', badges:['HD','자'], info:'개발용 fallback 예시 데이터'},
-    {title:'이가혁 라이브', startTime:'17:00', endTime:'18:30', status:['본','생'], grade:'A', badges:['HD','자'], info:'프록시가 준비되면 JTBC 공식 편성표 기준으로 자동 교체됩니다.'},
-    {title:'JTBC 뉴스룸', startTime:'18:30', endTime:'19:50', status:['본','생'], grade:'A', badges:['HD','자','수','수+'], info:'개발 단계 fallback schedule'},
-    {title:'사건반장', startTime:'19:50', endTime:'20:50', status:['본','생'], grade:'A', badges:['HD','자'], info:'일정 구조 확인용 예시'}
-  ], dateKey);
+function submitNewsProgrammingSpecialEntry(){
+  loadNewsProgrammingState();
+  const selectedTimeOption=getSelectedNewsProgrammingTimeOption();
+  if(!selectedTimeOption) return;
+  const normalizedDate=String(selectedTimeOption.date||currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedStatus=String(currentNewsProgrammingSpecialForm.status||'본방').trim()==='생방' ? '생방' : '본방';
+  const normalizedTitle=String(currentNewsProgrammingSpecialForm.title||'').trim()||'특보 편성';
+  const normalizedMemo=String(currentNewsProgrammingSpecialForm.memo||'').trim();
+  newsProgrammingSpecialEntries.push({
+    id:`news-programming-special-${Date.now()}`,
+    date:normalizedDate,
+    localDayOffset:Number(selectedTimeOption.localDayOffset)||0,
+    localTime:String(selectedTimeOption.localTime||'').trim()||'--:--',
+    koreaTime:String(selectedTimeOption.koreaTime||'').trim()||'--:--',
+    title:normalizedTitle,
+    status:normalizedStatus,
+    memo:normalizedMemo,
+    isSpecialEntry:true,
+    createdAt:Date.now()
+  });
+  resetNewsProgrammingSpecialForm();
+  saveNewsProgrammingState();
+  refreshTicker();
+  rerenderNewsProgrammingPanelIfActive();
 }
-async function fetchJtbcSchedule(dateKey=''){
-  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  const proxyUrl=buildJtbcScheduleProxyUrl(normalizedDate);
-  if(proxyUrl){
-    try{
-      const response=await fetch(proxyUrl, {headers:{Accept:'application/json, text/html;q=0.9, text/plain;q=0.8, */*;q=0.5'}});
-      if(!response.ok){
-        throw new Error(`schedule proxy returned ${response.status}`);
-      }
-      const contentType=String(response.headers.get('content-type')||'').toLowerCase();
-      if(contentType.includes('application/json')){
-        const payload=await response.json();
-        if(Array.isArray(payload)||Array.isArray(payload?.items)){
-          return {
-            items:normalizeJtbcScheduleItems(Array.isArray(payload)?payload:payload.items, normalizedDate),
-            lastUpdated:String(payload?.lastUpdated||payload?.updatedAt||'').trim(),
-            source:'proxy-json',
-            warningMessage:''
-          };
-        }
-        if(typeof payload?.html==='string'){
-          const parsed=parseJtbcSchedule(payload.html, normalizedDate);
-          return {
-            items:parsed.items,
-            lastUpdated:String(payload?.lastUpdated||parsed.lastUpdated||'').trim(),
-            source:'proxy-html',
-            warningMessage:''
-          };
-        }
-        throw new Error('unsupported proxy payload');
-      }
-      const rawHtml=await response.text();
-      const parsed=parseJtbcSchedule(rawHtml, normalizedDate);
-      if(parsed.items.length){
-        return {
-          items:parsed.items,
-          lastUpdated:parsed.lastUpdated,
-          source:'proxy-html',
-          warningMessage:''
-        };
-      }
-      throw new Error('empty parsed schedule');
-    }catch(error){
-      return {
-        items:buildJtbcScheduleMockData(normalizedDate),
-        lastUpdated:'',
-        source:'mock',
-        warningMessage:'프록시 응답을 확인하지 못해 개발용 예시 데이터를 표시합니다.'
-      };
-    }
-  }
-  return {
-    items:buildJtbcScheduleMockData(normalizedDate),
-    lastUpdated:'',
-    source:'mock',
-    warningMessage:'프록시 URL이 설정되지 않아 개발용 예시 데이터를 표시합니다.'
-  };
+function clearNewsProgrammingSpecialForm(){
+  resetNewsProgrammingSpecialForm();
+  rerenderNewsProgrammingPanelIfActive();
 }
-function formatScheduleTimeRange(startTime='', endTime=''){
-  const start=String(startTime||'').trim()||'시간 미정';
-  const end=String(endTime||'').trim();
-  return end?`${start} - ${end}`:`${start} - 종료 미정`;
+function setNewsProgrammingMemoDraft(itemId='', value=''){
+  const normalizedId=String(itemId||'').trim();
+  if(!normalizedId) return;
+  currentNewsProgrammingMemoDrafts[normalizedId]=String(value||'');
 }
-function formatNewsProgrammingFetchedAt(value=''){
-  const normalized=String(value||'').trim();
-  if(!normalized) return '';
-  try{
-    return new Date(normalized).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
-  }catch(error){
-    return normalized;
-  }
+function saveNewsProgrammingMemo(itemId=''){
+  loadNewsProgrammingState();
+  const normalizedId=String(itemId||'').trim();
+  if(!normalizedId) return;
+  currentNewsProgrammingSavedMemos[normalizedId]=String(currentNewsProgrammingMemoDrafts[normalizedId]||'').trim();
+  currentNewsProgrammingMemoDrafts[normalizedId]=currentNewsProgrammingSavedMemos[normalizedId];
+  saveNewsProgrammingState();
+  refreshTicker();
+  rerenderNewsProgrammingPanelIfActive();
 }
-function renderScheduleLoading(){
-  return `<div class="news-programming-status-card is-loading">JTBC 편성표 불러오는 중...</div>`;
+function clearNewsProgrammingMemo(itemId=''){
+  loadNewsProgrammingState();
+  const normalizedId=String(itemId||'').trim();
+  if(!normalizedId) return;
+  currentNewsProgrammingMemoDrafts[normalizedId]='';
+  currentNewsProgrammingSavedMemos[normalizedId]='';
+  saveNewsProgrammingState();
+  refreshTicker();
+  rerenderNewsProgrammingPanelIfActive();
 }
-function renderScheduleError(message=''){
-  return `<div class="news-programming-status-card is-error">${escapeHtml(message||'편성표를 불러오지 못했습니다.')}</div>`;
+function renderNewsProgrammingEmpty(){
+  return '<div class="news-programming-empty">조건에 맞는 편성 항목이 없습니다.</div>';
 }
-function renderScheduleEmpty(){
-  return '<div class="news-programming-status-card is-empty">해당 날짜의 편성 정보가 없습니다.</div>';
+function renderNewsProgrammingSpecialComposer(){
+  if(!isNewsProgrammingSpecialComposerOpen) return '';
+  const timeOptions=getNewsProgrammingTimeOptions();
+  const selectedTimeOption=getSelectedNewsProgrammingTimeOption();
+  const selectedTimeLabel=getNewsProgrammingTimeOptionLabel(selectedTimeOption||{});
+  const selectedStatus=String(currentNewsProgrammingSpecialForm.status||'본방').trim()==='생방' ? '생방' : '본방';
+  const titleValue=String(currentNewsProgrammingSpecialForm.title||'');
+  const memoValue=String(currentNewsProgrammingSpecialForm.memo||'');
+  return `<section class="news-programming-special-panel" aria-label="특보 카드 작성 창"><div class="news-programming-special-panel-header"><h4 class="news-programming-special-panel-title">특보 카드 작성</h4><button type="button" class="section-title-action-btn" onclick="toggleNewsProgrammingSpecialComposer(false)">닫기</button></div><div class="news-programming-special-form"><div class="simple-form-field news-programming-special-field"><span class="simple-form-label">시간</span><div class="news-programming-time-picker"><button type="button" class="news-programming-time-picker-trigger${isNewsProgrammingSpecialTimeMenuOpen?' is-open':''}" aria-expanded="${isNewsProgrammingSpecialTimeMenuOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialTimeMenu()"><span class="news-programming-time-picker-label">${escapeHtml(selectedTimeLabel)}</span><span class="news-programming-time-picker-arrow">▾</span></button>${isNewsProgrammingSpecialTimeMenuOpen?`<div class="news-programming-time-picker-menu" role="listbox" aria-label="특보 시간 선택">${timeOptions.map(option=>`<button type="button" class="news-programming-time-picker-option${selectedTimeOption&&option.key===selectedTimeOption.key?' is-selected':''}" onclick="selectNewsProgrammingSpecialTime('${escapeHtml(option.key)}')">${escapeHtml(getNewsProgrammingTimeOptionLabel(option))}</button>`).join('')}</div>`:''}</div></div><label class="simple-form-field news-programming-special-field"><span class="simple-form-label">방송</span><select class="simple-form-input news-programming-special-select" onchange="setNewsProgrammingSpecialField('status', this.value)"><option value="본방" ${selectedStatus==='본방'?'selected':''}>본방</option><option value="생방" ${selectedStatus==='생방'?'selected':''}>생방</option></select></label><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">특보편성 이름</span><input type="text" class="simple-form-input" value="${escapeHtml(titleValue)}" placeholder="아침&, 장르가 머니, JTBC 뉴스룸" oninput="setNewsProgrammingSpecialField('title', this.value)"></label><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">운영 메모</span><textarea class="simple-form-input simple-form-textarea news-programming-special-textarea" placeholder="운영 메모를 입력하세요" oninput="setNewsProgrammingSpecialField('memo', this.value)">${escapeHtml(memoValue)}</textarea></label></div><div class="news-programming-special-actions"><button type="button" class="section-title-action-btn" onclick="submitNewsProgrammingSpecialEntry()">작성</button><button type="button" class="section-title-action-btn delete" onclick="clearNewsProgrammingSpecialForm()">삭제</button></div></section>`;
 }
-function renderNewsSchedule(items=[]){
-  if(!items.length) return renderScheduleEmpty();
-  return `<section class="news-programming-timeline-shell"><div class="news-programming-timeline-scroll"><div class="news-programming-timeline-track">${items.map((item,index)=>`<article class="news-programming-timeline-item"><div class="news-programming-timeline-node"><span class="news-programming-timeline-node-dot"></span><span class="news-programming-timeline-node-time">${escapeHtml(item.startTime||'--:--')}</span></div><div class="news-programming-timeline-card"><div class="news-programming-timeline-order">${index+1}</div><div class="news-programming-timeline-card-body"><div class="news-programming-timeline-card-topline"><span class="news-programming-timeline-card-range">${escapeHtml(formatScheduleTimeRange(item.startTime, item.endTime))}</span>${item.status.length||item.grade||item.badges.length?`<div class="news-programming-timeline-card-badges">${item.status.map(status=>`<span class="news-programming-badge is-status">${escapeHtml(status)}</span>`).join('')}${item.grade?`<span class="news-programming-badge is-grade">${escapeHtml(item.grade)}</span>`:''}${item.badges.map(badge=>`<span class="news-programming-badge">${escapeHtml(badge)}</span>`).join('')}</div>`:''}</div><h5 class="news-programming-timeline-card-title">${escapeHtml(item.title||'JTBC 편성 항목')}</h5>${item.episode||item.info?`<div class="news-programming-timeline-card-meta">${item.episode?`<span>${escapeHtml(item.episode)}</span>`:''}${item.info?`<span>${escapeHtml(item.info)}</span>`:''}</div>`:''}</div></div></article>`).join('')}</div></div></section>`;
-}
-function renderNewsProgrammingScheduleContent(){
-  if(currentNewsProgrammingState.status==='loading') return renderScheduleLoading();
-  if(currentNewsProgrammingState.status==='error') return renderScheduleError(currentNewsProgrammingState.errorMessage);
-  return renderNewsSchedule(currentNewsProgrammingState.items);
+function renderNewsProgrammingCards(items=[]){
+  if(!items.length) return renderNewsProgrammingEmpty();
+  return `<div class="news-programming-list">${items.map(item=>{const savedMemo=item.isSpecialEntry?String(item.memo||'').trim():String(currentNewsProgrammingSavedMemos[item.id]||'').trim(); const draftMemo=String(currentNewsProgrammingMemoDrafts[item.id]??item.memo??''); return `<article class="news-programming-card${item.isSpecialEntry?' is-special-entry':''}"><div class="news-programming-card-top"><div class="news-programming-time">${buildNewsProgrammingTimeLabel(item)}</div><span class="news-programming-status-badge ${getNewsProgrammingStatusClass(item.status)}">${escapeHtml(item.status||'본방')}</span>${item.isSpecialEntry?'<span class="news-programming-type-badge">특보</span>':''}</div><h4 class="news-programming-card-title">${escapeHtml(item.title||'프로그램')}</h4>${item.isSpecialEntry?`<div class="news-programming-memo-shell"><p class="news-programming-card-note">${escapeHtml(savedMemo||'운영 메모 없음')}</p></div>`:`<div class="news-programming-memo-shell"><label class="simple-form-field news-programming-memo-field"><span class="simple-form-label">운영 메모</span><textarea class="simple-form-input simple-form-textarea news-programming-memo-input" placeholder="운영 메모를 입력하세요" oninput="setNewsProgrammingMemoDraft('${escapeHtml(item.id)}', this.value)">${escapeHtml(draftMemo)}</textarea></label><div class="news-programming-memo-actions"><button type="button" class="section-title-action-btn" onclick="saveNewsProgrammingMemo('${escapeHtml(item.id)}')">작성</button><button type="button" class="section-title-action-btn delete" onclick="clearNewsProgrammingMemo('${escapeHtml(item.id)}')">삭제</button></div>${savedMemo?`<p class="news-programming-card-note">${escapeHtml(savedMemo)}</p>`:''}</div>`}</article>`;}).join('')}</div>`;
 }
 function renderNewsProgrammingPanelHtml(){
-  const selectedDate=String(currentNewsProgrammingDate||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  const lastUpdatedText=currentNewsProgrammingState.lastUpdated||formatNewsProgrammingFetchedAt(currentNewsProgrammingState.fetchedAt)||'-';
-  const sourceNote=currentNewsProgrammingState.source==='mock' ? `<p class="news-programming-source-note">${escapeHtml(currentNewsProgrammingState.warningMessage||'개발용 예시 데이터를 표시하고 있습니다.')}</p>` : currentNewsProgrammingState.warningMessage?`<p class="news-programming-source-note">${escapeHtml(currentNewsProgrammingState.warningMessage)}</p>`:'';
-  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel news-programming-panel" aria-label="뉴스편성"><header class="simple-info-header"><h3 class="simple-info-title">편성표</h3></header><section class="news-programming-channel-shell"><header class="news-programming-channel-header"><div class="news-programming-channel-copy"><h4 class="news-programming-channel-title">오늘의 JTBC 편성표</h4><p class="news-programming-channel-description">JTBC 공식 편성표 기준으로 날짜별 편성을 다시 조회해 표시합니다.</p></div><div class="news-programming-channel-meta"><span class="news-programming-update-label">마지막 업데이트</span><strong class="news-programming-update-value">${escapeHtml(lastUpdatedText)}</strong></div></header><div class="news-programming-toolbar"><label class="simple-form-field news-programming-date-field"><span class="simple-form-label">기준 날짜</span><input type="date" class="simple-form-input" value="${escapeHtml(selectedDate)}" onchange="setNewsProgrammingDate(this.value)"></label><div class="news-programming-toolbar-actions"><button type="button" class="section-title-action-btn" onclick="jumpToTodayNewsProgramming()">오늘</button><button type="button" class="section-title-action-btn" onclick="refreshNewsProgrammingSchedule()">새로고침</button></div></div>${sourceNote}<div class="news-programming-status-line"><span class="news-programming-status-source">${currentNewsProgrammingState.source==='mock'?'개발용 fallback':'JTBC 편성표'}</span><a class="news-programming-source-link" href="${escapeHtml(buildJtbcSchedulePageUrl(selectedDate))}" target="_blank" rel="noreferrer">JTBC 공식 편성표 보기</a></div>${renderNewsProgrammingScheduleContent()}</section></section></td></tr></tbody>`;
+  loadNewsProgrammingState();
+  const selectedDate=String(currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const selectedDateLabel=getNewsProgrammingWeekdayLabel(selectedDate);
+  const liveOnly=Boolean(currentNewsProgrammingFilters.liveOnly);
+  const filteredItems=renderNewsProgrammingCards(getFilteredNewsProgrammingItems());
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel news-programming-panel" aria-label="방송 편성표"><header class="simple-info-header news-programming-header"><div class="news-programming-header-row"><h3 class="simple-info-title">방송 편성표</h3><div class="news-programming-header-actions"><button type="button" class="section-title-action-btn news-programming-special-toggle${isNewsProgrammingSpecialComposerOpen?' is-active':''}" aria-expanded="${isNewsProgrammingSpecialComposerOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialComposer()">${isNewsProgrammingSpecialComposerOpen?'특보 닫기':'특보'}</button></div></div></header><section class="news-programming-shell"><div class="news-programming-filters"><label class="simple-form-field news-programming-filter-field"><span class="simple-form-label">날짜 선택</span><span class="news-programming-date-caption">${escapeHtml(selectedDateLabel)}</span><input type="date" class="simple-form-input" value="${escapeHtml(selectedDate)}" onchange="setNewsProgrammingDate(this.value)"></label><label class="simple-form-field news-programming-filter-field news-programming-live-field"><span class="simple-form-label">필터</span><span class="news-programming-live-toggle"><input type="checkbox" ${liveOnly?'checked ':''}onchange="setNewsProgrammingLiveOnly(this.checked)"><span>생방만 보기</span></span></label></div>${renderNewsProgrammingSpecialComposer()}${filteredItems}</section></section></td></tr></tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -1959,6 +2072,7 @@ const SHARED_STATE_SYNC_SUPABASE_ANON_KEY = 'sb_publishable_LlbUjDMb1BFXZtuBuNqV
 const SHARED_STATE_SYNC_TABLE = 'shared_state';
 const SHARED_STATE_SYNC_REGISTRY = {
   [NEWS_EDITOR_STORAGE_KEY]: {windowNameKey: NEWS_EDITOR_WINDOW_NAME_KEY},
+  [NEWS_PROGRAMMING_STORAGE_KEY]: {windowNameKey: NEWS_PROGRAMMING_WINDOW_NAME_KEY},
   [SQUAD_INJURY_STORAGE_KEY]: {windowNameKey: SQUAD_INJURY_WINDOW_NAME_KEY},
   [MEXICO_STADIUM_EDITOR_STORAGE_KEY]: {windowNameKey: MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY},
   [EQUIPMENT_EDITOR_STORAGE_KEY]: {windowNameKey: EQUIPMENT_EDITOR_WINDOW_NAME_KEY},
@@ -2179,6 +2293,24 @@ function resetNewsEditorSyncState(){
   clearObjectEntries(newsEditorEntries);
   renderCache.newsTables=Object.create(null);
 }
+function resetNewsProgrammingSyncState(){
+  hasLoadedNewsProgrammingState=false;
+  currentNewsProgrammingMemoDrafts={};
+  currentNewsProgrammingSavedMemos={};
+  newsProgrammingSpecialEntries=[];
+  currentNewsProgrammingFilters={
+    date:getTodayTimelineKey(),
+    liveOnly:false
+  };
+  currentNewsProgrammingSpecialForm={
+    timeKey:'',
+    status:'본방',
+    title:'',
+    memo:''
+  };
+  isNewsProgrammingSpecialTimeMenuOpen=false;
+  renderCache.newsProgrammingPanel='';
+}
 function resetSquadSyncState(){
   hasLoadedSquadInjuryEntries=false;
   clearObjectEntries(squadInjuryEntries);
@@ -2224,6 +2356,7 @@ function resetTimelineSyncState(){
 function resetSharedStateSyncCaches(changedKeys=[]){
   const changed=new Set(changedKeys);
   if(changed.has(NEWS_EDITOR_STORAGE_KEY)) resetNewsEditorSyncState();
+  if(changed.has(NEWS_PROGRAMMING_STORAGE_KEY)) resetNewsProgrammingSyncState();
   if(changed.has(SQUAD_INJURY_STORAGE_KEY)) resetSquadSyncState();
   if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)) resetMexicoStadiumSyncState();
   if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)) resetEquipmentSyncState();
@@ -2254,6 +2387,12 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
     }else if(isMobileViewport()&&isSharedStatePanelVisible('newsCol')){
       renderMobileNewsMenu();
     }
+  }
+  if(changed.has(NEWS_PROGRAMMING_STORAGE_KEY)){
+    if(isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('newsProgrammingMenu')){
+      renderNewsProgrammingPanel();
+    }
+    updateHeaderReportBoard();
   }
   if(changed.has(SQUAD_INJURY_STORAGE_KEY)&&currentSquadKey&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('groupASquadMenu')){
     renderSquad(currentSquadKey);
@@ -3237,6 +3376,9 @@ function formatHeaderReportBoardDailyDate(){
   return `${today.month}월 ${today.day}일`;
 }
 function buildHeaderReportBoardItemText(item){
+  if(String(item?.boardType||'').trim()==='programming-memo'){
+    return String(item?.text||'').trim()||'운영 메모 없음';
+  }
   const rawText=String(item?.text||'').trim();
   const name=String(item?.name||'').trim();
   if(!rawText) return '';
@@ -3247,7 +3389,16 @@ function buildHeaderReportBoardItemText(item){
   if(rawText.startsWith(singlePrefix)) return rawText.slice(singlePrefix.length);
   return rawText;
 }
+function getHeaderReportBoardItemLabel(item){
+  if(String(item?.boardType||'').trim()==='programming-memo'){
+    return '메모';
+  }
+  return String(item?.name||'-').trim()||'-';
+}
 function formatHeaderReportBoardTextLines(item){
+  if(String(item?.boardType||'').trim()==='programming-memo'){
+    return {lines:[buildHeaderReportBoardItemText(item)]};
+  }
   const text=buildHeaderReportBoardItemText(item);
   const match=text.match(/^현지\s+(\d{2}:\d{2})\s*\/\s*한국\s+(\d{2}:\d{2}(?:\(\+\d+일\))?)(.*)$/);
   if(!match){
@@ -3265,12 +3416,12 @@ function formatHeaderReportBoardTextLines(item){
 function renderHeaderReportBoardItemInner(item){
   const textLines=formatHeaderReportBoardTextLines(item).lines;
   const textHtml=textLines.map(line=>`<span class="header-report-board-text-line">${escapeHtml(line)}</span>`).join('');
-  return `<span class="header-report-board-date">${escapeHtml(item.name||'-')}</span><span class="header-report-board-text-shell"><span class="header-report-board-text-track"><span class="header-report-board-text">${textHtml}</span><span class="header-report-board-text header-report-board-text-copy" aria-hidden="true">${textHtml}</span></span></span>`;
+  return `<span class="header-report-board-date">${escapeHtml(getHeaderReportBoardItemLabel(item))}</span><span class="header-report-board-text-shell"><span class="header-report-board-text-track"><span class="header-report-board-text">${textHtml}</span><span class="header-report-board-text header-report-board-text-copy" aria-hidden="true">${textHtml}</span></span></span>`;
 }
 function renderHeaderReportBoardMarqueeItemInner(item){
   const textLines=formatHeaderReportBoardTextLines(item).lines;
   const textHtml=textLines.map(line=>`<span class="header-report-board-text-line">${escapeHtml(line)}</span>`).join('');
-  return `<span class="header-report-board-date">${escapeHtml(item.name||'-')}</span><span class="header-report-board-text">${textHtml}</span>`;
+  return `<span class="header-report-board-date">${escapeHtml(getHeaderReportBoardItemLabel(item))}</span><span class="header-report-board-text">${textHtml}</span>`;
 }
 function renderHeaderReportBoardItem(item){
   if(!item){
@@ -3294,11 +3445,20 @@ function renderHeaderReportBoardRow(item){
 function renderHeaderReportBoardPage(items){
   return `<div class="header-report-board-page">${renderHeaderReportBoardRow(items[0]||null)}${renderHeaderReportBoardRow(items[1]||null)}</div>`;
 }
-function splitHeaderReportBoardRows(items){
-  const pivot=Math.ceil(items.length/2);
-  const topItems=items.slice(0, pivot);
-  const bottomItems=items.slice(pivot);
-  return [topItems, bottomItems];
+function getHeaderReportBoardProgrammingMemoItems(){
+  loadNewsProgrammingState();
+  const selectedDate=String(currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const memoTickerText=getNewsProgrammingMemoTickerText();
+  console.log('[news-programming] ticker render', {
+    date:selectedDate,
+    text:memoTickerText
+  });
+  return [{
+    id:`programming-memo-${selectedDate}`,
+    boardType:'programming-memo',
+    name:'방송편성',
+    text:memoTickerText
+  }];
 }
 function renderHeaderReportBoardMarqueeRow(items){
   if(!items.length){
@@ -3371,7 +3531,7 @@ function saveHeaderReportBoardLaneSnapshots(){
 }
 function stepHeaderReportBoardMarquee(timestamp){
   const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
-  const speed=isMobile ? 48 : 56;
+  const speed=isMobile ? 58 : 68;
   const deltaSeconds=headerReportBoardLastFrameAt ? Math.min(0.05, (timestamp-headerReportBoardLastFrameAt)/1000) : 0;
   headerReportBoardLastFrameAt=timestamp;
   headerReportBoardLastActiveAt=Date.now();
@@ -3397,8 +3557,7 @@ function stepHeaderReportBoardMarquee(timestamp){
   saveHeaderReportBoardLaneSnapshots();
   headerReportBoardAnimationFrameId=window.requestAnimationFrame(stepHeaderReportBoardMarquee);
 }
-function renderHeaderReportBoardMarqueeTrack(track, items){
-  const [topItems, bottomItems]=splitHeaderReportBoardRows(items);
+function renderHeaderReportBoardMarqueeTrack(track, topItems=[], bottomItems=[]){
   track.classList.add('is-marquee-mode');
   track.innerHTML=`<div class="header-report-board-page header-report-board-page-marquee">${renderHeaderReportBoardMarqueeRow(topItems)}${renderHeaderReportBoardMarqueeRow(bottomItems)}</div>`;
   track.style.transition='none';
@@ -3419,7 +3578,7 @@ function renderHeaderReportBoardMarqueeTrack(track, items){
     const elapsedSeconds=headerReportBoardLastActiveAt ? Math.max(0, (Date.now()-headerReportBoardLastActiveAt)/1000) : 0;
     if(elapsedSeconds>0){
       const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
-      const speed=isMobile ? 48 : 56;
+      const speed=isMobile ? 58 : 68;
       Object.values(headerReportBoardLaneStates).forEach(state=>{
         state.items.forEach(entry=>{
           entry.x-=speed*elapsedSeconds;
@@ -3530,14 +3689,15 @@ function updateHeaderReportBoard(){
   if(meta){
     meta.textContent=formatHeaderReportBoardDailyDate();
   }
-  const items=getAllPersonalTimelineGeneratedReports();
+  const scheduleItems=getAllPersonalTimelineGeneratedReports();
+  const programmingMemoItems=getHeaderReportBoardProgrammingMemoItems();
   clearHeaderReportBoardTimer();
   headerReportBoardPageDurations = [];
-  board.classList.toggle('is-empty', items.length===0);
-  if(items.length>0){
+  board.classList.toggle('is-empty', scheduleItems.length===0&&programmingMemoItems.length===0);
+  if(scheduleItems.length>0||programmingMemoItems.length>0){
     board.classList.add('is-animated');
     board.classList.add('is-marquee-mode');
-    renderHeaderReportBoardMarqueeTrack(track, items);
+    renderHeaderReportBoardMarqueeTrack(track, scheduleItems, programmingMemoItems);
     return;
   }
   board.classList.remove('is-marquee-mode');
@@ -4947,13 +5107,12 @@ function renderMapPanel(){
 }
 function renderNewsProgrammingPanel(){
   clearDetailExtras();
-  document.getElementById('detailTitle').textContent='뉴스편성';
+  document.getElementById('detailTitle').textContent='방송 편성표';
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table simple-info-table news-programming-table';
   renderCache.newsProgrammingPanel=renderNewsProgrammingPanelHtml();
   document.getElementById('detailTable').innerHTML=renderCache.newsProgrammingPanel;
   document.getElementById('detailCol').classList.remove('hidden');
-  ensureNewsProgrammingScheduleLoaded();
 }
 function showMapSubTab(tabKey='region'){
   currentMapSubTab=tabKey==='lodging'?'lodging':'region';
@@ -4993,93 +5152,26 @@ function clearMapSectionComposer(sectionKey){
     updateMobileHeaderReportBoardVisibility();
   }
 }
-function applyNewsProgrammingState(nextState={}){
-  currentNewsProgrammingState={
-    ...currentNewsProgrammingState,
-    ...nextState
-  };
-}
 function rerenderNewsProgrammingPanelIfActive(){
   if(document.getElementById('newsProgrammingMenu')?.classList.contains('active')){
     renderNewsProgrammingPanel();
     updateMobileHeaderReportBoardVisibility();
   }
 }
-function ensureNewsProgrammingScheduleLoaded(force=false){
-  const targetDate=String(currentNewsProgrammingDate||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  if(!force&&currentNewsProgrammingState.status==='loading'&&currentNewsProgrammingState.activeRequestDate===targetDate) return;
-  if(!force&&currentNewsProgrammingState.status==='success'&&currentNewsProgrammingState.lastFetchedDate===targetDate) return;
-  loadNewsProgrammingSchedule(targetDate, {force});
-}
-async function loadNewsProgrammingSchedule(dateKey='', {force=false}={}){
-  const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  if(!force&&newsProgrammingScheduleCache.has(normalizedDate)){
-    applyNewsProgrammingState(newsProgrammingScheduleCache.get(normalizedDate));
-    rerenderNewsProgrammingPanelIfActive();
-    return;
-  }
-  const requestId=++newsProgrammingRequestSeq;
-  applyNewsProgrammingState({
-    status:'loading',
-    items:[],
-    errorMessage:'',
-    warningMessage:'',
-    lastFetchedDate:normalizedDate,
-    activeRequestDate:normalizedDate
-  });
-  rerenderNewsProgrammingPanelIfActive();
-  try{
-    const scheduleResult=await fetchJtbcSchedule(normalizedDate);
-    if(requestId!==newsProgrammingRequestSeq) return;
-    const nextState={
-      status:'success',
-      items:normalizeJtbcScheduleItems(scheduleResult.items, normalizedDate),
-      errorMessage:'',
-      warningMessage:String(scheduleResult.warningMessage||'').trim(),
-      lastUpdated:String(scheduleResult.lastUpdated||'').trim(),
-      fetchedAt:new Date().toISOString(),
-      source:String(scheduleResult.source||'proxy').trim()||'proxy',
-      lastFetchedDate:normalizedDate,
-      activeRequestDate:''
-    };
-    newsProgrammingScheduleCache.set(normalizedDate, nextState);
-    applyNewsProgrammingState(nextState);
-  }catch(error){
-    if(requestId!==newsProgrammingRequestSeq) return;
-    applyNewsProgrammingState({
-      status:'error',
-      items:[],
-      errorMessage:'편성표를 불러오지 못했습니다.',
-      warningMessage:'',
-      lastUpdated:'',
-      fetchedAt:'',
-      source:'error',
-      lastFetchedDate:normalizedDate,
-      activeRequestDate:''
-    });
-  }
-  rerenderNewsProgrammingPanelIfActive();
-}
 function setNewsProgrammingDate(value=''){
-  currentNewsProgrammingDate=String(value||'').trim()||getTodayTimelineKey();
-  newsProgrammingScheduleCache.delete(currentNewsProgrammingDate);
-  applyNewsProgrammingState({
-    status:'loading',
-    items:[],
-    errorMessage:'',
-    warningMessage:'',
-    activeRequestDate:currentNewsProgrammingDate,
-    lastFetchedDate:''
-  });
+  loadNewsProgrammingState();
+  currentNewsProgrammingFilters.date=String(value||'').trim()||getTodayTimelineKey();
+  currentNewsProgrammingSpecialForm.timeKey=getNewsProgrammingTimeOptions()[0]?.key||'';
+  isNewsProgrammingSpecialTimeMenuOpen=false;
+  saveNewsProgrammingState();
+  refreshTicker();
   rerenderNewsProgrammingPanelIfActive();
-  ensureNewsProgrammingScheduleLoaded(true);
 }
-function jumpToTodayNewsProgramming(){
-  setNewsProgrammingDate(getTodayTimelineKey());
-}
-function refreshNewsProgrammingSchedule(){
-  newsProgrammingScheduleCache.delete(currentNewsProgrammingDate);
-  ensureNewsProgrammingScheduleLoaded(true);
+function setNewsProgrammingLiveOnly(checked=false){
+  loadNewsProgrammingState();
+  currentNewsProgrammingFilters.liveOnly=Boolean(checked);
+  saveNewsProgrammingState();
+  rerenderNewsProgrammingPanelIfActive();
 }
 function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
 function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
