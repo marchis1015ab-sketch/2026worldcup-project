@@ -1283,7 +1283,6 @@ function loadNewsProgrammingState(){
   if(!raw){
     ensureNewsProgrammingLocalPersistenceLoaded();
     currentNewsProgrammingMemoDrafts={...currentNewsProgrammingSavedMemos};
-    console.log('[news-programming] load state', {memoCount:0, specialCount:0});
     return;
   }
   try{
@@ -1308,10 +1307,6 @@ function loadNewsProgrammingState(){
       };
     }
     ensureNewsProgrammingLocalPersistenceLoaded();
-    console.log('[news-programming] load state', {
-      memoCount:Object.keys(currentNewsProgrammingSavedMemos).filter(key=>String(currentNewsProgrammingSavedMemos[key]||'').trim()).length,
-      specialCount:newsProgrammingSpecialEntries.length
-    });
   }catch(error){
     console.warn('[news-programming] load failed', error);
     currentNewsProgrammingSavedMemos={};
@@ -1341,10 +1336,6 @@ function saveNewsProgrammingState(){
     }
   };
   writeNewsProgrammingRaw(JSON.stringify(payload));
-  console.log('[news-programming] save state', {
-    memoCount:Object.keys(currentNewsProgrammingSavedMemos).filter(key=>String(currentNewsProgrammingSavedMemos[key]||'').trim()).length,
-    specialCount:newsProgrammingSpecialEntries.length
-  });
 }
 function loadProgrammingMemos(){
   if(typeof window==='undefined'||!window.localStorage) return {};
@@ -1373,7 +1364,6 @@ function saveProgrammingMemos(nextMemos=currentNewsProgrammingSavedMemos){
     return acc;
   }, {});
   window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(normalized));
-  console.log('[news-programming] memo localStorage save', {count:Object.keys(normalized).filter(key=>normalized[key]).length});
 }
 function ensureNewsProgrammingLocalPersistenceLoaded(){
   if(hasLoadedNewsProgrammingLocalPersistence) return;
@@ -1381,9 +1371,6 @@ function ensureNewsProgrammingLocalPersistenceLoaded(){
   const savedMemos=loadProgrammingMemos();
   currentNewsProgrammingSavedMemos={...currentNewsProgrammingSavedMemos, ...savedMemos};
   currentNewsProgrammingMemoDrafts={...currentNewsProgrammingSavedMemos};
-  console.log('[news-programming] localStorage load', {
-    memoCount:Object.keys(currentNewsProgrammingSavedMemos).filter(key=>String(currentNewsProgrammingSavedMemos[key]||'').trim()).length
-  });
 }
 function loadMapLocationPinEntries(){
   if(hasLoadedMapLocationPinEntries) return;
@@ -1940,10 +1927,6 @@ function renderProgrammingBoard(){
   renderAllBoards();
 }
 function refreshTicker(){
-  console.log('[news-programming] refresh ticker', {
-    schedule:getScheduleBoardItems(),
-    notices:getNoticeBoardItems()
-  });
   renderProgrammingBoard();
 }
 function buildNewsProgrammingTimeLabel(item={}){
@@ -3724,10 +3707,6 @@ function getHeaderReportBoardProgrammingMemoItems(){
   loadNewsProgrammingState();
   const selectedDate=String(currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
   const memoTickerText=getNewsProgrammingMemoTickerText();
-  console.log('[news-programming] ticker render', {
-    date:selectedDate,
-    text:memoTickerText
-  });
   return [{
     id:`programming-memo-${selectedDate}`,
     boardType:'programming-memo',
@@ -3972,10 +3951,6 @@ function updateHeaderReportBoard(){
   board.classList.add('is-marquee-mode');
   board.classList.remove('is-empty');
   renderAllBoards();
-  console.log('[news-programming] ticker render', {
-    schedule:getScheduleBoardItems(),
-    notice:getNoticeBoardItems()
-  });
 }
 function ensureTimelineDataReady(){
   if(!hasSeededTimelineTeamSchedules){
