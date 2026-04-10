@@ -58,8 +58,13 @@
           <span class="header-report-board-label-title">업무 현황</span>
           <span id="headerReportBoardMeta" class="header-report-board-label-meta">4월 5일</span>
         </div>
-        <div class="header-report-board-window">
-          <div id="headerReportBoardTrack" class="header-report-board-track"></div>
+        <div class="header-report-board-lines">
+          <div class="header-report-board-window">
+            <div id="headerScheduleBoardTrack" class="header-report-board-track"></div>
+          </div>
+          <div class="header-report-board-window header-report-board-window-secondary">
+            <div id="headerNoticeBoardTrack" class="header-report-board-track"></div>
+          </div>
         </div>
       </div>
       <div id="mobileSubviewBar" class="mobile-subview-bar hidden">
@@ -193,7 +198,10 @@
     </div>
 
     <div id="detailCol" class="table-column hidden">
-      <h2 id="detailTitle" class="section-title">상세 보기</h2>
+      <div class="section-title-row programming-detail-title-row">
+        <h2 id="detailTitle" class="section-title">상세 보기</h2>
+        <div id="detailTitleActions" class="section-title-actions"></div>
+      </div>
       <p id="detailSubtitle" class="section-subtitle"></p>
       <div class="table-card"><table id="detailTable" class="data-table"></table></div>
     </div>
