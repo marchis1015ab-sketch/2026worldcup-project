@@ -52,13 +52,13 @@
   min-width:max-content;
   white-space:nowrap;
   will-change:transform;
-  animation:headerReportBoardInlineMarquee 56s linear infinite;
+  animation:headerReportBoardInlineMarquee 46s linear infinite;
 }
 .header-report-board-inline-marquee-track.schedule-speed{
-  animation-duration:64s;
+  animation-duration:56s;
 }
 .header-report-board-inline-marquee-track.notice-speed{
-  animation-duration:56s;
+  animation-duration:46s;
 }
 .header-report-board-inline-marquee-copy{
   display:inline-flex;
@@ -498,8 +498,8 @@ body{
 .board-label-tag{
   border:2px solid #facc15;
   border-radius:6px;
-  padding:1px 6px;
-  font-weight:800;
+  padding:2px 6px;
+  font-weight:700;
   margin-right:8px;
   background:transparent;
   display:inline-block;
@@ -508,7 +508,7 @@ body{
   vertical-align:middle;
 }
 .board-label-tag.main{
-  padding:2px 7px;
+  padding:3px 8px;
   font-size:15px;
   font-weight:900;
 }
