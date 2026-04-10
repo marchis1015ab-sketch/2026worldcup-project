@@ -358,6 +358,10 @@ let currentBracketStage = '';
 let currentEquipmentMode = 'shared';
 let currentEquipmentUser = '';
 let isEquipmentCarnetComposerOpen = false;
+let equipmentSummaryEditMode = false;
+let personalEquipmentEditModes = Object.create(null);
+let equipmentEditDraftRows = null;
+let equipmentState = [];
 let currentMapSubTab = 'region';
 let currentMapActionMode = '';
 const NEWS_PROGRAMMING_TEMPLATE = [
@@ -395,6 +399,57 @@ const MAP_LOCATION_PIN_CATEGORIES = [
   {value:'hospital', label:'병원', tone:'hospital'},
   {value:'mart', label:'마트/편의점', tone:'mart'},
   {value:'other', label:'기타', tone:'other'}
+];
+const EQUIPMENT_SHARED_USERS = ['박재현','장후원','정상원','이주원','김진광','정재우'];
+const equipmentSummaryData = [
+  {장비:'ENG BODY', 모델명:'AJ-HPX3100', 제조사:'PANASONIC', 시리얼넘버:'F1TAA0729', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'ENG BODY', 모델명:'AJ-CX4000G', 제조사:'PANASONIC', 시리얼넘버:'JOTRA0003', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'ENG BODY', 모델명:'AJ-HPX3100', 제조사:'PANASONIC', 시리얼넘버:'G1TAA0793', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'ENG BODY', 모델명:'AJ-HPX3100', 제조사:'PANASONIC', 시리얼넘버:'G1TAA0827', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'ENG BODY', 모델명:'AJ-HPX3100', 제조사:'PANASONIC', 시리얼넘버:'G1TAA0789', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'ENG BODY', 모델명:'AJ-HPX3100', 제조사:'PANASONIC', 시리얼넘버:'F1TAA0734', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'VIEW FINDER', 모델명:'AJ-HVF21KG', 제조사:'PANASONIC', 시리얼넘버:'F1A0784MY', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'VIEW FINDER', 모델명:'AJ-CVF25G', 제조사:'PANASONIC', 시리얼넘버:'JOTRA0008', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'VIEW FINDER', 모델명:'AJ-HVF21KG', 제조사:'PANASONIC', 시리얼넘버:'F1A0771MY', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'VIEW FINDER', 모델명:'AJ-HVF21KG', 제조사:'PANASONIC', 시리얼넘버:'F1A0788MY', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'VIEW FINDER', 모델명:'AJ-HVF21KG', 제조사:'PANASONIC', 시리얼넘버:'F1A0793MY', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'VIEW FINDER', 모델명:'AJ-HVF21KG', 제조사:'PANASONIC', 시리얼넘버:'F1A0783MY', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'LENS', 모델명:'HA18x7.6BERM-M1B', 제조사:'FUJINON', 시리얼넘버:'4134204', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'LENS', 모델명:'UA18x7.6BERD-S6', 제조사:'FUJINON', 시리얼넘버:'6520318', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'LENS', 모델명:'HA18x7.6BERM-M1B', 제조사:'FUJINON', 시리얼넘버:'4134421', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'LENS', 모델명:'HA18x7.6BERM-M1B', 제조사:'FUJINON', 시리얼넘버:'4135223', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'LENS', 모델명:'HA18x7.6BERM-M1B', 제조사:'FUJINON', 시리얼넘버:'4134721', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'LENS', 모델명:'HA18x7.6BERM-M1B', 제조사:'FUJINON', 시리얼넘버:'4134748', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'W/L-송신기', 모델명:'SK3063-U', 제조사:'SENNHEISER', 시리얼넘버:'12073', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'W/L-송신기', 모델명:'SK 500 G4', 제조사:'SENNHEISER', 시리얼넘버:'1438003499', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'W/L-송신기', 모델명:'SK3063-U', 제조사:'SENNHEISER', 시리얼넘버:'120724', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'W/L-송신기', 모델명:'SK3063-U', 제조사:'SENNHEISER', 시리얼넘버:'120740', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'W/L-송신기', 모델명:'SK3063-U', 제조사:'SENNHEISER', 시리얼넘버:'120731', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'W/L-송신기', 모델명:'SK3063-U', 제조사:'SENNHEISER', 시리얼넘버:'120743', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'W/L-수신기', 모델명:'EK3241', 제조사:'SENNHEISER', 시리얼넘버:'107412', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'W/L-수신기', 모델명:'EK6042', 제조사:'SENNHEISER', 시리얼넘버:'1060003411', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'W/L-수신기', 모델명:'EK3241', 제조사:'SENNHEISER', 시리얼넘버:'107403', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'W/L-수신기', 모델명:'EK3241', 제조사:'SENNHEISER', 시리얼넘버:'107405', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'W/L-수신기', 모델명:'EK3241', 제조사:'SENNHEISER', 시리얼넘버:'107418', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'W/L-수신기', 모델명:'EK3241', 제조사:'SENNHEISER', 시리얼넘버:'107392', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'TRIPOD', 모델명:'DV 10 SB', 제조사:'SACHTLER', 시리얼넘버:'G11 1219', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'TRIPOD', 모델명:'DV 10 SB', 제조사:'SACHTLER', 시리얼넘버:'12SBK208849', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'TRIPOD', 모델명:'DV 10 SB', 제조사:'SACHTLER', 시리얼넘버:'H11 1232', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'TRIPOD', 모델명:'DV 10 SB', 제조사:'SACHTLER', 시리얼넘버:'G11 1180', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'TRIPOD', 모델명:'', 제조사:'SACHTLER', 시리얼넘버:'C1709A15080', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'TRIPOD', 모델명:'DV 10 SB', 제조사:'SACHTLER', 시리얼넘버:'G11 1163', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'ML7 1301127', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'110000006', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'110000191', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'110000114', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'248051', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'LED LIGHT', 모델명:'ML-7', 제조사:'MATRIX LIGHT', 시리얼넘버:'110000197', 수량:1, 비고:'', 사용자:'정재우'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'박재현'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'장후원'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'이주원'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'정상원'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'김진광'},
+  {장비:'SHURE MIC', 모델명:'', 제조사:'SHURE', 시리얼넘버:'-', 수량:1, 비고:'', 사용자:'정재우'}
 ];
 let currentNewsEditingKey = '';
 let currentNewsDeletingKey = '';
@@ -1050,20 +1105,78 @@ function getEquipmentEditorKey(mode, user=''){
   return mode==='personal' ? `personal::${user}` : 'shared';
 }
 function getEquipmentHeaders(mode){
-  return mode==='personal'
-    ? ['장비 모델명','제조사','시리얼','수량','비고']
-    : ['장비 모델명','제조사','시리얼넘버','수량','비고','사용인원'];
+  return ['장비명','모델명','제조사','시리얼번호','수량','비고','사용자'];
+}
+function generateEquipmentRowId(){
+  return `equipment-row-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+}
+function createEmptyEquipmentRow(){
+  return [...getEquipmentHeaders('shared').map(()=>''), generateEquipmentRowId()];
+}
+function normalizeEquipmentRowValues(row=[]){
+  const normalizedRow=createEmptyEquipmentRow();
+  const emptyRowLength=normalizedRow.length;
+  if(Array.isArray(row)){
+    if(row.length===6){
+      const [legacyModel='', legacyMaker='', legacySerial='', legacyQty='', legacyNote='', legacyUser='']=row;
+      const migratedRow=[legacyModel, '', legacyMaker, legacySerial, legacyQty, legacyNote, legacyUser];
+      return [...normalizedRow.slice(0, emptyRowLength-1).map((_, index)=>String(migratedRow[index]||'').trim()), generateEquipmentRowId()];
+    }
+    const rowId=String(row[emptyRowLength-1]||row.rowId||'').trim()||generateEquipmentRowId();
+    return [...normalizedRow.slice(0, emptyRowLength-1).map((_, index)=>String(row[index]||'').trim()), rowId];
+  }
+  if(row&&typeof row==='object'){
+    const objectRow=[
+      row.장비,
+      row.모델명,
+      row.제조사,
+      row.시리얼넘버,
+      row.수량,
+      row.비고,
+      row.사용자
+    ];
+    const rowId=String(row.rowId||'').trim()||generateEquipmentRowId();
+    return [...normalizedRow.slice(0, emptyRowLength-1).map((_, index)=>String(objectRow[index]??'').trim()), rowId];
+  }
+  return normalizedRow;
+}
+function isEquipmentRowEmpty(row=[]){
+  return normalizeEquipmentRowValues(row).slice(0, -1).every(value=>String(value||'').trim()==='');
+}
+function isEquipmentRowTouched(row=[]){
+  return normalizeEquipmentRowValues(row).slice(0, -1).some(value=>String(value||'').trim()!=='');
+}
+function buildEquipmentSummaryDefaultRows(){
+  return equipmentSummaryData.map(item=>normalizeEquipmentRowValues(item));
+}
+function normalizeEquipmentState(rows=[]){
+  const normalizedRows=(Array.isArray(rows)?rows:[])
+    .map(normalizeEquipmentRowValues)
+    .filter(row=>isEquipmentRowTouched(row));
+  return [...normalizedRows, createEmptyEquipmentRow()];
+}
+function ensureEquipmentRowIds(rows=[]){
+  return normalizeEquipmentState(rows);
+}
+function hasMeaningfulEquipmentRows(rows=[]){
+  return Array.isArray(rows) && rows.some(row=>isEquipmentRowTouched(row));
 }
 function getEquipmentRowCount(mode){
-  return mode==='personal' ? 10 : 12;
+  return mode==='personal' ? 10 : normalizeEquipmentState(buildEquipmentSummaryDefaultRows()).length;
 }
 function getEquipmentDefaultRows(mode){
-  return Array.from({length:getEquipmentRowCount(mode)}, ()=>getEquipmentHeaders(mode).map(()=>'')); 
+  if(mode==='shared') return normalizeEquipmentState(buildEquipmentSummaryDefaultRows());
+  return Array.from({length:getEquipmentRowCount(mode)}, ()=>getEquipmentHeaders(mode).map(()=>''));
 }
 function normalizeEquipmentRows(mode, rows){
+  if(mode==='shared'){
+    return normalizeEquipmentState(rows);
+  }
   const headers=getEquipmentHeaders(mode);
-  const defaultRows=getEquipmentDefaultRows(mode);
-  return defaultRows.map((defaultRow, rowIndex)=>defaultRow.map((_, colIndex)=>String(rows?.[rowIndex]?.[colIndex]||'').trim()));
+  return Array.from({length:getEquipmentRowCount(mode)}, (_, rowIndex)=>{
+    const sourceRow=Array.isArray(rows?.[rowIndex]) ? rows[rowIndex] : [];
+    return headers.map((_, colIndex)=>String(sourceRow[colIndex]||'').trim());
+  });
 }
 function readEquipmentEditorRaw(){
   const storages=getTimelineStorageAreas();
@@ -1117,38 +1230,285 @@ function ensureEquipmentEditorEntries(){
 function saveEquipmentEditorEntries(){
   writeEquipmentEditorRaw(JSON.stringify(equipmentEditorEntries));
 }
-function getEquipmentRows(mode, user=''){
+function loadEquipmentState(){
   ensureEquipmentEditorEntries();
-  const key=getEquipmentEditorKey(mode, user);
-  return equipmentEditorEntries[key] ? normalizeEquipmentRows(mode, equipmentEditorEntries[key]) : getEquipmentDefaultRows(mode);
+  const key=getEquipmentEditorKey('shared', '');
+  const storedRows=equipmentEditorEntries[key];
+  equipmentState=hasMeaningfulEquipmentRows(storedRows)
+    ? ensureEquipmentRowIds(storedRows)
+    : getEquipmentDefaultRows('shared');
+  return cloneEquipmentRows(equipmentState);
+}
+function saveEquipmentState(rows=equipmentState){
+  equipmentState=ensureEquipmentRowIds(rows);
+  equipmentEditorEntries[getEquipmentEditorKey('shared', '')]=cloneEquipmentRows(equipmentState);
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  saveEquipmentEditorEntries();
+  return cloneEquipmentRows(equipmentState);
+}
+function hasActiveEquipmentEditMode(){
+  return equipmentSummaryEditMode || Object.values(personalEquipmentEditModes).some(Boolean);
+}
+function isEquipmentSummaryEditMode(){
+  return equipmentSummaryEditMode;
+}
+function isPersonalEquipmentEditMode(userName=''){
+  return Boolean(personalEquipmentEditModes[String(userName||'').trim()]);
+}
+function getPersistedEquipmentSharedRows(){
+  return loadEquipmentState();
+}
+function cloneEquipmentRows(rows=[]){
+  return (Array.isArray(rows)?rows:[]).map(normalizeEquipmentRowValues);
+}
+function getCurrentEquipmentSourceRows(){
+  if(hasActiveEquipmentEditMode()&&Array.isArray(equipmentEditDraftRows)){
+    return cloneEquipmentRows(equipmentEditDraftRows);
+  }
+  return getPersistedEquipmentSharedRows();
+}
+function setEquipmentSummaryEditMode(isEditing=false){
+  equipmentSummaryEditMode=Boolean(isEditing);
+  personalEquipmentEditModes=Object.create(null);
+  equipmentEditDraftRows=equipmentSummaryEditMode ? cloneEquipmentRows(loadEquipmentState()) : null;
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+}
+function setPersonalEquipmentEditMode(userName='', isEditing=false){
+  const normalizedUser=String(userName||'').trim();
+  equipmentSummaryEditMode=false;
+  personalEquipmentEditModes=Object.create(null);
+  if(normalizedUser&&isEditing){
+    personalEquipmentEditModes[normalizedUser]=true;
+    equipmentEditDraftRows=cloneEquipmentRows(loadEquipmentState());
+  }else{
+    equipmentEditDraftRows=null;
+  }
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+}
+function beginEquipmentSummaryEditing(){
+  setEquipmentSummaryEditMode(true);
+  renderEquipmentSharedDetail();
+  const lastRowIndex=Math.max(0, getEquipmentRows('shared').length-1);
+  focusEquipmentSharedField(lastRowIndex, 0);
+}
+function beginPersonalEquipmentEditing(userName=''){
+  const normalizedUser=String(userName||'').trim();
+  if(!normalizedUser) return;
+  setPersonalEquipmentEditMode(normalizedUser, true);
+  const rows=cloneEquipmentRows(equipmentEditDraftRows);
+  const newRow=createEquipmentRow({사용자:normalizedUser});
+  rows.push(newRow);
+  equipmentEditDraftRows=rows;
+  showEquipmentPersonal(normalizedUser);
+  focusPersonalEquipmentField(newRow[7], 0);
+}
+function handleEquipmentSummarySave(){
+  if(!isEquipmentSummaryEditMode()||!Array.isArray(equipmentEditDraftRows)) return;
+  saveEquipmentState(equipmentEditDraftRows);
+  setEquipmentSummaryEditMode(false);
+  renderEquipmentSharedDetail();
+  renderAllPersonalEquipmentTables();
+}
+function handlePersonalEquipmentSave(userName=''){
+  const normalizedUser=String(userName||'').trim();
+  if(!isPersonalEquipmentEditMode(normalizedUser)||!Array.isArray(equipmentEditDraftRows)) return;
+  saveEquipmentState(equipmentEditDraftRows);
+  setPersonalEquipmentEditMode(normalizedUser, false);
+  renderAllPersonalEquipmentTables();
+  showEquipmentPersonal(normalizedUser);
+}
+function getEquipmentRows(mode, user=''){
+  const sourceRows=getCurrentEquipmentSourceRows();
+  if(mode==='personal'){
+    return sourceRows.filter(row=>String(row?.[6]||'').trim()===String(user||'').trim());
+  }
+  return sourceRows;
 }
 function setEquipmentRows(mode, user, rows){
+  if(mode==='shared'){
+    saveEquipmentState(rows);
+    return;
+  }
   equipmentEditorEntries[getEquipmentEditorKey(mode, user)]=normalizeEquipmentRows(mode, rows);
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
   saveEquipmentEditorEntries();
 }
 function clearEquipmentRows(mode, user){
+  if(mode==='shared'){
+    saveEquipmentState(getEquipmentDefaultRows(mode));
+    return;
+  }
   equipmentEditorEntries[getEquipmentEditorKey(mode, user)]=getEquipmentDefaultRows(mode);
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
   saveEquipmentEditorEntries();
 }
 function renderEquipmentTitle(mode, user=''){
-  const titleText=mode==='personal' ? `${user} 개인장비` : '공용장비 현황';
-  const encodedUser=escapeHtml(JSON.stringify(user)).replace(/"/g,'&quot;');
-  const openCall=mode==='personal'
-    ? `openEquipmentEditorModal('personal', ${encodedUser})`
-    : `openEquipmentEditorModal('shared')`;
-  const deleteCall=mode==='personal'
-    ? `clearEquipmentAndRender('personal', ${encodedUser})`
-    : `clearEquipmentAndRender('shared')`;
-  return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${openCall}">작성</button><button type="button" class="section-title-action-btn delete" onclick="${deleteCall}">삭제</button></span></span>`;
+  const titleText=mode==='personal' ? `${user} 개인장비` : '장비종합현황';
+  if(mode==='personal'){
+    const isEditing=isPersonalEquipmentEditMode(user);
+    return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${isEditing?`addPersonalEquipmentRow('${escapeHtml(user)}')`:`beginPersonalEquipmentEditing('${escapeHtml(user)}')`}">작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handlePersonalEquipmentSave('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deletePersonalEquipmentRows('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
+  }
+  const isEditing=isEquipmentSummaryEditMode();
+  return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${isEditing?'void(0)':'beginEquipmentSummaryEditing()'}" ${isEditing?'disabled':''}>작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handleEquipmentSummarySave()" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deleteSelectedEquipmentSummaryRows()" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
+}
+function renderEquipmentTableColgroup(mode){
+  return '<colgroup><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup>';
+}
+function renderEquipmentUserSelect(selectedValue='', attributes='', className='equipment-user-select'){
+  const normalizedSelected=String(selectedValue||'').trim();
+  const normalizedAttributes=String(attributes||'').trim();
+  const attributeText=normalizedAttributes ? ` ${normalizedAttributes}` : '';
+  return `<select class="${escapeHtml(className)}"${attributeText}><option value="">선택</option>${EQUIPMENT_SHARED_USERS.map(name=>`<option value="${escapeHtml(name)}"${name===normalizedSelected?' selected':''}>${escapeHtml(name)}</option>`).join('')}</select>`;
+}
+function updateEquipmentSharedUser(rowIndex=0, nextValue=''){
+  updateEquipmentSharedCell(rowIndex, 6, nextValue);
+}
+function renderAllPersonalEquipmentTables(){
+  renderCache.equipmentPersonalTables=Object.create(null);
+  if(currentEquipmentMode==='personal'&&currentEquipmentUser){
+    showEquipmentPersonal(currentEquipmentUser);
+  }
+}
+function focusPersonalEquipmentField(rowId='', colIndex=0){
+  const normalizedRowId=String(rowId||'').trim();
+  const normalizedColIndex=Number(colIndex);
+  const field=Array.from(document.querySelectorAll('[data-personal-row-id]')).find(element=>String(element.getAttribute('data-personal-row-id')||'').trim()===normalizedRowId&&Number(element.getAttribute('data-personal-col-index'))===normalizedColIndex);
+  if(!field) return;
+  field.focus();
+  if(typeof field.setSelectionRange==='function'){
+    const value=String(field.value||'');
+    field.setSelectionRange(value.length, value.length);
+  }
+}
+function focusEquipmentSharedField(rowIndex=0, colIndex=0){
+  const field=document.querySelector(`[data-equipment-row-index="${Number(rowIndex)}"][data-equipment-col-index="${Number(colIndex)}"]`);
+  if(!field) return;
+  field.focus();
+  if(typeof field.setSelectionRange==='function'){
+    const value=String(field.value||'');
+    field.setSelectionRange(value.length, value.length);
+  }
+}
+function updateEquipmentSharedCell(rowIndex=0, colIndex=0, nextValue=''){
+  if(!isEquipmentSummaryEditMode()) return;
+  const rows=cloneEquipmentRows(equipmentEditDraftRows);
+  const normalizedIndex=Number(rowIndex);
+  const normalizedColumn=Number(colIndex);
+  if(Number.isNaN(normalizedIndex)||normalizedIndex<0||normalizedIndex>=rows.length) return;
+  if(Number.isNaN(normalizedColumn)||normalizedColumn<0||normalizedColumn>=getEquipmentHeaders('shared').length) return;
+  const previousLength=rows.length;
+  rows[normalizedIndex][normalizedColumn]=String(nextValue||'').trim();
+  const normalizedRows=normalizeEquipmentState(rows);
+  const shouldRerender=normalizedRows.length!==previousLength;
+  equipmentEditDraftRows=normalizedRows;
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  if(shouldRerender&&currentEquipmentMode==='shared'){
+    renderEquipmentSharedDetail();
+    focusEquipmentSharedField(normalizedIndex, normalizedColumn);
+  }
+}
+function updateEquipmentRow(rowId='', fieldIndex=0, nextValue=''){
+  if(!isPersonalEquipmentEditMode(currentEquipmentUser)) return;
+  const normalizedRowId=String(rowId||'').trim();
+  if(!normalizedRowId) return;
+  const normalizedFieldIndex=Number(fieldIndex);
+  if(Number.isNaN(normalizedFieldIndex)||normalizedFieldIndex<0||normalizedFieldIndex>=getEquipmentHeaders('shared').length) return;
+  const rows=cloneEquipmentRows(equipmentEditDraftRows);
+  const targetIndex=rows.findIndex(row=>String(row[row.length-1]||'').trim()===normalizedRowId);
+  if(targetIndex<0) return;
+  rows[targetIndex][normalizedFieldIndex]=String(nextValue||'').trim();
+  equipmentEditDraftRows=rows;
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+}
+function createEquipmentRow(overrides={}){
+  const nextRow=createEmptyEquipmentRow();
+  nextRow[0]=String(overrides.장비||'').trim();
+  nextRow[1]=String(overrides.모델명||'').trim();
+  nextRow[2]=String(overrides.제조사||'').trim();
+  nextRow[3]=String(overrides.시리얼넘버||'').trim();
+  nextRow[4]=String(overrides.수량||'').trim();
+  nextRow[5]=String(overrides.비고||'').trim();
+  nextRow[6]=String(overrides.사용자||'').trim();
+  nextRow[7]=String(overrides.rowId||'').trim()||generateEquipmentRowId();
+  return nextRow;
+}
+function addPersonalEquipmentRow(userName=''){
+  const normalizedUser=String(userName||'').trim();
+  if(!normalizedUser||!isPersonalEquipmentEditMode(normalizedUser)) return;
+  const rows=cloneEquipmentRows(equipmentEditDraftRows);
+  const newRow=createEquipmentRow({사용자:normalizedUser});
+  rows.push(newRow);
+  equipmentEditDraftRows=rows;
+  showEquipmentPersonal(normalizedUser);
+  focusPersonalEquipmentField(newRow[7], 0);
+}
+function deletePersonalEquipmentRows(userName=''){
+  const normalizedUser=String(userName||'').trim();
+  if(!isPersonalEquipmentEditMode(normalizedUser)) return;
+  const checkedRowIds=Array.from(document.querySelectorAll('.personal-equipment-row-check:checked'))
+    .map(input=>String(input.value||'').trim())
+    .filter(Boolean);
+  if(!checkedRowIds.length) return;
+  const confirmed=window.confirm(`선택한 장비 ${checkedRowIds.length}개를 삭제하시겠습니까?`);
+  if(!confirmed) return;
+  const removableRowIdSet=new Set(checkedRowIds);
+  const sourceRows=cloneEquipmentRows(equipmentEditDraftRows);
+  const rows=sourceRows
+    .map(normalizeEquipmentRowValues)
+    .filter(row=>!removableRowIdSet.has(String(row[row.length-1]||'').trim()));
+  equipmentEditDraftRows=rows;
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  showEquipmentPersonal(normalizedUser);
+}
+function deleteSelectedEquipmentSummaryRows(){
+  if(!isEquipmentSummaryEditMode()) return;
+  const checkedRowIds=Array.from(document.querySelectorAll('.equipment-summary-row-check:checked'))
+    .map(input=>String(input.value||'').trim())
+    .filter(Boolean);
+  if(!checkedRowIds.length) return;
+  const confirmed=window.confirm(`선택한 장비 ${checkedRowIds.length}개를 삭제하시겠습니까?`);
+  if(!confirmed) return;
+  const removableRowIdSet=new Set(checkedRowIds);
+  const sourceRows=cloneEquipmentRows(equipmentEditDraftRows);
+  const rows=sourceRows
+    .map(normalizeEquipmentRowValues)
+    .filter(row=>!removableRowIdSet.has(String(row[row.length-1]||'').trim()));
+  equipmentEditDraftRows=normalizeEquipmentState(rows);
+  renderCache.equipmentSharedTable='';
+  renderCache.equipmentPersonalTables=Object.create(null);
+  renderEquipmentSharedDetail();
+  renderAllPersonalEquipmentTables();
+}
+function renderEquipmentSummaryInput(value='', rowIndex=0, colIndex=0, type='text'){
+  return `<input type="${type}" class="equipment-table-input" data-equipment-row-index="${rowIndex}" data-equipment-col-index="${colIndex}" value="${escapeHtml(value)}" oninput="updateEquipmentSharedCell(${rowIndex}, ${colIndex}, this.value)">`;
 }
 function renderEquipmentTableHtml(mode, user=''){
   const headers=getEquipmentHeaders(mode);
-  const rows=getEquipmentRows(mode, user);
-  return `<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((value, index)=>`<td data-label="${escapeHtml(headers[index]||'')}">${escapeHtml(value)||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  const isEditing=mode==='shared' ? isEquipmentSummaryEditMode() : isPersonalEquipmentEditMode(user);
+  const rows=(mode==='shared'&&isEditing)
+    ? getEquipmentRows(mode, user)
+    : getEquipmentRows(mode, user).filter(row=>isEquipmentRowTouched(row));
+  if(mode==='shared'){
+    return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>{const rowId=String(row[row.length-1]||'').trim(); const isBlankRow=isEquipmentRowEmpty(row); return `<tr><td data-label="선택">${isEditing&&!isBlankRow?`<input type="checkbox" class="equipment-summary-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{const value=String(row[index]||''); if(index===headers.length-1){ if(isEditing){ return `<td data-label="${escapeHtml(label||'')}">${renderEquipmentUserSelect(value, `data-equipment-row-index="${rowIndex}" data-equipment-col-index="${index}" onchange="updateEquipmentSharedUser(${rowIndex}, this.value)"`, 'equipment-user-select equipment-table-user-select')}</td>`; } return `<td data-label="${escapeHtml(label||'')}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`; } if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label||'')}">${renderEquipmentSummaryInput(value, rowIndex, index, inputType)}</td>`; } return `<td data-label="${escapeHtml(label||'')}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
+  }
+  return `${renderEquipmentTableColgroup(mode)}<thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>`<tr>${headers.map((label, index)=>{const value=String(row[index]||''); return `<td data-label="${escapeHtml(label||'')}">${escapeHtml(value)||''}</td>`;}).join('')}</tr>`).join('')}</tbody>`;
+}
+function renderEquipmentSummaryTable(){
+  return renderEquipmentTableHtml('shared');
+}
+function renderPersonalEquipmentTable(user=''){
+  const headers=getEquipmentHeaders('personal');
+  const isEditing=isPersonalEquipmentEditMode(user);
+  const rows=getEquipmentRows('personal', user).filter(row=>isEquipmentRowTouched(row));
+  return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>{const rowId=String(row[row.length-1]||'').trim(); return `<tr><td data-label="선택">${isEditing?`<input type="checkbox" class="personal-equipment-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{if(index===headers.length-1){ return `<td data-label="${escapeHtml(label)}"><span class="equipment-personal-user-text">${escapeHtml(String(user||''))}</span></td>`; } const value=String(row[index]||''); if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label)}"><input type="${inputType}" class="equipment-table-input" data-personal-row-id="${escapeHtml(rowId)}" data-personal-col-index="${index}" value="${escapeHtml(value)}" oninput="updateEquipmentRow('${escapeHtml(rowId)}', ${index}, this.value)"></td>`; } return `<td data-label="${escapeHtml(label)}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
 }
 function renderEquipmentCarnetTitle(){
   return `<span class="section-title-row"><span>까르네 목록</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()">작성</button><button type="button" class="section-title-action-btn delete" onclick="closeEquipmentCarnetComposer()">삭제</button></span></span>`;
@@ -2094,12 +2454,13 @@ function openEquipmentEditorModal(mode, user=''){
   ensureEquipmentEditorEntries();
   ensureEquipmentEditorModal();
   pendingEquipmentEditorContext={mode, user};
-  const titleText=mode==='personal' ? '개인장비 현황 수정' : '공용장비 현황 수정';
+  const titleText=mode==='personal' ? '개인장비 현황 수정' : '장비종합현황 수정';
   document.getElementById('equipmentEditorModalTitle').textContent=titleText;
   document.getElementById('equipmentEditorModalMeta').textContent=mode==='personal' ? `${user} 개인장비 전체 작성` : '공용장비 전체 작성';
-  const headers=getEquipmentHeaders(mode);
-  const rows=getEquipmentRows(mode, user);
-  document.getElementById('equipmentEditorTableWrap').innerHTML=`<table class="data-table equipment-editor-table"><thead><tr>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>`<tr>${row.map((value, colIndex)=>`<td><input type="text" class="equipment-editor-input" data-row-index="${rowIndex}" data-col-index="${colIndex}" value="${escapeHtml(value)}"></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const allHeaders=getEquipmentHeaders(mode);
+  const editorHeaders=mode==='shared' ? allHeaders.slice(0, -1) : allHeaders;
+  const rows=getEquipmentRows(mode, user).map(row=>mode==='shared' ? row.slice(0, -1) : row);
+  document.getElementById('equipmentEditorTableWrap').innerHTML=`<table class="data-table equipment-editor-table"><thead><tr>${editorHeaders.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>`<tr>${row.map((value, colIndex)=>`<td><input type="text" class="equipment-editor-input" data-row-index="${rowIndex}" data-col-index="${colIndex}" value="${escapeHtml(value)}"></td>`).join('')}</tr>`).join('')}</tbody></table>`;
   document.body.classList.add('news-editor-modal-open');
   document.getElementById('equipmentEditorModal').classList.remove('hidden');
   syncMobileHistoryState();
@@ -2116,9 +2477,18 @@ function closeEquipmentEditorModal(){
 function saveEquipmentEditorModal(){
   if(!pendingEquipmentEditorContext) return;
   const {mode, user}=pendingEquipmentEditorContext;
-  const rowCount=getEquipmentRowCount(mode);
-  const colCount=getEquipmentHeaders(mode).length;
-  const rows=Array.from({length:rowCount}, (_, rowIndex)=>Array.from({length:colCount}, (_, colIndex)=>document.querySelector(`.equipment-editor-input[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`)?.value?.trim()||''));
+  const rowCount=document.querySelectorAll('#equipmentEditorTableWrap tbody tr').length;
+  const allHeaders=getEquipmentHeaders(mode);
+  const editorHeaders=mode==='shared' ? allHeaders.slice(0, -1) : allHeaders;
+  const colCount=editorHeaders.length;
+  const existingRows=mode==='shared' ? getEquipmentRows(mode, user) : null;
+  const rows=Array.from({length:rowCount}, (_, rowIndex)=>{
+    const nextRow=Array.from({length:colCount}, (_, colIndex)=>document.querySelector(`[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`)?.value?.trim()||'');
+    if(mode==='shared'){
+      nextRow.push(String(existingRows?.[rowIndex]?.[allHeaders.length-1]||'').trim());
+    }
+    return nextRow;
+  });
   setEquipmentRows(mode, user, rows);
   closeEquipmentEditorModal();
   if(mode==='personal'){
@@ -2591,6 +2961,10 @@ function resetEquipmentSyncState(){
   clearObjectEntries(equipmentEditorEntries);
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
+  equipmentSummaryEditMode=false;
+  personalEquipmentEditModes=Object.create(null);
+  equipmentEditDraftRows=null;
+  equipmentState=[];
 }
 function resetMapLocationPinSyncState(){
   hasLoadedMapLocationPinEntries=false;
@@ -5323,6 +5697,7 @@ function clearDetailExtras(){
   detailCol.classList.remove('mexico-stadium-mode');
   detailTable.parentElement.classList.remove('timeline-card');
   detailTable.parentElement.classList.remove('mobile-table-scroll-card');
+  detailTable.parentElement.classList.remove('equipment-table-wrapper');
   detailTable.className='data-table';
   detailTable.onmousedown=null;
   detailTable.onmouseover=null;
@@ -6973,14 +7348,16 @@ function renderEquipment(){
 function renderEquipmentSharedDetail(){
   currentEquipmentMode='shared';
   currentEquipmentUser='';
+  const detailTable=document.getElementById('detailTable');
   document.getElementById('equipmentSharedTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
   document.getElementById('detailSubtitle').innerHTML=isMobileViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
-  document.getElementById('detailTable').className='data-table equipment-table';
+  detailTable.className='data-table equipment-table';
   if(!renderCache.equipmentSharedTable){
-    renderCache.equipmentSharedTable=renderEquipmentTableHtml('shared');
+    renderCache.equipmentSharedTable=renderEquipmentSummaryTable();
   }
-  document.getElementById('detailTable').innerHTML=renderCache.equipmentSharedTable;
+  detailTable.innerHTML=renderCache.equipmentSharedTable;
+  detailTable.parentElement.classList.add('equipment-table-wrapper');
   document.getElementById('detailCol').classList.remove('hidden');
   updateEquipmentSharedTvuIndicators();
 }
@@ -7050,9 +7427,10 @@ function showEquipmentPersonal(user, el){
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table equipment-table';
   if(!renderCache.equipmentPersonalTables[user]){
-    renderCache.equipmentPersonalTables[user]=renderEquipmentTableHtml('personal', user);
+    renderCache.equipmentPersonalTables[user]=renderPersonalEquipmentTable(user);
   }
   document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
+  document.getElementById('detailTable').parentElement.classList.add('equipment-table-wrapper');
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
 }
@@ -7256,7 +7634,7 @@ function runTests(){
   console.assert(document.querySelector('.player-photo-shell')!==null,'Squad player photo shell should render');
   toggleEquipment();
   console.assert(!document.getElementById('equipmentUserCol').classList.contains('hidden'),'Equipment user panel should open');
-  console.assert(document.getElementById('detailTitle').textContent==='공용장비 현황','Equipment panel should render');
+  console.assert(document.getElementById('detailTitle').textContent==='장비종합현황','Equipment panel should render');
   showEquipmentPersonal('박재현', document.querySelector('#equipmentUserCol .item'));
   console.assert(document.getElementById('detailTitle').textContent==='박재현 개인장비','Equipment personal detail should render');
   togglePersonalTimeline();

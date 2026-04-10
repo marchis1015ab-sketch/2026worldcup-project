@@ -1364,6 +1364,8 @@ body{
 .section-title-actions:empty{display:none}
 .programming-detail-title-row{align-items:center}
 .section-title-action-btn{display:inline-flex;align-items:center;justify-content:center;min-width:52px;min-height:30px;padding:0 12px;border-radius:999px;border:1px solid #b3c6da;background:#f7fbff;color:#17314c;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.section-title-action-btn.is-disabled,
+.section-title-action-btn:disabled{opacity:.45;cursor:not-allowed}
 .section-title-action-btn.delete{border-color:#d7858d;background:#fff1f2;color:#b42334}
 .section-subtitle{margin:0 0 16px;color:#64748b;font-size:14px}
 .section-subtitle:empty{display:none}
@@ -1998,8 +2000,77 @@ body.news-editor-modal-open{overflow:hidden}
 .table-column select{width:100%;max-width:96px;padding:6px 8px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;font-weight:600;color:#1e293b;cursor:pointer;transition:all .2s ease}
 .table-column select:hover{border-color:#94a3b8;background:#f1f5f9}
 .table-column select:focus{outline:none;border-color:#1d4f86;box-shadow:0 0 0 2px rgba(29,79,134,.15);background:#fff}
+.equipment-table{table-layout:fixed}
 .equipment-table th,.equipment-table td{text-align:center;vertical-align:middle}
-.equipment-table td:nth-child(4),.equipment-table th:nth-child(4){width:72px;white-space:nowrap}
+.equipment-col-name{width:14%}
+.equipment-col-model{width:16%}
+.equipment-col-maker{width:12%}
+.equipment-col-serial{width:18%}
+.equipment-col-qty{width:8%}
+.equipment-col-note{width:18%}
+.equipment-col-user{width:14%}
+.equipment-col-select{width:6%}
+.equipment-table td:nth-child(5),.equipment-table th:nth-child(5){white-space:nowrap}
+.equipment-user-select{width:100%;padding:4px;font-size:13px}
+.equipment-table-user-select{width:100%;padding:4px;font-size:13px}
+.equipment-table-input{
+  width:100%;
+  padding:6px 8px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fbfcfe;
+  color:#111827;
+  font:inherit;
+  box-sizing:border-box;
+}
+.equipment-table-input:focus{
+  outline:none;
+  border-color:#1d4f86;
+  box-shadow:0 0 0 2px rgba(29,79,134,.12);
+  background:#fff;
+}
+.equipment-summary-row-check,
+.personal-equipment-row-check{
+  width:16px;
+  height:16px;
+  accent-color:#1d4f86;
+  vertical-align:middle;
+  flex:0 0 auto;
+}
+.equipment-personal-user-text{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:34px;
+  font-weight:700;
+  color:#334155;
+}
+.equipment-readonly-text{
+  display:inline-flex;
+  align-items:center;
+  min-height:34px;
+  width:100%;
+  padding:6px 8px;
+  box-sizing:border-box;
+  color:#111827;
+}
+.equipment-table-wrapper{
+  min-height:520px;
+  max-height:520px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-gutter:stable;
+  background:#fff;
+}
+.equipment-table-wrapper .equipment-table{
+  background:#fff;
+}
+.equipment-table-wrapper .equipment-table thead th{
+  position:sticky;
+  top:0;
+  background:#f8fbff;
+  z-index:2;
+}
 .carnet-list-table{
   width:100%;
   border-collapse:separate;
@@ -3138,6 +3209,7 @@ body.news-editor-modal-open{overflow:hidden}
 .equipment-editor-table{min-width:840px}
 .equipment-editor-input{width:100%;padding:10px 12px;border:1px solid #cfd8e4;border-radius:8px;background:#fbfcfe;color:#111827;font:inherit;line-height:1.45}
 .equipment-editor-input:focus{outline:none;border-color:#1d4f86;box-shadow:0 0 0 3px rgba(29,79,134,.12);background:#fff}
+.equipment-user-select{width:100%;padding:4px;font-size:13px}
 
 .stadium-figure{margin:0;border:1px solid #dbe2ea;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.06)}
 .stadium-photo{display:block;width:100%;max-height:520px;object-fit:cover;background:#eef1f7}
