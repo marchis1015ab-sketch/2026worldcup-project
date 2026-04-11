@@ -336,6 +336,7 @@ const NEWS_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideNewsEditor__';
 const NEWS_PROGRAMMING_STORAGE_KEY = 'worldcup-guide-news-programming-v1';
 const NEWS_PROGRAMMING_WINDOW_NAME_KEY = '__worldcupGuideNewsProgramming__';
 const PROGRAMMING_MEMOS_STORAGE_KEY = 'jtbc_worldcup_programming_memos_v1';
+const TICKER_STATE_STORAGE_KEY = 'tickerState';
 const SQUAD_INJURY_STORAGE_KEY = 'worldcup-guide-squad-injury-v1';
 const SQUAD_INJURY_WINDOW_NAME_KEY = '__worldcupGuideSquadInjury__';
 const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-v1';
@@ -351,6 +352,12 @@ let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
 let hasLoadedMapLocationPinEntries = false;
+const tickerState = {
+  schedule: '',
+  scheduleDate: '',
+  memo: '',
+  memoDate: ''
+};
 let currentNewsBroadcaster = '';
 let currentSquadKey = '';
 let currentGroupKey = '';
@@ -375,6 +382,7 @@ let currentNewsProgrammingFilters = {
   date:getTodayTimelineKey(),
   liveOnly:false
 };
+let newsProgrammingActiveLocalDate = getTodayLocalDateString();
 let currentNewsProgrammingMemoDrafts = {};
 let currentNewsProgrammingSavedMemos = {};
 let isNewsProgrammingSpecialComposerOpen = false;
@@ -391,10 +399,27 @@ let isMapLocationPinComposerOpen = {region:false,lodging:false};
 let mapLocationPinEntries = {region:[],lodging:[]};
 let mapLocationPinComposerImages = {region:[],lodging:[]};
 const mapSectionComposerState = {region:false,lodging:false};
+const MAP_PLACES_STORAGE_KEY = 'map_places';
+const placeStore = [];
+let hasLoadedPlaces = false;
+let placeEntryMode = 'manual';
+let placeComposerCategory = '';
+let currentPlaceFilter = 'all';
+let activePlaceId = '';
+const PLACE_CATEGORIES = [
+  {value:'숙소', label:'숙소', tone:'lodging', color:'#2563eb'},
+  {value:'식당', label:'식당', tone:'restaurant', color:'#f97316'},
+  {value:'병원', label:'병원', tone:'hospital', color:'#16a34a'},
+  {value:'방송거점', label:'방송거점', tone:'broadcast', color:'#7c3aed'},
+  {value:'주차', label:'주차', tone:'parking', color:'#0ea5e9'},
+  {value:'공항/교통', label:'공항/교통', tone:'transport', color:'#0891b2'},
+  {value:'기타', label:'기타', tone:'other', color:'#64748b'}
+];
+const PLACE_USAGE_TYPES = ['라이브 포인트','집결','주차','식사','숙소','비상','장비','이동'];
+const SELECT_PLACEHOLDER_VALUES = ['선택','카테고리','카테고리 선택','용도','용도 선택','분류','분류 선택'];
 const MAP_LOCATION_PIN_CATEGORIES = [
   {value:'restaurant', label:'식당', tone:'restaurant'},
   {value:'lodging', label:'숙소', tone:'lodging'},
-  {value:'stadium', label:'경기장 관련', tone:'stadium'},
   {value:'broadcast', label:'방송거점', tone:'broadcast'},
   {value:'hospital', label:'병원', tone:'hospital'},
   {value:'mart', label:'마트/편의점', tone:'mart'},
@@ -1351,10 +1376,10 @@ function renderEquipmentTitle(mode, user=''){
   const titleText=mode==='personal' ? `${user} 개인장비` : '장비종합현황';
   if(mode==='personal'){
     const isEditing=isPersonalEquipmentEditMode(user);
-    return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${isEditing?`addPersonalEquipmentRow('${escapeHtml(user)}')`:`beginPersonalEquipmentEditing('${escapeHtml(user)}')`}">작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handlePersonalEquipmentSave('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deletePersonalEquipmentRows('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
+    return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn export-action-btn" onclick="exportPersonalEquipmentExcel('${escapeHtml(user)}')">개별장비 내보내기</button><button type="button" class="section-title-action-btn" onclick="${isEditing?`addPersonalEquipmentRow('${escapeHtml(user)}')`:`beginPersonalEquipmentEditing('${escapeHtml(user)}')`}">작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handlePersonalEquipmentSave('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deletePersonalEquipmentRows('${escapeHtml(user)}')" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
   }
   const isEditing=isEquipmentSummaryEditMode();
-  return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="${isEditing?'void(0)':'beginEquipmentSummaryEditing()'}" ${isEditing?'disabled':''}>작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handleEquipmentSummarySave()" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deleteSelectedEquipmentSummaryRows()" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
+  return `<span class="section-title-row"><span>${escapeHtml(titleText)}</span><span class="section-title-actions"><button type="button" class="section-title-action-btn export-action-btn" onclick="exportEquipmentExcel()">장비 내보내기</button><button type="button" class="section-title-action-btn" onclick="${isEditing?'void(0)':'beginEquipmentSummaryEditing()'}" ${isEditing?'disabled':''}>작성</button><button type="button" class="section-title-action-btn${isEditing?'':' is-disabled'}" onclick="handleEquipmentSummarySave()" ${isEditing?'':'disabled'}>저장</button><button type="button" class="section-title-action-btn delete${isEditing?'':' is-disabled'}" onclick="deleteSelectedEquipmentSummaryRows()" ${isEditing?'':'disabled'}>삭제</button></span></span>`;
 }
 function renderEquipmentTableColgroup(mode){
   return '<colgroup><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup>';
@@ -1363,7 +1388,8 @@ function renderEquipmentUserSelect(selectedValue='', attributes='', className='e
   const normalizedSelected=String(selectedValue||'').trim();
   const normalizedAttributes=String(attributes||'').trim();
   const attributeText=normalizedAttributes ? ` ${normalizedAttributes}` : '';
-  return `<select class="${escapeHtml(className)}"${attributeText}><option value="">선택</option>${EQUIPMENT_SHARED_USERS.map(name=>`<option value="${escapeHtml(name)}"${name===normalizedSelected?' selected':''}>${escapeHtml(name)}</option>`).join('')}</select>`;
+  const placeholderSelected=normalizedSelected?'':' selected';
+  return `<select class="${escapeHtml(className)}"${attributeText}><option value="" disabled hidden${placeholderSelected}>선택</option>${EQUIPMENT_SHARED_USERS.map(name=>`<option value="${escapeHtml(name)}"${name===normalizedSelected?' selected':''}>${escapeHtml(name)}</option>`).join('')}</select>`;
 }
 function updateEquipmentSharedUser(rowIndex=0, nextValue=''){
   updateEquipmentSharedCell(rowIndex, 6, nextValue);
@@ -1562,8 +1588,8 @@ function getMapLocationPinSectionMeta(sectionKey='region'){
       description:'',
       formDescription:'식당, 방송거점, 병원, 체크포인트를 지역정보 안에서 핀 카드처럼 누적 관리합니다.',
       formTitle:'장소 핀',
-      placeholderName:'예: 메인 경기장 북문 식당',
-      placeholderLocation:'예: 경기장 북문 도보 5분 / Av. Example 123',
+      placeholderName:'예: 숙소 앞 식당',
+      placeholderLocation:'예: 호텔 로비 옆 / Av. Example 123',
       placeholderMemo:'현장 접근 동선, 운영 시간, 체크사항을 기록하세요.',
       emptyHint:'아직 저장된 현장 핀이 없습니다. 주요 식당, 병원, 방송거점부터 차근차근 기록해보세요.'
     };
@@ -1639,8 +1665,10 @@ function normalizeNewsProgrammingSpecialEntry(entry={}, index=0){
 function loadNewsProgrammingState(){
   if(hasLoadedNewsProgrammingState) return;
   hasLoadedNewsProgrammingState=true;
+  newsProgrammingActiveLocalDate=getTodayLocalDateString();
   const raw=readNewsProgrammingRaw();
   if(!raw){
+    currentNewsProgrammingFilters.date=getTodayLocalDateString();
     ensureNewsProgrammingLocalPersistenceLoaded();
     currentNewsProgrammingMemoDrafts={...currentNewsProgrammingSavedMemos};
     return;
@@ -1648,11 +1676,17 @@ function loadNewsProgrammingState(){
   try{
     const parsed=JSON.parse(raw);
     const nextSavedMemos={};
+    const today=getTodayLocalDateString();
     if(parsed?.savedMemos&&typeof parsed.savedMemos==='object'){
+      const savedMemosDate=String(parsed.savedMemos.__savedDate||'').trim();
       Object.entries(parsed.savedMemos).forEach(([key, value])=>{
         const normalizedKey=String(key||'').trim();
-        if(!normalizedKey) return;
-        nextSavedMemos[normalizedKey]=String(value||'').trim();
+        if(!normalizedKey||normalizedKey.startsWith('__')) return;
+        if(savedMemosDate!==today) return;
+        const normalizedMemo=normalizeDatedTickerText(value, today);
+        if(normalizedMemo.text&&normalizedMemo.date===today){
+          nextSavedMemos[normalizedKey]=normalizedMemo.text;
+        }
       });
     }
     currentNewsProgrammingSavedMemos=nextSavedMemos;
@@ -1662,11 +1696,14 @@ function loadNewsProgrammingState(){
       : [];
     if(parsed?.filters&&typeof parsed.filters==='object'){
       currentNewsProgrammingFilters={
-        date:String(parsed.filters.date||currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey(),
+        date:today,
         liveOnly:Boolean(parsed.filters.liveOnly)
       };
+    }else{
+      currentNewsProgrammingFilters.date=today;
     }
     ensureNewsProgrammingLocalPersistenceLoaded();
+    saveNewsProgrammingState();
   }catch(error){
     console.warn('[news-programming] load failed', error);
     currentNewsProgrammingSavedMemos={};
@@ -1675,10 +1712,21 @@ function loadNewsProgrammingState(){
     ensureNewsProgrammingLocalPersistenceLoaded();
   }
 }
+function ensureNewsProgrammingDateIsToday(){
+  const today=getTodayLocalDateString();
+  if(newsProgrammingActiveLocalDate!==today){
+    newsProgrammingActiveLocalDate=today;
+    currentNewsProgrammingFilters.date=today;
+    currentNewsProgrammingSpecialForm.timeKey='';
+    isNewsProgrammingSpecialTimeMenuOpen=false;
+  }else if(!String(currentNewsProgrammingFilters.date||'').trim()){
+    currentNewsProgrammingFilters.date=today;
+  }
+}
 function saveNewsProgrammingState(){
   loadNewsProgrammingState();
   const payload={
-    savedMemos:currentNewsProgrammingSavedMemos,
+    savedMemos:createDatedMemoStoragePayload(currentNewsProgrammingSavedMemos),
     specialEntries:newsProgrammingSpecialEntries.map(item=>({
       id:item.id,
       date:item.date,
@@ -1691,7 +1739,7 @@ function saveNewsProgrammingState(){
       createdAt:item.createdAt
     })),
     filters:{
-      date:currentNewsProgrammingFilters.date,
+      date:currentNewsProgrammingFilters.date||getTodayLocalDateString(),
       liveOnly:Boolean(currentNewsProgrammingFilters.liveOnly)
     }
   };
@@ -1704,12 +1752,25 @@ function loadProgrammingMemos(){
     if(!raw) return {};
     const parsed=JSON.parse(raw);
     if(!parsed||typeof parsed!=='object') return {};
-    return Object.entries(parsed).reduce((acc, [key, value])=>{
+    const today=getTodayLocalDateString();
+    if(parsed.__savedDate!==today){
+      window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify({__savedDate:today}));
+      return {};
+    }
+    const cleanedStoragePayload={};
+    const loadedMemos=Object.entries(parsed).reduce((acc, [key, value])=>{
       const normalizedKey=String(key||'').trim();
-      if(!normalizedKey) return acc;
-      acc[normalizedKey]=String(value||'').trim();
+      if(!normalizedKey||normalizedKey.startsWith('__')) return acc;
+      const normalizedMemo=normalizeDatedTickerText(value, today);
+      if(normalizedMemo.text&&normalizedMemo.date===today){
+        acc[normalizedKey]=normalizedMemo.text;
+        cleanedStoragePayload[normalizedKey]=normalizedMemo;
+      }
       return acc;
     }, {});
+    cleanedStoragePayload.__savedDate=today;
+    window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(cleanedStoragePayload));
+    return loadedMemos;
   }catch(error){
     console.warn('[news-programming] programming memo load failed', error);
     return {};
@@ -1717,13 +1778,7 @@ function loadProgrammingMemos(){
 }
 function saveProgrammingMemos(nextMemos=currentNewsProgrammingSavedMemos){
   if(typeof window==='undefined'||!window.localStorage) return;
-  const normalized=Object.entries(nextMemos||{}).reduce((acc, [key, value])=>{
-    const normalizedKey=String(key||'').trim();
-    if(!normalizedKey) return acc;
-    acc[normalizedKey]=String(value||'').trim();
-    return acc;
-  }, {});
-  window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(normalized));
+  window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(createDatedMemoStoragePayload(nextMemos)));
 }
 function ensureNewsProgrammingLocalPersistenceLoaded(){
   if(hasLoadedNewsProgrammingLocalPersistence) return;
@@ -1789,7 +1844,8 @@ function renderMapLocationPinComposer(sectionKey='region'){
   const sectionMeta=getMapLocationPinSectionMeta(normalized);
   const editingEntry=getMapLocationPinEntryById(normalized, currentMapLocationPinEditId[normalized]);
   const composerMode=editingEntry?'수정':'작성';
-  const categoryOptions=MAP_LOCATION_PIN_CATEGORIES.map(item=>`<option value="${escapeHtml(item.value)}"${(editingEntry?.category||'restaurant')===item.value?' selected':''}>${escapeHtml(item.label)}</option>`).join('');
+  const selectedCategory=MAP_LOCATION_PIN_CATEGORIES.some(item=>item.value===editingEntry?.category) ? editingEntry.category : '';
+  const categoryOptions=`<option value="" disabled hidden${selectedCategory?'':' selected'}>분류 선택</option>${MAP_LOCATION_PIN_CATEGORIES.map(item=>`<option value="${escapeHtml(item.value)}"${selectedCategory===item.value?' selected':''}>${escapeHtml(item.label)}</option>`).join('')}`;
   return `<section class="simple-form-card map-location-pin-form-card"><div class="map-location-pin-form-header"><div class="simple-form-title">${escapeHtml(sectionMeta.formTitle)} ${composerMode}</div><p class="map-location-pin-form-description">${escapeHtml(sectionMeta.formDescription)}</p></div><div class="simple-form-grid map-location-pin-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="mapLocationPinName-${normalized}" value="${escapeHtml(editingEntry?.name||'')}" placeholder="${escapeHtml(sectionMeta.placeholderName)}"></label><label class="simple-form-field"><span class="simple-form-label">분류</span><select class="simple-form-input map-location-pin-select" id="mapLocationPinCategory-${normalized}">${categoryOptions}</select></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">주소 또는 위치 설명</span><input type="text" class="simple-form-input" id="mapLocationPinLocationText-${normalized}" value="${escapeHtml(editingEntry?.locationText||'')}" placeholder="${escapeHtml(sectionMeta.placeholderLocation)}"></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="mapLocationPinMemo-${normalized}" placeholder="${escapeHtml(sectionMeta.placeholderMemo)}">${escapeHtml(editingEntry?.memo||'')}</textarea></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">지도 링크 (선택)</span><input type="text" class="simple-form-input" id="mapLocationPinMapLink-${normalized}" value="${escapeHtml(editingEntry?.mapLink||'')}" placeholder="추후 Google Maps / Naver Map / Kakao Map 링크 연결"></label><div class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">현장 사진</span><div class="simple-upload-dropzone map-location-pin-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가하면 핀 카드와 함께 미리보기로 표시됩니다.</div><input id="mapLocationPinImages-${normalized}" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleMapLocationPinImageChange(this, '${normalized}')"></div><div id="mapLocationPinImagePreview-${normalized}" class="map-location-pin-upload-preview">${renderMapLocationPinImagePreviewHtml(mapLocationPinComposerImages[normalized], normalized)}</div></div><div class="map-location-pin-form-field-full map-location-pin-future"><div class="map-location-pin-future-title">지도 확장 준비</div><div class="map-location-pin-future-note">좌표(lat/lng)와 실제 지도 링크 버튼을 나중에 바로 붙일 수 있도록 구조를 분리해 두었습니다.</div><input type="hidden" id="mapLocationPinLatitude-${normalized}" value="${escapeHtml(editingEntry?.lat||'')}"><input type="hidden" id="mapLocationPinLongitude-${normalized}" value="${escapeHtml(editingEntry?.lng||'')}"></div></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="saveMapLocationPinEntry('${normalized}')">저장</button><button type="button" class="section-title-action-btn" onclick="cancelMapLocationPinComposer('${normalized}')">취소</button></div></section>`;
 }
 function renderMapLocationPinPreview(entries=[], sectionKey='region'){
@@ -1854,6 +1910,7 @@ function openMapLocationPinComposer(sectionKey='region', pinId=''){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function cancelMapLocationPinComposer(sectionKey='region'){
@@ -1864,6 +1921,7 @@ function cancelMapLocationPinComposer(sectionKey='region'){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function saveMapLocationPinEntry(sectionKey='region'){
@@ -1885,7 +1943,13 @@ function saveMapLocationPinEntry(sectionKey='region'){
     locationInput?.focus();
     return;
   }
-  const category=getMapLocationPinCategoryMeta(categorySelect?.value||'restaurant').value;
+  const rawCategory=String(categorySelect?.value||'').trim();
+  if(!rawCategory){
+    window.alert('분류를 선택해주세요');
+    categorySelect?.focus();
+    return;
+  }
+  const category=getMapLocationPinCategoryMeta(rawCategory).value;
   const memo=String(memoInput?.value||'').trim();
   const mapLink=String(mapLinkInput?.value||'').trim();
   const lat=String(latInput?.value||'').trim();
@@ -1917,6 +1981,7 @@ function saveMapLocationPinEntry(sectionKey='region'){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function deleteMapLocationPin(sectionKey='region', pinId=''){
@@ -1932,6 +1997,7 @@ function deleteMapLocationPin(sectionKey='region', pinId=''){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function clearAllMapLocationPins(sectionKey='region'){
@@ -1944,23 +2010,361 @@ function clearAllMapLocationPins(sectionKey='region'){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
+function getPlaceCategoryMeta(category=''){
+  const normalized=String(category||'').trim();
+  return PLACE_CATEGORIES.find(item=>item.value===normalized)||PLACE_CATEGORIES[PLACE_CATEGORIES.length-1];
+}
+function isSelectPlaceholderValue(value=''){
+  const normalized=String(value||'').trim();
+  return !normalized||SELECT_PLACEHOLDER_VALUES.includes(normalized);
+}
+function getValidPlaceCategoryValue(value=''){
+  const normalized=String(value||'').trim();
+  if(isSelectPlaceholderValue(normalized)) return '';
+  return PLACE_CATEGORIES.some(item=>item.value===normalized) ? normalized : '';
+}
+function getValidPlaceUsageTypeValue(value=''){
+  const normalized=String(value||'').trim();
+  if(isSelectPlaceholderValue(normalized)) return '';
+  return PLACE_USAGE_TYPES.includes(normalized) ? normalized : '';
+}
+function renderPlaceCategoryOptions(selectedValue='', placeholder='카테고리 선택'){
+  const normalizedSelected=getValidPlaceCategoryValue(selectedValue);
+  return `<option value="" disabled hidden${normalizedSelected?'':' selected'}>${escapeHtml(placeholder)}</option>${PLACE_CATEGORIES.map(item=>`<option value="${escapeHtml(item.value)}"${item.value===normalizedSelected?' selected':''}>${escapeHtml(item.label)}</option>`).join('')}`;
+}
+function renderPlaceUsageTypeOptions(selectedValue='', placeholder='용도 선택'){
+  const normalizedSelected=getValidPlaceUsageTypeValue(selectedValue);
+  return `<option value="" disabled hidden${normalizedSelected?'':' selected'}>${escapeHtml(placeholder)}</option>${PLACE_USAGE_TYPES.map(type=>`<option value="${escapeHtml(type)}"${type===normalizedSelected?' selected':''}>${escapeHtml(type)}</option>`).join('')}`;
+}
+function createPlaceId(){
+  return `place-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+}
+function normalizePlaceEntry(entry={}, index=0){
+  if(!entry||typeof entry!=='object') return null;
+  const name=String(entry.name||'').trim();
+  const rawCategory=String(entry.category||'').trim();
+  const category=rawCategory==='경기장'?'기타':getValidPlaceCategoryValue(rawCategory);
+  if(!name) return null;
+  const legacyTags=Array.isArray(entry.tags) ? entry.tags.map(tag=>String(tag||'').trim()==='방송가능'?'라이브 포인트':String(tag||'').trim()) : [];
+  const usageTypeCandidate=String(entry.usageType||legacyTags.find(tag=>PLACE_USAGE_TYPES.includes(tag))||'').trim();
+  const usageType=getValidPlaceUsageTypeValue(usageTypeCandidate);
+  const createdAt=String(entry.createdAt||getTodayLocalDateString()).trim()||getTodayLocalDateString();
+  const latValue=Number(entry.lat);
+  const lngValue=Number(entry.lng);
+  const mapUrl=String(entry.mapUrl||entry.mapLink||entry.url||'').trim();
+  const rawText=String(entry.rawText||'').trim();
+  return {
+    id:String(entry.id||`place-restored-${Date.now()}-${index}`),
+    name,
+    category,
+    address:String(entry.address||entry.locationText||'').trim(),
+    lat:Number.isFinite(latValue) ? latValue : null,
+    lng:Number.isFinite(lngValue) ? lngValue : null,
+    mapUrl,
+    rawText,
+    memo:String(entry.memo||'').trim(),
+    accessHint:String(entry.accessHint||entry.locationHint||'').trim(),
+    usageType,
+    createdAt
+  };
+}
+function normalizePlaceData(input={}){
+  return normalizePlaceEntry({
+    id:input.id||createPlaceId(),
+    name:input.name,
+    category:input.category,
+    address:input.address,
+    memo:input.memo,
+    accessHint:input.accessHint,
+    usageType:input.usageType,
+    lat:Number.isFinite(Number(input.lat))?Number(input.lat):null,
+    lng:Number.isFinite(Number(input.lng))?Number(input.lng):null,
+    mapUrl:input.mapUrl||'',
+    rawText:input.rawText||'',
+    createdAt:input.createdAt||getTodayLocalDateString()
+  });
+}
+function isDuplicatePlace(place){
+  if(!place) return false;
+  return placeStore.some(existing=>existing.id!==place.id&&existing.name===place.name&&existing.category===place.category);
+}
+function persistPlaceData(input={}){
+  loadPlaces();
+  const place=normalizePlaceData(input);
+  if(!place) return null;
+  if(isDuplicatePlace(place)){
+    const confirmed=window.confirm('같은 이름의 장소가 이미 있습니다. 그래도 저장할까요?');
+    if(!confirmed) return null;
+  }
+  placeStore.push(place);
+  activePlaceId=place.id;
+  savePlaces();
+  renderMapPanel();
+  focusPanelStart('#detailCol');
+  return place;
+}
+function loadPlaces(){
+  if(hasLoadedPlaces) return;
+  hasLoadedPlaces=true;
+  placeStore.length=0;
+  if(typeof window==='undefined'||!window.localStorage) return;
+  try{
+    const saved=JSON.parse(window.localStorage.getItem(MAP_PLACES_STORAGE_KEY)||'[]');
+    const normalized=(Array.isArray(saved)?saved:[])
+      .map((entry,index)=>normalizePlaceEntry(entry,index))
+      .filter(Boolean);
+    placeStore.push(...normalized);
+    window.localStorage.setItem(MAP_PLACES_STORAGE_KEY, JSON.stringify(placeStore));
+  }catch(error){
+    placeStore.length=0;
+  }
+}
+function savePlaces(){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  window.localStorage.setItem(MAP_PLACES_STORAGE_KEY, JSON.stringify(placeStore));
+}
+function parseGoogleMapsText(rawText=''){
+  const normalizedRaw=String(rawText||'').trim();
+  if(!normalizedRaw) return null;
+  const lines=normalizedRaw.split('\n').map(line=>line.trim()).filter(Boolean);
+  const urlMatch=normalizedRaw.match(/https?:\/\/[^\s]+/);
+  const mapUrl=urlMatch ? urlMatch[0] : '';
+  const textLines=lines
+    .map(line=>line.replace(/https?:\/\/[^\s]+/g, '').trim())
+    .filter(Boolean);
+  return {
+    name:textLines[0]||'',
+    address:textLines[1]||'',
+    mapUrl
+  };
+}
+function savePlaceFromPaste(){
+  const pasteInput=document.getElementById('mapPasteInput');
+  const categorySelect=document.getElementById('mapCategorySelect');
+  const usageTypeSelect=document.getElementById('mapUsageTypeSelect');
+  const rawText=String(pasteInput?.value||'').trim();
+  const category=getValidPlaceCategoryValue(categorySelect?.value);
+  const usageType=getValidPlaceUsageTypeValue(usageTypeSelect?.value);
+  if(!rawText){
+    window.alert('구글맵 내용을 붙여넣어 주세요');
+    pasteInput?.focus();
+    return;
+  }
+  if(!category){
+    window.alert('카테고리를 선택해주세요');
+    categorySelect?.focus();
+    return;
+  }
+  if(!usageType){
+    window.alert('용도를 선택해주세요');
+    usageTypeSelect?.focus();
+    return;
+  }
+  const parsed=parseGoogleMapsText(rawText);
+  const saved=persistPlaceData({
+    name:parsed?.name||'이름 미지정 장소',
+    category,
+    address:parsed?.address||'',
+    memo:'',
+    accessHint:'',
+    usageType,
+    lat:null,
+    lng:null,
+    mapUrl:parsed?.mapUrl||'',
+    rawText,
+    createdAt:getTodayLocalDateString()
+  });
+  if(saved&&pasteInput) pasteInput.value='';
+}
+function getPlaceFormValues(){
+  const nameInput=document.getElementById('placeNameInput');
+  const categorySelect=document.getElementById('placeCategorySelect');
+  const addressInput=document.getElementById('placeAddressInput');
+  const memoInput=document.getElementById('placeMemoInput');
+  const accessHintInput=document.getElementById('placeAccessHintInput');
+  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
+  return {
+    name:String(nameInput?.value||'').trim(),
+    category:getValidPlaceCategoryValue(categorySelect?.value),
+    address:String(addressInput?.value||'').trim(),
+    memo:String(memoInput?.value||'').trim(),
+    accessHint:String(accessHintInput?.value||'').trim(),
+    usageType:getValidPlaceUsageTypeValue(usageTypeSelect?.value)
+  };
+}
+function savePlace(){
+  const values=getPlaceFormValues();
+  const nameInput=document.getElementById('placeNameInput');
+  const categorySelect=document.getElementById('placeCategorySelect');
+  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
+  if(!values.name){
+    nameInput?.focus();
+    return;
+  }
+  if(!values.category){
+    window.alert('카테고리를 선택해주세요');
+    categorySelect?.focus();
+    return;
+  }
+  if(!values.usageType){
+    window.alert('용도를 선택해주세요');
+    usageTypeSelect?.focus();
+    return;
+  }
+  persistPlaceData({
+    ...values,
+    lat:null,
+    lng:null,
+    mapUrl:'',
+    rawText:'',
+    createdAt:getTodayLocalDateString()
+  });
+}
+function openPlaceComposer(category=''){
+  placeComposerCategory=getValidPlaceCategoryValue(category);
+  placeEntryMode='manual';
+  renderMapPanel();
+  setTimeout(()=>document.getElementById('placeNameInput')?.focus(), 0);
+}
+function cancelPlaceComposer(){
+  placeEntryMode='manual';
+  renderMapPanel();
+}
+function setPlaceEntryMode(mode='manual'){
+  placeEntryMode=mode==='google'?'google':'manual';
+  renderMapPanel();
+  setTimeout(()=>{
+    const targetId=placeEntryMode==='google'?'mapPasteInput':'placeNameInput';
+    document.getElementById(targetId)?.focus();
+  }, 0);
+}
+function setPlaceFilter(filter='all'){
+  currentPlaceFilter=String(filter||'all').trim()||'all';
+  renderMapPanel();
+}
+function focusPlace(placeId=''){
+  activePlaceId=String(placeId||'').trim();
+  renderMapPanel();
+}
+function openPlaceMapUrl(placeId=''){
+  loadPlaces();
+  const place=placeStore.find(item=>String(item.id)===String(placeId));
+  const mapUrl=String(place?.mapUrl||'').trim();
+  if(!mapUrl) return;
+  window.open(mapUrl, '_blank', 'noopener');
+}
+function deletePlace(placeId=''){
+  loadPlaces();
+  const normalizedId=String(placeId||'').trim();
+  if(!normalizedId) return;
+  const index=placeStore.findIndex(place=>String(place.id)===normalizedId);
+  if(index===-1) return;
+  const confirmed=window.confirm('이 장소를 삭제하시겠습니까?');
+  if(!confirmed) return;
+  placeStore.splice(index, 1);
+  if(activePlaceId===normalizedId) activePlaceId='';
+  savePlaces();
+  renderMapPanel();
+  focusPanelStart('#detailCol');
+}
+function addRecentPlaceAgain(placeId=''){
+  loadPlaces();
+  const source=placeStore.find(place=>String(place.id)===String(placeId));
+  if(!source) return;
+  placeComposerCategory=getValidPlaceCategoryValue(source.category);
+  placeEntryMode='manual';
+  renderMapPanel();
+  const nameInput=document.getElementById('placeNameInput');
+  const addressInput=document.getElementById('placeAddressInput');
+  const memoInput=document.getElementById('placeMemoInput');
+  const accessHintInput=document.getElementById('placeAccessHintInput');
+  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
+  if(nameInput) nameInput.value=source.name;
+  if(addressInput) addressInput.value=source.address;
+  if(memoInput) memoInput.value=source.memo;
+  if(accessHintInput) accessHintInput.value=source.accessHint;
+  if(usageTypeSelect) usageTypeSelect.value=source.usageType;
+}
+function getFilteredPlaces(){
+  loadPlaces();
+  const filter=String(currentPlaceFilter||'all');
+  return [...placeStore].filter(place=>{
+    if(filter.startsWith('usage:')) return place.usageType===filter.slice('usage:'.length);
+    return true;
+  }).sort((a,b)=>String(b.id||'').localeCompare(String(a.id||'')));
+}
+function renderPlaceEntryModeTabs(){
+  const modes=[
+    {key:'manual', label:'직접 입력'},
+    {key:'google', label:'구글맵 붙여넣기'}
+  ];
+  return `<div class="place-entry-mode-tabs" role="tablist" aria-label="장소 등록 방식">${modes.map(mode=>{const isActive=placeEntryMode===mode.key; return `<button type="button" class="place-entry-mode-tab${isActive?' is-active':''}" role="tab" aria-selected="${isActive?'true':'false'}" onclick="setPlaceEntryMode('${mode.key}')">${escapeHtml(mode.label)}</button>`;}).join('')}</div>`;
+}
+function renderManualPlaceEntrySection(){
+  const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
+  const usageOptions=renderPlaceUsageTypeOptions();
+  const hidden=placeEntryMode==='manual'?'':' hidden';
+  return `<div id="manualEntrySection" class="place-entry-section"${hidden}><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 숙소 앞 식당"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field"><span class="simple-form-label">용도</span><select class="simple-form-input" id="placeUsageTypeSelect">${usageOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">주소 또는 위치명</span><input type="text" class="simple-form-input" id="placeAddressInput" placeholder="예: 메인 게이트 맞은편 / 호텔 로비 옆"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">짧은 메모</span><input type="text" class="simple-form-input" id="placeMemoInput" placeholder="예: 전원 사용 가능, 이동 동선 짧음"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">찾아가는 힌트</span><input type="text" class="simple-form-input" id="placeAccessHintInput" placeholder="예: 호텔 정문에서 왼쪽 골목 30m"></label></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>`;
+}
+function renderGooglePlaceEntrySection(){
+  const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
+  const usageOptions=renderPlaceUsageTypeOptions();
+  const hidden=placeEntryMode==='google'?'':' hidden';
+  return `<div id="googleEntrySection" class="place-entry-section"${hidden}><div class="place-paste-grid"><label class="simple-form-field place-paste-field"><span class="simple-form-label">구글맵 공유 내용</span><textarea id="mapPasteInput" class="simple-form-input simple-form-textarea place-paste-textarea" placeholder="구글맵에서 복사한 링크나 공유 내용을 붙여넣으세요"></textarea></label><label class="simple-form-field place-paste-category"><span class="simple-form-label">카테고리</span><select id="mapCategorySelect" class="simple-form-input">${categoryOptions}</select></label><label class="simple-form-field place-paste-category"><span class="simple-form-label">용도</span><select id="mapUsageTypeSelect" class="simple-form-input">${usageOptions}</select></label><div class="place-paste-actions"><button type="button" class="section-title-action-btn" onclick="savePlaceFromPaste()">저장</button></div></div></div>`;
+}
+function renderPlaceEntryPanel(){
+  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 등록</div></div>${renderPlaceEntryModeTabs()}</div>${renderManualPlaceEntrySection()}${renderGooglePlaceEntrySection()}</section>`;
+}
+function renderPlaceComposer(){
+  return renderPlaceEntryPanel();
+}
+function renderMapPins(){
+  const places=getFilteredPlaces();
+  if(!places.length){
+    return '<section class="place-map-board place-reference-board"><div class="place-map-empty">등록된 현장 기준점이 없습니다. 직접 입력하거나 구글맵 공유 내용을 붙여넣어 추가하세요.</div></section>';
+  }
+  const usageSummary=PLACE_USAGE_TYPES
+    .map(type=>({type, count:places.filter(place=>place.usageType===type).length}))
+    .filter(item=>item.count>0);
+  const categorySummary=PLACE_CATEGORIES
+    .map(category=>({label:category.label, tone:category.tone, count:places.filter(place=>place.category===category.value).length}))
+    .filter(item=>item.count>0);
+  return `<section class="place-map-board place-reference-board" aria-label="현장 기준점 요약"><div class="place-reference-summary"><div class="place-reference-kicker">현장 기준점</div><strong>${places.length}개 저장</strong><p>좌표 핀이 아니라 이동 기준 카드로 관리합니다. 카드의 지도 열기 버튼으로 바로 이동하세요.</p><div class="place-reference-stats">${usageSummary.map(item=>`<span>${escapeHtml(item.type)} ${item.count}개</span>`).join('')||'<span>용도 미지정</span>'}</div><div class="place-reference-categories">${categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}">${escapeHtml(item.label)} ${item.count}</span>`).join('')}</div></div></section>`;
+}
+function renderPlaceList(){
+  const places=getFilteredPlaces();
+  if(!places.length){
+    return '<section class="place-list-shell"><div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>';
+  }
+  return `<section class="place-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">현장 기준점 카드</h5><p class="map-location-pin-list-meta">${places.length}개 기준점이 저장되어 있습니다.</p></div></header><div class="place-list">${places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const usageBadge=place.usageType?`<span class="place-usage-badge">${escapeHtml(place.usageType)}</span>`:''; const mapButton=place.mapUrl?`<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">지도 열기</button>`:''; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><button type="button" class="place-delete-btn" aria-label="${escapeHtml(place.name)} 삭제" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">×</button><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${usageBadge}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:''}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}${place.accessHint?`<div class="place-access-hint">찾아가는 힌트: ${escapeHtml(place.accessHint)}</div>`:''}${mapButton?`<div class="place-card-actions">${mapButton}</div>`:''}</article>`;}).join('')}</div></section>`;
+}
+function renderRecentPlaces(){
+  loadPlaces();
+  const recent=[...placeStore].sort((a,b)=>String(b.id||'').localeCompare(String(a.id||''))).slice(0,5);
+  if(!recent.length) return '';
+  return `<section class="place-recent-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">최근 등록 5개</h5><p class="map-location-pin-list-meta">현장에서 자주 반복되는 장소를 다시 추가할 수 있습니다.</p></div></header><div class="place-recent-list">${recent.map(place=>`<article class="place-recent-item"><span>${escapeHtml(place.name)}</span><button type="button" class="section-title-action-btn" onclick="addRecentPlaceAgain('${escapeHtml(place.id)}')">다시 추가</button></article>`).join('')}</div></section>`;
+}
+function renderPlaceFilters(){
+  const filterItems=[
+    {key:'all', label:'전체'},
+    ...PLACE_USAGE_TYPES.map(type=>({key:`usage:${type}`, label:type}))
+  ];
+  return `<div class="place-filter-bar">${filterItems.map(item=>`<button type="button" class="section-title-action-btn place-filter-btn${currentPlaceFilter===item.key?' is-active':''}" onclick="setPlaceFilter('${escapeHtml(item.key)}')">${escapeHtml(item.label)}</button>`).join('')}</div>`;
+}
+function renderPlaceManagementPanel(){
+  loadPlaces();
+  const quickActions=`<div class="place-quick-actions"><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('식당')">식당 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('숙소')">숙소 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('병원')">병원 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('방송거점')">방송거점 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('')">장소 등록</button></div>`;
+  return `<section class="map-location-pin-shell place-system-shell" aria-label="현장용 장소 데이터 관리"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">현장 장소 데이터</h4></div>${quickActions}</header>${renderPlaceEntryPanel()}${renderPlaceFilters()}<div class="place-system-grid">${renderMapPins()}${renderPlaceList()}</div>${renderRecentPlaces()}</section>`;
+}
 function renderMapSectionPanel(sectionKey){
-  const sectionMeta=sectionKey==='lodging'
-    ? {title:'숙소정보', description:'', uploadLabel:'숙소 사진 업로드', formLabel:'숙소 정보 작성 준비'}
-    : {title:'지역정보', description:'', uploadLabel:'지역 사진 업로드', formLabel:'지역 정보 작성 준비'};
-  const isComposerOpen=!!mapSectionComposerState[sectionKey];
-  const composerHtml=isComposerOpen?`<div class="simple-form-card"><div class="simple-form-title">${escapeHtml(sectionMeta.formLabel)}</div><div class="simple-form-grid"><label class="simple-form-field"><span class="simple-form-label">기본 메모</span><textarea class="simple-form-input simple-form-textarea" placeholder="${escapeHtml(sectionMeta.description)}"></textarea></label>${renderUploadField(`map-${sectionKey}-photo`, sectionMeta.uploadLabel)}</div></div>`:'';
-  const descriptionHtml=sectionMeta.description?`<p class="simple-info-subdescription">${escapeHtml(sectionMeta.description)}</p>`:'';
-  const locationPinSectionHtml=renderMapLocationPinSection(sectionKey);
-  return `<section class="simple-info-subpanel${currentMapSubTab===sectionKey?' is-active':''}" data-map-section="${escapeHtml(sectionKey)}"><header class="simple-info-subheader"><div><h4 class="simple-info-subtitle">${escapeHtml(sectionMeta.title)}</h4>${descriptionHtml}</div></header>${composerHtml}${locationPinSectionHtml}<div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(sectionMeta.title)} 관련 카드, 표, 위치 정보를 이 영역에 추가할 수 있습니다.</div></div></section>`;
+  return `<section class="simple-info-subpanel is-active" data-map-section="${escapeHtml(sectionKey||'places')}">${renderPlaceManagementPanel()}</section>`;
 }
 function renderMapPanelHtml(){
-  loadMapLocationPinEntries();
-  const tabsHtml=`<div class="simple-subtabs" role="tablist" aria-label="MAP 하위탭"><button type="button" class="item simple-subtab${currentMapSubTab==='region'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='region'?'true':'false'}" onclick="showMapSubTab('region')">지역정보</button><button type="button" class="item simple-subtab${currentMapSubTab==='lodging'?' active':''}" role="tab" aria-selected="${currentMapSubTab==='lodging'?'true':'false'}" onclick="showMapSubTab('lodging')">숙소정보</button></div>`;
-  const activeSectionHtml=currentMapSubTab==='lodging'?renderMapSectionPanel('lodging'):renderMapSectionPanel('region');
-  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${tabsHtml}${activeSectionHtml}</section></td></tr></tbody>`;
+  loadPlaces();
+  return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${renderMapSectionPanel('places')}</section></td></tr></tbody>`;
 }
 function getNewsProgrammingStatusClass(status=''){
   const normalized=String(status||'').trim();
@@ -2026,6 +2430,7 @@ function getNewsProgrammingTimeOptionKey(item={}){
   ].join('|');
 }
 function getActiveNewsProgrammingDateKey(){
+  ensureNewsProgrammingDateIsToday();
   return String(currentNewsProgrammingFilters.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
 }
 function getNewsProgrammingTimeOptions(){
@@ -2075,7 +2480,7 @@ function formatProgrammingDateNavLabel(dateKey=''){
   const baseDate=new Date(`${normalized}T12:00:00`);
   if(Number.isNaN(baseDate.getTime())) return normalized.replace(/-/g,'/');
   const weekNames=['일','월','화','수','목','금','토'];
-  return `${normalized.replace(/-/g,'/')} (${weekNames[baseDate.getDay()]})`;
+  return `${baseDate.getFullYear()}년 ${baseDate.getMonth()+1}월 ${baseDate.getDate()}일 (${weekNames[baseDate.getDay()]})`;
 }
 function getProgrammingDateTimeLabel(){
   const localTime=formatHeaderClock('America/Mexico_City');
@@ -2084,6 +2489,267 @@ function getProgrammingDateTimeLabel(){
 }
 function normalizeNewsProgrammingMemoText(value=''){
   return String(value||'').replace(/\s+/g,' ').trim();
+}
+function getTodayLocalDateString(){
+  const now=new Date();
+  const year=now.getFullYear();
+  const month=String(now.getMonth()+1).padStart(2,'0');
+  const day=String(now.getDate()).padStart(2,'0');
+  return `${year}-${month}-${day}`;
+}
+function sanitizeCellValue(value){
+  if(value===undefined||value===null) return '';
+  if(value instanceof Date&&!Number.isNaN(value.getTime())){
+    const year=value.getFullYear();
+    const month=String(value.getMonth()+1).padStart(2,'0');
+    const day=String(value.getDate()).padStart(2,'0');
+    return `${year}-${month}-${day}`;
+  }
+  if(Array.isArray(value)){
+    return value.map(item=>sanitizeCellValue(item)).filter(item=>String(item).trim()!=='').join(', ');
+  }
+  if(typeof value==='object'){
+    try{
+      return JSON.stringify(value);
+    }catch(error){
+      return String(value);
+    }
+  }
+  return String(value);
+}
+function ensureXlsxLibraryReady(){
+  if(typeof XLSX!=='undefined'&&XLSX?.utils&&typeof XLSX.writeFile==='function') return true;
+  if(typeof window!=='undefined'&&typeof window.alert==='function'){
+    window.alert('엑셀 라이브러리를 불러오지 못했습니다. 잠시 뒤 다시 시도해주세요.');
+  }
+  return false;
+}
+function sanitizeWorksheetName(name='Sheet'){
+  const normalized=String(name||'Sheet').replace(/[\[\]\*\/\\\?:]/g,' ').replace(/\s+/g,' ').trim()||'Sheet';
+  return normalized.slice(0, 31);
+}
+function sanitizeExcelFileName(fileName='export.xlsx'){
+  return String(fileName||'export.xlsx').replace(/[\\/:*?"<>|]/g,'_');
+}
+function createWorksheetFromRows(rows){
+  const sourceRows=Array.isArray(rows)&&rows.length ? rows : [{'데이터':'데이터 없음'}];
+  const normalizedRows=sourceRows.map(row=>{
+    if(Array.isArray(row)){
+      return row.reduce((acc, value, index)=>{
+        acc[`열${index+1}`]=sanitizeCellValue(value);
+        return acc;
+      }, {});
+    }
+    if(row&&typeof row==='object'){
+      return Object.entries(row).reduce((acc, [key, value])=>{
+        acc[key]=sanitizeCellValue(value);
+        return acc;
+      }, {});
+    }
+    return {값:sanitizeCellValue(row)};
+  });
+  return XLSX.utils.json_to_sheet(normalizedRows);
+}
+function appendWorksheetFromRows(workbook, sheetName, rows){
+  const safeName=sanitizeWorksheetName(sheetName);
+  const existingNames=new Set(workbook.SheetNames||[]);
+  let nextName=safeName;
+  let suffix=2;
+  while(existingNames.has(nextName)){
+    const suffixText=`_${suffix}`;
+    nextName=`${safeName.slice(0, 31-suffixText.length)}${suffixText}`;
+    suffix+=1;
+  }
+  XLSX.utils.book_append_sheet(workbook, createWorksheetFromRows(rows), nextName);
+}
+function downloadWorkbook(workbook, fileName){
+  if(!ensureXlsxLibraryReady()||!workbook) return false;
+  XLSX.writeFile(workbook, sanitizeExcelFileName(fileName));
+  return true;
+}
+function createExportWorkbook(){
+  if(!ensureXlsxLibraryReady()) return null;
+  return XLSX.utils.book_new();
+}
+function getTimelineDetailExportRows(){
+  ensureTimelineDataReady();
+  loadPersonalTimelineDetailSelections();
+  return Object.keys(personalTimelineDetailSelections).sort().flatMap(dateKey=>{
+    const people=personalTimelineDetailSelections[dateKey]||{};
+    return personalTimelineMemberNames.flatMap(name=>{
+      const entries=Array.isArray(people[name]) ? people[name] : [];
+      return entries.map((detail, entryIndex)=>{
+        const hasValue=personalTimelineDetailFields.some(field=>String(detail?.[field]||'').trim());
+        if(!hasValue) return null;
+        const reporterNames=[name, detail?.취재기자].map(value=>String(value||'').trim()).filter(Boolean).join(' / ');
+        return {
+          날짜:dateKey,
+          시간:detail?.시간||'',
+          장소:detail?.장소||'',
+          취재기자:reporterNames,
+          장비:detail?.TVU ? getPersonalTimelineOptionLabel('TVU', detail.TVU) : '',
+          내용:detail?.업무내용 ? getPersonalTimelineTaskReportLabel(detail.업무내용) : '',
+          메모:buildPersonalTimelineReportText(name, detail)||`개별 일정 ${entryIndex+1}`
+        };
+      }).filter(Boolean);
+    });
+  });
+}
+function getTimelineSharedExportRows(){
+  ensureTimelineDataReady();
+  loadPersonalTimelineSharedEntries();
+  return Object.keys(personalTimelineSharedEntries).sort().flatMap(dateKey=>{
+    const entries=getPersonalTimelineSharedEntries(dateKey);
+    return entries.map((entry, entryIndex)=>({
+      날짜:dateKey,
+      시간:'',
+      장소:'',
+      취재기자:'영상취재팀 공동',
+      장비:'',
+      내용:String(entry?.text||'').trim()||`공용 일정 ${entryIndex+1}`,
+      메모:(entry?.images||[]).map(image=>image.name).filter(Boolean).join(', ')
+    }));
+  });
+}
+function getTimelineAssignmentExportRows(){
+  ensureTimelineDataReady();
+  const rows=[];
+  timelineEditableLabels.forEach(label=>{
+    const assignments=timelineAssignments[label];
+    if(!assignments) return;
+    assignments.forEach((value, dateKey)=>{
+      const text=String(value||'').trim();
+      if(!text) return;
+      const hasStructuredShared=label==='영상취재팀 공동'&&normalizePersonalTimelineSharedEntries(personalTimelineSharedEntries[dateKey]).length>0;
+      if(hasStructuredShared) return;
+      rows.push({
+        날짜:dateKey,
+        시간:'',
+        장소:'',
+        취재기자:label,
+        장비:'',
+        내용:text,
+        메모:''
+      });
+    });
+  });
+  return rows;
+}
+function compareTimelineExportRows(a, b){
+  const dateCompare=String(a.날짜||'').localeCompare(String(b.날짜||''));
+  if(dateCompare) return dateCompare;
+  const aTime=String(a.시간||'99:99');
+  const bTime=String(b.시간||'99:99');
+  const timeCompare=aTime.localeCompare(bTime);
+  if(timeCompare) return timeCompare;
+  return String(a.취재기자||'').localeCompare(String(b.취재기자||''), 'ko');
+}
+function getTimelineExportRows(){
+  return [
+    ...getTimelineSharedExportRows(),
+    ...getTimelineDetailExportRows(),
+    ...getTimelineAssignmentExportRows()
+  ].sort(compareTimelineExportRows);
+}
+function getEquipmentExportRowsFromRows(rows=[]){
+  const headers=getEquipmentHeaders('shared');
+  return (Array.isArray(rows)?rows:[])
+    .map(normalizeEquipmentRowValues)
+    .filter(isEquipmentRowTouched)
+    .map(row=>headers.reduce((acc, header, index)=>{
+      acc[header]=row[index]||'';
+      return acc;
+    }, {}));
+}
+function getSharedEquipmentExportRows(){
+  ensureEquipmentEditorEntries();
+  return getEquipmentExportRowsFromRows(getEquipmentRows('shared'));
+}
+function getPersonalEquipmentExportRowsByUser(userName){
+  const normalizedUser=String(userName||'').trim();
+  ensureEquipmentEditorEntries();
+  return getEquipmentExportRowsFromRows(getEquipmentRows('personal', normalizedUser));
+}
+function buildPersonalEquipmentSheets(workbook, userName=''){
+  if(!workbook) return;
+  const normalizedUser=String(userName||'').trim();
+  const users=normalizedUser ? [normalizedUser] : EQUIPMENT_SHARED_USERS;
+  users.forEach(user=>{
+    appendWorksheetFromRows(workbook, `개별장비_${user}`, getPersonalEquipmentExportRowsByUser(user));
+  });
+}
+function exportTimelineExcel(){
+  const workbook=createExportWorkbook();
+  if(!workbook) return;
+  appendWorksheetFromRows(workbook, '누적일정', getTimelineExportRows());
+  downloadWorkbook(workbook, `월드컵_누적일정_${getTodayLocalDateString()}.xlsx`);
+}
+function exportEquipmentExcel(){
+  const workbook=createExportWorkbook();
+  if(!workbook) return;
+  appendWorksheetFromRows(workbook, '장비종합현황', getSharedEquipmentExportRows());
+  buildPersonalEquipmentSheets(workbook);
+  downloadWorkbook(workbook, `월드컵_장비종합현황_${getTodayLocalDateString()}.xlsx`);
+}
+function exportPersonalEquipmentExcel(userName){
+  const normalizedUser=String(userName||currentEquipmentUser||EQUIPMENT_SHARED_USERS[0]||'').trim();
+  const workbook=createExportWorkbook();
+  if(!workbook||!normalizedUser) return;
+  appendWorksheetFromRows(workbook, `개별장비_${normalizedUser}`, getPersonalEquipmentExportRowsByUser(normalizedUser));
+  downloadWorkbook(workbook, `월드컵_개별장비_${normalizedUser}_${getTodayLocalDateString()}.xlsx`);
+}
+function exportAllExcel(){
+  const workbook=createExportWorkbook();
+  if(!workbook) return;
+  appendWorksheetFromRows(workbook, '누적일정', getTimelineExportRows());
+  appendWorksheetFromRows(workbook, '장비종합현황', getSharedEquipmentExportRows());
+  buildPersonalEquipmentSheets(workbook);
+  downloadWorkbook(workbook, `월드컵_운영데이터_${getTodayLocalDateString()}.xlsx`);
+}
+function normalizeDatedTickerText(value='', fallbackDate=getTodayLocalDateString()){
+  if(value&&typeof value==='object'){
+    return {
+      text:normalizeNewsProgrammingMemoText(value.text ?? value.value ?? ''),
+      date:String(value.date||fallbackDate).trim()||fallbackDate
+    };
+  }
+  return {
+    text:normalizeNewsProgrammingMemoText(value),
+    date:fallbackDate
+  };
+}
+function normalizeDatedTickerTextItems(items=[]){
+  const today=getTodayLocalDateString();
+  if(!Array.isArray(items)) return [];
+  return items
+    .map(item=>{
+      if(typeof item==='string'){
+        return {
+          text:String(item||'').trim(),
+          date:today,
+          allowHtml:false
+        };
+      }
+      if(item&&typeof item==='object'){
+        return {
+          text:String(item.text??item.value??'').trim(),
+          date:String(item.date||item.dateKey||today).trim()||today,
+          allowHtml:Boolean(item.allowHtml)
+        };
+      }
+      return null;
+    })
+    .filter(item=>item&&item.text);
+}
+function createDatedMemoStoragePayload(nextMemos=currentNewsProgrammingSavedMemos){
+  const today=getTodayLocalDateString();
+  return Object.entries(nextMemos||{}).reduce((acc, [key, value])=>{
+    const normalizedKey=String(key||'').trim();
+    const normalizedText=normalizeNewsProgrammingMemoText(value);
+    if(!normalizedKey||normalizedKey.startsWith('__')||!normalizedText) return acc;
+    acc[normalizedKey]={text:normalizedText, date:today};
+    return acc;
+  }, {__savedDate:today});
 }
 function getNewsProgrammingMemoTickerSourceItems(){
   ensureNewsProgrammingLocalPersistenceLoaded();
@@ -2100,13 +2766,17 @@ function getNewsProgrammingMemoTickerSourceItems(){
     return {
       programKey:spec.label,
       memo:normalizeNewsProgrammingMemoText(currentNewsProgrammingSavedMemos[matchedKey]||''),
+      date:getTodayLocalDateString(),
       isSpecialEntry:false
     };
   }).filter(Boolean);
+  const today=getTodayLocalDateString();
   const specialItems=newsProgrammingSpecialEntries
+    .filter(item=>String(item?.date||'').trim()===today)
     .map(item=>({
       programKey:'특보',
       memo:normalizeNewsProgrammingMemoText(item?.memo||''),
+      date:item?.date||today,
       isSpecialEntry:true
     }))
     .filter(item=>item.memo);
@@ -2122,6 +2792,57 @@ function getNewsProgrammingMemoTickerText(){
   const items=getNewsProgrammingMemoTickerItems();
   if(!items.length) return '';
   return items.join('  •  ');
+}
+function loadTicker(){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  try{
+    const saved=window.localStorage.getItem(TICKER_STATE_STORAGE_KEY);
+    if(!saved) return;
+    const parsed=JSON.parse(saved);
+    const today=getTodayLocalDateString();
+    const normalizedSchedule=normalizeDatedTickerText(parsed?.schedule&&typeof parsed.schedule==='object' ? parsed.schedule : {text:parsed?.schedule||'', date:parsed?.scheduleDate||today}, today);
+    const normalizedMemo=normalizeDatedTickerText(parsed?.memo&&typeof parsed.memo==='object' ? parsed.memo : {text:parsed?.memo||'', date:parsed?.memoDate||today}, today);
+    tickerState.schedule=normalizedSchedule.date===today ? normalizedSchedule.text : '';
+    tickerState.scheduleDate=tickerState.schedule ? today : '';
+    tickerState.memo=normalizedMemo.date===today ? normalizedMemo.text : '';
+    tickerState.memoDate=tickerState.memo ? today : '';
+    window.localStorage.setItem(TICKER_STATE_STORAGE_KEY, JSON.stringify(tickerState));
+    const scheduleInput=document.querySelector('#scheduleInput');
+    const memoInput=document.querySelector('#memoInput');
+    if(scheduleInput) scheduleInput.value=tickerState.schedule;
+    if(memoInput) memoInput.value=tickerState.memo;
+  }catch(error){
+    tickerState.schedule='';
+    tickerState.scheduleDate='';
+    tickerState.memo='';
+    tickerState.memoDate='';
+  }
+}
+function saveTicker(){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  const today=getTodayLocalDateString();
+  const scheduleInput=document.querySelector('#scheduleInput');
+  const memoInput=document.querySelector('#memoInput');
+  if(scheduleInput){
+    tickerState.schedule=String(scheduleInput.value||'').trim();
+    tickerState.scheduleDate=tickerState.schedule ? today : '';
+  }
+  if(memoInput){
+    tickerState.memo=String(memoInput.value||'').trim();
+    tickerState.memoDate=tickerState.memo ? today : '';
+  }
+  window.localStorage.setItem(TICKER_STATE_STORAGE_KEY, JSON.stringify(tickerState));
+  renderTicker();
+}
+function renderTicker(){
+  const line1=document.querySelector('#tickerLine1');
+  const line2=document.querySelector('#tickerLine2');
+  const today=getTodayLocalDateString();
+  const visibleSchedule=tickerState.scheduleDate===today ? tickerState.schedule : '';
+  const visibleMemo=tickerState.memoDate===today ? tickerState.memo : '';
+  if(line1) line1.innerText=visibleSchedule;
+  if(line2) line2.innerText=visibleMemo;
+  renderAllBoards();
 }
 function buildTickerMarkup(items=[], options={}){
   const {allowHtml=false, speedClass=''}=options||{};
@@ -2217,9 +2938,10 @@ function formatScheduleTickerItem(schedule){
 }
 function getAllUpcomingScheduleTickerEntries(){
   loadPersonalTimelineDetailSelections();
+  const today=getTodayLocalDateString();
   return Object.keys(personalTimelineDetailSelections)
     .sort()
-    .filter(dateKey=>!isPastTimelineDateKey(dateKey))
+    .filter(dateKey=>String(dateKey||'').trim()===today)
     .flatMap(dateKey=>getPersonalTimelineGeneratedReportsForDate(dateKey).map(item=>{
       const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
       const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, item.detail?.시간||'');
@@ -2241,43 +2963,55 @@ function getAllUpcomingScheduleTickerEntries(){
     });
 }
 function getScheduleBoardItems(){
-  return getAllUpcomingScheduleTickerEntries()
-    .map(formatScheduleTickerItem)
+  const today=getTodayLocalDateString();
+  return normalizeDatedTickerTextItems(getAllUpcomingScheduleTickerEntries()
+    .map(item=>({
+      text:formatScheduleTickerItem(item),
+      date:item.dateKey,
+      allowHtml:true
+    })))
+    .filter(item=>item.date===today)
+    .map(item=>item.text)
     .filter(Boolean);
 }
 function getNoticeBoardItems(){
-  return getNewsProgrammingMemoTickerSourceItems()
+  const today=getTodayLocalDateString();
+  return normalizeDatedTickerTextItems(getNewsProgrammingMemoTickerSourceItems()
     .map(item=>{
       const normalizedProgram=String(item?.programKey||item?.title||'').trim();
       const normalizedMemo=normalizeNewsProgrammingMemoText(item?.memo||'');
-      if(!normalizedProgram||!normalizedMemo) return '';
-      return `<span class="board-label-tag">${escapeHtml(normalizedProgram)}</span> ${escapeHtml(normalizedMemo)}`;
-    })
+      if(!normalizedProgram||!normalizedMemo) return null;
+      return {
+        text:`<span class="board-label-tag">${escapeHtml(normalizedProgram)}</span> ${escapeHtml(normalizedMemo)}`,
+        date:item?.date||today,
+        allowHtml:true
+      };
+    }))
+    .filter(item=>item.date===today)
+    .map(item=>item.text)
     .filter(Boolean);
 }
 function renderScheduleBoard(){
   const track=document.getElementById('headerScheduleBoardTrack');
   if(!track) return;
+  const today=getTodayLocalDateString();
+  const manualSchedule=tickerState.scheduleDate===today ? String(tickerState.schedule||'').trim() : '';
   const items=getScheduleBoardItems();
-  if(!items.length){
-    track.innerHTML='';
-    track.classList.remove('is-animated');
-    return;
-  }
+  const renderItems=items.length ? items : (manualSchedule ? [manualSchedule] : ['오늘 등록된 편성 일정이 없습니다']);
   track.classList.add('is-animated');
-  renderHeaderProgrammingTickerLine(track, '', {allowHtml:true, items, speedClass:'schedule-speed'});
+  renderHeaderProgrammingTickerLine(track, '', {allowHtml:items.length>0, items:renderItems, speedClass:'schedule-speed'});
+  ensureTimelineExportButton();
+  applyMobileTimelineAStructure();
 }
 function renderNoticeBoard(){
   const track=document.getElementById('headerNoticeBoardTrack');
   if(!track) return;
+  const today=getTodayLocalDateString();
+  const manualMemo=tickerState.memoDate===today ? String(tickerState.memo||'').trim() : '';
   const items=getNoticeBoardItems();
-  if(!items.length){
-    track.innerHTML='';
-    track.classList.remove('is-animated');
-    return;
-  }
+  const renderItems=items.length ? items : (manualMemo ? [manualMemo] : ['오늘 등록된 운영 메모가 없습니다']);
   track.classList.add('is-animated');
-  renderHeaderProgrammingTickerLine(track, '', {allowHtml:true, items, speedClass:'notice-speed'});
+  renderHeaderProgrammingTickerLine(track, '', {allowHtml:items.length>0, items:renderItems, speedClass:'notice-speed'});
 }
 function renderAllBoards(){
   renderScheduleBoard();
@@ -2369,6 +3103,7 @@ function shiftNewsProgrammingViewDate(dayOffset=0){
   saveNewsProgrammingState();
   refreshTicker();
   rerenderNewsProgrammingPanelIfActive();
+  focusPanelStart('#newsProgrammingPanel');
 }
 function clearNewsProgrammingSpecialForm(){
   resetNewsProgrammingSpecialForm();
@@ -2926,8 +3661,9 @@ function resetNewsProgrammingSyncState(){
   currentNewsProgrammingMemoDrafts={};
   currentNewsProgrammingSavedMemos={};
   newsProgrammingSpecialEntries=[];
+  newsProgrammingActiveLocalDate=getTodayLocalDateString();
   currentNewsProgrammingFilters={
-    date:getTodayTimelineKey(),
+    date:getTodayLocalDateString(),
     liveOnly:false
   };
   currentNewsProgrammingSpecialForm={
@@ -4461,8 +5197,64 @@ function renderPersonalTimelineHoverPanel(){
   const personalNames=['박재현','장후원','정상원','이주원','김진광','정재우'];
   return `<div class="personal-timeline-hover-panel"><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">공동 일정</span><div class="personal-timeline-hover-chip">영상취재팀 공동</div></div><div class="personal-timeline-hover-group"><span class="personal-timeline-hover-title">개별 일정</span><div class="personal-timeline-hover-grid">${personalNames.map(name=>`<div class="personal-timeline-hover-cell">${name}</div>`).join('')}</div></div></div>`;
 }
+function renderPersonalTimelineMobileNavigator(){
+  return `<div class="personal-timeline-mobile-nav"><div class="personal-timeline-mobile-nav-top"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-mobile-nav-time" aria-live="polite"></div></div>`;
+}
 function renderPersonalTimelineTopbar(){
-  return `<div class="personal-timeline-topbar"><div class="personal-timeline-topbar-main"><span class="personal-timeline-month-sticky"></span><div class="personal-timeline-quick-actions"><button type="button" class="personal-timeline-quick-btn" data-timeline-action="top">맨 위로</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div></div>`;
+  return `<div class="personal-timeline-topbar is-mobile-a-structure"><div class="personal-timeline-topbar-main">${renderPersonalTimelineMobileNavigator()}<span class="personal-timeline-month-sticky"></span><div class="personal-timeline-quick-actions"><button type="button" class="personal-timeline-quick-btn" data-timeline-action="top">맨 위로</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div></div>`;
+}
+function createTimelineExportButton(){
+  const button=document.createElement('button');
+  button.type='button';
+  button.className='timeline-export-btn personal-timeline-quick-btn secondary-export-btn';
+  button.textContent='일정 내보내기';
+  button.addEventListener('click', event=>{
+    event.stopPropagation();
+    exportTimelineExcel();
+  });
+  return button;
+}
+function findTimelineActionsWrap(){
+  const buttons=Array.from(document.querySelectorAll('button'));
+  const topBtn=buttons.find(button=>String(button.textContent||'').trim()==='맨 위로');
+  const todayBtn=buttons.find(button=>String(button.textContent||'').trim()==='오늘로');
+  if(topBtn&&todayBtn&&topBtn.parentElement===todayBtn.parentElement){
+    return topBtn.parentElement;
+  }
+  return topBtn?.closest('.timeline-actions, .schedule-actions, .timeline-toolbar, .date-controls, .personal-timeline-quick-actions')||null;
+}
+function ensureTimelineExportButton(){
+  if(typeof document==='undefined') return;
+  const detailCol=document.getElementById('detailCol');
+  const timelineIsActive=Boolean(detailCol&&(detailCol.classList.contains('timeline-mode')||detailCol.classList.contains('personal-timeline-mode')))
+    || Boolean(document.getElementById('personalTimelineMenu')?.classList.contains('active'));
+  if(!timelineIsActive) return;
+  const actionsWrap=findTimelineActionsWrap();
+  if(!actionsWrap) return;
+  document.querySelectorAll('.timeline-export-btn').forEach(element=>element.remove());
+  if(actionsWrap.querySelector('.timeline-export-btn')) return;
+  actionsWrap.appendChild(createTimelineExportButton());
+}
+function applyMobileTimelineAStructure(){
+  if(typeof document==='undefined'||typeof window==='undefined') return;
+  if(!isMobileViewport()) return;
+  const detailCol=document.getElementById('detailCol');
+  if(!detailCol?.classList.contains('personal-timeline-mode')) return;
+  const topbar=detailCol.querySelector('.personal-timeline-topbar');
+  const topbarMain=detailCol.querySelector('.personal-timeline-topbar-main')||topbar;
+  const dateCard=detailCol.querySelector('.personal-timeline-mobile-nav');
+  const actions=detailCol.querySelector('.personal-timeline-quick-actions');
+  const monthBadge=detailCol.querySelector('.personal-timeline-month-sticky');
+  if(!topbar||!topbarMain||!dateCard||!actions) return;
+  topbar.classList.add('is-mobile-a-structure');
+  if(monthBadge) monthBadge.setAttribute('aria-hidden', 'true');
+  const insertBeforeTarget=monthBadge?.parentElement===topbarMain ? monthBadge : actions;
+  const children=Array.from(topbarMain.children);
+  const dateIndex=children.indexOf(dateCard);
+  const targetIndex=children.indexOf(insertBeforeTarget);
+  if(dateCard.parentElement!==topbarMain||dateIndex===-1||targetIndex===-1||dateIndex>targetIndex){
+    topbarMain.insertBefore(dateCard, insertBeforeTarget);
+  }
 }
 function renderPersonalTimelineEntries(entries, kind){
   return entries.map(item=>`<div class="personal-timeline-entry personal-timeline-entry-${item.kind}"><span class="personal-timeline-entry-name personal-timeline-entry-name-${item.kind}">${escapeHtml(item.label)}</span><p class="personal-timeline-entry-text">${escapeHtml(item.value)}</p></div>`).join('');
@@ -4476,7 +5268,7 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
 function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
   const placeholderSelected=!selectedValue ? ' selected' : '';
   const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${selectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
-  return `<option value=""${placeholderSelected}>${field}</option>${optionHtml}`;
+  return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
   const sharedEntries=getPersonalTimelineSharedEntries(dateKey);
@@ -4663,7 +5455,18 @@ function formatPersonalTimelineNavigatorLabel(dateKey=''){
   if(!year||!month||!day) return '';
   const date=new Date(year, month-1, day);
   const weekNames=['일','월','화','수','목','금','토'];
-  return `${month}월 ${day}일 (${weekNames[date.getDay()]})`;
+  return `${year}년 ${month}월 ${day}일 (${weekNames[date.getDay()]})`;
+}
+function getPersonalTimelineNavigatorTimeLabel(){
+  const localContext=resolveHeaderLocalClockContext();
+  const localTime=formatHeaderClock(localContext.timeZone);
+  const koreaTime=formatHeaderClock('Asia/Seoul');
+  return `현지시각 ${localTime} / 한국시각 ${koreaTime}`;
+}
+function updatePersonalTimelineNavigatorTimeLabel(nav=document.querySelector('.personal-timeline-mobile-nav')){
+  const timeEl=nav?.querySelector('.personal-timeline-mobile-nav-time');
+  if(!timeEl) return;
+  timeEl.textContent=getPersonalTimelineNavigatorTimeLabel();
 }
 function updatePersonalTimelineMobileNavigator(detailCol, list){
   if(!detailCol||!list) return;
@@ -4676,6 +5479,7 @@ function updatePersonalTimelineMobileNavigator(detailCol, list){
   const pickerInput=nav.querySelector('.personal-timeline-mobile-nav-picker');
   const prevButton=nav.querySelector('.personal-timeline-mobile-nav-prev');
   const nextButton=nav.querySelector('.personal-timeline-mobile-nav-next');
+  updatePersonalTimelineNavigatorTimeLabel(nav);
   if(labelEl&&activeItem){
     labelEl.textContent=formatPersonalTimelineNavigatorLabel(activeItem.dataset.dateKey||'');
   }
@@ -4702,6 +5506,7 @@ function setPersonalTimelineOpenItem(list, item){
   updatePersonalTimelineDisplayedMonth(detailCol, list);
   if(isMobileViewport()){
     updatePersonalTimelineMobileNavigator(detailCol, list);
+    applyMobileTimelineAStructure();
   }
 }
 function syncPersonalTimelineOpenItemFromScroll(list){
@@ -4838,21 +5643,12 @@ function getPersonalTimelineWindowOffset(){
 }
 function scrollPersonalTimelineNode(target, options={}){
   if(!target) return;
-  const {behavior='smooth'}=options;
-  const detailCol=target.closest('#detailCol')||document.getElementById('detailCol');
-  const list=target.closest('.personal-timeline-list')
-    || detailCol?.querySelector('.personal-timeline-list')
-    || document.querySelector('.personal-timeline-list');
-  const container=getPersonalTimelineScrollContainer(list);
-  if(container===window){
-    const top=Math.max(0, window.scrollY + target.getBoundingClientRect().top - getPersonalTimelineWindowOffset());
-    window.scrollTo({top, behavior});
-    return;
-  }
-  const topbar=detailCol?.querySelector('.personal-timeline-topbar');
-  const topbarHeight=topbar ? topbar.getBoundingClientRect().height : 0;
-  const top=container.scrollTop + (target.getBoundingClientRect().top - container.getBoundingClientRect().top) - topbarHeight - 12;
-  container.scrollTo({top:Math.max(0, top), behavior});
+  const {offset=16}=options;
+  const openedPanel=target.classList?.contains('is-open')
+    ? target.querySelector('.personal-timeline-card')||target.querySelector('.personal-timeline-column-shared')
+    : null;
+  const panel=openedPanel||target;
+  afterTabRenderedScroll(panel, offset);
 }
 function scrollPersonalTimelineToTop(options={}){
   const detailCol=document.getElementById('detailCol');
@@ -4860,8 +5656,7 @@ function scrollPersonalTimelineToTop(options={}){
   if(!list) return;
   const items=getPersonalTimelineItems(list);
   if(!items.length) return;
-  const activeMonth=getActivePersonalTimelineMonth(detailCol, items);
-  const target=findPersonalTimelineMonthStartTarget(items, activeMonth);
+  const target=items[0];
   if(!target) return;
   if(isMobileViewport()){
     setPersonalTimelineOpenItem(list, target);
@@ -4891,7 +5686,8 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailTable.insertAdjacentHTML('afterend',`${renderPersonalTimelineTopbar()}<div class="personal-timeline-mobile-nav"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
+  detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list').forEach(node=>node.remove());
+  detailTable.insertAdjacentHTML('afterend',`${renderPersonalTimelineTopbar()}<div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
     let personalTimelineScrollTimer=null;
@@ -4977,7 +5773,10 @@ function renderPersonalTimelineSchedule(view){
       const item=event.target.closest('.personal-timeline-item');
       if(!trigger||!item||!list.contains(item)) return;
       const wasOpen=item.classList.contains('is-open');
-      if(!wasOpen) setPersonalTimelineOpenItem(list, item);
+      if(!wasOpen){
+        setPersonalTimelineOpenItem(list, item);
+        scrollPersonalTimelineNode(item, {offset:16});
+      }
     };
     list.querySelectorAll('.personal-timeline-person-list').forEach(personList=>{
       const activeName=personList.dataset.activePerson||'';
@@ -4995,7 +5794,10 @@ function renderPersonalTimelineSchedule(view){
         const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
         const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
         const nextItem=items[Math.max(0, currentIndex-1)];
-        if(nextItem) setPersonalTimelineOpenItem(list, nextItem);
+        if(nextItem){
+          setPersonalTimelineOpenItem(list, nextItem);
+          scrollPersonalTimelineNode(nextItem, {behavior:'smooth'});
+        }
       };
     }
     if(mobileNextButton){
@@ -5004,7 +5806,10 @@ function renderPersonalTimelineSchedule(view){
         const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
         const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
         const nextItem=items[Math.min(items.length-1, currentIndex+1)];
-        if(nextItem) setPersonalTimelineOpenItem(list, nextItem);
+        if(nextItem){
+          setPersonalTimelineOpenItem(list, nextItem);
+          scrollPersonalTimelineNode(nextItem, {behavior:'smooth'});
+        }
       };
     }
     if(mobileCalendarButton&&mobilePickerInput){
@@ -5024,7 +5829,7 @@ function renderPersonalTimelineSchedule(view){
         }
       };
     }
-    detailCol.querySelectorAll('.personal-timeline-quick-btn').forEach(button=>{
+    detailCol.querySelectorAll('.personal-timeline-quick-btn[data-timeline-action]').forEach(button=>{
       button.onclick=event=>{
         event.stopPropagation();
         if(button.dataset.timelineAction==='top'){
@@ -5034,8 +5839,10 @@ function renderPersonalTimelineSchedule(view){
         scrollPersonalTimelineToDate(getTodayTimelineKey(), {behavior:'smooth'});
       };
     });
+    ensureTimelineExportButton();
     setupPersonalTimelineStickyMonth(detailCol);
     updatePersonalTimelineMobileNavigator(detailCol, list);
+    applyMobileTimelineAStructure();
   }
   detailCol.onclick=event=>{
     if(event.target.closest('.personal-timeline-list, .personal-timeline-mobile-nav')) return;
@@ -5461,6 +6268,7 @@ function updateHeaderTimes(){
   localEl.title=localContext.sourceLabel;
   koreaEl.textContent=formatHeaderClock('Asia/Seoul');
   koreaEl.title='대한민국 기준';
+  updatePersonalTimelineNavigatorTimeLabel();
 }
 function startHeaderTimeTicker(){
   updateHeaderTimes();
@@ -5674,6 +6482,91 @@ function hideAllPanels(){
   updateMobileHeaderReportBoardVisibility();
 }
 function clearAllActive(){['newsMenu','bracketMenu','groupASquadMenu','equipmentMenu','personalTimelineMenu','mexicoStadiumMenu','mapMenu','newsProgrammingMenu'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});document.querySelectorAll('.item').forEach(el=>el.classList.remove('active'));}
+function getActualScrollContainer(){
+  const candidates=[
+    document.querySelector('.main-content'),
+    document.querySelector('.content-area'),
+    document.querySelector('.tab-content'),
+    document.querySelector('.panel-content'),
+    document.querySelector('.timeline-content'),
+    document.querySelector('.schedule-page'),
+    document.querySelector('.content-main'),
+    document.querySelector('.content-shell'),
+    document.querySelector('.container'),
+    document.scrollingElement
+  ].filter(Boolean);
+  for(const el of candidates){
+    if(el===document.scrollingElement) continue;
+    const style=window.getComputedStyle(el);
+    const canScroll=/(auto|scroll|overlay)/.test(style.overflowY||'')&&el.scrollHeight>el.clientHeight+1;
+    if(canScroll) return el;
+  }
+  return document.scrollingElement||document.documentElement;
+}
+function isDocumentScrollContainer(container){
+  return !container||container===document.body||container===document.documentElement||container===document.scrollingElement;
+}
+function shouldSkipPanelScroll(panel, offset=16){
+  if(!panel) return true;
+  const container=getActualScrollContainer();
+  const panelRect=panel.getBoundingClientRect();
+  if(isDocumentScrollContainer(container)){
+    return Math.abs(panelRect.top-offset)<=40;
+  }
+  const containerRect=container.getBoundingClientRect();
+  return Math.abs((panelRect.top-containerRect.top)-offset)<=40;
+}
+function scrollPanelToTop(panel, offset=16){
+  if(!panel||panel.classList?.contains('hidden')||shouldSkipPanelScroll(panel, offset)) return;
+  const container=getActualScrollContainer();
+  const panelRect=panel.getBoundingClientRect();
+  if(isDocumentScrollContainer(container)){
+    const currentTop=window.pageYOffset||document.documentElement.scrollTop||0;
+    const targetTop=currentTop+panelRect.top-offset;
+    window.scrollTo({top:Math.max(0, targetTop), behavior:'smooth'});
+    return;
+  }
+  const containerRect=container.getBoundingClientRect();
+  const targetTop=container.scrollTop+(panelRect.top-containerRect.top)-offset;
+  container.scrollTo({top:Math.max(0, targetTop), behavior:'smooth'});
+}
+function afterTabRenderedScroll(panel, offset=16){
+  if(!panel) return;
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      scrollPanelToTop(panel, offset);
+    });
+  });
+}
+function scrollSectionToTop(targetEl, options={}){
+  const {offset=16}=options;
+  afterTabRenderedScroll(targetEl, offset);
+}
+function getActiveContentStartTarget(fallbackSelector=''){
+  if(fallbackSelector){
+    const fallback=document.querySelector(fallbackSelector);
+    if(fallback&&!fallback.classList.contains('hidden')) return fallback;
+  }
+  return document.querySelector('#detailCol:not(.hidden)')
+    || document.querySelector('.tab-stack:not(.hidden) .column:not(.hidden)')
+    || document.querySelector('#desktopTabPane > .column:not(.hidden)')
+    || document.querySelector('.content-main');
+}
+function focusPanelStart(panelSelector='', options={}){
+  scrollSectionToTop(getActiveContentStartTarget(panelSelector), options);
+}
+function getScheduleCardStartPanel(){
+  return document.querySelector('.personal-timeline-item.is-open .personal-timeline-card')
+    || document.querySelector('.personal-timeline-item.is-open .personal-timeline-column-shared')
+    || document.querySelector('.shared-schedule-card')
+    || document.querySelector('.schedule-board-card')
+    || document.querySelector('.schedule-panel')
+    || document.querySelector('.personal-timeline-card')
+    || document.querySelector('#detailCol:not(.hidden)');
+}
+function focusScheduleCardStart(offset=16){
+  afterTabRenderedScroll(getScheduleCardStartPanel(), offset);
+}
 function clearDetailExtras(){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
@@ -5694,8 +6587,10 @@ function clearDetailExtras(){
   document.onmouseup=null;
   if(detailTitleActions) detailTitleActions.innerHTML='';
   detailCol.classList.remove('timeline-mode');
+  detailCol.classList.remove('personal-timeline-mode');
   detailCol.classList.remove('mexico-stadium-mode');
   detailTable.parentElement.classList.remove('timeline-card');
+  detailTable.parentElement.classList.remove('personal-timeline-card');
   detailTable.parentElement.classList.remove('mobile-table-scroll-card');
   detailTable.parentElement.classList.remove('equipment-table-wrapper');
   detailTable.className='data-table';
@@ -5710,11 +6605,14 @@ function clearDetailExtras(){
   while(next){const cur=next;next=next.nextElementSibling;cur.remove();}
 }
 
+function renderNewsExportBar(){
+  return `<div id="newsExportBar" class="news-export-bar"><button type="button" class="section-title-action-btn export-action-btn news-export-btn" onclick="exportAllExcel()">전체 내보내기</button></div>`;
+}
 function renderMobileNewsMenu(){
   if(!isMobileViewport()) return;
   const panel=document.getElementById('newsCol');
   if(!panel) return;
-  panel.innerHTML=Object.entries(NEWS_YEAR_META).map(([year, meta])=>`<div class="news-mobile-year-block"><div class="item news-year-item ${currentNewsYear===year?'active':''}" aria-label="${escapeHtml(meta.aria)}"><span class="news-year-frame"><img class="news-year-logo" src="${meta.logo}" alt="${escapeHtml(meta.aria)} 로고"></span></div><div class="news-mobile-broadcasters">${NEWS_BROADCASTERS.map(broadcaster=>`<div class="item broadcaster-item broadcaster-item-${broadcaster.toLowerCase()} ${currentNewsYear===year&&currentNewsBroadcaster===broadcaster?'active':''}" onclick="openNewsDetail('${year}','${broadcaster}', this)" aria-label="${escapeHtml(broadcaster)}"><span class="broadcaster-frame">${renderNewsBroadcasterCiMarkup(broadcaster)}</span></div>`).join('')}</div></div>`).join('');
+  panel.innerHTML=`${Object.entries(NEWS_YEAR_META).map(([year, meta])=>`<div class="news-mobile-year-block"><div class="item news-year-item ${currentNewsYear===year?'active':''}" aria-label="${escapeHtml(meta.aria)}"><span class="news-year-frame"><img class="news-year-logo" src="${meta.logo}" alt="${escapeHtml(meta.aria)} 로고"></span></div><div class="news-mobile-broadcasters">${NEWS_BROADCASTERS.map(broadcaster=>`<div class="item broadcaster-item broadcaster-item-${broadcaster.toLowerCase()} ${currentNewsYear===year&&currentNewsBroadcaster===broadcaster?'active':''}" onclick="openNewsDetail('${year}','${broadcaster}', this)" aria-label="${escapeHtml(broadcaster)}"><span class="broadcaster-frame">${renderNewsBroadcasterCiMarkup(broadcaster)}</span></div>`).join('')}</div></div>`).join('')}${renderNewsExportBar()}`;
 }
 function renderMapPanel(){
   clearDetailExtras();
@@ -5743,6 +6641,7 @@ function showMapSubTab(tabKey='region'){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function setMapActionMode(mode='write'){
@@ -5750,6 +6649,7 @@ function setMapActionMode(mode='write'){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function clearMapActionMode(){
@@ -5757,6 +6657,7 @@ function clearMapActionMode(){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function openMapSectionComposer(sectionKey){
@@ -5766,6 +6667,7 @@ function openMapSectionComposer(sectionKey){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function clearMapSectionComposer(sectionKey){
@@ -5774,6 +6676,7 @@ function clearMapSectionComposer(sectionKey){
   if(document.getElementById('mapMenu')?.classList.contains('active')){
     renderMapPanel();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
   }
 }
 function rerenderNewsProgrammingPanelIfActive(){
@@ -5782,8 +6685,8 @@ function rerenderNewsProgrammingPanelIfActive(){
     updateMobileHeaderReportBoardVisibility();
   }
 }
-function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();}
-function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();}
+function toggleMain(){const stack=document.getElementById('newsTabStack');const panel=document.getElementById('newsCol');const broadcasterPanel=document.getElementById('newsBroadcasterCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('newsMenu').classList.add('active');if(isMobileViewport()){renderMobileNewsMenu();broadcasterPanel.classList.add('hidden');}}updateMobileHeaderReportBoardVisibility();if(willOpen)focusPanelStart('#newsCol');}
+function toggleBracket(){const stack=document.getElementById('bracketTabStack');const panel=document.getElementById('bracketStageCol');const willOpen=panel.classList.contains('hidden');hideAllPanels();clearAllActive();if(willOpen){stack?.classList.remove('hidden');panel.classList.remove('hidden');document.getElementById('bracketMenu').classList.add('active');}updateMobileHeaderReportBoardVisibility();if(willOpen)focusPanelStart('#bracketStageCol');}
 function toggleMapPanel(){
   const detailCol=document.getElementById('detailCol');
   const willOpen=detailCol.classList.contains('hidden')||!document.getElementById('mapMenu').classList.contains('active');
@@ -5794,6 +6697,7 @@ function toggleMapPanel(){
     renderMapPanel();
   }
   updateMobileHeaderReportBoardVisibility();
+  if(willOpen)focusPanelStart('#detailCol');
 }
 function toggleNewsProgramming(){
   const detailCol=document.getElementById('detailCol');
@@ -5805,6 +6709,7 @@ function toggleNewsProgramming(){
     renderNewsProgrammingPanel();
   }
   updateMobileHeaderReportBoardVisibility();
+  if(willOpen)focusPanelStart('#detailCol');
 }
 function toggleGroupASquads(){
   const panel=document.getElementById('groupASquadCol');
@@ -5816,6 +6721,7 @@ function toggleGroupASquads(){
     panel.classList.remove('hidden');
   }
   updateMobileHeaderReportBoardVisibility();
+  if(willOpen)focusPanelStart('#groupASquadCol');
 }
 function showGroupASquad(key, el){
   document.querySelectorAll('#groupASquadCol .item').forEach(n=>n.classList.remove('active'));
@@ -5824,6 +6730,7 @@ function showGroupASquad(key, el){
   squadState[key].filter='ALL';
   squadState[key].page=1;
   renderSquad(key);
+  focusPanelStart('#detailCol');
 }
 function toggleEquipment(){
   const detailCol=document.getElementById('detailCol');
@@ -5835,6 +6742,7 @@ function toggleEquipment(){
     renderEquipment();
   }
   updateMobileHeaderReportBoardVisibility();
+  if(willOpen)focusPanelStart(isMobileViewport()?'#equipmentUserCol':'#detailCol');
 }
 function togglePersonalTimeline(){
   const detailCol=document.getElementById('detailCol');
@@ -5844,7 +6752,9 @@ function togglePersonalTimeline(){
   if(willOpen){
     document.getElementById('personalTimelineMenu').classList.add('active');
     renderTimelineSchedule('personal');
-    requestAnimationFrame(()=>scrollPersonalTimelineToDate(getTodayTimelineKey()));
+    ensureTimelineExportButton();
+    applyMobileTimelineAStructure();
+    focusScheduleCardStart(16);
   }
   updateMobileHeaderReportBoardVisibility();
 }
@@ -5862,11 +6772,12 @@ function toggleMexicoStadium(){
   }
   updateHeaderTimes();
   updateMobileHeaderReportBoardVisibility();
+  if(willOpen)focusPanelStart('#mexicoStadiumCol');
 }
 
-function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsTabStack')?.classList.remove('hidden');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');updateMobileHeaderReportBoardVisibility();}
-function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);updateMobileHeaderReportBoardVisibility();}
-function openNewsDetail(year, broadcaster){currentNewsYear=year;currentNewsBroadcaster=broadcaster;if(isMobileViewport()) renderMobileNewsMenu();renderNewsTable(year, broadcaster);updateMobileHeaderReportBoardVisibility();}
+function showNewsYear(year, el){currentNewsYear=year;currentNewsBroadcaster='';document.querySelectorAll('#newsCol .item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');document.getElementById('newsTabStack')?.classList.remove('hidden');document.getElementById('newsBroadcasterCol').classList.remove('hidden');document.getElementById('detailCol').classList.add('hidden');updateMobileHeaderReportBoardVisibility();focusPanelStart('#newsBroadcasterCol');}
+function activateBroadcaster(el, broadcaster){currentNewsBroadcaster=broadcaster;document.querySelectorAll('#newsBroadcasterCol .item').forEach(n=>n.classList.remove('active'));el.classList.add('active');renderNewsTable(currentNewsYear, broadcaster);updateMobileHeaderReportBoardVisibility();focusPanelStart('#detailCol');}
+function openNewsDetail(year, broadcaster){currentNewsYear=year;currentNewsBroadcaster=broadcaster;if(isMobileViewport()) renderMobileNewsMenu();renderNewsTable(year, broadcaster);updateMobileHeaderReportBoardVisibility();focusPanelStart('#detailCol');}
 function getNewsBroadcasterLogoPath(broadcaster){
   const map={KBS:'assets/news-ci-kbs-clean.png',MBC:'assets/news-ci-mbc-clean.png',SBS:'assets/news-ci-sbs-clean.png'};
   return map[broadcaster]||'';
@@ -7165,6 +8076,7 @@ function showGroup(groupKey, el){
   document.getElementById('detailTable').insertAdjacentHTML('afterend',view.matchSection);
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 function showBracketStage(stage, el){
   document.querySelectorAll('#bracketStageCol .item').forEach(n=>n.classList.remove('active'));
@@ -7176,16 +8088,19 @@ function showBracketStage(stage, el){
   if(stage==='group'){
     document.getElementById('groupCol').classList.remove('hidden');
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#groupCol');
     return;
   }
   document.getElementById('groupCol').classList.add('hidden');
   if(stage==='thirdPlaceRanking'){
     renderThirdPlaceRankingTable();
     updateMobileHeaderReportBoardVisibility();
+    focusPanelStart('#detailCol');
     return;
   }
   renderKnockoutTable(stage);
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 function getGroupMatchByNumber(matchNum=''){
   const normalizedMatchNum=String(matchNum||'').trim();
@@ -7400,6 +8315,7 @@ function showEquipmentShared(el){
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 function showEquipmentCarnet(el){
   currentEquipmentMode='carnet';
@@ -7410,6 +8326,7 @@ function showEquipmentCarnet(el){
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(el) el.classList.add('active');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 
 function showEquipmentPersonal(user, el){
@@ -7433,6 +8350,7 @@ function showEquipmentPersonal(user, el){
   document.getElementById('detailTable').parentElement.classList.add('equipment-table-wrapper');
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 
 function renderTimelineSchedule(viewKey='personal'){
@@ -7459,6 +8377,8 @@ function renderTimelineSchedule(viewKey='personal'){
   detailTable.parentElement.classList.add('timeline-card');
   detailTable.className='data-table timeline-table';
   detailTable.innerHTML=`${renderCache.timelineHeader}<tbody>${bodyRows}</tbody>`;
+  ensureTimelineExportButton();
+  applyMobileTimelineAStructure();
   detailTable.onmousedown=event=>{
     const cell=event.target.closest('.timeline-day-cell');
     if(!cell||event.button!==0) return;
@@ -7498,6 +8418,7 @@ function renderTimelineSchedule(viewKey='personal'){
   document.onmouseup=stopTimelinePaint;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 
 function renderStadiumFigure(stadium){
@@ -7551,6 +8472,7 @@ function showMexicoStadium(key, el){
   renderMexicoStadiumDetail(key);
   updateHeaderTimes();
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 
 function showMexicoStadiumSection(sectionKey, el){
@@ -7564,6 +8486,7 @@ function showMexicoStadiumSection(sectionKey, el){
   renderMexicoStadiumDetail(currentMexicoStadiumKey, sectionKey);
   updateHeaderTimes();
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 
 function runTests(){
@@ -7655,6 +8578,7 @@ function runTests(){
 }
 
 function initializeNewsProgrammingPersistence(){
+  loadTicker();
   loadNewsProgrammingState();
   ensureNewsProgrammingLocalPersistenceLoaded();
   renderAllBoards();
@@ -7667,10 +8591,12 @@ startHeaderTimeTicker();
 ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
+  document.addEventListener('DOMContentLoaded', applyMobileTimelineAStructure);
   window.addEventListener('load', initSharedStateSync);
   window.addEventListener('focus', fetchSharedStateSnapshot);
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
   window.addEventListener('resize', ensureMobileHistoryGuard);
+  window.addEventListener('resize', applyMobileTimelineAStructure);
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState==='visible'){
       fetchSharedStateSnapshot();
