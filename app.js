@@ -3415,9 +3415,12 @@ const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
 const HEADER_REPORT_BOARD_RECENT_STORAGE_KEY = 'worldcup-guide-header-report-board-recent-v1';
 const HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY = '__worldcupGuideHeaderReportBoardRecent__';
-const SHARED_STATE_SYNC_SUPABASE_URL = 'https://dwujummgbntrtvmldqmz.supabase.co';
-const SHARED_STATE_SYNC_SUPABASE_ANON_KEY = 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l';
+const SHARED_STATE_SYNC_SUPABASE_URL = window.APP_CONFIG?.supabaseUrl||'';
+const SHARED_STATE_SYNC_SUPABASE_ANON_KEY = window.APP_CONFIG?.supabaseAnonKey||'';
 const SHARED_STATE_SYNC_TABLE = 'shared_state';
+const SCHEDULES_TABLE = 'schedules';
+let currentUser = null;
+let schedulesRealtimeChannel = null;
 const SHARED_STATE_SYNC_REGISTRY = {
   [NEWS_EDITOR_STORAGE_KEY]: {windowNameKey: NEWS_EDITOR_WINDOW_NAME_KEY},
   [NEWS_PROGRAMMING_STORAGE_KEY]: {windowNameKey: NEWS_PROGRAMMING_WINDOW_NAME_KEY},
@@ -3790,8 +3793,13 @@ function disableSharedStateSync(error){
   }
 }
 function getSharedStateSyncClient(){
-  if(sharedStateSyncDisabled||typeof window==='undefined'||!window.supabase?.createClient) return null;
+  if(sharedStateSyncDisabled||typeof window==='undefined') return null;
   if(sharedStateSyncClient) return sharedStateSyncClient;
+  if(window.supabaseClient){
+    sharedStateSyncClient=window.supabaseClient;
+    return sharedStateSyncClient;
+  }
+  if(!window.supabase?.createClient||!SHARED_STATE_SYNC_SUPABASE_URL||!SHARED_STATE_SYNC_SUPABASE_ANON_KEY) return null;
   try{
     sharedStateSyncClient=window.supabase.createClient(SHARED_STATE_SYNC_SUPABASE_URL, SHARED_STATE_SYNC_SUPABASE_ANON_KEY);
   }catch(error){
@@ -3923,6 +3931,238 @@ function initSharedStateSync(){
   fetchSharedStateSnapshot();
   startSharedStateRealtimeSync();
   flushPendingSharedStateWrites();
+}
+function getScheduleSupabaseClient(){
+  if(typeof window==='undefined') return null;
+  return window.supabaseClient||getSharedStateSyncClient();
+}
+async function loadCurrentUser(name) {
+  if (!name) {
+    currentUser = null;
+    applyPermissions();
+    return;
+  }
+
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient) return;
+
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('name', name)
+    .single();
+
+  if(error){
+    console.warn('사용자 정보 로드 실패:', error);
+    currentUser = null;
+  }else{
+    currentUser = data;
+  }
+
+  applyPermissions();
+}
+function applyPermissions() {
+  if (typeof document === 'undefined') return;
+  if (!currentUser) {
+    document.body.classList.remove('readonly');
+    document.body.dataset.userRole = '';
+    return;
+  }
+
+  const role = currentUser.role;
+  document.body.dataset.userRole = role || '';
+
+  if (role === 'REPORTER') {
+    document.body.classList.add('readonly');
+  } else {
+    document.body.classList.remove('readonly');
+  }
+}
+function initUserSelect(){
+  const userSelect=document.getElementById('userSelect');
+  if(!userSelect) return;
+  userSelect.addEventListener('change', (e) => {
+    loadCurrentUser(e.target.value);
+  });
+}
+function normalizeScheduleData(data={}){
+  return {
+    title:String(data?.title||'').trim(),
+    assignee:String(data?.assignee||'').trim(),
+    local_time:String(data?.local_time||'').trim(),
+    korea_time:String(data?.korea_time||'').trim(),
+    location:String(data?.location||'').trim()
+  };
+}
+function renderSchedules(data){
+  window.supabaseSchedules=Array.isArray(data) ? data : [];
+}
+function buildMessage(schedule) {
+  return `
+[월드컵 일정]
+${schedule.assignee}
+
+현지 ${schedule.local_time}
+한국 ${schedule.korea_time}
+
+${schedule.title}
+${schedule.location}
+`.trim();
+}
+if(typeof window!=='undefined'){
+  window.buildMessage=buildMessage;
+}
+function loadSmsServiceScript(){
+  if(typeof window==='undefined'||window.sendSMS) return Promise.resolve();
+  if(window.smsServiceLoadPromise) return window.smsServiceLoadPromise;
+  window.smsServiceLoadPromise=new Promise(resolve=>{
+    const existing=document.querySelector('script[data-sms-service="true"]');
+    if(existing){
+      existing.addEventListener('load', ()=>resolve(), {once:true});
+      existing.addEventListener('error', ()=>resolve(), {once:true});
+      return;
+    }
+    const script=document.createElement('script');
+    script.src='sms-service.js';
+    script.defer=true;
+    script.dataset.smsService='true';
+    script.onload=()=>resolve();
+    script.onerror=()=>{
+      console.warn('sms-service.js 로드 실패');
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
+  return window.smsServiceLoadPromise;
+}
+async function sendScheduleSMS(scheduleData){
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient) return;
+
+  try{
+    const { data: head, error: headError } = await supabaseClient
+      .from('profiles')
+      .select('name, phone_number')
+      .eq('role', 'HEAD')
+      .limit(1)
+      .maybeSingle();
+
+    if(headError){
+      console.warn('HEAD 사용자 조회 실패:', headError);
+      return;
+    }
+
+    if(!head?.phone_number){
+      console.warn('HEAD 전화번호 없음');
+      return;
+    }
+
+    const text=`[일정 알림] ${scheduleData.title} / ${scheduleData.location} / ${scheduleData.local_time}`;
+    const response=await fetch('https://dwujummgbntrtvmldqmz.supabase.co/functions/v1/dynamic-api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: head.phone_number,
+        text
+      })
+    });
+    const result=await response.json().catch(()=>({}));
+    const status=response.ok ? 'SENT' : 'FAILED';
+
+    const { error: logError } = await supabaseClient.from('sms_logs').insert([
+      {
+        assignee: head.name,
+        phone: head.phone_number,
+        message: text,
+        status
+      }
+    ]);
+    if(logError&&logError.code!=='PGRST205'&&logError.code!=='42P01'){
+      console.warn('문자 로그 저장 실패:', logError);
+    }
+
+    if(response.ok){
+      console.log('📩 문자 발송 완료');
+    }else{
+      console.warn('문자 발송 실패:', result);
+    }
+  }catch(error){
+    console.warn('문자 발송 처리 실패:', error);
+    return;
+  }
+}
+async function saveSchedule(data) {
+  if (currentUser?.role === 'REPORTER') {
+    alert('수정 권한 없음');
+    return;
+  }
+
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient){
+    console.error('저장 실패: Supabase client is not ready.');
+    alert('저장 실패');
+    return;
+  }
+  const scheduleData=normalizeScheduleData(data);
+  const { error } = await supabaseClient
+    .from(SCHEDULES_TABLE)
+    .insert([scheduleData]);
+
+  if (error) {
+    console.error('저장 실패:', error);
+    alert('저장 실패');
+  } else {
+    alert('저장 완료');
+    await sendScheduleSMS(scheduleData);
+    loadSchedules();
+  }
+}
+async function loadSchedules() {
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient) return;
+  const { data, error } = await supabaseClient
+    .from(SCHEDULES_TABLE)
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  renderSchedules(data);
+}
+function subscribeRealtime() {
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient||schedulesRealtimeChannel) return;
+  schedulesRealtimeChannel=supabaseClient
+    .channel('schedules-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'schedules'
+      },
+      () => {
+        console.log('🔄 실시간 업데이트');
+        loadSchedules();
+      }
+    )
+    .subscribe();
+}
+function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailValues={}){
+  const localTime=String(detailValues?.시간||'').trim();
+  const task=String(detailValues?.업무내용||'').trim();
+  const taskLabel=String(getPersonalTimelineTaskReportLabel(task)||task).trim();
+  const koreaTimeLabel=localTime ? formatPersonalTimelineTimeLabel(localTime).replace(/^현지\s[^/]+\/\s한국\s/,'') : '';
+  return {
+    title:taskLabel||`${dateKey} 일정`,
+    assignee:personName,
+    local_time:localTime,
+    korea_time:koreaTimeLabel,
+    location:String(detailValues?.장소||'').trim()
+  };
 }
 const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
 const timelineOfficialTeamNameMap = {
@@ -4704,7 +4944,11 @@ function savePersonalTimelinePersonRow(row){
   const dateKey=button?.dataset.dateKey||'';
   const personName=button?.dataset.person||'';
   if(!dateKey||!personName) return;
-  const saveResult=savePersonalTimelineDetailSelectionBatch(dateKey, personName, collectPersonalTimelineRowValues(row));
+  const rowValues=collectPersonalTimelineRowValues(row);
+  const saveResult=savePersonalTimelineDetailSelectionBatch(dateKey, personName, rowValues);
+  if(Object.values(rowValues).some(value=>String(value||'').trim())){
+    saveSchedule(getPersonalTimelineSchedulePayload(dateKey, personName, rowValues));
+  }
   if(saveResult?.didAppendNew&&saveResult.entryIndex>=0){
     markHeaderReportBoardRecentItem(buildPersonalTimelineGeneratedReportId(dateKey, personName, saveResult.entryIndex));
     updateHeaderReportBoard();
@@ -8591,6 +8835,9 @@ startHeaderTimeTicker();
 ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
+  document.addEventListener('DOMContentLoaded', initUserSelect);
+  document.addEventListener('DOMContentLoaded', loadSchedules);
+  document.addEventListener('DOMContentLoaded', subscribeRealtime);
   document.addEventListener('DOMContentLoaded', applyMobileTimelineAStructure);
   window.addEventListener('load', initSharedStateSync);
   window.addEventListener('focus', fetchSharedStateSnapshot);

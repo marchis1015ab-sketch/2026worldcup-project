@@ -53,6 +53,37 @@
   max-width:100%;
   min-width:0;
 }
+.user-select-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  justify-content:flex-end;
+  width:100%;
+}
+.user-select-label{
+  color:#526b83;
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.user-select{
+  min-height:36px;
+  min-width:128px;
+  border:1px solid #c7d7e7;
+  border-radius:8px;
+  background:#fff;
+  color:#102c47;
+  font:inherit;
+  font-size:13px;
+  font-weight:800;
+  padding:0 10px;
+}
+.readonly input,
+.readonly textarea,
+.readonly button{
+  pointer-events:none;
+  opacity:.6;
+}
 .header-report-board-window{
   max-width:100%;
   min-width:0;
