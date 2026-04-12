@@ -405,6 +405,7 @@ let hasLoadedPlaces = false;
 let placeEntryMode = 'manual';
 let placeComposerCategory = '';
 let currentPlaceFilter = 'all';
+let currentPlaceSearch = '';
 let activePlaceId = '';
 const PLACE_CATEGORIES = [
   {value:'숙소', label:'숙소', tone:'lodging', color:'#2563eb'},
@@ -2060,14 +2061,14 @@ function normalizePlaceEntry(entry={}, index=0){
     id:String(entry.id||`place-restored-${Date.now()}-${index}`),
     name,
     category,
+    usageType,
     address:String(entry.address||entry.locationText||'').trim(),
+    memo:String(entry.memo||'').trim(),
+    accessHint:String(entry.accessHint||entry.locationHint||'').trim(),
     lat:Number.isFinite(latValue) ? latValue : null,
     lng:Number.isFinite(lngValue) ? lngValue : null,
     mapUrl,
     rawText,
-    memo:String(entry.memo||'').trim(),
-    accessHint:String(entry.accessHint||entry.locationHint||'').trim(),
-    usageType,
     createdAt
   };
 }
@@ -2182,14 +2183,13 @@ function savePlaceFromPaste(){
 function getPlaceFormValues(){
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
-  const addressInput=document.getElementById('placeAddressInput');
   const memoInput=document.getElementById('placeMemoInput');
   const accessHintInput=document.getElementById('placeAccessHintInput');
   const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
   return {
     name:String(nameInput?.value||'').trim(),
     category:getValidPlaceCategoryValue(categorySelect?.value),
-    address:String(addressInput?.value||'').trim(),
+    address:'',
     memo:String(memoInput?.value||'').trim(),
     accessHint:String(accessHintInput?.value||'').trim(),
     usageType:getValidPlaceUsageTypeValue(usageTypeSelect?.value)
@@ -2199,7 +2199,6 @@ function savePlace(){
   const values=getPlaceFormValues();
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
-  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
   if(!values.name){
     nameInput?.focus();
     return;
@@ -2207,11 +2206,6 @@ function savePlace(){
   if(!values.category){
     window.alert('카테고리를 선택해주세요');
     categorySelect?.focus();
-    return;
-  }
-  if(!values.usageType){
-    window.alert('용도를 선택해주세요');
-    usageTypeSelect?.focus();
     return;
   }
   persistPlaceData({
@@ -2245,6 +2239,10 @@ function setPlaceFilter(filter='all'){
   currentPlaceFilter=String(filter||'all').trim()||'all';
   renderMapPanel();
 }
+function setPlaceSearch(value=''){
+  currentPlaceSearch=String(value||'').trim();
+  renderPlaceResults();
+}
 function focusPlace(placeId=''){
   activePlaceId=String(placeId||'').trim();
   renderMapPanel();
@@ -2254,7 +2252,7 @@ function openPlaceMapUrl(placeId=''){
   const place=placeStore.find(item=>String(item.id)===String(placeId));
   const mapUrl=String(place?.mapUrl||'').trim();
   if(!mapUrl) return;
-  window.open(mapUrl, '_blank', 'noopener');
+  window.open(mapUrl, '_blank');
 }
 function deletePlace(placeId=''){
   loadPlaces();
@@ -2270,30 +2268,17 @@ function deletePlace(placeId=''){
   renderMapPanel();
   focusPanelStart('#detailCol');
 }
-function addRecentPlaceAgain(placeId=''){
-  loadPlaces();
-  const source=placeStore.find(place=>String(place.id)===String(placeId));
-  if(!source) return;
-  placeComposerCategory=getValidPlaceCategoryValue(source.category);
-  placeEntryMode='manual';
-  renderMapPanel();
-  const nameInput=document.getElementById('placeNameInput');
-  const addressInput=document.getElementById('placeAddressInput');
-  const memoInput=document.getElementById('placeMemoInput');
-  const accessHintInput=document.getElementById('placeAccessHintInput');
-  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
-  if(nameInput) nameInput.value=source.name;
-  if(addressInput) addressInput.value=source.address;
-  if(memoInput) memoInput.value=source.memo;
-  if(accessHintInput) accessHintInput.value=source.accessHint;
-  if(usageTypeSelect) usageTypeSelect.value=source.usageType;
-}
 function getFilteredPlaces(){
   loadPlaces();
   const filter=String(currentPlaceFilter||'all');
+  const query=String(currentPlaceSearch||'').trim().toLowerCase();
   return [...placeStore].filter(place=>{
     if(filter.startsWith('usage:')) return place.usageType===filter.slice('usage:'.length);
     return true;
+  }).filter(place=>{
+    if(!query) return true;
+    return [place.name, place.memo, place.accessHint]
+      .some(value=>String(value||'').toLowerCase().includes(query));
   }).sort((a,b)=>String(b.id||'').localeCompare(String(a.id||'')));
 }
 function renderPlaceEntryModeTabs(){
@@ -2307,7 +2292,7 @@ function renderManualPlaceEntrySection(){
   const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
   const usageOptions=renderPlaceUsageTypeOptions();
   const hidden=placeEntryMode==='manual'?'':' hidden';
-  return `<div id="manualEntrySection" class="place-entry-section"${hidden}><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 숙소 앞 식당"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field"><span class="simple-form-label">용도</span><select class="simple-form-input" id="placeUsageTypeSelect">${usageOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">주소 또는 위치명</span><input type="text" class="simple-form-input" id="placeAddressInput" placeholder="예: 메인 게이트 맞은편 / 호텔 로비 옆"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">짧은 메모</span><input type="text" class="simple-form-input" id="placeMemoInput" placeholder="예: 전원 사용 가능, 이동 동선 짧음"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">찾아가는 힌트</span><input type="text" class="simple-form-input" id="placeAccessHintInput" placeholder="예: 호텔 정문에서 왼쪽 골목 30m"></label></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>`;
+  return `<div id="manualEntrySection" class="place-entry-section"${hidden}><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 숙소 앞 식당"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field"><span class="simple-form-label">용도 (선택)</span><select class="simple-form-input" id="placeUsageTypeSelect">${usageOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">한줄 메모</span><input type="text" class="simple-form-input" id="placeMemoInput" placeholder="예: 전원 사용 가능, 이동 동선 짧음"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">찾아가는 힌트</span><input type="text" class="simple-form-input" id="placeAccessHintInput" placeholder="예: 호텔 정문에서 왼쪽 골목 30m"></label></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>`;
 }
 function renderGooglePlaceEntrySection(){
   const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
@@ -2321,6 +2306,14 @@ function renderPlaceEntryPanel(){
 function renderPlaceComposer(){
   return renderPlaceEntryPanel();
 }
+function renderPlaceResults(){
+  const grid=document.getElementById('placeSystemGrid');
+  if(!grid){
+    renderMapPanel();
+    return;
+  }
+  grid.innerHTML=`${renderMapPins()}${renderPlaceList()}`;
+}
 function renderMapPins(){
   const places=getFilteredPlaces();
   if(!places.length){
@@ -2332,32 +2325,25 @@ function renderMapPins(){
   const categorySummary=PLACE_CATEGORIES
     .map(category=>({label:category.label, tone:category.tone, count:places.filter(place=>place.category===category.value).length}))
     .filter(item=>item.count>0);
-  return `<section class="place-map-board place-reference-board" aria-label="현장 기준점 요약"><div class="place-reference-summary"><div class="place-reference-kicker">현장 기준점</div><strong>${places.length}개 저장</strong><p>좌표 핀이 아니라 이동 기준 카드로 관리합니다. 카드의 지도 열기 버튼으로 바로 이동하세요.</p><div class="place-reference-stats">${usageSummary.map(item=>`<span>${escapeHtml(item.type)} ${item.count}개</span>`).join('')||'<span>용도 미지정</span>'}</div><div class="place-reference-categories">${categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}">${escapeHtml(item.label)} ${item.count}</span>`).join('')}</div></div></section>`;
+  return `<section class="place-map-board place-reference-board" aria-label="현장 기준점 요약"><div class="place-reference-summary"><div class="place-reference-kicker">현장 기준점</div><strong>${places.length}개 저장</strong><p>장소 카드를 기준으로 바로 찾고, 지도 열기 버튼으로 곧장 이동합니다.</p><div class="place-reference-stats">${usageSummary.map(item=>`<span>${escapeHtml(item.type)} ${item.count}개</span>`).join('')||'<span>용도 미지정</span>'}</div><div class="place-reference-categories">${categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}">${escapeHtml(item.label)} ${item.count}</span>`).join('')}</div></div></section>`;
 }
 function renderPlaceList(){
   const places=getFilteredPlaces();
   if(!places.length){
     return '<section class="place-list-shell"><div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>';
   }
-  return `<section class="place-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">현장 기준점 카드</h5><p class="map-location-pin-list-meta">${places.length}개 기준점이 저장되어 있습니다.</p></div></header><div class="place-list">${places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const usageBadge=place.usageType?`<span class="place-usage-badge">${escapeHtml(place.usageType)}</span>`:''; const mapButton=place.mapUrl?`<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">지도 열기</button>`:''; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><button type="button" class="place-delete-btn" aria-label="${escapeHtml(place.name)} 삭제" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">×</button><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${usageBadge}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:''}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}${place.accessHint?`<div class="place-access-hint">찾아가는 힌트: ${escapeHtml(place.accessHint)}</div>`:''}${mapButton?`<div class="place-card-actions">${mapButton}</div>`:''}</article>`;}).join('')}</div></section>`;
-}
-function renderRecentPlaces(){
-  loadPlaces();
-  const recent=[...placeStore].sort((a,b)=>String(b.id||'').localeCompare(String(a.id||''))).slice(0,5);
-  if(!recent.length) return '';
-  return `<section class="place-recent-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">최근 등록 5개</h5><p class="map-location-pin-list-meta">현장에서 자주 반복되는 장소를 다시 추가할 수 있습니다.</p></div></header><div class="place-recent-list">${recent.map(place=>`<article class="place-recent-item"><span>${escapeHtml(place.name)}</span><button type="button" class="section-title-action-btn" onclick="addRecentPlaceAgain('${escapeHtml(place.id)}')">다시 추가</button></article>`).join('')}</div></section>`;
+  return `<section class="place-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">현장 기준점 카드</h5><p class="map-location-pin-list-meta">${places.length}개 기준점이 저장되어 있습니다.</p></div></header><div class="place-list">${places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const usageBadge=place.usageType?`<span class="place-usage-badge">${escapeHtml(place.usageType)}</span>`:''; const mapButton=place.mapUrl?`<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">지도 열기</button>`:`<span class="place-map-unavailable">지도 링크 없음</span>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${usageBadge}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:''}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}${place.accessHint?`<div class="place-access-hint">찾아가는 힌트: ${escapeHtml(place.accessHint)}</div>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</div></section>`;
 }
 function renderPlaceFilters(){
   const filterItems=[
     {key:'all', label:'전체'},
     ...PLACE_USAGE_TYPES.map(type=>({key:`usage:${type}`, label:type}))
   ];
-  return `<div class="place-filter-bar">${filterItems.map(item=>`<button type="button" class="section-title-action-btn place-filter-btn${currentPlaceFilter===item.key?' is-active':''}" onclick="setPlaceFilter('${escapeHtml(item.key)}')">${escapeHtml(item.label)}</button>`).join('')}</div>`;
+  return `<section class="place-search-filter-panel" aria-label="장소 검색과 필터"><label class="place-search-field"><span class="simple-form-label">빠른 검색</span><input id="placeSearchInput" class="simple-form-input" type="search" value="${escapeHtml(currentPlaceSearch)}" placeholder="장소명 / 메모 / 힌트 검색" oninput="setPlaceSearch(this.value)"></label><div class="place-filter-bar">${filterItems.map(item=>`<button type="button" class="section-title-action-btn place-filter-btn${currentPlaceFilter===item.key?' is-active':''}" onclick="setPlaceFilter('${escapeHtml(item.key)}')">${escapeHtml(item.label)}</button>`).join('')}</div></section>`;
 }
 function renderPlaceManagementPanel(){
   loadPlaces();
-  const quickActions=`<div class="place-quick-actions"><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('식당')">식당 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('숙소')">숙소 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('병원')">병원 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('방송거점')">방송거점 추가</button><button type="button" class="section-title-action-btn" onclick="openPlaceComposer('')">장소 등록</button></div>`;
-  return `<section class="map-location-pin-shell place-system-shell" aria-label="현장용 장소 데이터 관리"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">현장 장소 데이터</h4></div>${quickActions}</header>${renderPlaceEntryPanel()}${renderPlaceFilters()}<div class="place-system-grid">${renderMapPins()}${renderPlaceList()}</div>${renderRecentPlaces()}</section>`;
+  return `<section class="map-location-pin-shell place-system-shell" aria-label="현장용 장소 데이터 관리"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">현장 장소 데이터</h4><p class="map-location-pin-description">장소를 저장하고, 검색한 뒤, 카드에서 바로 지도 앱을 엽니다.</p></div></header>${renderPlaceEntryPanel()}${renderPlaceFilters()}<div id="placeSystemGrid" class="place-system-grid">${renderMapPins()}${renderPlaceList()}</div></section>`;
 }
 function renderMapSectionPanel(sectionKey){
   return `<section class="simple-info-subpanel is-active" data-map-section="${escapeHtml(sectionKey||'places')}">${renderPlaceManagementPanel()}</section>`;
@@ -3174,7 +3160,7 @@ function renderNewsProgrammingPanelHtml(){
   const dateLabel=formatProgrammingDateNavLabel(activeDateKey);
   const timeLabel=getProgrammingDateTimeLabel();
   const filteredItems=renderNewsProgrammingCards(getFilteredNewsProgrammingItems());
-  return `<tbody><tr><td class="simple-info-cell"><section id="newsProgrammingPanel" class="simple-info-panel news-programming-panel" aria-label="방송 편성표"><section class="news-programming-shell"><div class="programming-date-nav" id="programmingDateNav"><button type="button" id="programmingPrevDayBtn" class="date-nav-arrow" aria-label="전날로 이동" onclick="shiftNewsProgrammingViewDate(-1)">‹</button><div class="programming-date-nav-center"><div id="programmingDateLabel" class="programming-date-label">${escapeHtml(dateLabel)}</div><div id="programmingTimeLabel" class="programming-time-label">${escapeHtml(timeLabel)}</div></div><button type="button" id="programmingNextDayBtn" class="date-nav-arrow" aria-label="다음날로 이동" onclick="shiftNewsProgrammingViewDate(1)">›</button></div>${renderNewsProgrammingSpecialComposer()}${filteredItems}</section></section></td></tr></tbody>`;
+  return `<tbody><tr><td class="simple-info-cell"><section id="newsProgrammingPanel" class="simple-info-panel news-programming-panel" aria-label="방송 편성표"><section class="news-programming-shell"><div class="programming-date-nav" id="programmingDateNav"><button type="button" id="programmingPrevDayBtn" class="date-nav-arrow" aria-label="전날로 이동" onclick="shiftNewsProgrammingViewDate(-1)">‹</button><div class="programming-date-nav-center"><div id="programmingDateLabel" class="programming-date-label">${escapeHtml(dateLabel)}</div><div id="programmingTimeLabel" class="programming-time-label">${escapeHtml(timeLabel)}</div></div><div class="programming-date-nav-actions"><button type="button" id="specialReportToggleBtn" class="section-title-action-btn news-programming-special-toggle${isNewsProgrammingSpecialComposerOpen?' is-active':''}" aria-expanded="${isNewsProgrammingSpecialComposerOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialComposer()">${isNewsProgrammingSpecialComposerOpen?'특보 닫기':'특보'}</button></div><button type="button" id="programmingNextDayBtn" class="date-nav-arrow" aria-label="다음날로 이동" onclick="shiftNewsProgrammingViewDate(1)">›</button></div>${renderNewsProgrammingSpecialComposer()}${filteredItems}</section></section></td></tr></tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -6345,6 +6331,21 @@ function updateMobileSubviewBar(){
   if(shouldShow){
     title.textContent=getMobileSubviewTitle();
   }
+  syncMobileSubviewActions();
+}
+function syncMobileSubviewActions(){
+  const specialBtn=document.getElementById('mobileSpecialReportToggleBtn');
+  if(!specialBtn) return;
+  const bar=document.getElementById('mobileSubviewBar');
+  const shouldShow=isMobileViewport()
+    && !!bar
+    && !bar.classList.contains('hidden')
+    && !!document.getElementById('newsProgrammingMenu')?.classList.contains('active');
+  specialBtn.classList.toggle('hidden', !shouldShow);
+  specialBtn.style.display=shouldShow?'':'none';
+  specialBtn.classList.toggle('is-active', shouldShow&&isNewsProgrammingSpecialComposerOpen);
+  specialBtn.setAttribute('aria-expanded', shouldShow&&isNewsProgrammingSpecialComposerOpen?'true':'false');
+  specialBtn.textContent=isNewsProgrammingSpecialComposerOpen?'특보 닫기':'특보';
 }
 const MOBILE_HISTORY_GUARD_KEY='__worldcupMobileGuard';
 let mobileHistoryGuardInitialized=false;
@@ -6586,6 +6587,7 @@ function clearDetailExtras(){
   document.body.classList.remove('news-editor-modal-open');
   document.onmouseup=null;
   if(detailTitleActions) detailTitleActions.innerHTML='';
+  detailCol.classList.remove('detail-title-hidden');
   detailCol.classList.remove('timeline-mode');
   detailCol.classList.remove('personal-timeline-mode');
   detailCol.classList.remove('mexico-stadium-mode');
@@ -6616,8 +6618,9 @@ function renderMobileNewsMenu(){
 }
 function renderMapPanel(){
   clearDetailExtras();
-  document.getElementById('detailTitle').textContent='MAP';
+  document.getElementById('detailTitle').textContent='';
   document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailCol').classList.add('detail-title-hidden');
   document.getElementById('detailTable').className='data-table simple-info-table map-panel-table';
   renderCache.mapPanel=renderMapPanelHtml();
   document.getElementById('detailTable').innerHTML=renderCache.mapPanel;
@@ -6625,12 +6628,9 @@ function renderMapPanel(){
 }
 function renderNewsProgrammingPanel(){
   clearDetailExtras();
-  document.getElementById('detailTitle').textContent='방송 편성표';
+  document.getElementById('detailTitle').textContent='';
   document.getElementById('detailSubtitle').textContent='';
-  const detailTitleActions=document.getElementById('detailTitleActions');
-  if(detailTitleActions){
-    detailTitleActions.innerHTML=`<button type="button" id="specialReportToggleBtn" class="section-title-action-btn news-programming-special-toggle${isNewsProgrammingSpecialComposerOpen?' is-active':''}" aria-expanded="${isNewsProgrammingSpecialComposerOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialComposer()">${isNewsProgrammingSpecialComposerOpen?'특보 닫기':'특보'}</button>`;
-  }
+  document.getElementById('detailCol').classList.add('detail-title-hidden');
   document.getElementById('detailTable').className='data-table simple-info-table news-programming-table';
   renderCache.newsProgrammingPanel=renderNewsProgrammingPanelHtml();
   document.getElementById('detailTable').innerHTML=renderCache.newsProgrammingPanel;
