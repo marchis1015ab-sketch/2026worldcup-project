@@ -6280,9 +6280,13 @@ textarea.simple-form-input,
   }
 
   .programming-date-nav{
-    grid-template-columns:auto minmax(0,1fr) auto auto;
+    grid-template-columns:auto minmax(0,1fr) auto;
     gap:8px;
     padding:10px;
+  }
+
+  .programming-date-nav-actions{
+    display:none;
   }
 
   .programming-date-nav-center{
@@ -6306,13 +6310,6 @@ textarea.simple-form-input,
   .news-programming-header-actions .section-title-action-btn,
   .news-programming-special-actions .section-title-action-btn{
     width:100%;
-  }
-
-  .programming-date-nav-actions .news-programming-special-toggle{
-    width:auto;
-    min-width:54px;
-    min-height:40px;
-    padding:0 10px;
   }
 
   .programming-detail-title-row .news-programming-special-toggle{
