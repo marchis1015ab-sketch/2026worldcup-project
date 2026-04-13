@@ -3413,6 +3413,7 @@ const PERSONAL_TIMELINE_SHARED_STORAGE_KEY = 'worldcup-guide-personal-timeline-s
 const PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineShared__';
 const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-v1';
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
+const TIMELINE_GALLERY_STORAGE_KEY = 'worldcup_timeline_gallery_v1';
 const HEADER_REPORT_BOARD_RECENT_STORAGE_KEY = 'worldcup-guide-header-report-board-recent-v1';
 const HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY = '__worldcupGuideHeaderReportBoardRecent__';
 const SHARED_STATE_SYNC_SUPABASE_URL = window.APP_CONFIG?.supabaseUrl||'';
@@ -3557,6 +3558,12 @@ let pendingTimelineSelection = null;
 let timelineModalMediaSeq = 0;
 let personalTimelineSharedEditingDateKey = '';
 let personalTimelineSharedDeletingDateKey = '';
+let hasLoadedTimelineGalleryEntries = false;
+let timelineGalleryEntrySeq = 0;
+let timelineGalleryImageSeq = 0;
+let isTimelineGalleryComposerOpen = false;
+let isTimelineGalleryDeleteMode = false;
+let timelineGalleryPreviewState = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
@@ -3583,6 +3590,9 @@ const headerReportBoardLaneSnapshots = {
 };
 const personalTimelineDetailSelections = Object.create(null);
 const personalTimelineSharedEntries = Object.create(null);
+let timelineGalleryEntries = [];
+let timelineGalleryComposerState = {date:'', title:'', memo:'', images:[]};
+const timelineGallerySelectedIds = new Set();
 const headerReportBoardRecentMarks = Object.create(null);
 let hasLoadedHeaderReportBoardRecentMarks = false;
 
@@ -5431,7 +5441,7 @@ function renderPersonalTimelineMobileNavigator(){
   return `<div class="personal-timeline-mobile-nav"><div class="personal-timeline-mobile-nav-top"><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-prev" aria-label="이전 날짜">‹</button><div class="personal-timeline-mobile-nav-center"><span class="personal-timeline-mobile-nav-label"></span><button type="button" class="personal-timeline-mobile-nav-calendar" aria-label="날짜 선택"><span class="personal-timeline-mobile-nav-calendar-icon" aria-hidden="true"></span><span class="sr-only">날짜 선택</span></button><input type="date" class="personal-timeline-mobile-nav-picker" aria-label="날짜 선택"></div><button type="button" class="personal-timeline-mobile-nav-arrow personal-timeline-mobile-nav-next" aria-label="다음 날짜">›</button></div><div class="personal-timeline-mobile-nav-time" aria-live="polite"></div></div>`;
 }
 function renderPersonalTimelineTopbar(){
-  return `<div class="personal-timeline-topbar is-mobile-a-structure"><div class="personal-timeline-topbar-main">${renderPersonalTimelineMobileNavigator()}<span class="personal-timeline-month-sticky"></span><div class="personal-timeline-quick-actions"><button type="button" class="personal-timeline-quick-btn" data-timeline-action="top">맨 위로</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div></div>`;
+  return `<div class="personal-timeline-topbar is-mobile-a-structure"><div class="personal-timeline-topbar-main">${renderPersonalTimelineMobileNavigator()}<span class="personal-timeline-month-sticky"></span><div class="personal-timeline-quick-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="top">맨 위로</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div></div>`;
 }
 function createTimelineExportButton(){
   const button=document.createElement('button');
@@ -5616,6 +5626,411 @@ function readTimelineModalFiles(files){
     reader.onerror=()=>resolve(null);
     reader.readAsDataURL(file);
   }))).then(items=>items.filter(Boolean));
+}
+function createTimelineGalleryEntryId(){
+  timelineGalleryEntrySeq+=1;
+  return `gallery_${Date.now()}_${timelineGalleryEntrySeq}`;
+}
+function createTimelineGalleryImageId(){
+  timelineGalleryImageSeq+=1;
+  return `img_${Date.now()}_${timelineGalleryImageSeq}`;
+}
+function readTimelineGalleryRaw(){
+  if(typeof window==='undefined') return '';
+  try{
+    return window.localStorage?.getItem(TIMELINE_GALLERY_STORAGE_KEY)||window.sessionStorage?.getItem(TIMELINE_GALLERY_STORAGE_KEY)||'';
+  }catch(error){
+    return '';
+  }
+}
+function writeTimelineGalleryRaw(raw){
+  if(typeof window==='undefined') return;
+  try{
+    window.localStorage?.setItem(TIMELINE_GALLERY_STORAGE_KEY, raw);
+  }catch(error){
+    console.warn('Failed to save timeline gallery.', error);
+  }
+  try{
+    window.sessionStorage?.setItem(TIMELINE_GALLERY_STORAGE_KEY, raw);
+  }catch(error){
+  }
+}
+function normalizeTimelineGalleryDate(value=''){
+  const date=String(value||'').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
+}
+function normalizeTimelineGalleryImage(image){
+  const dataUrl=String(image?.dataUrl||image?.src||'').trim();
+  if(!dataUrl) return null;
+  return {
+    id:String(image?.id||createTimelineGalleryImageId()),
+    name:String(image?.name||'photo.jpg').trim()||'photo.jpg',
+    dataUrl
+  };
+}
+function normalizeTimelineGalleryEntry(entry){
+  const date=normalizeTimelineGalleryDate(entry?.date||'');
+  const title=String(entry?.title||'').trim();
+  const memo=String(entry?.memo||'').trim();
+  const images=Array.isArray(entry?.images) ? entry.images.map(normalizeTimelineGalleryImage).filter(Boolean) : [];
+  if(!date||!title||!images.length) return null;
+  const createdAt=String(entry?.createdAt||'').trim();
+  return {
+    id:String(entry?.id||createTimelineGalleryEntryId()),
+    date,
+    title,
+    memo,
+    images,
+    createdAt:Number.isNaN(Date.parse(createdAt)) ? new Date().toISOString() : createdAt
+  };
+}
+function sortTimelineGalleryEntries(entries=[]){
+  return [...entries].sort((a,b)=>{
+    const dateCompare=String(b.date||'').localeCompare(String(a.date||''));
+    if(dateCompare) return dateCompare;
+    return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+  });
+}
+function loadTimelineGalleryEntries(){
+  if(hasLoadedTimelineGalleryEntries) return;
+  hasLoadedTimelineGalleryEntries=true;
+  const raw=readTimelineGalleryRaw();
+  if(!raw) return;
+  try{
+    const parsed=JSON.parse(raw);
+    timelineGalleryEntries=sortTimelineGalleryEntries(Array.isArray(parsed) ? parsed.map(normalizeTimelineGalleryEntry).filter(Boolean) : []);
+    saveTimelineGalleryEntries();
+  }catch(error){
+    console.warn('Failed to load timeline gallery.', error);
+  }
+}
+function saveTimelineGalleryEntries(){
+  timelineGalleryEntries=sortTimelineGalleryEntries(timelineGalleryEntries.map(normalizeTimelineGalleryEntry).filter(Boolean));
+  writeTimelineGalleryRaw(JSON.stringify(timelineGalleryEntries));
+}
+function createTimelineGalleryComposerState(){
+  return {date:getTodayTimelineKey(), title:'', memo:'', images:[]};
+}
+function resetTimelineGalleryComposerState(){
+  timelineGalleryComposerState=createTimelineGalleryComposerState();
+}
+function updateTimelineGalleryComposerStateFromForm(root=document){
+  const form=root.querySelector?.('.timeline-gallery-form');
+  if(!form) return;
+  timelineGalleryComposerState.date=String(form.querySelector('[data-gallery-field="date"]')?.value||'').trim();
+  timelineGalleryComposerState.title=String(form.querySelector('[data-gallery-field="title"]')?.value||'').trim();
+  timelineGalleryComposerState.memo=String(form.querySelector('[data-gallery-field="memo"]')?.value||'').trim();
+}
+function readTimelineGalleryFiles(files){
+  return Promise.all(Array.from(files||[]).filter(file=>!file.type||String(file.type).startsWith('image/')).map(file=>new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve({
+      id:createTimelineGalleryImageId(),
+      name:file.name||'photo.jpg',
+      dataUrl:String(reader.result||'')
+    });
+    reader.onerror=()=>resolve(null);
+    reader.readAsDataURL(file);
+  }))).then(items=>items.filter(Boolean));
+}
+function formatTimelineGalleryDateLabel(dateKey=''){
+  const [year, month, day]=String(dateKey).split('-').map(Number);
+  if(!year||!month||!day) return dateKey;
+  const date=new Date(year, month-1, day);
+  const weekdays=['일','월','화','수','목','금','토'];
+  return `${year}년 ${month}월 ${day}일 (${weekdays[date.getDay()]})`;
+}
+function formatTimelineGalleryCreatedAt(value=''){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('ko-KR', {
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit'
+  }).format(date);
+}
+function getTimelineGalleryDateGroups(){
+  loadTimelineGalleryEntries();
+  const grouped=new Map();
+  sortTimelineGalleryEntries(timelineGalleryEntries).forEach(entry=>{
+    if(!grouped.has(entry.date)) grouped.set(entry.date, []);
+    grouped.get(entry.date).push(entry);
+  });
+  return Array.from(grouped.entries()).map(([date, entries])=>({date, entries}));
+}
+function renderTimelineGalleryComposerPreview(){
+  const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images : [];
+  if(!images.length) return '<div class="timeline-gallery-preview-empty">선택된 사진이 없습니다.</div>';
+  return images.map(image=>`<figure class="timeline-gallery-preview-item"><img src="${image.dataUrl}" alt="${escapeHtml(image.name)}"><figcaption>${escapeHtml(image.name)}</figcaption><button type="button" class="timeline-gallery-preview-remove" data-gallery-remove-image="${escapeHtml(image.id)}" aria-label="${escapeHtml(image.name)} 삭제">×</button></figure>`).join('');
+}
+function renderGalleryForm(){
+  const state=timelineGalleryComposerState.date ? timelineGalleryComposerState : createTimelineGalleryComposerState();
+  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진 기록 작성</h4><p>현장사진과 준비사진을 날짜별로 남겨두세요.</p></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">날짜</span><input type="date" class="simple-form-input" data-gallery-field="date" value="${escapeHtml(state.date||getTodayTimelineKey())}" required></label><label class="simple-form-field"><span class="simple-form-label">제목</span><input type="text" class="simple-form-input" data-gallery-field="title" value="${escapeHtml(state.title||'')}" placeholder="멕시코 도착 / 경기장 답사 / 촬영 준비" required></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진첨부</span><input type="file" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea timeline-gallery-memo" data-gallery-field="memo" placeholder="현장 동선, 장비 상태, 참고사항">${escapeHtml(state.memo||'')}</textarea></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
+}
+function renderTimelineGalleryCard(entry){
+  const isSelected=timelineGallerySelectedIds.has(entry.id);
+  const representative=entry.images[0];
+  const extraImages=entry.images.slice(1);
+  const deleteControl=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-card-check"><input type="checkbox" data-gallery-check="${escapeHtml(entry.id)}"${isSelected?' checked':''}><span>선택</span></label>` : '';
+  const extraHtml=extraImages.length ? `<div class="timeline-gallery-thumb-grid">${extraImages.map((image,index)=>`<button type="button" class="timeline-gallery-thumb-btn" data-gallery-preview="${escapeHtml(entry.id)}" data-image-index="${index+1}"><img src="${image.dataUrl}" alt="${escapeHtml(image.name)}"></button>`).join('')}</div>` : '';
+  const memoHtml=entry.memo ? `<p class="timeline-gallery-card-memo">${escapeHtml(entry.memo)}</p>` : '';
+  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}" data-gallery-id="${escapeHtml(entry.id)}">${deleteControl}<button type="button" class="timeline-gallery-main-image" data-gallery-preview="${escapeHtml(entry.id)}" data-image-index="0"><img src="${representative.dataUrl}" alt="${escapeHtml(representative.name)}"></button>${extraHtml}<div class="timeline-gallery-card-body"><h4>${escapeHtml(entry.title)}</h4>${memoHtml}<time>${escapeHtml(formatTimelineGalleryCreatedAt(entry.createdAt))}</time></div></article>`;
+}
+function renderTimelineGalleryList(){
+  const groups=getTimelineGalleryDateGroups();
+  if(!groups.length){
+    return '<div class="timeline-gallery-empty">등록된 사진이 없습니다.</div>';
+  }
+  return `<div class="timeline-gallery-date-list">${groups.map(group=>`<section class="timeline-gallery-date-section"><header class="timeline-gallery-date-header"><h4>${escapeHtml(formatTimelineGalleryDateLabel(group.date))}</h4><span>${group.entries.length}건</span></header><div class="timeline-gallery-grid">${group.entries.map(renderTimelineGalleryCard).join('')}</div></section>`).join('')}</div>`;
+}
+function renderGalleryView(){
+  loadTimelineGalleryEntries();
+  const selectedCount=timelineGallerySelectedIds.size;
+  const deleteButtonText=isTimelineGalleryDeleteMode ? '삭제 종료' : '삭제';
+  const selectedDeleteHtml=isTimelineGalleryDeleteMode ? `<button type="button" class="section-title-action-btn delete" data-gallery-action="delete-selected"${selectedCount?'':' disabled aria-disabled="true"'}>선택 삭제${selectedCount?` ${selectedCount}`:''}</button>` : '';
+  return `<section class="timeline-gallery-view" aria-label="날짜별 갤러리"><header class="timeline-gallery-header"><div><span class="timeline-gallery-eyebrow">일정타임라인</span><h3>날짜별 갤러리</h3></div><div class="timeline-gallery-actions"><button type="button" class="section-title-action-btn" data-gallery-action="back">뒤로가기</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="open-form">작성</button><button type="button" class="section-title-action-btn delete${isTimelineGalleryDeleteMode?' is-active':''}" data-gallery-action="toggle-delete">${deleteButtonText}</button>${selectedDeleteHtml}</div></header>${isTimelineGalleryComposerOpen ? renderGalleryForm() : ''}${renderTimelineGalleryList()}</section>`;
+}
+function refreshTimelineGalleryView(){
+  const root=document.querySelector('.timeline-gallery-view');
+  if(!root) return;
+  root.outerHTML=renderGalleryView();
+  bindTimelineGalleryViewEvents();
+}
+function openTimelineGalleryView(){
+  const detailCol=document.getElementById('detailCol');
+  const detailTable=document.getElementById('detailTable');
+  if(!detailCol||!detailTable) return;
+  if(personalTimelineStickyMonthCleanup){
+    personalTimelineStickyMonthCleanup();
+    personalTimelineStickyMonthCleanup=null;
+  }
+  cancelTimelineSelection();
+  closeTimelineModal();
+  hideTimelineTooltip();
+  document.body.classList.remove('timeline-modal-open');
+  detailCol.onclick=null;
+  detailCol.classList.add('timeline-mode','personal-timeline-mode','personal-timeline-gallery-mode');
+  document.getElementById('detailTitle').textContent='일정타임라인';
+  document.getElementById('detailSubtitle').textContent='';
+  detailTable.parentElement.classList.add('timeline-card','personal-timeline-card','timeline-gallery-shell-card');
+  detailTable.className='data-table hidden';
+  detailTable.innerHTML='';
+  detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list,.timeline-gallery-view').forEach(node=>node.remove());
+  detailTable.insertAdjacentHTML('afterend', renderGalleryView());
+  bindTimelineGalleryViewEvents();
+  document.getElementById('detailCol').classList.remove('hidden');
+  updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
+}
+function closeTimelineGalleryView(){
+  isTimelineGalleryComposerOpen=false;
+  isTimelineGalleryDeleteMode=false;
+  timelineGallerySelectedIds.clear();
+  resetTimelineGalleryComposerState();
+  closeTimelineGalleryModal();
+  renderTimelineSchedule('personal');
+}
+function toggleTimelineGalleryForm(){
+  isTimelineGalleryComposerOpen=!isTimelineGalleryComposerOpen;
+  if(isTimelineGalleryComposerOpen){
+    resetTimelineGalleryComposerState();
+  }
+  refreshTimelineGalleryView();
+}
+function cancelTimelineGalleryForm(){
+  isTimelineGalleryComposerOpen=false;
+  resetTimelineGalleryComposerState();
+  refreshTimelineGalleryView();
+}
+function toggleTimelineGalleryDeleteMode(){
+  isTimelineGalleryDeleteMode=!isTimelineGalleryDeleteMode;
+  timelineGallerySelectedIds.clear();
+  refreshTimelineGalleryView();
+}
+function saveGalleryEntry(){
+  const root=document.querySelector('.timeline-gallery-view')||document;
+  updateTimelineGalleryComposerStateFromForm(root);
+  const date=normalizeTimelineGalleryDate(timelineGalleryComposerState.date);
+  const title=String(timelineGalleryComposerState.title||'').trim();
+  const memo=String(timelineGalleryComposerState.memo||'').trim();
+  const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images.map(normalizeTimelineGalleryImage).filter(Boolean) : [];
+  if(!date){
+    window.alert('날짜를 선택해주세요.');
+    return;
+  }
+  if(!title){
+    window.alert('제목을 입력해주세요.');
+    return;
+  }
+  if(!images.length){
+    window.alert('사진을 1장 이상 첨부해주세요.');
+    return;
+  }
+  loadTimelineGalleryEntries();
+  timelineGalleryEntries.push({
+    id:createTimelineGalleryEntryId(),
+    date,
+    title,
+    memo,
+    images,
+    createdAt:new Date().toISOString()
+  });
+  saveTimelineGalleryEntries();
+  isTimelineGalleryComposerOpen=false;
+  resetTimelineGalleryComposerState();
+  refreshTimelineGalleryView();
+}
+function deleteGalleryEntries(){
+  if(!timelineGallerySelectedIds.size) return;
+  const confirmed=window.confirm(`선택한 갤러리 카드 ${timelineGallerySelectedIds.size}개를 삭제하시겠습니까?`);
+  if(!confirmed) return;
+  loadTimelineGalleryEntries();
+  timelineGalleryEntries=timelineGalleryEntries.filter(entry=>!timelineGallerySelectedIds.has(entry.id));
+  timelineGallerySelectedIds.clear();
+  if(!timelineGalleryEntries.length) isTimelineGalleryDeleteMode=false;
+  saveTimelineGalleryEntries();
+  refreshTimelineGalleryView();
+}
+function updateTimelineGalleryComposerPreview(){
+  const preview=document.getElementById('timelineGalleryComposerPreview');
+  if(preview) preview.innerHTML=renderTimelineGalleryComposerPreview();
+}
+function bindTimelineGalleryViewEvents(){
+  const root=document.querySelector('.timeline-gallery-view');
+  if(!root) return;
+  root.onclick=event=>{
+    const actionButton=event.target.closest('[data-gallery-action]');
+    if(actionButton&&root.contains(actionButton)){
+      const action=actionButton.dataset.galleryAction;
+      if(action==='back') closeTimelineGalleryView();
+      if(action==='open-form') toggleTimelineGalleryForm();
+      if(action==='cancel-form') cancelTimelineGalleryForm();
+      if(action==='save') saveGalleryEntry();
+      if(action==='toggle-delete') toggleTimelineGalleryDeleteMode();
+      if(action==='delete-selected') deleteGalleryEntries();
+      return;
+    }
+    const removeButton=event.target.closest('[data-gallery-remove-image]');
+    if(removeButton&&root.contains(removeButton)){
+      const imageId=removeButton.dataset.galleryRemoveImage||'';
+      timelineGalleryComposerState.images=(timelineGalleryComposerState.images||[]).filter(image=>image.id!==imageId);
+      updateTimelineGalleryComposerPreview();
+      return;
+    }
+    const previewButton=event.target.closest('[data-gallery-preview]');
+    if(previewButton&&root.contains(previewButton)){
+      openGalleryModal(previewButton.dataset.galleryPreview||'', Number(previewButton.dataset.imageIndex||0));
+    }
+  };
+  root.oninput=event=>{
+    if(event.target.closest('.timeline-gallery-form')) updateTimelineGalleryComposerStateFromForm(root);
+  };
+  root.onchange=async event=>{
+    const check=event.target.closest('[data-gallery-check]');
+    if(check&&root.contains(check)){
+      if(check.checked){
+        timelineGallerySelectedIds.add(check.dataset.galleryCheck||'');
+      }else{
+        timelineGallerySelectedIds.delete(check.dataset.galleryCheck||'');
+      }
+      refreshTimelineGalleryView();
+      return;
+    }
+    const fileInput=event.target.closest('.timeline-gallery-file-input');
+    if(fileInput&&root.contains(fileInput)){
+      updateTimelineGalleryComposerStateFromForm(root);
+      const nextImages=await readTimelineGalleryFiles(fileInput.files);
+      timelineGalleryComposerState.images=[...(timelineGalleryComposerState.images||[]), ...nextImages];
+      updateTimelineGalleryComposerPreview();
+      fileInput.value='';
+    }
+  };
+}
+function getTimelineGalleryEntry(entryId=''){
+  loadTimelineGalleryEntries();
+  return timelineGalleryEntries.find(entry=>entry.id===entryId)||null;
+}
+function ensureTimelineGalleryModal(){
+  if(document.getElementById('timelineGalleryModal')) return;
+  const mount=document.getElementById('timelineGalleryModalMount')||document.body;
+  mount.insertAdjacentHTML('beforeend', `<div id="timelineGalleryModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-gallery-modal-close="true"></div><div class="timeline-gallery-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineGalleryModalTitle"><button type="button" class="timeline-gallery-modal-close" data-gallery-modal-close="true" aria-label="닫기">×</button><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-prev" data-gallery-modal-step="-1" aria-label="이전 사진">‹</button><figure class="timeline-gallery-modal-figure"><img id="timelineGalleryModalImage" src="" alt=""><figcaption><h3 id="timelineGalleryModalTitle"></h3><p id="timelineGalleryModalMeta"></p></figcaption></figure><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-next" data-gallery-modal-step="1" aria-label="다음 사진">›</button></div></div>`);
+  const modal=document.getElementById('timelineGalleryModal');
+  modal.addEventListener('click', event=>{
+    if(event.target.closest('[data-gallery-modal-close]')){
+      closeTimelineGalleryModal();
+      return;
+    }
+    const stepButton=event.target.closest('[data-gallery-modal-step]');
+    if(stepButton){
+      moveTimelineGalleryModal(Number(stepButton.dataset.galleryModalStep||0));
+    }
+  });
+  modal.addEventListener('keydown', event=>{
+    if(event.key==='Escape'){
+      closeTimelineGalleryModal();
+      return;
+    }
+    if(event.key==='ArrowLeft') moveTimelineGalleryModal(-1);
+    if(event.key==='ArrowRight') moveTimelineGalleryModal(1);
+  });
+}
+function renderTimelineGalleryModal(){
+  const modal=document.getElementById('timelineGalleryModal');
+  if(!modal||!timelineGalleryPreviewState) return;
+  const entry=getTimelineGalleryEntry(timelineGalleryPreviewState.entryId);
+  if(!entry){
+    closeTimelineGalleryModal();
+    return;
+  }
+  const images=entry.images||[];
+  const index=Math.max(0, Math.min(images.length-1, Number(timelineGalleryPreviewState.imageIndex)||0));
+  const image=images[index];
+  if(!image){
+    closeTimelineGalleryModal();
+    return;
+  }
+  timelineGalleryPreviewState.imageIndex=index;
+  const imageEl=document.getElementById('timelineGalleryModalImage');
+  const titleEl=document.getElementById('timelineGalleryModalTitle');
+  const metaEl=document.getElementById('timelineGalleryModalMeta');
+  const prevButton=modal.querySelector('.timeline-gallery-modal-prev');
+  const nextButton=modal.querySelector('.timeline-gallery-modal-next');
+  if(imageEl){
+    imageEl.src=image.dataUrl;
+    imageEl.alt=image.name||entry.title;
+  }
+  if(titleEl) titleEl.textContent=entry.title;
+  if(metaEl) metaEl.textContent=`${formatTimelineGalleryDateLabel(entry.date)} · ${index+1}/${images.length}`;
+  if(prevButton) prevButton.disabled=images.length<2;
+  if(nextButton) nextButton.disabled=images.length<2;
+}
+function openGalleryModal(entryId='', imageIndex=0){
+  const entry=getTimelineGalleryEntry(entryId);
+  if(!entry) return;
+  ensureTimelineGalleryModal();
+  timelineGalleryPreviewState={entryId, imageIndex:Number.isFinite(imageIndex) ? imageIndex : 0};
+  renderTimelineGalleryModal();
+  const modal=document.getElementById('timelineGalleryModal');
+  document.body.classList.add('timeline-modal-open');
+  modal.classList.remove('hidden');
+  modal.focus();
+}
+function moveTimelineGalleryModal(step=0){
+  if(!timelineGalleryPreviewState) return;
+  const entry=getTimelineGalleryEntry(timelineGalleryPreviewState.entryId);
+  const images=entry?.images||[];
+  if(images.length<2) return;
+  const nextIndex=(Number(timelineGalleryPreviewState.imageIndex||0)+step+images.length)%images.length;
+  timelineGalleryPreviewState.imageIndex=nextIndex;
+  renderTimelineGalleryModal();
+}
+function closeTimelineGalleryModal(){
+  const modal=document.getElementById('timelineGalleryModal');
+  if(modal) modal.classList.add('hidden');
+  timelineGalleryPreviewState=null;
+  if(!document.querySelector('.timeline-modal:not(.hidden)')) document.body.classList.remove('timeline-modal-open');
 }
 function renderPersonalTimelinePersonRow(name, dateKey){
   const fieldClassMap={시간:'time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
@@ -5911,9 +6326,11 @@ function renderPersonalTimelineSchedule(view){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
   detailCol.classList.add('timeline-mode','personal-timeline-mode');
+  detailCol.classList.remove('personal-timeline-gallery-mode');
   document.getElementById('detailTitle').textContent=view.title;
   document.getElementById('detailSubtitle').textContent='';
   detailTable.parentElement.classList.add('timeline-card','personal-timeline-card');
+  detailTable.parentElement.classList.remove('timeline-gallery-shell-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
   detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list').forEach(node=>node.remove());
@@ -6062,6 +6479,10 @@ function renderPersonalTimelineSchedule(view){
     detailCol.querySelectorAll('.personal-timeline-quick-btn[data-timeline-action]').forEach(button=>{
       button.onclick=event=>{
         event.stopPropagation();
+        if(button.dataset.timelineAction==='gallery'){
+          openTimelineGalleryView();
+          return;
+        }
         if(button.dataset.timelineAction==='top'){
           scrollPersonalTimelineToTop({behavior:'smooth'});
           return;
@@ -6826,6 +7247,7 @@ function clearDetailExtras(){
   closeSquadInjuryModal();
   closeMexicoStadiumEditorModal();
   closeEquipmentEditorModal();
+  closeTimelineGalleryModal();
   hideTimelineTooltip();
   document.body.classList.remove('timeline-modal-open');
   document.body.classList.remove('news-editor-modal-open');
@@ -6834,9 +7256,11 @@ function clearDetailExtras(){
   detailCol.classList.remove('detail-title-hidden');
   detailCol.classList.remove('timeline-mode');
   detailCol.classList.remove('personal-timeline-mode');
+  detailCol.classList.remove('personal-timeline-gallery-mode');
   detailCol.classList.remove('mexico-stadium-mode');
   detailTable.parentElement.classList.remove('timeline-card');
   detailTable.parentElement.classList.remove('personal-timeline-card');
+  detailTable.parentElement.classList.remove('timeline-gallery-shell-card');
   detailTable.parentElement.classList.remove('mobile-table-scroll-card');
   detailTable.parentElement.classList.remove('equipment-table-wrapper');
   detailTable.className='data-table';
