@@ -2,3 +2,4 @@
 *.log
 .serve*
 node_modules/
+.vercel
