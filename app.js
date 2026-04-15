@@ -2545,11 +2545,12 @@ async function savePlaceFromPaste(){
 function getPlaceFormValues(){
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
+  const memoInput=document.getElementById('placeMemoInput');
   return {
     name:String(nameInput?.value||'').trim(),
     category:getValidPlaceCategoryValue(categorySelect?.value),
     address:'',
-    memo:'',
+    memo:String(memoInput?.value||'').trim(),
     accessHint:'',
     usageType:''
   };
@@ -2584,7 +2585,11 @@ async function savePlace(){
     rawText:'',
     createdAt:getTodayLocalDateString()
   });
-  if(saved&&nameInput) nameInput.value='';
+  if(saved){
+    if(nameInput) nameInput.value='';
+    const memoInput=document.getElementById('placeMemoInput');
+    if(memoInput) memoInput.value='';
+  }
 }
 function openPlaceComposer(category=''){
   placeComposerCategory=getValidPlaceCategoryValue(category);
@@ -2686,7 +2691,7 @@ function setPlaceCategoryFilter(category='all', checked=true){
 }
 function renderPlaceEntryPanel(){
   const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
-  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 저장</div><p class="map-location-pin-description">팀원이 함께 볼 장소명을 입력하면 자동 검색 후 지도 핀과 목록에 저장합니다.</p></div></div><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">상호/장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 먹골촌" onkeydown="if(event.key==='Enter'){savePlace();}"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>${renderPlaceFilters()}</section>`;
+  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 저장</div><p class="map-location-pin-description">팀원이 함께 볼 장소명을 입력하면 자동 검색 후 지도 핀과 목록에 저장합니다.</p></div></div><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">상호/장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 먹골촌" onkeydown="if(event.key==='Enter'){savePlace();}"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">추가 메모</span><textarea id="placeMemoInput" class="simple-form-input simple-form-textarea" rows="2" placeholder="예: 단체 식사 가능, 주차 확인 필요"></textarea></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>${renderPlaceFilters()}</section>`;
 }
 function renderPlaceComposer(){
   return renderPlaceEntryPanel();
