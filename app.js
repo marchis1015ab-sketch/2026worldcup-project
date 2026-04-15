@@ -402,11 +402,27 @@ const mapSectionComposerState = {region:false,lodging:false};
 const MAP_PLACES_STORAGE_KEY = 'map_places';
 const placeStore = [];
 let hasLoadedPlaces = false;
-let placeEntryMode = 'manual';
+let isHydratingPlaceCoordinates = false;
+let hasHydratedPlaceCoordinates = false;
 let placeComposerCategory = '';
-let currentPlaceFilter = 'all';
 let currentPlaceSearch = '';
 let activePlaceId = '';
+let selectedPlaceCategories = [];
+let mapInstance = null;
+let markers = [];
+let placeMarkerMap = new Map();
+let googleMapsLoaderPromise = null;
+const MAP_DEFAULT_CENTER = {lat:23.6345, lng:-102.5528};
+const KNOWN_KOREAN_PLACE_FALLBACKS = [
+  {
+    keywords:['먹골촌'],
+    name:'먹골촌',
+    address:'인천광역시 강화군 화도면 해안남로 1147',
+    lat:37.613643925202,
+    lng:126.45648516423,
+    placeId:''
+  }
+];
 const PLACE_CATEGORIES = [
   {value:'숙소', label:'숙소', tone:'lodging', color:'#2563eb'},
   {value:'식당', label:'식당', tone:'restaurant', color:'#f97316'},
@@ -2060,6 +2076,269 @@ function renderPlaceUsageTypeOptions(selectedValue='', placeholder='용도 선�
 function createPlaceId(){
   return `place-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 }
+function hasPlaceCoordinates(place={}){
+  return Number.isFinite(Number(place.lat))&&Number.isFinite(Number(place.lng));
+}
+function buildGoogleMapsPlaceUrl(place={}){
+  if(hasPlaceCoordinates(place)){
+    const query=`${Number(place.lat)},${Number(place.lng)}`;
+    const placeId=String(place.placeId||'').trim();
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}${placeId?`&query_place_id=${encodeURIComponent(placeId)}`:''}`;
+  }
+  const query=[place.name, place.address].map(value=>String(value||'').trim()).filter(Boolean).join(' ');
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
+}
+function buildMapUrl(place={}){
+  return buildGoogleMapsPlaceUrl(place);
+}
+function extractCoordinatesFromText(value=''){
+  const text=String(value||'');
+  const atMatch=text.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if(atMatch) return {lat:Number(atMatch[1]), lng:Number(atMatch[2])};
+  const googleDataMatch=text.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if(googleDataMatch) return {lat:Number(googleDataMatch[1]), lng:Number(googleDataMatch[2])};
+  const queryMatch=text.match(/[?&]query=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+  if(queryMatch) return {lat:Number(queryMatch[1]), lng:Number(queryMatch[2])};
+  return null;
+}
+function normalizePlaceSearchResult(result={}, fallbackQuery=''){
+  const lat=Number(result.lat);
+  const lng=Number(result.lng);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+  const place={
+    name:String(result.name||fallbackQuery||'').trim(),
+    address:String(result.address||result.formatted_address||'').trim(),
+    lat,
+    lng,
+    placeId:String(result.placeId||result.place_id||'').trim()
+  };
+  place.mapUrl=String(result.mapUrl||'').trim()||buildGoogleMapsPlaceUrl(place);
+  return place.name ? place : null;
+}
+function getGoogleMapsApiKey(){
+  if(typeof window==='undefined') return '';
+  const storedKey=window.localStorage ? window.localStorage.getItem('googleMapsApiKey') : '';
+  return String(window.APP_CONFIG?.googleMapsApiKey||window.GOOGLE_MAPS_API_KEY||storedKey||'').trim();
+}
+function isGoogleMapsApiReady(){
+  return typeof google!=='undefined'&&Boolean(google.maps);
+}
+function isGooglePlacesApiReady(){
+  return isGoogleMapsApiReady()&&Boolean(google.maps.places?.PlacesService);
+}
+function debugMapSearch(...args){
+  if(typeof window!=='undefined'&&window.MAP_SEARCH_DEBUG) console.log('[MAP]', ...args);
+}
+async function ensureGoogleMapsApiLoaded(){
+  if(typeof window==='undefined'||typeof document==='undefined') return Promise.resolve(false);
+  if(isGoogleMapsApiReady()){
+    if(isGooglePlacesApiReady()) return true;
+    if(typeof google.maps.importLibrary==='function'){
+      try{
+        await google.maps.importLibrary('places');
+        return isGoogleMapsApiReady();
+      }catch(error){
+        debugMapSearch('places import failed', error);
+      }
+    }
+    return true;
+  }
+  const apiKey=getGoogleMapsApiKey();
+  if(!apiKey) return Promise.resolve(false);
+  if(googleMapsLoaderPromise) return googleMapsLoaderPromise;
+  googleMapsLoaderPromise=new Promise(resolve=>{
+    const callbackName='__worldcupPlacesMapReady';
+    window[callbackName]=()=>{
+      resolve(isGoogleMapsApiReady());
+      try{delete window[callbackName];}catch(error){window[callbackName]=undefined;}
+    };
+    const existing=document.querySelector('script[data-worldcup-google-maps="true"]');
+    if(existing){
+      existing.addEventListener('load', ()=>resolve(isGoogleMapsApiReady()), {once:true});
+      existing.addEventListener('error', ()=>resolve(false), {once:true});
+      return;
+    }
+    const script=document.createElement('script');
+    script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&language=ko&callback=${callbackName}`;
+    script.async=true;
+    script.defer=true;
+    script.dataset.worldcupGoogleMaps='true';
+    script.onerror=()=>resolve(false);
+    document.head.appendChild(script);
+  });
+  return googleMapsLoaderPromise;
+}
+function buildPlaceSearchQueries(query=''){
+  const normalized=String(query||'').trim();
+  if(!normalized) return [];
+  const suffixes=[
+    '',
+    ' 한국',
+    ' 대한민국',
+    ' 서울',
+    ' 경기',
+    ' 경기도',
+    ' 인천',
+    ' 부산',
+    ' 대구',
+    ' 대전',
+    ' 광주',
+    ' 식당',
+    ' 맛집',
+    ' restaurant',
+    ' place',
+    ' Guadalajara Mexico',
+    ' Monterrey Mexico',
+    ' Mexico',
+    ' United States',
+    ' Canada'
+  ];
+  return [...new Set(suffixes.map(suffix=>`${normalized}${suffix}`.trim()))];
+}
+function searchPlaceWithGooglePlaces(query, rawQuery=query){
+  return new Promise(resolve=>{
+    if(!isGooglePlacesApiReady()){
+      resolve(null);
+      return;
+    }
+    const service=new google.maps.places.PlacesService(document.createElement('div'));
+    service.textSearch({query, region:'kr'}, (results, status)=>{
+      debugMapSearch('Places status', status, query, results);
+      if(status!==google.maps.places.PlacesServiceStatus.OK||!Array.isArray(results)||!results[0]){
+        resolve(null);
+        return;
+      }
+      const item=results[0];
+      const location=item.geometry?.location;
+      if(!location){
+        resolve(null);
+        return;
+      }
+      const lat=typeof location?.lat==='function' ? location.lat() : Number(location?.lat);
+      const lng=typeof location?.lng==='function' ? location.lng() : Number(location?.lng);
+      resolve(normalizePlaceSearchResult({
+        name:item.name||rawQuery,
+        address:item.formatted_address||item.vicinity||'',
+        lat,
+        lng,
+        placeId:item.place_id
+      }, rawQuery));
+    });
+  });
+}
+function searchPlaceWithGoogleGeocoder(query, rawQuery=query){
+  return new Promise(resolve=>{
+    if(!isGoogleMapsApiReady()||!google.maps?.Geocoder){
+      resolve(null);
+      return;
+    }
+    const geocoder=new google.maps.Geocoder();
+    geocoder.geocode({address:query, region:'KR'}, (results, status)=>{
+      debugMapSearch('Geocoder status', status, query, results);
+      if(status!=='OK'||!Array.isArray(results)||!results[0]){
+        resolve(null);
+        return;
+      }
+      const item=results[0];
+      const location=item.geometry?.location;
+      if(!location){
+        resolve(null);
+        return;
+      }
+      const lat=typeof location?.lat==='function' ? location.lat() : Number(location?.lat);
+      const lng=typeof location?.lng==='function' ? location.lng() : Number(location?.lng);
+      resolve(normalizePlaceSearchResult({
+        name:rawQuery,
+        address:item.formatted_address,
+        lat,
+        lng,
+        placeId:item.place_id
+      }, rawQuery));
+    });
+  });
+}
+async function searchPlaceWithGoogleGeocodingApi(query, rawQuery=query){
+  const apiKey=getGoogleMapsApiKey();
+  if(!apiKey||typeof fetch!=='function') return null;
+  const response=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${encodeURIComponent(apiKey)}&language=ko&region=kr`);
+  if(!response.ok) return null;
+  const data=await response.json();
+  debugMapSearch('Geocoding API status', data.status, query, data.results);
+  const item=Array.isArray(data.results) ? data.results[0] : null;
+  const location=item?.geometry?.location;
+  return normalizePlaceSearchResult({
+    name:rawQuery,
+    address:item?.formatted_address,
+    lat:location?.lat,
+    lng:location?.lng,
+    placeId:item?.place_id
+  }, rawQuery);
+}
+async function searchPlaceWithNominatim(query, rawQuery=query){
+  if(typeof fetch!=='function') return null;
+  const looksKorean=/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(query);
+  const countryCode=looksKorean ? '&countrycodes=kr' : '';
+  const response=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&accept-language=ko${countryCode}&q=${encodeURIComponent(query)}`);
+  if(!response.ok) return null;
+  const data=await response.json();
+  debugMapSearch('Nominatim results', query, data);
+  const item=Array.isArray(data) ? data[0] : null;
+  return normalizePlaceSearchResult({
+    name:item?.name||rawQuery,
+    address:item?.display_name,
+    lat:item?.lat,
+    lng:item?.lon
+  }, rawQuery);
+}
+function searchPlaceWithKnownKoreanFallback(query, rawQuery=query){
+  const normalized=String(query||'').replace(/\s+/g,'').trim();
+  if(!normalized) return null;
+  const found=KNOWN_KOREAN_PLACE_FALLBACKS.find(place=>
+    place.keywords.some(keyword=>normalized.includes(String(keyword||'').replace(/\s+/g,'')))
+  );
+  return found ? normalizePlaceSearchResult(found, rawQuery) : null;
+}
+function isValidPlaceResult(result){
+  return Boolean(result&&Number.isFinite(Number(result.lat))&&Number.isFinite(Number(result.lng)));
+}
+async function searchPlaceByName(query){
+  const normalized=String(query||'').trim();
+  if(!normalized) return null;
+  await ensureGoogleMapsApiLoaded();
+  const knownResultWithoutGoogleKey=!getGoogleMapsApiKey() ? searchPlaceWithKnownKoreanFallback(normalized, normalized) : null;
+  if(isValidPlaceResult(knownResultWithoutGoogleKey)){
+    debugMapSearch('search success', 'searchPlaceWithKnownKoreanFallback', normalized, knownResultWithoutGoogleKey);
+    return knownResultWithoutGoogleKey;
+  }
+  const searchers=[
+    searchPlaceWithGooglePlaces,
+    searchPlaceWithGoogleGeocoder,
+    searchPlaceWithGoogleGeocodingApi,
+    searchPlaceWithNominatim
+  ];
+  const queries=buildPlaceSearchQueries(normalized);
+  debugMapSearch('Places available', isGooglePlacesApiReady());
+  debugMapSearch('queries', queries);
+  for(const candidateQuery of queries){
+    for(const searcher of searchers){
+      try{
+        const result=await searcher(candidateQuery, normalized);
+        if(isValidPlaceResult(result)){
+          debugMapSearch('search success', searcher.name, candidateQuery, result);
+          return result;
+        }
+      }catch(error){
+        console.error('Place search failed.', error);
+      }
+    }
+  }
+  const knownResult=searchPlaceWithKnownKoreanFallback(normalized, normalized);
+  if(isValidPlaceResult(knownResult)){
+    debugMapSearch('search success', 'searchPlaceWithKnownKoreanFallback', normalized, knownResult);
+    return knownResult;
+  }
+  return null;
+}
 function normalizePlaceEntry(entry={}, index=0){
   if(!entry||typeof entry!=='object') return null;
   const name=String(entry.name||'').trim();
@@ -2074,6 +2353,9 @@ function normalizePlaceEntry(entry={}, index=0){
   const lngValue=Number(entry.lng);
   const mapUrl=String(entry.mapUrl||entry.mapLink||entry.url||'').trim();
   const rawText=String(entry.rawText||'').trim();
+  const lat=Number.isFinite(latValue) ? latValue : null;
+  const lng=Number.isFinite(lngValue) ? lngValue : null;
+  const placeId=String(entry.placeId||entry.place_id||'').trim();
   return {
     id:String(entry.id||`place-restored-${Date.now()}-${index}`),
     name,
@@ -2082,14 +2364,18 @@ function normalizePlaceEntry(entry={}, index=0){
     address:String(entry.address||entry.locationText||'').trim(),
     memo:String(entry.memo||'').trim(),
     accessHint:String(entry.accessHint||entry.locationHint||'').trim(),
-    lat:Number.isFinite(latValue) ? latValue : null,
-    lng:Number.isFinite(lngValue) ? lngValue : null,
-    mapUrl,
+    lat,
+    lng,
+    placeId,
+    mapUrl:mapUrl||buildGoogleMapsPlaceUrl({name, address:String(entry.address||entry.locationText||'').trim(), lat, lng, placeId}),
     rawText,
     createdAt
   };
 }
 function normalizePlaceData(input={}){
+  const coordinates=extractCoordinatesFromText(input.mapUrl||input.rawText||'');
+  const lat=Number.isFinite(Number(input.lat))?Number(input.lat):Number(coordinates?.lat);
+  const lng=Number.isFinite(Number(input.lng))?Number(input.lng):Number(coordinates?.lng);
   return normalizePlaceEntry({
     id:input.id||createPlaceId(),
     name:input.name,
@@ -2098,30 +2384,43 @@ function normalizePlaceData(input={}){
     memo:input.memo,
     accessHint:input.accessHint,
     usageType:input.usageType,
-    lat:Number.isFinite(Number(input.lat))?Number(input.lat):null,
-    lng:Number.isFinite(Number(input.lng))?Number(input.lng):null,
-    mapUrl:input.mapUrl||'',
+    lat:Number.isFinite(lat)?lat:null,
+    lng:Number.isFinite(lng)?lng:null,
+    placeId:input.placeId||'',
+    mapUrl:input.mapUrl||buildGoogleMapsPlaceUrl({...input, lat, lng}),
     rawText:input.rawText||'',
     createdAt:input.createdAt||getTodayLocalDateString()
   });
 }
 function isDuplicatePlace(place){
   if(!place) return false;
-  return placeStore.some(existing=>existing.id!==place.id&&existing.name===place.name&&existing.category===place.category);
+  return placeStore.some(existing=>{
+    if(existing.id===place.id) return false;
+    if(hasPlaceCoordinates(existing)&&hasPlaceCoordinates(place)){
+      const sameCoordinates=Math.abs(Number(existing.lat)-Number(place.lat))<0.00001&&Math.abs(Number(existing.lng)-Number(place.lng))<0.00001;
+      return sameCoordinates&&String(existing.name||'').trim()===String(place.name||'').trim()&&String(existing.category||'').trim()===String(place.category||'').trim();
+    }
+    return existing.name===place.name&&existing.category===place.category;
+  });
 }
 function persistPlaceData(input={}){
   loadPlaces();
   const place=normalizePlaceData(input);
   if(!place) return null;
+  if(!hasPlaceCoordinates(place)){
+    window.alert('장소 좌표를 찾지 못해 저장하지 않았습니다.');
+    return null;
+  }
+  place.mapUrl=place.mapUrl||buildGoogleMapsPlaceUrl(place);
   if(isDuplicatePlace(place)){
-    const confirmed=window.confirm('같은 이름의 장소가 이미 있습니다. 그래도 저장할까요?');
-    if(!confirmed) return null;
+    window.alert('이미 저장된 장소입니다.');
+    return null;
   }
   placeStore.push(place);
   activePlaceId=place.id;
   savePlaces();
-  renderMapPanel();
-  focusPanelStart('#detailCol');
+  renderPlaceResults();
+  focusPlace(place.id);
   return place;
 }
 function loadPlaces(){
@@ -2138,6 +2437,37 @@ function loadPlaces(){
     window.localStorage.setItem(MAP_PLACES_STORAGE_KEY, JSON.stringify(placeStore));
   }catch(error){
     placeStore.length=0;
+  }
+}
+async function hydratePlacesMissingCoordinates(){
+  if(hasHydratedPlaceCoordinates||isHydratingPlaceCoordinates) return;
+  loadPlaces();
+  const targets=placeStore.filter(place=>!hasPlaceCoordinates(place)&&String(place.name||'').trim());
+  if(!targets.length){
+    hasHydratedPlaceCoordinates=true;
+    return;
+  }
+  isHydratingPlaceCoordinates=true;
+  let didUpdate=false;
+  try{
+    for(const place of targets){
+      const result=await searchPlaceByName([place.name, place.address].filter(Boolean).join(' '));
+      if(!result||!hasPlaceCoordinates(result)) continue;
+      place.name=result.name||place.name;
+      place.address=result.address||place.address;
+      place.lat=result.lat;
+      place.lng=result.lng;
+      place.placeId=result.placeId||place.placeId||'';
+      place.mapUrl=result.mapUrl||buildGoogleMapsPlaceUrl(place);
+      didUpdate=true;
+    }
+    if(didUpdate){
+      savePlaces();
+      if(document.getElementById('placeSystemGrid')) renderPlaceResults();
+    }
+  }finally{
+    hasHydratedPlaceCoordinates=true;
+    isHydratingPlaceCoordinates=false;
   }
 }
 function savePlaces(){
@@ -2159,7 +2489,7 @@ function parseGoogleMapsText(rawText=''){
     mapUrl
   };
 }
-function savePlaceFromPaste(){
+async function savePlaceFromPaste(){
   const pasteInput=document.getElementById('mapPasteInput');
   const categorySelect=document.getElementById('mapCategorySelect');
   const usageTypeSelect=document.getElementById('mapUsageTypeSelect');
@@ -2182,16 +2512,31 @@ function savePlaceFromPaste(){
     return;
   }
   const parsed=parseGoogleMapsText(rawText);
-  const saved=persistPlaceData({
-    name:parsed?.name||'이름 미지정 장소',
-    category,
+  const coordinates=extractCoordinatesFromText(rawText);
+  const searchQuery=[parsed?.name, parsed?.address].map(value=>String(value||'').trim()).filter(Boolean).join(' ');
+  const searchResult=coordinates ? normalizePlaceSearchResult({
+    name:parsed?.name||searchQuery,
     address:parsed?.address||'',
+    lat:coordinates.lat,
+    lng:coordinates.lng,
+    mapUrl:parsed?.mapUrl||''
+  }, searchQuery) : await searchPlaceByName(searchQuery);
+  if(!searchResult){
+    window.alert('장소를 찾을 수 없습니다.');
+    pasteInput?.focus();
+    return;
+  }
+  const saved=persistPlaceData({
+    name:searchResult.name||parsed?.name||'이름 미지정 장소',
+    category,
+    address:searchResult.address||parsed?.address||'',
     memo:'',
     accessHint:'',
     usageType,
-    lat:null,
-    lng:null,
-    mapUrl:parsed?.mapUrl||'',
+    lat:searchResult.lat,
+    lng:searchResult.lng,
+    placeId:searchResult.placeId||'',
+    mapUrl:searchResult.mapUrl||parsed?.mapUrl||'',
     rawText,
     createdAt:getTodayLocalDateString()
   });
@@ -2200,19 +2545,16 @@ function savePlaceFromPaste(){
 function getPlaceFormValues(){
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
-  const memoInput=document.getElementById('placeMemoInput');
-  const accessHintInput=document.getElementById('placeAccessHintInput');
-  const usageTypeSelect=document.getElementById('placeUsageTypeSelect');
   return {
     name:String(nameInput?.value||'').trim(),
     category:getValidPlaceCategoryValue(categorySelect?.value),
     address:'',
-    memo:String(memoInput?.value||'').trim(),
-    accessHint:String(accessHintInput?.value||'').trim(),
-    usageType:getValidPlaceUsageTypeValue(usageTypeSelect?.value)
+    memo:'',
+    accessHint:'',
+    usageType:''
   };
 }
-function savePlace(){
+async function savePlace(){
   const values=getPlaceFormValues();
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
@@ -2225,36 +2567,43 @@ function savePlace(){
     categorySelect?.focus();
     return;
   }
-  persistPlaceData({
+  const searchResult=await searchPlaceByName(values.name);
+  if(!searchResult){
+    window.alert('장소를 찾을 수 없습니다.');
+    nameInput?.focus();
+    return;
+  }
+  const saved=persistPlaceData({
     ...values,
-    lat:null,
-    lng:null,
-    mapUrl:'',
+    name:searchResult.name||values.name,
+    address:searchResult.address||values.address,
+    lat:searchResult.lat,
+    lng:searchResult.lng,
+    placeId:searchResult.placeId||'',
+    mapUrl:searchResult.mapUrl||'',
     rawText:'',
     createdAt:getTodayLocalDateString()
   });
+  if(saved&&nameInput) nameInput.value='';
 }
 function openPlaceComposer(category=''){
   placeComposerCategory=getValidPlaceCategoryValue(category);
-  placeEntryMode='manual';
-  renderMapPanel();
+  selectedPlaceCategories=placeComposerCategory?[placeComposerCategory]:[];
+  renderPlaceResults();
   setTimeout(()=>document.getElementById('placeNameInput')?.focus(), 0);
 }
 function cancelPlaceComposer(){
-  placeEntryMode='manual';
-  renderMapPanel();
-}
-function setPlaceEntryMode(mode='manual'){
-  placeEntryMode=mode==='google'?'google':'manual';
-  renderMapPanel();
-  setTimeout(()=>{
-    const targetId=placeEntryMode==='google'?'mapPasteInput':'placeNameInput';
-    document.getElementById(targetId)?.focus();
-  }, 0);
+  renderPlaceResults();
 }
 function setPlaceFilter(filter='all'){
-  currentPlaceFilter=String(filter||'all').trim()||'all';
-  renderMapPanel();
+  const normalized=String(filter||'all').trim();
+  if(normalized==='all'){
+    selectedPlaceCategories=[];
+  }else{
+    selectedPlaceCategories=[getValidPlaceCategoryValue(normalized)].filter(Boolean);
+  }
+  renderPlaceResults();
+  renderPlaceFiltersOnly();
 }
 function setPlaceSearch(value=''){
   currentPlaceSearch=String(value||'').trim();
@@ -2262,12 +2611,27 @@ function setPlaceSearch(value=''){
 }
 function focusPlace(placeId=''){
   activePlaceId=String(placeId||'').trim();
-  renderMapPanel();
+  const place=placeStore.find(item=>String(item.id)===activePlaceId);
+  if(mapInstance&&place&&hasPlaceCoordinates(place)){
+    if(isLeafletMapInstance(mapInstance)){
+      mapInstance.setView([Number(place.lat), Number(place.lng)], 16, {animate:true});
+      const marker=placeMarkerMap.get(place.id);
+      if(marker&&typeof marker.openPopup==='function') marker.openPopup();
+      refreshMapLayout(false);
+    }else if(isGoogleMapsApiReady()&&typeof mapInstance.setCenter==='function'){
+      mapInstance.setCenter({lat:Number(place.lat), lng:Number(place.lng)});
+      mapInstance.setZoom(16);
+      const markerRecord=placeMarkerMap.get(place.id);
+      if(markerRecord?.infoWindow&&markerRecord?.marker) markerRecord.infoWindow.open(mapInstance, markerRecord.marker);
+    }
+    document.getElementById('placeGoogleMap')?.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  renderPlaceListOnly();
 }
 function openPlaceMapUrl(placeId=''){
   loadPlaces();
   const place=placeStore.find(item=>String(item.id)===String(placeId));
-  const mapUrl=String(place?.mapUrl||'').trim();
+  const mapUrl=String(place?.mapUrl||buildGoogleMapsPlaceUrl(place)||'').trim();
   if(!mapUrl) return;
   window.open(mapUrl, '_blank');
 }
@@ -2282,91 +2646,249 @@ function deletePlace(placeId=''){
   placeStore.splice(index, 1);
   if(activePlaceId===normalizedId) activePlaceId='';
   savePlaces();
-  renderMapPanel();
-  focusPanelStart('#detailCol');
+  renderPlaceResults();
 }
 function getFilteredPlaces(){
   loadPlaces();
-  const filter=String(currentPlaceFilter||'all');
   const query=String(currentPlaceSearch||'').trim().toLowerCase();
+  const selectedCategories=selectedPlaceCategories.filter(category=>getValidPlaceCategoryValue(category));
   return [...placeStore].filter(place=>{
-    if(filter.startsWith('usage:')) return place.usageType===filter.slice('usage:'.length);
+    if(selectedCategories.length) return selectedCategories.includes(place.category);
     return true;
   }).filter(place=>{
     if(!query) return true;
-    return [place.name, place.memo, place.accessHint]
+    return [place.name, place.address, place.memo, place.accessHint, place.category]
       .some(value=>String(value||'').toLowerCase().includes(query));
   }).sort((a,b)=>String(b.id||'').localeCompare(String(a.id||'')));
 }
-function renderPlaceEntryModeTabs(){
-  const modes=[
-    {key:'manual', label:'직접 입력'},
-    {key:'google', label:'구글맵 붙여넣기'}
-  ];
-  return `<div class="place-entry-mode-tabs" role="tablist" aria-label="장소 등록 방식">${modes.map(mode=>{const isActive=placeEntryMode===mode.key; return `<button type="button" class="place-entry-mode-tab${isActive?' is-active':''}" role="tab" aria-selected="${isActive?'true':'false'}" onclick="setPlaceEntryMode('${mode.key}')">${escapeHtml(mode.label)}</button>`;}).join('')}</div>`;
+function isPlaceFilterAllSelected(){
+  return !selectedPlaceCategories.filter(category=>getValidPlaceCategoryValue(category)).length;
 }
-function renderManualPlaceEntrySection(){
-  const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
-  const usageOptions=renderPlaceUsageTypeOptions();
-  const hidden=placeEntryMode==='manual'?'':' hidden';
-  return `<div id="manualEntrySection" class="place-entry-section"${hidden}><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 숙소 앞 식당"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field"><span class="simple-form-label">용도 (선택)</span><select class="simple-form-input" id="placeUsageTypeSelect">${usageOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">한줄 메모</span><input type="text" class="simple-form-input" id="placeMemoInput" placeholder="예: 전원 사용 가능, 이동 동선 짧음"></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">찾아가는 힌트</span><input type="text" class="simple-form-input" id="placeAccessHintInput" placeholder="예: 호텔 정문에서 왼쪽 골목 30m"></label></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>`;
-}
-function renderGooglePlaceEntrySection(){
-  const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
-  const usageOptions=renderPlaceUsageTypeOptions();
-  const hidden=placeEntryMode==='google'?'':' hidden';
-  return `<div id="googleEntrySection" class="place-entry-section"${hidden}><div class="place-paste-grid"><label class="simple-form-field place-paste-field"><span class="simple-form-label">구글맵 공유 내용</span><textarea id="mapPasteInput" class="simple-form-input simple-form-textarea place-paste-textarea" placeholder="구글맵에서 복사한 링크나 공유 내용을 붙여넣으세요"></textarea></label><label class="simple-form-field place-paste-category"><span class="simple-form-label">카테고리</span><select id="mapCategorySelect" class="simple-form-input">${categoryOptions}</select></label><label class="simple-form-field place-paste-category"><span class="simple-form-label">용도</span><select id="mapUsageTypeSelect" class="simple-form-input">${usageOptions}</select></label><div class="place-paste-actions"><button type="button" class="section-title-action-btn" onclick="savePlaceFromPaste()">저장</button></div></div></div>`;
+function setPlaceCategoryFilter(category='all', checked=true){
+  const normalized=String(category||'all').trim();
+  if(normalized==='all'){
+    selectedPlaceCategories=[];
+    renderPlaceResults();
+    renderPlaceFiltersOnly();
+    return;
+  }
+  const validCategory=getValidPlaceCategoryValue(normalized);
+  if(!validCategory) return;
+  const categorySet=new Set(selectedPlaceCategories.filter(item=>getValidPlaceCategoryValue(item)));
+  if(checked){
+    categorySet.add(validCategory);
+  }else{
+    categorySet.delete(validCategory);
+  }
+  selectedPlaceCategories=[...categorySet];
+  renderPlaceResults();
+  renderPlaceFiltersOnly();
 }
 function renderPlaceEntryPanel(){
-  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 등록</div></div>${renderPlaceEntryModeTabs()}</div>${renderManualPlaceEntrySection()}${renderGooglePlaceEntrySection()}</section>`;
+  const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
+  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 저장</div><p class="map-location-pin-description">팀원이 함께 볼 장소명을 입력하면 자동 검색 후 지도 핀과 목록에 저장합니다.</p></div></div><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">상호/장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: 먹골촌" onkeydown="if(event.key==='Enter'){savePlace();}"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div>${renderPlaceFilters()}</section>`;
 }
 function renderPlaceComposer(){
   return renderPlaceEntryPanel();
 }
+function isLeafletReady(){
+  return typeof L!=='undefined'&&typeof L.map==='function';
+}
+function isLeafletMapInstance(map){
+  return Boolean(map&&typeof map.setView==='function'&&typeof map.invalidateSize==='function');
+}
+function clearMarkers(){
+  markers.forEach(marker=>{
+    if(marker&&typeof marker.setMap==='function') marker.setMap(null);
+    if(marker&&typeof marker.remove==='function') marker.remove();
+  });
+  markers=[];
+  placeMarkerMap.clear();
+}
+function buildPlacePopupHtml(place={}){
+  const categoryMeta=getPlaceCategoryMeta(place.category);
+  return `<div style="font-size:13px;line-height:1.5;"><strong>${escapeHtml(place.name)}</strong><br>카테고리: ${escapeHtml(categoryMeta.label)}${place.address?`<br>${escapeHtml(place.address)}`:''}<br><a href="${escapeHtml(buildMapUrl(place))}" target="_blank" rel="noopener noreferrer">구글지도 열기</a></div>`;
+}
+function addMarker(place){
+  if(!mapInstance||!hasPlaceCoordinates(place)) return null;
+  if(isLeafletMapInstance(mapInstance)&&isLeafletReady()){
+    const marker=L.marker([Number(place.lat), Number(place.lng)], {title:place.name})
+      .addTo(mapInstance)
+      .bindPopup(buildPlacePopupHtml(place));
+    marker.on('click', ()=>{
+      activePlaceId=place.id;
+      renderPlaceListOnly();
+    });
+    markers.push(marker);
+    placeMarkerMap.set(place.id, marker);
+    return marker;
+  }
+  if(!isGoogleMapsApiReady()) return null;
+  const marker=new google.maps.Marker({
+    position:{lat:Number(place.lat), lng:Number(place.lng)},
+    map:mapInstance,
+    title:place.name
+  });
+  const infoWindow=new google.maps.InfoWindow({
+    content:buildPlacePopupHtml(place)
+  });
+  marker.addListener('click', ()=>{
+    activePlaceId=place.id;
+    infoWindow.open(mapInstance, marker);
+    renderPlaceListOnly();
+  });
+  markers.push(marker);
+  placeMarkerMap.set(place.id, {marker, infoWindow});
+  return marker;
+}
+function renderMarkers(){
+  clearMarkers();
+  if(!mapInstance) return;
+  const visiblePlaces=getFilteredPlaces().filter(place=>hasPlaceCoordinates(place));
+  if(isLeafletMapInstance(mapInstance)&&isLeafletReady()){
+    if(!visiblePlaces.length){
+      mapInstance.setView([MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng], 5);
+      refreshMapLayout(false);
+      return;
+    }
+    const bounds=[];
+    visiblePlaces.forEach(place=>{
+      const marker=addMarker(place);
+      if(marker) bounds.push([Number(place.lat), Number(place.lng)]);
+    });
+    if(visiblePlaces.length===1){
+      mapInstance.setView([Number(visiblePlaces[0].lat), Number(visiblePlaces[0].lng)], 15);
+    }else if(bounds.length){
+      mapInstance.fitBounds(bounds, {padding:[28,28], maxZoom:15});
+    }
+    refreshMapLayout(false);
+    return;
+  }
+  if(!isGoogleMapsApiReady()) return;
+  if(!visiblePlaces.length){
+    mapInstance.setCenter(MAP_DEFAULT_CENTER);
+    mapInstance.setZoom(5);
+    return;
+  }
+  const bounds=new google.maps.LatLngBounds();
+  visiblePlaces.forEach(place=>{
+    const marker=addMarker(place);
+    if(marker) bounds.extend(marker.getPosition());
+  });
+  if(visiblePlaces.length===1){
+    mapInstance.setCenter({lat:Number(visiblePlaces[0].lat), lng:Number(visiblePlaces[0].lng)});
+    mapInstance.setZoom(15);
+  }else{
+    mapInstance.fitBounds(bounds);
+  }
+}
+function refreshMapLayout(shouldRenderMarkers=false){
+  setTimeout(()=>{
+    if(isLeafletMapInstance(mapInstance)){
+      mapInstance.invalidateSize();
+      if(shouldRenderMarkers) renderMarkers();
+    }else if(shouldRenderMarkers){
+      renderMarkers();
+    }
+  }, 80);
+}
+async function initPlaceMap(){
+  const mapElement=document.getElementById('placeGoogleMap');
+  if(!mapElement) return;
+  if(isLeafletReady()){
+    if(isLeafletMapInstance(mapInstance)&&mapInstance.getContainer&&mapInstance.getContainer()===mapElement){
+      refreshMapLayout(true);
+      return;
+    }
+    if(isLeafletMapInstance(mapInstance)&&typeof mapInstance.remove==='function'){
+      mapInstance.remove();
+    }
+    mapElement.textContent='';
+    mapInstance=L.map(mapElement, {
+      center:[MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng],
+      zoom:5,
+      scrollWheelZoom:true
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom:19,
+      attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(mapInstance);
+    refreshMapLayout(true);
+    return;
+  }
+  const loaded=await ensureGoogleMapsApiLoaded();
+  if(!loaded||!isGoogleMapsApiReady()){
+    mapInstance=null;
+    mapElement.textContent=getGoogleMapsApiKey()
+      ? 'Google Maps 지도를 불러오지 못했습니다. 저장된 장소는 구글지도 열기 버튼으로 확인할 수 있습니다.'
+      : 'Google Maps API 키가 있으면 내부 지도에 핀이 표시됩니다. 저장된 장소는 구글지도 열기 버튼으로 확인할 수 있습니다.';
+    return;
+  }
+  if(mapInstance&&mapInstance.getDiv&&mapInstance.getDiv()===mapElement){
+    renderMarkers();
+    return;
+  }
+  mapElement.textContent='';
+  mapInstance=new google.maps.Map(mapElement, {
+    center:MAP_DEFAULT_CENTER,
+    zoom:5,
+    mapTypeControl:false,
+    streetViewControl:false,
+    fullscreenControl:true
+  });
+  renderMarkers();
+}
 function renderPlaceResults(){
-  const grid=document.getElementById('placeSystemGrid');
-  if(!grid){
+  if(!document.getElementById('placeSystemGrid')){
     renderMapPanel();
     return;
   }
-  grid.innerHTML=`${renderMapPins()}${renderPlaceList()}`;
+  renderMarkers();
+  renderPlaceListOnly();
 }
 function renderMapPins(){
   const places=getFilteredPlaces();
-  if(!places.length){
-    return '<section class="place-map-board place-reference-board"><div class="place-map-empty">등록된 현장 기준점이 없습니다. 직접 입력하거나 구글맵 공유 내용을 붙여넣어 추가하세요.</div></section>';
-  }
-  const usageSummary=PLACE_USAGE_TYPES
-    .map(type=>({type, count:places.filter(place=>place.usageType===type).length}))
-    .filter(item=>item.count>0);
   const categorySummary=PLACE_CATEGORIES
     .map(category=>({label:category.label, tone:category.tone, count:places.filter(place=>place.category===category.value).length}))
     .filter(item=>item.count>0);
-  return `<section class="place-map-board place-reference-board" aria-label="현장 기준점 요약"><div class="place-reference-summary"><div class="place-reference-kicker">현장 기준점</div><strong>${places.length}개 저장</strong><p>장소 카드를 기준으로 바로 찾고, 지도 열기 버튼으로 곧장 이동합니다.</p><div class="place-reference-stats">${usageSummary.map(item=>`<span>${escapeHtml(item.type)} ${item.count}개</span>`).join('')||'<span>용도 미지정</span>'}</div><div class="place-reference-categories">${categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}">${escapeHtml(item.label)} ${item.count}</span>`).join('')}</div></div></section>`;
+  const summaryHtml=categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}" style="display:inline-flex;align-items:center;margin:0;white-space:nowrap;">${escapeHtml(item.label)} ${item.count}</span>`).join('')||'<span class="place-map-unavailable">표시할 장소 없음</span>';
+  return `<section class="map-main-board" aria-label="저장 장소 지도" style="display:block;width:100%;margin-top:14px;"><div class="map-status-bar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 8px 0;padding:0 2px;"><span class="map-location-pin-list-meta" style="margin:0;">장소 ${places.length}개 표시 중</span><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">${summaryHtml}</div></div><div id="placeGoogleMap" class="place-google-map" role="application" aria-label="저장 장소 지도" style="width:100%;height:clamp(360px,60vh,640px);min-height:360px;border:1px solid #d7dde8;border-radius:8px;overflow:hidden;background:#eef2f7;color:#475569;">지도를 불러오는 중입니다.</div></section>`;
 }
 function renderPlaceList(){
   const places=getFilteredPlaces();
   if(!places.length){
     return '<section class="place-list-shell"><div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>';
   }
-  return `<section class="place-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">현장 기준점 카드</h5><p class="map-location-pin-list-meta">${places.length}개 기준점이 저장되어 있습니다.</p></div></header><div class="place-list">${places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const usageBadge=place.usageType?`<span class="place-usage-badge">${escapeHtml(place.usageType)}</span>`:''; const mapButton=place.mapUrl?`<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">지도 열기</button>`:`<span class="place-map-unavailable">지도 링크 없음</span>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${usageBadge}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:''}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}${place.accessHint?`<div class="place-access-hint">찾아가는 힌트: ${escapeHtml(place.accessHint)}</div>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</div></section>`;
+  const groups=PLACE_CATEGORIES.map(category=>({
+    meta:category,
+    places:places.filter(place=>place.category===category.value)
+  })).filter(group=>group.places.length);
+  return `<section class="place-list-shell" style="margin-top:18px;"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">카테고리별 장소 목록</h5><p class="map-location-pin-list-meta">${places.length}개 장소가 저장되어 있습니다.</p></div></header><div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:''}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions"><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
+}
+function renderPlaceListOnly(){
+  const listPanel=document.getElementById('placeListPanel');
+  if(listPanel) listPanel.innerHTML=renderPlaceList();
+}
+function renderPlaceFiltersOnly(){
+  const filterPanel=document.getElementById('placeCategoryFilterPanel');
+  if(filterPanel) filterPanel.outerHTML=renderPlaceFilters();
 }
 function renderPlaceFilters(){
-  const filterItems=[
-    {key:'all', label:'전체'},
-    ...PLACE_USAGE_TYPES.map(type=>({key:`usage:${type}`, label:type}))
-  ];
-  return `<section class="place-search-filter-panel" aria-label="장소 검색과 필터"><label class="place-search-field"><span class="simple-form-label">빠른 검색</span><input id="placeSearchInput" class="simple-form-input" type="search" value="${escapeHtml(currentPlaceSearch)}" placeholder="장소명 / 메모 / 힌트 검색" oninput="setPlaceSearch(this.value)"></label><div class="place-filter-bar">${filterItems.map(item=>`<button type="button" class="section-title-action-btn place-filter-btn${currentPlaceFilter===item.key?' is-active':''}" onclick="setPlaceFilter('${escapeHtml(item.key)}')">${escapeHtml(item.label)}</button>`).join('')}</div></section>`;
+  const selectedSet=new Set(selectedPlaceCategories.filter(category=>getValidPlaceCategoryValue(category)));
+  const allChecked=isPlaceFilterAllSelected();
+  const checkboxStyle='display:inline-flex;align-items:center;gap:6px;margin:4px 10px 4px 0;';
+  return `<section id="placeCategoryFilterPanel" class="place-search-filter-panel" aria-label="장소 검색과 필터"><label class="place-search-field"><span class="simple-form-label">빠른 검색</span><input id="placeSearchInput" class="simple-form-input" type="search" value="${escapeHtml(currentPlaceSearch)}" placeholder="장소명 / 주소 / 카테고리 검색" oninput="setPlaceSearch(this.value)"></label><div class="place-filter-bar" role="group" aria-label="카테고리 필터"><label style="${checkboxStyle}"><input type="checkbox" ${allChecked?'checked':''} onchange="setPlaceCategoryFilter('all', this.checked)">전체보기</label>${PLACE_CATEGORIES.map(item=>`<label style="${checkboxStyle}"><input type="checkbox" ${!allChecked&&selectedSet.has(item.value)?'checked':''} onchange="setPlaceCategoryFilter('${escapeHtml(item.value)}', this.checked)">${escapeHtml(item.label)}</label>`).join('')}</div></section>`;
 }
 function renderPlaceManagementPanel(){
   loadPlaces();
-  return `<section class="map-location-pin-shell place-system-shell" aria-label="현장용 장소 데이터 관리"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">현장 장소 데이터</h4><p class="map-location-pin-description">장소를 저장하고, 검색한 뒤, 카드에서 바로 지도 앱을 엽니다.</p></div></header>${renderPlaceEntryPanel()}${renderPlaceFilters()}<div id="placeSystemGrid" class="place-system-grid">${renderMapPins()}${renderPlaceList()}</div></section>`;
+  return `<section class="map-location-pin-shell place-system-shell" aria-label="MAP"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">MAP</h4><p class="map-location-pin-description">등록된 장소를 지도에서 보고, 아래 목록에서 바로 선택할 수 있습니다.</p></div></header>${renderPlaceEntryPanel()}<div id="placeSystemGrid" class="place-system-grid" style="display:block;width:100%;">${renderMapPins()}<div id="placeListPanel">${renderPlaceList()}</div></div></section>`;
 }
 function renderMapSectionPanel(sectionKey){
   return `<section class="simple-info-subpanel is-active" data-map-section="${escapeHtml(sectionKey||'places')}">${renderPlaceManagementPanel()}</section>`;
 }
 function renderMapPanelHtml(){
   loadPlaces();
+  hydratePlacesMissingCoordinates();
   return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel simple-info-panel-map" aria-label="MAP">${renderMapSectionPanel('places')}</section></td></tr></tbody>`;
 }
 function getNewsProgrammingStatusClass(status=''){
@@ -2574,6 +3096,134 @@ function createExportWorkbook(){
   if(!ensureXlsxLibraryReady()) return null;
   return XLSX.utils.book_new();
 }
+function getExportTimestampParts(date=new Date()){
+  const year=date.getFullYear();
+  const month=String(date.getMonth()+1).padStart(2,'0');
+  const day=String(date.getDate()).padStart(2,'0');
+  const hour=String(date.getHours()).padStart(2,'0');
+  const minute=String(date.getMinutes()).padStart(2,'0');
+  return {date:`${year}-${month}-${day}`, time:`${hour}:${minute}`, compactTime:`${hour}${minute}`};
+}
+function sanitizeTextFileName(fileName='export.txt'){
+  return String(fileName||'export.txt').replace(/[\\/:*?"<>|]/g,'_');
+}
+function downloadTextFile(text, fileName){
+  if(typeof document==='undefined'||typeof URL==='undefined') return false;
+  const blob=new Blob([`\ufeff${text}`], {type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=sanitizeTextFileName(fileName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return true;
+}
+function getExportGeneratedAtLabel(date=new Date()){
+  const parts=getExportTimestampParts(date);
+  return `${parts.date} ${parts.time}`;
+}
+function formatExportDateLabel(dateKey=''){
+  const normalized=String(dateKey||'').trim();
+  if(!normalized) return '';
+  const match=normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return normalized;
+  const date=new Date(`${normalized}T12:00:00`);
+  if(Number.isNaN(date.getTime())) return normalized;
+  const weekdays=['일','월','화','수','목','금','토'];
+  return `${normalized} (${weekdays[date.getDay()]})`;
+}
+function formatExportEquipmentLabel(value=''){
+  return String(value||'').trim().replace(/^(TVU\s+\d+번)\s+(TRS\s+\d+)$/i, '$1 / $2');
+}
+function appendExportField(lines, label, value){
+  const text=String(value||'').trim();
+  if(text) lines.push(`${label}: ${text}`);
+}
+function buildTimelineExportTextBody(){
+  const rows=getTimelineExportRows();
+  if(!rows.length) return '내보낼 일정이 없습니다.';
+  const blocks=rows.map(row=>{
+    const lines=[];
+    appendExportField(lines, '날짜', formatExportDateLabel(row.날짜));
+    appendExportField(lines, '담당자', row.취재기자);
+    appendExportField(lines, '현지시각', row.시간);
+    appendExportField(lines, '한국시각', row.시간 ? formatKoreaTimeLabel(row.시간) : '');
+    appendExportField(lines, '활동', row.내용);
+    appendExportField(lines, '장소', row.장소);
+    appendExportField(lines, '장비', formatExportEquipmentLabel(row.장비));
+    appendExportField(lines, '메모', row.메모);
+    return lines.join('\r\n');
+  });
+  return blocks.join('\r\n--------------------------------------------------\r\n\r\n');
+}
+function buildTimelineTextExport(){
+  const generatedAt=getExportGeneratedAtLabel();
+  return [
+    '[일정 내보내기]',
+    '',
+    '제목: 일정 타임라인',
+    `생성일시: ${generatedAt}`,
+    '',
+    '--------------------------------------------------',
+    buildTimelineExportTextBody(),
+    '--------------------------------------------------',
+    ''
+  ].join('\r\n');
+}
+function buildEquipmentRowsText(rows=[]){
+  if(!Array.isArray(rows)||!rows.length) return '내보낼 장비 데이터가 없습니다.';
+  return rows.map(row=>{
+    const lines=[];
+    appendExportField(lines, '장비명', row.장비);
+    appendExportField(lines, '모델명', row.모델명);
+    appendExportField(lines, '제조사', row.제조사);
+    appendExportField(lines, '시리얼넘버', row.시리얼넘버);
+    appendExportField(lines, '수량', row.수량);
+    appendExportField(lines, '사용자', row.사용자);
+    appendExportField(lines, '비고', row.비고||'-');
+    return lines.join('\r\n');
+  }).join('\r\n--------------------------------------------------\r\n\r\n');
+}
+function buildPersonalEquipmentText(){
+  return EQUIPMENT_SHARED_USERS.map(user=>{
+    const rows=getPersonalEquipmentExportRowsByUser(user);
+    return [
+      `[${user} 개별장비]`,
+      '',
+      buildEquipmentRowsText(rows)
+    ].join('\r\n');
+  }).join('\r\n\r\n');
+}
+function buildAllTextExport(){
+  const generatedAt=getExportGeneratedAtLabel();
+  return [
+    '[전체 내보내기]',
+    '',
+    '프로젝트: 2026 북중미 월드컵 영상취재 가이드라인',
+    `생성일시: ${generatedAt}`,
+    '',
+    '==============================',
+    '[1. 일정 타임라인]',
+    '==============================',
+    '',
+    buildTimelineExportTextBody(),
+    '',
+    '==============================',
+    '[2. 장비종합현황]',
+    '==============================',
+    '',
+    buildEquipmentRowsText(getSharedEquipmentExportRows()),
+    '',
+    '==============================',
+    '[3. 개별장비]',
+    '==============================',
+    '',
+    buildPersonalEquipmentText(),
+    ''
+  ].join('\r\n');
+}
 function getTimelineDetailExportRows(){
   ensureTimelineDataReady();
   loadPersonalTimelineDetailSelections();
@@ -2682,10 +3332,8 @@ function buildPersonalEquipmentSheets(workbook, userName=''){
   });
 }
 function exportTimelineExcel(){
-  const workbook=createExportWorkbook();
-  if(!workbook) return;
-  appendWorksheetFromRows(workbook, '누적일정', getTimelineExportRows());
-  downloadWorkbook(workbook, `월드컵_누적일정_${getTodayLocalDateString()}.xlsx`);
+  const timestamp=getExportTimestampParts();
+  downloadTextFile(buildTimelineTextExport(), `일정내보내기_${timestamp.date}_${timestamp.compactTime}.txt`);
 }
 function exportEquipmentExcel(){
   const workbook=createExportWorkbook();
@@ -2702,12 +3350,8 @@ function exportPersonalEquipmentExcel(userName){
   downloadWorkbook(workbook, `월드컵_개별장비_${normalizedUser}_${getTodayLocalDateString()}.xlsx`);
 }
 function exportAllExcel(){
-  const workbook=createExportWorkbook();
-  if(!workbook) return;
-  appendWorksheetFromRows(workbook, '누적일정', getTimelineExportRows());
-  appendWorksheetFromRows(workbook, '장비종합현황', getSharedEquipmentExportRows());
-  buildPersonalEquipmentSheets(workbook);
-  downloadWorkbook(workbook, `월드컵_운영데이터_${getTodayLocalDateString()}.xlsx`);
+  const timestamp=getExportTimestampParts();
+  downloadTextFile(buildAllTextExport(), `전체내보내기_${timestamp.date}_${timestamp.compactTime}.txt`);
 }
 function normalizeDatedTickerText(value='', fallbackDate=getTodayLocalDateString()){
   if(value&&typeof value==='object'){
@@ -2901,6 +3545,15 @@ function formatKoreaTimeLabel(localTime=''){
 function formatEquipmentLabel(detail={}){
   const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', detail?.TVU||'')||'').trim();
   return tvuLabel||'무장비';
+}
+function normalizeTvuNumberValue(value){
+  const text=String(value||'').trim();
+  if(!text) return '';
+  if(TVU_NUMBER_LEGACY_MAP[text]) return TVU_NUMBER_LEGACY_MAP[text];
+  const match=text.match(/^TVU\s*(\d+)\s*번?(?:\s+TRS\s+\d+)?$/i)||text.match(/^(\d+)\s*번?$/);
+  if(!match) return text;
+  const normalized=`${match[1]}번`;
+  return TVU_NUMBER_LEGACY_MAP[normalized]||normalized;
 }
 function joinReporterNames(name='', reporter=''){
   return buildPersonalTimelineParticipantLabel(name, reporter);
@@ -3407,6 +4060,14 @@ const personalTimelineRows = [
   {label:'정재우',type:'person'}
 ];
 const personalTimelineMemberNames = personalTimelineRows.filter(row=>row.label!=='영상취재팀 공동').map(row=>row.label);
+const TVU_NUMBER_OPTIONS = ['1번','15번','16번','17번','18번','19번'];
+const TVU_NUMBER_LEGACY_MAP = {
+  '2번':'15번',
+  '3번':'16번',
+  '4번':'17번',
+  '5번':'18번',
+  '6번':'19번'
+};
 const personalTimelineDetailFieldOptions = {
   시간:Array.from({length:16},(_,index)=>{
     const hour=String(index+9).padStart(2,'0');
@@ -3414,7 +4075,7 @@ const personalTimelineDetailFieldOptions = {
   }),
   장소:['에스타디오 과달라하라','에스타디오 몬테레이'],
   취재기자:['전영희','온누리','홍지용','오선민','이예원','이은진'],
-  TVU:['1번','2번','3번','4번','5번','6번'],
+  TVU:TVU_NUMBER_OPTIONS,
   업무내용:['경기취재','외곽취재','밀착카메라','라이브연결','인터뷰']
 };
 const timelineViews = {
@@ -3470,11 +4131,11 @@ const personalTimelineTaskReportLabels = {
 };
 const personalTimelineTvuLabelMap = {
   '1번':'TVU 1번 TRS 0001',
-  '2번':'TVU 2번 TRS 0002',
-  '3번':'TVU 3번 TRS 0003',
-  '4번':'TVU 4번 TRS 0004',
-  '5번':'TVU 5번 TRS 0005',
-  '6번':'TVU 6번 TRS 0006'
+  '15번':'TVU 15번 TRS 0015',
+  '16번':'TVU 16번 TRS 0016',
+  '17번':'TVU 17번 TRS 0017',
+  '18번':'TVU 18번 TRS 0018',
+  '19번':'TVU 19번 TRS 0019'
 };
 const headerClockModes = {
   venue:'venue',
@@ -4647,7 +5308,7 @@ function loadPersonalTimelineDetailSelections(){
           const sanitizedFields=Object.create(null);
           personalTimelineDetailFields.forEach(field=>{
             if(typeof entry[field]!=='string') return;
-            const text=entry[field].trim();
+            const text=field==='TVU' ? normalizeTvuNumberValue(entry[field]) : entry[field].trim();
             if(text) sanitizedFields[field]=text;
           });
           return Object.keys(sanitizedFields).length ? sanitizedFields : null;
@@ -4734,7 +5395,10 @@ function getPersonalTimelineEntryTimeZone(detail){
 }
 function getPersonalTimelineOptionLabel(field, option){
   if(field==='시간') return formatPersonalTimelineTimeLabel(option);
-  if(field==='TVU') return personalTimelineTvuLabelMap[option]||option;
+  if(field==='TVU'){
+    const normalized=normalizeTvuNumberValue(option);
+    return personalTimelineTvuLabelMap[normalized]||normalized;
+  }
   return option;
 }
 function getPersonalTimelineTaskReportLabel(task){
@@ -4817,11 +5481,11 @@ function renderEquipmentSharedTvuIndicatorHtml(){
   return `<div class="equipment-user-note equipment-user-note-shared equipment-user-note-shared-inline">
     <span class="equipment-user-note-text">
       <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-      <span class="equipment-user-tvu" data-tvu="2번">TVU 2번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-      <span class="equipment-user-tvu" data-tvu="3번">TVU 3번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-      <span class="equipment-user-tvu" data-tvu="4번">TVU 4번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-      <span class="equipment-user-tvu" data-tvu="5번">TVU 5번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-      <span class="equipment-user-tvu" data-tvu="6번">TVU 6번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="15번">TVU 15번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="16번">TVU 16번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="17번">TVU 17번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="18번">TVU 18번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+      <span class="equipment-user-tvu" data-tvu="19번">TVU 19번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
     </span>
   </div>`;
 }
@@ -4830,11 +5494,11 @@ function updateEquipmentSharedTvuIndicators(){
   const reports=getAllPersonalTimelineGeneratedReports();
   const activeTvus=new Set(
     reports
-      .map(item=>String(item.detail?.TVU||'').trim())
+      .map(item=>normalizeTvuNumberValue(item.detail?.TVU||''))
       .filter(Boolean)
   );
   const activeTvuByName=new Map(
-    reports.map(item=>[item.name, String(item.detail?.TVU||'').trim()])
+    reports.map(item=>[item.name, normalizeTvuNumberValue(item.detail?.TVU||'')])
   );
   document.querySelectorAll('#equipmentUserCol .equipment-user-tvu, .equipment-user-note-shared-inline .equipment-user-tvu').forEach(node=>{
     const tvu=String(node.dataset.tvu||'').trim();
@@ -4854,7 +5518,7 @@ function updateEquipmentSharedTvuIndicators(){
 function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   if(!dateKey||!name||!personalTimelineDetailFields.includes(field)) return;
   const nextValues={...(getPersonalTimelineDetailSelection(dateKey, name)||{})};
-  const text=String(value||'').trim();
+  const text=field==='TVU' ? normalizeTvuNumberValue(value) : String(value||'').trim();
   if(text){
     nextValues[field]=text;
   }else{
@@ -4924,7 +5588,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   let didAppendNew=false;
   let entryIndex=-1;
   personalTimelineDetailFields.forEach(field=>{
-    const text=String(detailValues?.[field]||'').trim();
+    const text=field==='TVU' ? normalizeTvuNumberValue(detailValues?.[field]) : String(detailValues?.[field]||'').trim();
     if(text) normalized[field]=text;
   });
   if(Object.keys(normalized).length){
@@ -5525,8 +6189,9 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
   return `<div class="personal-timeline-column-header personal-timeline-column-header-shared"><span class="personal-timeline-column-title">공용 일정</span><span class="personal-timeline-column-header-actions"><button type="button" class="personal-timeline-shared-write-btn" data-date-key="${dateKey}" aria-label="공용 일정 작성">✎</button><button type="button" class="personal-timeline-shared-edit-toggle-btn${isEditMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 수정"${hasEntry?'':' disabled aria-disabled="true"'}>수정</button><button type="button" class="personal-timeline-shared-delete-btn${isDeleteMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 삭제"${hasEntry?'':' disabled aria-disabled="true"'}>🗑</button><span class="personal-timeline-column-date">${dateLabel}</span></span></div>`;
 }
 function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
-  const placeholderSelected=!selectedValue ? ' selected' : '';
-  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${selectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
+  const normalizedSelectedValue=field==='TVU' ? normalizeTvuNumberValue(selectedValue) : selectedValue;
+  const placeholderSelected=!normalizedSelectedValue ? ' selected' : '';
+  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
   return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
@@ -7312,6 +7977,7 @@ function renderMapPanel(){
   renderCache.mapPanel=renderMapPanelHtml();
   document.getElementById('detailTable').innerHTML=renderCache.mapPanel;
   document.getElementById('detailCol').classList.remove('hidden');
+  setTimeout(initPlaceMap, 0);
 }
 function renderNewsProgrammingPanel(){
   clearDetailExtras();

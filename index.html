@@ -10,6 +10,7 @@
   <meta property="og:image" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/images/thumbnail.png" />
   <meta property="og:url" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/" />
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -151,11 +152,11 @@
           <div class="equipment-user-note equipment-user-note-shared">
             <span class="equipment-user-note-text">
               <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="2번">TVU 2번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="3번">TVU 3번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="4번">TVU 4번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="5번">TVU 5번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="6번">TVU 6번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="15번">TVU 15번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="16번">TVU 16번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="17번">TVU 17번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="18번">TVU 18번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="19번">TVU 19번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
             </span>
           </div>
         </div>
@@ -220,11 +221,13 @@
 <script>
 window.APP_CONFIG = {
   supabaseUrl: 'https://dwujummgbntrtvmldqmz.supabase.co',
-  supabaseAnonKey: 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l'
+  supabaseAnonKey: 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l',
+  googleMapsApiKey: ''
 };
 </script>
 <script src="supabase-client.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
