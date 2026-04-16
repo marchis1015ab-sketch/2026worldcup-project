@@ -417,8 +417,14 @@ let placePreviewMarker = null;
 let placePreviewSelectedCandidate = null;
 let placeLookupTimerId = null;
 let placeLookupRequestId = 0;
+let placeLookupAbortController = null;
+let placePreviewFrameId = null;
+let queuedPlacePreviewCandidate = null;
 const placeCandidateSearchCache = new Map();
 const placeGeocodeSearchCache = new Map();
+const PLACE_LOOKUP_DEBOUNCE_MS = 450;
+const PLACE_SEARCH_TIMEOUT_MS = 3200;
+const PLACE_SEARCH_MAX_QUERY_BATCH = 5;
 let googleMapsLoaderPromise = null;
 let googleMapsReadyResolver = null;
 let pendingPlaceDraft = null;
@@ -2420,6 +2426,65 @@ function buildPlaceSearchQueries(query='', context=getMapSearchContext()){
   const suffixPool=[...suffixes, ...streetSuffixes, ...contextSuffixes];
   return [...new Set([normalized, ...mappedQueries, ...suffixPool.map(suffix=>`${normalized}${suffix}`.trim())])];
 }
+function getSearchableTextLength(query=''){
+  return Array.from(String(query||'').replace(/\s+/g,'').trim()).length;
+}
+function getPlaceSearchCacheKey(query='', context=getMapSearchContext()){
+  const normalized=normalizePlaceKeyword(query).toLowerCase();
+  const contextKey=(Array.isArray(context)?context:[]).map(value=>String(value||'').trim().toLowerCase()).filter(Boolean).join('|');
+  return `${normalized}::${contextKey}`;
+}
+function selectFastPlaceSearchQueries(queries=[]){
+  const selected=[];
+  queries.forEach(query=>{
+    const normalized=String(query||'').trim();
+    if(!normalized||selected.includes(normalized)) return;
+    selected.push(normalized);
+  });
+  return selected.slice(0, PLACE_SEARCH_MAX_QUERY_BATCH);
+}
+function mergePlaceCandidates(candidates=[]){
+  const merged=[];
+  const seen=new Set();
+  candidates.forEach(candidate=>{
+    if(!isValidPlaceResult(candidate)) return;
+    const name=normalizeSearchComparable(candidate.name||candidate.displayName);
+    const lat=Number(candidate.lat).toFixed(5);
+    const lng=Number(candidate.lng).toFixed(5);
+    const key=[name, lat, lng].join('|');
+    if(seen.has(key)) return;
+    seen.add(key);
+    merged.push(candidate);
+  });
+  return merged;
+}
+function createTimeoutSignal(signal=null, timeoutMs=PLACE_SEARCH_TIMEOUT_MS){
+  const controller=new AbortController();
+  const timerId=window.setTimeout(()=>controller.abort(), timeoutMs);
+  const abort=()=>{
+    window.clearTimeout(timerId);
+    if(!controller.signal.aborted) controller.abort();
+  };
+  if(signal){
+    if(signal.aborted){
+      abort();
+    }else{
+      signal.addEventListener('abort', abort, {once:true});
+    }
+  }
+  return {signal:controller.signal, cleanup:()=>window.clearTimeout(timerId)};
+}
+async function fetchJsonWithTimeout(url, options={}){
+  const {signal, timeoutMs=PLACE_SEARCH_TIMEOUT_MS, ...fetchOptions}=options||{};
+  const timeout=createTimeoutSignal(signal, timeoutMs);
+  try{
+    const response=await fetch(url, {...fetchOptions, signal:timeout.signal});
+    if(!response.ok) return {ok:false, status:response.status, data:null};
+    return {ok:true, status:response.status, data:await response.json()};
+  }finally{
+    timeout.cleanup();
+  }
+}
 function searchPlaceCandidatesWithGooglePlaces(query, rawQuery=query){
   return new Promise(resolve=>{
     if(!isGooglePlacesApiReady()){
@@ -2522,12 +2587,14 @@ function searchPlaceWithGoogleGeocoder(query, rawQuery=query){
     });
   });
 }
-async function searchPlaceWithGoogleGeocodingApi(query, rawQuery=query){
+async function searchPlaceWithGoogleGeocodingApi(query, rawQuery=query, options={}){
   const apiKey=getGoogleMapsApiKey();
   if(!apiKey||typeof fetch!=='function') return null;
-  const response=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${encodeURIComponent(apiKey)}&language=ko&region=kr`);
-  if(!response.ok) return null;
-  const data=await response.json();
+  const {ok, data}=await fetchJsonWithTimeout(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${encodeURIComponent(apiKey)}&language=ko&region=kr`, {
+    signal:options.signal,
+    timeoutMs:options.timeoutMs
+  });
+  if(!ok) return null;
   debugMapSearch('Geocoding API status', data.status, query, data.results);
   const item=Array.isArray(data.results) ? data.results[0] : null;
   const location=item?.geometry?.location;
@@ -2543,11 +2610,11 @@ async function searchPlaceWithGoogleGeocodingApi(query, rawQuery=query){
     sourceType:detectPlaceSourceType(item||{})
   }, rawQuery);
 }
-async function searchPlaceWithNominatim(query, rawQuery=query){
-  const results=await searchGeocode(query, rawQuery);
+async function searchPlaceWithNominatim(query, rawQuery=query, options={}){
+  const results=await searchNominatimGeocode(query, rawQuery, options);
   return results[0]||null;
 }
-async function searchGeocode(query, rawQuery=query){
+async function searchGeocode(query, rawQuery=query, options={}){
   if(typeof fetch!=='function') return [];
   const normalized=String(query||'').trim();
   if(!normalized) return [];
@@ -2556,45 +2623,53 @@ async function searchGeocode(query, rawQuery=query){
     return placeGeocodeSearchCache.get(cacheKey).map(item=>({...item}));
   }
   try{
-    const response=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&addressdetails=1&q=${encodeURIComponent(normalized)}`, {
-      headers:{Accept:'application/json'}
-    });
-    const data=response.ok ? await response.json() : [];
-    debugMapSearch('Geocode results', normalized, response.status, data);
-    const nominatimResults=Array.isArray(data) ? data.map(item=>normalizePlaceSearchResult({
-      id:item?.place_id||item?.osm_id||'',
-      name:item?.name||item?.display_name||rawQuery,
-      displayName:item?.display_name||item?.name||rawQuery,
-      address:item?.display_name||'',
-      lat:parseFloat(item?.lat),
-      lng:parseFloat(item?.lon),
-      source:'geo',
-      types:item?.type?[item.type]:[],
-      sourceType:detectPlaceSourceType({
-        name:item?.name,
-        displayName:item?.display_name,
-        address:item?.display_name,
-        types:item?.type?[item.type]:[]
-      })
-    }, rawQuery)).filter(Boolean) : [];
-    const results=nominatimResults.length ? nominatimResults : await searchPhotonGeocode(normalized, rawQuery);
-    placeGeocodeSearchCache.set(cacheKey, results);
+    const settled=await Promise.allSettled([
+      searchNominatimGeocode(normalized, rawQuery, options),
+      searchPhotonGeocode(normalized, rawQuery, options)
+    ]);
+    const results=mergePlaceCandidates(settled.flatMap(item=>item.status==='fulfilled' ? item.value : []));
+    if(!options.signal?.aborted) placeGeocodeSearchCache.set(cacheKey, results);
     return results.map(item=>({...item}));
   }catch(error){
+    if(error?.name==='AbortError') return [];
     console.error('Geocode error:', error);
-    const results=await searchPhotonGeocode(normalized, rawQuery);
-    placeGeocodeSearchCache.set(cacheKey, results);
-    return results.map(item=>({...item}));
+    return [];
   }
 }
-async function searchPhotonGeocode(query, rawQuery=query){
+async function searchNominatimGeocode(query, rawQuery=query, options={}){
+  const {ok, status, data}=await fetchJsonWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&addressdetails=1&q=${encodeURIComponent(query)}`, {
+    headers:{Accept:'application/json'},
+    signal:options.signal,
+    timeoutMs:options.timeoutMs
+  });
+  debugMapSearch('Nominatim geocode results', query, status, data);
+  if(!ok||!Array.isArray(data)) return [];
+  return data.map(item=>normalizePlaceSearchResult({
+    id:item?.place_id||item?.osm_id||'',
+    name:item?.name||item?.display_name||rawQuery,
+    displayName:item?.display_name||item?.name||rawQuery,
+    address:item?.display_name||'',
+    lat:parseFloat(item?.lat),
+    lng:parseFloat(item?.lon),
+    source:'geo',
+    types:item?.type?[item.type]:[],
+    sourceType:detectPlaceSourceType({
+      name:item?.name,
+      displayName:item?.display_name,
+      address:item?.display_name,
+      types:item?.type?[item.type]:[]
+    })
+  }, rawQuery)).filter(Boolean);
+}
+async function searchPhotonGeocode(query, rawQuery=query, options={}){
   if(typeof fetch!=='function') return [];
   try{
-    const response=await fetch(`https://photon.komoot.io/api/?limit=10&q=${encodeURIComponent(query)}`, {
-      headers:{Accept:'application/json'}
+    const {ok, data}=await fetchJsonWithTimeout(`https://photon.komoot.io/api/?limit=10&q=${encodeURIComponent(query)}`, {
+      headers:{Accept:'application/json'},
+      signal:options.signal,
+      timeoutMs:options.timeoutMs
     });
-    if(!response.ok) return [];
-    const data=await response.json();
+    if(!ok) return [];
     debugMapSearch('Photon geocode results', query, data);
     const features=Array.isArray(data?.features) ? data.features : [];
     return features.map(feature=>{
@@ -2618,6 +2693,7 @@ async function searchPhotonGeocode(query, rawQuery=query){
       }, rawQuery);
     }).filter(Boolean);
   }catch(error){
+    if(error?.name==='AbortError') return [];
     console.error('Photon geocode error:', error);
     return [];
   }
@@ -2625,49 +2701,45 @@ async function searchPhotonGeocode(query, rawQuery=query){
 async function searchPOI(query, rawQuery=query){
   return searchPlaceCandidatesWithGooglePlaces(query, rawQuery);
 }
-async function searchPlaces(query){
+async function searchPlaces(query, options={}){
   const normalized=String(query||'').trim();
   if(!normalized) return [];
-  const poiResults=await searchPOI(normalized, normalized);
-  if(poiResults&&poiResults.length>=3){
-    return poiResults;
-  }
-  const geoResults=await searchGeocode(normalized, normalized);
-  return rankPlaceCandidates([...(poiResults||[]), ...geoResults], normalized).slice(0,10);
+  if(getSearchableTextLength(normalized)<2) return [];
+  const settled=await Promise.allSettled([
+    searchPOI(normalized, normalized),
+    searchGeocode(normalized, normalized, options)
+  ]);
+  return rankPlaceCandidates(mergePlaceCandidates(settled.flatMap(item=>item.status==='fulfilled' ? item.value : [])), normalized).slice(0,10);
 }
-async function searchPlaceCandidates(query, context=getMapSearchContext()){
+async function searchPlaceCandidates(query, context=getMapSearchContext(), options={}){
   const normalized=normalizePlaceKeyword(query);
   if(!normalized) return [];
-  const contextKey=(Array.isArray(context)?context:[]).map(value=>String(value||'').trim()).filter(Boolean).join('|');
-  const cacheKey=`${normalized.toLowerCase()}::${contextKey.toLowerCase()}`;
+  if(getSearchableTextLength(normalized)<2) return [];
+  const cacheKey=getPlaceSearchCacheKey(normalized, context);
   if(placeCandidateSearchCache.has(cacheKey)){
     return placeCandidateSearchCache.get(cacheKey).map(item=>({...item}));
   }
   await ensureGoogleMapsApiLoaded();
-  const queries=buildPlaceSearchQueries(normalized, context);
+  const queries=selectFastPlaceSearchQueries(buildPlaceSearchQueries(normalized, context));
   const candidates=[];
-  for(const candidateQuery of queries){
-    try{
-      candidates.push(...await searchPOI(candidateQuery, normalized));
-      const geocoderResult=await searchPlaceWithGoogleGeocoder(candidateQuery, normalized);
-      if(geocoderResult) candidates.push(geocoderResult);
-      const geocodingApiResult=await searchPlaceWithGoogleGeocodingApi(candidateQuery, normalized);
-      if(geocodingApiResult) candidates.push(geocodingApiResult);
-      candidates.push(...await searchGeocode(candidateQuery, normalized));
-    }catch(error){
-      console.error('Place candidate search failed.', error);
+  const tasks=queries.flatMap(candidateQuery=>[
+    searchPOI(candidateQuery, normalized),
+    searchPlaceWithGoogleGeocoder(candidateQuery, normalized).then(result=>result?[result]:[]),
+    searchPlaceWithGoogleGeocodingApi(candidateQuery, normalized, options).then(result=>result?[result]:[]),
+    searchGeocode(candidateQuery, normalized, options)
+  ]);
+  const settled=await Promise.allSettled(tasks);
+  settled.forEach(item=>{
+    if(item.status==='fulfilled'){
+      candidates.push(...item.value);
+    }else if(item.reason?.name!=='AbortError'){
+      console.error('Place candidate search failed.', item.reason);
     }
-    const ranked=rankPlaceCandidates(candidates, normalized, context);
-    if(ranked.length>=3){
-      const results=ranked.slice(0,5);
-      placeCandidateSearchCache.set(cacheKey, results);
-      return results.map(item=>({...item}));
-    }
-  }
+  });
   const knownResult=searchPlaceWithKnownKoreanFallback(normalized, normalized);
   if(knownResult) candidates.push(knownResult);
-  const results=rankPlaceCandidates(candidates, normalized, context).slice(0,5);
-  placeCandidateSearchCache.set(cacheKey, results);
+  const results=rankPlaceCandidates(mergePlaceCandidates(candidates), normalized, context).slice(0,5);
+  if(!options.signal?.aborted) placeCandidateSearchCache.set(cacheKey, results);
   return results.map(item=>({...item}));
 }
 async function geocodeWithFallback(query, context=getMapSearchContext()){
@@ -2993,6 +3065,11 @@ function setPlacePreviewCandidate(candidate=null){
 }
 function clearPlacePreview(){
   placePreviewSelectedCandidate=null;
+  queuedPlacePreviewCandidate=null;
+  if(placePreviewFrameId!==null){
+    window.cancelAnimationFrame(placePreviewFrameId);
+    placePreviewFrameId=null;
+  }
   if(placePreviewMarker&&typeof placePreviewMarker.remove==='function'){
     placePreviewMarker.remove();
     placePreviewMarker=null;
@@ -3004,23 +3081,35 @@ function schedulePlaceLookupSearch(query=''){
   if(placeLookupTimerId!==null){
     window.clearTimeout(placeLookupTimerId);
   }
-  if(!normalized){
+  if(placeLookupAbortController){
+    placeLookupAbortController.abort();
+    placeLookupAbortController=null;
+  }
+  if(!normalized||getSearchableTextLength(normalized)<2){
     pendingPlaceCandidates=[];
     clearPlaceSearchAssist();
     clearPlacePreview();
     return;
   }
-  placeLookupTimerId=window.setTimeout(()=>runPlaceLookupSearch(normalized), 300);
+  placeLookupTimerId=window.setTimeout(()=>{
+    placeLookupTimerId=null;
+    runPlaceLookupSearch(normalized);
+  }, PLACE_LOOKUP_DEBOUNCE_MS);
 }
 async function runPlaceLookupSearch(query=''){
   const normalized=String(query||'').trim();
-  if(!normalized) return [];
+  if(!normalized||getSearchableTextLength(normalized)<2) return [];
   const requestId=++placeLookupRequestId;
+  if(placeLookupAbortController){
+    placeLookupAbortController.abort();
+  }
+  placeLookupAbortController=new AbortController();
+  const signal=placeLookupAbortController.signal;
   const values={...getPlaceFormValues(), name:normalized};
   pendingPlaceDraft={...values, searchKeyword:normalized, createdAt:getTodayLocalDateString(), updatedAt:getTodayLocalDateString()};
   renderPlaceSearchAssist('loading');
   try{
-    const candidates=await searchPlaceCandidates(normalized);
+    const candidates=await searchPlaceCandidates(normalized, getMapSearchContext(), {signal, timeoutMs:PLACE_SEARCH_TIMEOUT_MS});
     if(requestId!==placeLookupRequestId) return [];
     pendingPlaceCandidates=candidates;
     renderPlaceSearchAssist(candidates.length?'candidates':'not-found', candidates);
@@ -3029,6 +3118,7 @@ async function runPlaceLookupSearch(query=''){
     }
     return candidates;
   }catch(error){
+    if(error?.name==='AbortError') return [];
     if(requestId===placeLookupRequestId){
       console.error('Place lookup failed.', error);
       pendingPlaceCandidates=[];
@@ -3036,6 +3126,10 @@ async function runPlaceLookupSearch(query=''){
       clearPlacePreview();
     }
     return [];
+  }finally{
+    if(requestId===placeLookupRequestId){
+      placeLookupAbortController=null;
+    }
   }
 }
 async function savePlace(){
@@ -3115,7 +3209,7 @@ function renderPlaceSearchAssist(mode='not-found', candidates=[]){
     return;
   }
   if(mode==='candidates'){
-    panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">검색 결과를 선택해 저장하세요.</div><div class="place-list place-search-results" style="margin-top:8px;">${candidates.map((candidate,index)=>{const typeLabel=formatPlaceSourceTypeLabel(candidate.sourceType||detectPlaceSourceType(candidate)); const sourceLabel=candidate.source==='geo'?'지명/주소':'상호/장소'; return `<article class="place-card place-search-result-card" onclick="previewPlaceCandidate(${index})" onmouseenter="previewPlaceCandidate(${index})"><div class="place-card-top"><span class="place-usage-badge">${escapeHtml(typeLabel)}</span><span class="place-usage-badge">${escapeHtml(sourceLabel)}</span></div><h6 class="map-location-pin-card-title">${escapeHtml(candidate.displayName||candidate.name)}</h6>${candidate.address?`<div class="map-location-pin-card-location">${escapeHtml(candidate.address)}</div>`:''}<div class="place-card-actions"><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); selectPlaceCandidate(${index})">저장</button></div></article>`;}).join('')}</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates()">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
+    panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">검색 결과를 선택해 저장하세요.</div><div class="place-list place-search-results" style="margin-top:8px;">${candidates.map((candidate,index)=>{const typeLabel=formatPlaceSourceTypeLabel(candidate.sourceType||detectPlaceSourceType(candidate)); const sourceLabel=candidate.source==='geo'?'지명/주소':'상호/장소'; return `<article class="place-card place-search-result-card" data-candidate-index="${index}" onclick="previewPlaceCandidate(${index}, true)" onmouseenter="previewPlaceCandidate(${index})"><div class="place-card-top"><span class="place-usage-badge">${escapeHtml(typeLabel)}</span><span class="place-usage-badge">${escapeHtml(sourceLabel)}</span></div><h6 class="map-location-pin-card-title">${escapeHtml(candidate.displayName||candidate.name)}</h6>${candidate.address?`<div class="map-location-pin-card-location">${escapeHtml(candidate.address)}</div>`:''}<div class="place-card-actions"><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); selectPlaceCandidate(${index})">저장</button></div></article>`;}).join('')}</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates()">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
     if(candidates.length===1){
       window.setTimeout(()=>setPlacePreviewCandidate(candidates[0]), 0);
     }
@@ -3124,10 +3218,33 @@ function renderPlaceSearchAssist(mode='not-found', candidates=[]){
   panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">${draftName ? `${draftName}: ` : ''}정확한 위치를 찾지 못했습니다. 그래도 이름만 저장하거나 지도에서 직접 위치를 지정할 수 있습니다.</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates()">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="retryPlaceSearchFromDraft()">다시 검색</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
   clearPlacePreview();
 }
-function previewPlaceCandidate(index=0){
+function previewPlaceCandidate(index=0, immediate=false){
   const candidate=pendingPlaceCandidates[Number(index)];
   if(!candidate) return;
-  setPlacePreviewCandidate(candidate);
+  updatePlaceSearchResultHighlight(index);
+  if(immediate){
+    if(placePreviewFrameId!==null){
+      window.cancelAnimationFrame(placePreviewFrameId);
+      placePreviewFrameId=null;
+    }
+    queuedPlacePreviewCandidate=null;
+    setPlacePreviewCandidate(candidate);
+    return;
+  }
+  queuedPlacePreviewCandidate=candidate;
+  if(placePreviewFrameId!==null) return;
+  placePreviewFrameId=window.requestAnimationFrame(()=>{
+    placePreviewFrameId=null;
+    const nextCandidate=queuedPlacePreviewCandidate;
+    queuedPlacePreviewCandidate=null;
+    if(nextCandidate) setPlacePreviewCandidate(nextCandidate);
+  });
+}
+function updatePlaceSearchResultHighlight(index=0){
+  const normalizedIndex=String(Number(index));
+  document.querySelectorAll('.place-search-result-card').forEach(card=>{
+    card.classList.toggle('is-preview-active', card.dataset.candidateIndex===normalizedIndex);
+  });
 }
 function selectPlaceCandidate(index=0){
   const candidate=pendingPlaceCandidates[Number(index)];
@@ -3385,7 +3502,7 @@ function setPlaceCategoryFilter(category='all', checked=true){
 }
 function renderPlaceEntryPanel(){
   const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
-  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="place-entry-lookup-layout"><div class="place-entry-form-pane"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 검색 / 저장</div><p class="map-location-pin-description">장소명, 도시, 거리, 주소, 건물명, 상호명을 검색해 저장합니다.</p></div></div><div class="simple-form-grid place-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: Mexico City / Paseo de la Reforma / 서울시청 / Starbucks Tokyo" oninput="schedulePlaceLookupSearch(this.value)" onkeydown="if(event.key==='Enter'){savePlace();}"></label><label class="simple-form-field"><span class="simple-form-label">카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">추가 메모</span><textarea id="placeMemoInput" class="simple-form-input simple-form-textarea" rows="2" placeholder="예: 단체 식사 가능, 주차 확인 필요"></textarea></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div><div id="placeSearchAssistPanel"></div>${renderPlaceFilters()}</div>${renderPlacePreviewPanel()}</div></section>`;
+  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="place-entry-lookup-layout"><div class="place-entry-form-pane"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 검색 / 저장</div><p class="map-location-pin-description">장소명, 도시, 거리, 주소, 건물명, 상호명을 검색해 저장합니다.</p></div></div><label class="simple-form-field place-search-main-field"><span class="simple-form-label">검색어</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: Mexico City / Paseo de la Reforma / 서울시청 / Starbucks Tokyo" oninput="schedulePlaceLookupSearch(this.value)" onkeydown="if(event.key==='Enter'){savePlace();}"></label><div id="placeSearchAssistPanel"></div><div class="simple-form-grid place-form-grid place-save-grid"><label class="simple-form-field"><span class="simple-form-label">저장 카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">추가 메모</span><textarea id="placeMemoInput" class="simple-form-input simple-form-textarea" rows="2" placeholder="예: 단체 식사 가능, 주차 확인 필요"></textarea></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div></div>${renderPlacePreviewPanel()}</div></section>`;
 }
 function renderPlaceComposer(){
   return renderPlaceEntryPanel();
@@ -3572,8 +3689,9 @@ function renderMapPins(){
 }
 function renderPlaceList(){
   const places=getFilteredPlaces();
+  const headerHtml=`<header class="map-location-pin-list-header place-list-header-row"><div class="place-list-heading"><h5 class="map-location-pin-list-title">카테고리별 장소 목록</h5><p class="map-location-pin-list-meta">${places.length}개 장소가 저장되어 있습니다.</p></div>${renderPlaceFilters()}</header>`;
   if(!places.length){
-    return '<section class="place-list-shell"><div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>';
+    return `<section class="place-list-shell" style="margin-top:18px;">${headerHtml}<div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>`;
   }
   const groupedPlaces=new Map(PLACE_CATEGORIES.map(category=>[category.value, []]));
   places.forEach(place=>{
@@ -3587,11 +3705,25 @@ function renderPlaceList(){
     meta:category,
     places:groupedPlaces.get(category.value)||[]
   })).filter(group=>group.places.length);
-  return `<section class="place-list-shell" style="margin-top:18px;"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">카테고리별 장소 목록</h5><p class="map-location-pin-list-meta">${places.length}개 장소가 저장되어 있습니다.</p></div></header><div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const hasCoordinates=hasPlaceCoordinates(place); const statusBadge=hasCoordinates ? '' : '<span class="place-usage-badge">위치 미확정</span>'; const sourceBadge=`<span class="place-usage-badge">${escapeHtml(formatPlaceSourceTypeLabel(place.sourceType||'general'))}</span>`; const mapButton=hasCoordinates ? `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button>` : `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); retryGeocodeForPlace('${escapeHtml(place.id)}')">재검색</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); beginManualPinPlacementForPlace('${escapeHtml(place.id)}')">지도지정</button>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${sourceBadge}${statusBadge}${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.displayName||place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:'<div class="map-location-pin-card-location">위치 미확정</div>'}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
+  return `<section class="place-list-shell" style="margin-top:18px;">${headerHtml}<div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const hasCoordinates=hasPlaceCoordinates(place); const statusBadge=hasCoordinates ? '' : '<span class="place-usage-badge">위치 미확정</span>'; const sourceBadge=`<span class="place-usage-badge">${escapeHtml(formatPlaceSourceTypeLabel(place.sourceType||'general'))}</span>`; const mapButton=hasCoordinates ? `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button>` : `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); retryGeocodeForPlace('${escapeHtml(place.id)}')">재검색</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); beginManualPinPlacementForPlace('${escapeHtml(place.id)}')">지도지정</button>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${sourceBadge}${statusBadge}${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.displayName||place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:'<div class="map-location-pin-card-location">위치 미확정</div>'}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
 }
 function renderPlaceListOnly(){
   const listPanel=document.getElementById('placeListPanel');
-  if(listPanel) listPanel.innerHTML=renderPlaceList();
+  if(!listPanel) return;
+  const activeElement=document.activeElement;
+  const shouldRestoreSearchFocus=activeElement?.id==='placeSearchInput';
+  const selectionStart=shouldRestoreSearchFocus ? activeElement.selectionStart : null;
+  const selectionEnd=shouldRestoreSearchFocus ? activeElement.selectionEnd : null;
+  listPanel.innerHTML=renderPlaceList();
+  if(shouldRestoreSearchFocus){
+    const input=document.getElementById('placeSearchInput');
+    if(input){
+      input.focus({preventScroll:true});
+      if(selectionStart!==null&&selectionEnd!==null){
+        input.setSelectionRange(selectionStart, selectionEnd);
+      }
+    }
+  }
 }
 function renderPlaceFiltersOnly(){
   const filterPanel=document.getElementById('placeCategoryFilterPanel');
@@ -3600,8 +3732,8 @@ function renderPlaceFiltersOnly(){
 function renderPlaceFilters(){
   const selectedSet=new Set(selectedPlaceCategories.filter(category=>getValidPlaceCategoryValue(category)));
   const allChecked=isPlaceFilterAllSelected();
-  const checkboxStyle='display:inline-flex;align-items:center;gap:6px;margin:4px 10px 4px 0;';
-  return `<section id="placeCategoryFilterPanel" class="place-search-filter-panel" aria-label="장소 검색과 필터"><label class="place-search-field"><span class="simple-form-label">빠른 검색</span><input id="placeSearchInput" class="simple-form-input" type="search" value="${escapeHtml(currentPlaceSearch)}" placeholder="장소명 / 주소 / 카테고리 검색" oninput="setPlaceSearch(this.value)"></label><div class="place-filter-bar" role="group" aria-label="카테고리 필터"><label style="${checkboxStyle}"><input type="checkbox" ${allChecked?'checked':''} onchange="setPlaceCategoryFilter('all', this.checked)">전체보기</label>${PLACE_CATEGORIES.map(item=>`<label style="${checkboxStyle}"><input type="checkbox" ${!allChecked&&selectedSet.has(item.value)?'checked':''} onchange="setPlaceCategoryFilter('${escapeHtml(item.value)}', this.checked)">${escapeHtml(item.label)}</label>`).join('')}</div></section>`;
+  const checkboxStyle='display:inline-flex;align-items:center;gap:6px;';
+  return `<section id="placeCategoryFilterPanel" class="place-search-filter-panel" aria-label="장소 카테고리 필터"><div class="place-filter-bar map-category-filters" role="group" aria-label="카테고리 필터"><div class="map-inline-search"><input id="placeSearchInput" class="simple-form-input map-inline-search-input" type="search" value="${escapeHtml(currentPlaceSearch)}" placeholder="장소명 / 주소 / 카테고리 검색" oninput="setPlaceSearch(this.value)"></div><label style="${checkboxStyle}"><input type="checkbox" ${allChecked?'checked':''} onchange="setPlaceCategoryFilter('all', this.checked)">전체보기</label>${PLACE_CATEGORIES.map(item=>`<label style="${checkboxStyle}"><input type="checkbox" ${!allChecked&&selectedSet.has(item.value)?'checked':''} onchange="setPlaceCategoryFilter('${escapeHtml(item.value)}', this.checked)">${escapeHtml(item.label)}</label>`).join('')}</div></section>`;
 }
 function renderPlaceManagementPanel(){
   loadPlaces();
