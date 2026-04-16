@@ -10431,7 +10431,7 @@ if(typeof window!=='undefined'){
   });
 }
 updateMobileHeaderReportBoardVisibility();
-console.log("DEPLOY CHECK: 2026-04-16-pages-public-fix-05");
+console.log("DEPLOY CHECK: 2026-04-16-vercel-fix-01");
 // deploy refresh 2026-04-16
 // deploy refresh 2026-04-16-pages-fix-01
-// deploy refresh 2026-04-16-pages-public-fix-05
+// deploy refresh 2026-04-16-vercel-fix-01
