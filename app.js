@@ -406,6 +406,7 @@ let isHydratingPlaceCoordinates = false;
 let hasHydratedPlaceCoordinates = false;
 let placeComposerCategory = '';
 let currentPlaceSearch = '';
+let placeSearchRenderTimerId = null;
 let activePlaceId = '';
 let selectedPlaceCategories = [];
 let mapInstance = null;
@@ -516,6 +517,7 @@ const PLACE_CATEGORIES = [
   {value:'공항/교통', label:'공항/교통', tone:'transport', color:'#0891b2'},
   {value:'기타', label:'기타', tone:'other', color:'#64748b'}
 ];
+const PLACE_CATEGORY_META_BY_VALUE = new Map(PLACE_CATEGORIES.map(item=>[item.value, item]));
 const PLACE_USAGE_TYPES = ['라이브 포인트','집결','주차','식사','숙소','비상','장비','이동'];
 const SELECT_PLACEHOLDER_VALUES = ['선택','카테고리','카테고리 선택','용도','용도 선택','분류','분류 선택'];
 const MAP_LOCATION_PIN_CATEGORIES = [
@@ -2133,7 +2135,7 @@ function clearAllMapLocationPins(sectionKey='region'){
 }
 function getPlaceCategoryMeta(category=''){
   const normalized=String(category||'').trim();
-  return PLACE_CATEGORIES.find(item=>item.value===normalized)||PLACE_CATEGORIES[PLACE_CATEGORIES.length-1];
+  return PLACE_CATEGORY_META_BY_VALUE.get(normalized)||PLACE_CATEGORIES[PLACE_CATEGORIES.length-1];
 }
 function isSelectPlaceholderValue(value=''){
   const normalized=String(value||'').trim();
@@ -2142,7 +2144,7 @@ function isSelectPlaceholderValue(value=''){
 function getValidPlaceCategoryValue(value=''){
   const normalized=String(value||'').trim();
   if(isSelectPlaceholderValue(normalized)) return '';
-  return PLACE_CATEGORIES.some(item=>item.value===normalized) ? normalized : '';
+  return PLACE_CATEGORY_META_BY_VALUE.has(normalized) ? normalized : '';
 }
 function getValidPlaceUsageTypeValue(value=''){
   const normalized=String(value||'').trim();
@@ -2986,7 +2988,13 @@ function setPlaceFilter(filter='all'){
 }
 function setPlaceSearch(value=''){
   currentPlaceSearch=String(value||'').trim();
-  renderPlaceResults();
+  if(placeSearchRenderTimerId!==null){
+    window.clearTimeout(placeSearchRenderTimerId);
+  }
+  placeSearchRenderTimerId=window.setTimeout(()=>{
+    placeSearchRenderTimerId=null;
+    renderPlaceResults();
+  }, 120);
 }
 function focusPlace(placeId=''){
   activePlaceId=String(placeId||'').trim();
@@ -3316,9 +3324,15 @@ function renderPlaceResults(){
 }
 function renderMapPins(){
   const places=getFilteredPlaces();
-  const pinnedCount=places.filter(place=>hasPlaceCoordinates(place)).length;
+  let pinnedCount=0;
+  const categoryCounts=new Map();
+  places.forEach(place=>{
+    if(hasPlaceCoordinates(place)) pinnedCount+=1;
+    const categoryValue=getValidPlaceCategoryValue(place.category)||PLACE_CATEGORIES[PLACE_CATEGORIES.length-1].value;
+    categoryCounts.set(categoryValue, (categoryCounts.get(categoryValue)||0)+1);
+  });
   const categorySummary=PLACE_CATEGORIES
-    .map(category=>({label:category.label, tone:category.tone, count:places.filter(place=>place.category===category.value).length}))
+    .map(category=>({label:category.label, tone:category.tone, count:categoryCounts.get(category.value)||0}))
     .filter(item=>item.count>0);
   const summaryHtml=categorySummary.map(item=>`<span class="map-location-pin-card-category is-${escapeHtml(item.tone)}" style="display:inline-flex;align-items:center;margin:0;white-space:nowrap;">${escapeHtml(item.label)} ${item.count}</span>`).join('')||'<span class="place-map-unavailable">표시할 장소 없음</span>';
   return `<section class="map-main-board" aria-label="저장 장소 지도" style="display:block;width:100%;margin-top:14px;"><div class="map-status-bar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 8px 0;padding:0 2px;"><span class="map-location-pin-list-meta" style="margin:0;">장소 ${places.length}개 / 핀 ${pinnedCount}개</span><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">${summaryHtml}</div></div><div id="placeGoogleMap" class="place-google-map" role="application" aria-label="저장 장소 지도" style="width:100%;height:clamp(360px,60vh,640px);min-height:360px;border:1px solid #d7dde8;border-radius:8px;overflow:hidden;background:#eef2f7;color:#475569;">지도를 불러오는 중입니다.</div></section>`;
@@ -3328,9 +3342,17 @@ function renderPlaceList(){
   if(!places.length){
     return '<section class="place-list-shell"><div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>';
   }
+  const groupedPlaces=new Map(PLACE_CATEGORIES.map(category=>[category.value, []]));
+  places.forEach(place=>{
+    const categoryValue=getValidPlaceCategoryValue(place.category)||PLACE_CATEGORIES[PLACE_CATEGORIES.length-1].value;
+    if(!groupedPlaces.has(categoryValue)){
+      groupedPlaces.set(categoryValue, []);
+    }
+    groupedPlaces.get(categoryValue).push(place);
+  });
   const groups=PLACE_CATEGORIES.map(category=>({
     meta:category,
-    places:places.filter(place=>place.category===category.value)
+    places:groupedPlaces.get(category.value)||[]
   })).filter(group=>group.places.length);
   return `<section class="place-list-shell" style="margin-top:18px;"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">카테고리별 장소 목록</h5><p class="map-location-pin-list-meta">${places.length}개 장소가 저장되어 있습니다.</p></div></header><div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const hasCoordinates=hasPlaceCoordinates(place); const statusBadge=hasCoordinates ? '' : '<span class="place-usage-badge">위치 미확정</span>'; const sourceBadge=`<span class="place-usage-badge">${escapeHtml(formatPlaceSourceTypeLabel(place.sourceType||'general'))}</span>`; const mapButton=hasCoordinates ? `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button>` : `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); retryGeocodeForPlace('${escapeHtml(place.id)}')">재검색</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); beginManualPinPlacementForPlace('${escapeHtml(place.id)}')">지도지정</button>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${sourceBadge}${statusBadge}${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.displayName||place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:'<div class="map-location-pin-card-location">위치 미확정</div>'}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
 }
@@ -3992,13 +4014,19 @@ function renderHeaderProgrammingTickerLine(track, text='', options={}){
     const renderedMarkup=buildTickerMarkup(items, {allowHtml, speedClass});
     const normalizedSpeedClass=String(speedClass||'').trim();
     const speedClassAttr=normalizedSpeedClass ? ` ${normalizedSpeedClass}` : '';
-    track.innerHTML=`<div class="header-report-board-page"><div class="header-report-board-row header-report-board-row-marquee"><div class="header-report-board-line"><div class="header-report-board-inline-marquee"><div class="header-report-board-inline-marquee-track${speedClassAttr}">${renderedMarkup}</div></div></div></div></div>`;
+    const nextHtml=`<div class="header-report-board-page"><div class="header-report-board-row header-report-board-row-marquee"><div class="header-report-board-line"><div class="header-report-board-inline-marquee"><div class="header-report-board-inline-marquee-track${speedClassAttr}">${renderedMarkup}</div></div></div></div></div>`;
+    if(track.__renderedTickerHtml===nextHtml) return;
+    track.__renderedTickerHtml=nextHtml;
+    track.innerHTML=nextHtml;
     return;
   }
   const normalized=String(text||'').trim()||' ';
   const repeatedText=`${normalized}   •   ${normalized}`;
   const renderedText=allowHtml ? repeatedText : escapeHtml(repeatedText);
-  track.innerHTML=`<div class="header-report-board-page"><div class="header-report-board-row header-report-board-row-marquee"><div class="header-report-board-line"><div class="header-report-board-inline-marquee"><div class="header-report-board-inline-marquee-track"><span class="header-report-board-inline-marquee-copy">${renderedText}</span><span class="header-report-board-inline-marquee-copy" aria-hidden="true">${renderedText}</span></div></div></div></div></div>`;
+  const nextHtml=`<div class="header-report-board-page"><div class="header-report-board-row header-report-board-row-marquee"><div class="header-report-board-line"><div class="header-report-board-inline-marquee"><div class="header-report-board-inline-marquee-track"><span class="header-report-board-inline-marquee-copy">${renderedText}</span><span class="header-report-board-inline-marquee-copy" aria-hidden="true">${renderedText}</span></div></div></div></div></div>`;
+  if(track.__renderedTickerHtml===nextHtml) return;
+  track.__renderedTickerHtml=nextHtml;
+  track.innerHTML=nextHtml;
 }
 function formatKoreaTimeLabel(localTime=''){
   const raw=String(localTime||'').trim();
@@ -4589,6 +4617,7 @@ let sharedStateSyncDisabled = false;
 let sharedStateSyncFetchInProgress = false;
 let sharedStateSyncNeedsRefetch = false;
 let sharedStateSyncWriteInProgress = false;
+let sharedStateSyncWriteTimerId = null;
 const sharedStatePendingWrites = new Map();
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
@@ -4968,6 +4997,10 @@ function getSharedStateSyncClient(){
   return sharedStateSyncClient;
 }
 async function flushPendingSharedStateWrites(){
+  if(sharedStateSyncWriteTimerId!==null){
+    window.clearTimeout(sharedStateSyncWriteTimerId);
+    sharedStateSyncWriteTimerId=null;
+  }
   const client=getSharedStateSyncClient();
   if(!client||sharedStateSyncWriteInProgress||!sharedStatePendingWrites.size) return;
   sharedStateSyncWriteInProgress=true;
@@ -4998,15 +5031,22 @@ async function flushPendingSharedStateWrites(){
   }finally{
     sharedStateSyncWriteInProgress=false;
     if(sharedStatePendingWrites.size&&sharedStateSyncReady){
-      window.setTimeout(flushPendingSharedStateWrites, 120);
+      schedulePendingSharedStateFlush(120);
     }
   }
+}
+function schedulePendingSharedStateFlush(delay=120){
+  if(!sharedStateSyncReady||sharedStateSyncDisabled||sharedStateSyncWriteTimerId!==null) return;
+  sharedStateSyncWriteTimerId=window.setTimeout(()=>{
+    sharedStateSyncWriteTimerId=null;
+    flushPendingSharedStateWrites();
+  }, delay);
 }
 function scheduleSharedStateSyncWrite(storageKey, raw=''){
   if(sharedStateSyncDisabled||!SHARED_STATE_SYNC_REGISTRY[storageKey]) return;
   sharedStatePendingWrites.set(storageKey, String(raw??''));
   if(sharedStateSyncReady){
-    flushPendingSharedStateWrites();
+    schedulePendingSharedStateFlush(120);
   }
 }
 function applySharedStateSnapshot(rows=[]){
@@ -7367,8 +7407,15 @@ function setupPersonalTimelineStickyMonth(detailCol){
   const list=detailCol.querySelector('.personal-timeline-list');
   if(!stickyEl||!list) return;
   const scrollContainer=getPersonalTimelineScrollContainer(list);
-  const updateStickyMonth=()=>updatePersonalTimelineDisplayedMonth(detailCol, list);
-  const onScroll=()=>window.requestAnimationFrame(updateStickyMonth);
+  let stickyMonthFrameId=null;
+  const updateStickyMonth=()=>{
+    stickyMonthFrameId=null;
+    updatePersonalTimelineDisplayedMonth(detailCol, list);
+  };
+  const onScroll=()=>{
+    if(stickyMonthFrameId!==null) return;
+    stickyMonthFrameId=window.requestAnimationFrame(updateStickyMonth);
+  };
   if(scrollContainer===window){
     window.addEventListener('scroll', onScroll, {passive:true});
   }else{
@@ -7383,6 +7430,10 @@ function setupPersonalTimelineStickyMonth(detailCol){
       scrollContainer.removeEventListener('scroll', onScroll);
     }
     window.removeEventListener('resize', updateStickyMonth);
+    if(stickyMonthFrameId!==null){
+      window.cancelAnimationFrame(stickyMonthFrameId);
+      stickyMonthFrameId=null;
+    }
   };
 }
 function getPersonalTimelineItems(list){
