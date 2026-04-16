@@ -2847,6 +2847,57 @@ body.news-editor-modal-open{overflow:hidden}
 .place-entry-panel{
   margin-top:4px;
 }
+.place-entry-lookup-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);
+  gap:14px;
+  align-items:stretch;
+}
+.place-entry-form-pane{
+  min-width:0;
+}
+.place-preview-panel{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:10px;
+  padding:12px;
+  border:1px solid #d7e2ee;
+  border-radius:8px;
+  background:#f8fbff;
+}
+.place-preview-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.place-preview-map{
+  width:100%;
+  min-height:260px;
+  height:clamp(260px,34vh,380px);
+  border:1px solid #d7dde8;
+  border-radius:8px;
+  overflow:hidden;
+  background:#eef2f7;
+  color:#526b83;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:800;
+  text-align:center;
+}
+.place-search-results{
+  max-height:320px;
+}
+.place-search-result-card{
+  cursor:pointer;
+}
+.place-search-result-card:hover{
+  border-color:#1d4f86;
+  box-shadow:0 0 0 3px rgba(29,79,134,.10);
+}
 .place-entry-panel .map-location-pin-form-header{
   gap:10px;
 }
@@ -3155,10 +3206,15 @@ body.news-editor-modal-open{overflow:hidden}
 .place-card.is-other{border-left-color:#64748b}
 @media (max-width:768px){
   .place-system-grid,
+  .place-entry-lookup-layout,
   .place-form-grid,
   .place-paste-grid,
   .place-search-filter-panel{
     grid-template-columns:1fr;
+  }
+  .place-preview-map{
+    min-height:220px;
+    height:260px;
   }
   .place-filter-bar .section-title-action-btn{
     flex:1 1 calc(50% - 8px);
