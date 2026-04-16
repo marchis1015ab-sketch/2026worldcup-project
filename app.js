@@ -400,8 +400,12 @@ let mapLocationPinEntries = {region:[],lodging:[]};
 let mapLocationPinComposerImages = {region:[],lodging:[]};
 const mapSectionComposerState = {region:false,lodging:false};
 const MAP_PLACES_STORAGE_KEY = 'map_places';
+const MAP_PLACES_TABLE = 'map_places';
 const placeStore = [];
 let hasLoadedPlaces = false;
+let mapPlacesLoadPromise = null;
+let mapPlacesRealtimeChannel = null;
+let hasReportedMapPlacesLoadError = false;
 let isHydratingPlaceCoordinates = false;
 let hasHydratedPlaceCoordinates = false;
 let placeComposerCategory = '';
@@ -2851,8 +2855,152 @@ function isDuplicatePlace(place){
     return existing.name===place.name&&existing.category===place.category;
   });
 }
-function persistPlaceData(input={}){
+function getMapPlacesSupabaseClient(){
+  if(typeof window==='undefined') return null;
+  return window.supabaseClient||getSharedStateSyncClient?.()||null;
+}
+function getSupabaseTimestamp(value=''){
+  const raw=String(value||'').trim();
+  if(!raw) return new Date().toISOString();
+  const parsed=raw.includes('T') ? new Date(raw) : new Date(`${raw}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+function formatSupabaseDateLabel(value=''){
+  const raw=String(value||'').trim();
+  if(!raw) return getTodayLocalDateString();
+  if(/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0,10);
+  const parsed=new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString().slice(0,10);
+}
+function mapPlaceFromSupabaseRow(row={}, index=0){
+  return normalizePlaceEntry({
+    id:row.id,
+    name:row.name,
+    displayName:row.display_name||row.displayName||row.name,
+    category:row.category,
+    address:row.address,
+    memo:row.memo||row.notes,
+    notes:row.notes||row.memo,
+    lat:row.lat,
+    lng:row.lng,
+    placeId:row.place_id||row.placeId,
+    sourceType:row.source_type||row.sourceType,
+    mapUrl:row.map_url||row.mapUrl,
+    pendingGeocode:row.pending_geocode??row.pendingGeocode,
+    searchKeyword:row.search_keyword||row.searchKeyword,
+    resolvedLabel:row.resolved_label||row.resolvedLabel,
+    rawText:row.raw_text||row.rawText,
+    createdAt:formatSupabaseDateLabel(row.created_at||row.createdAt),
+    updatedAt:formatSupabaseDateLabel(row.updated_at||row.updatedAt)
+  }, index);
+}
+function mapPlaceToSupabaseRow(input={}){
+  const place=normalizePlaceData(input);
+  if(!place) return null;
+  place.pendingGeocode=!hasPlaceCoordinates(place)||Boolean(place.pendingGeocode);
+  place.mapUrl=place.mapUrl||buildGoogleMapsPlaceUrl(place);
+  return {
+    id:String(place.id),
+    name:place.name,
+    display_name:place.displayName||place.name,
+    category:place.category,
+    address:place.address||'',
+    memo:place.memo||'',
+    notes:place.notes||place.memo||'',
+    lat:hasPlaceCoordinates(place)?Number(place.lat):null,
+    lng:hasPlaceCoordinates(place)?Number(place.lng):null,
+    place_id:place.placeId||'',
+    source_type:place.sourceType||'general',
+    map_url:place.mapUrl||'',
+    pending_geocode:Boolean(place.pendingGeocode),
+    search_keyword:place.searchKeyword||place.name,
+    resolved_label:place.resolvedLabel||place.address||'',
+    raw_text:place.rawText||'',
+    created_at:getSupabaseTimestamp(place.createdAt),
+    updated_at:new Date().toISOString()
+  };
+}
+function replacePlaceStore(rows=[]){
+  placeStore.length=0;
+  placeStore.push(...(Array.isArray(rows)?rows:[]).map((row,index)=>mapPlaceFromSupabaseRow(row,index)).filter(Boolean));
+}
+function getLegacyLocalMapPlaces(){
+  if(typeof window==='undefined'||!window.localStorage) return [];
+  try{
+    const saved=JSON.parse(window.localStorage.getItem(MAP_PLACES_STORAGE_KEY)||'[]');
+    return (Array.isArray(saved)?saved:[]).map((entry,index)=>normalizePlaceEntry(entry,index)).filter(Boolean);
+  }catch(error){
+    return [];
+  }
+}
+async function migrateLegacyMapPlacesToSupabase(client){
+  if(!client||typeof window==='undefined'||!window.localStorage) return false;
+  const legacyPlaces=getLegacyLocalMapPlaces();
+  if(!legacyPlaces.length) return false;
+  const rows=legacyPlaces.map(place=>mapPlaceToSupabaseRow(place)).filter(Boolean);
+  if(!rows.length) return false;
+  const {error}=await client.from(MAP_PLACES_TABLE).upsert(rows, {onConflict:'id'});
+  if(error) throw error;
+  window.localStorage.removeItem(MAP_PLACES_STORAGE_KEY);
+  return true;
+}
+async function refreshMapPlacesFromSupabase(options={}){
+  const {rerender=true, allowLegacyMigration=true}=options||{};
+  if(mapPlacesLoadPromise) return mapPlacesLoadPromise;
+  const client=getMapPlacesSupabaseClient();
+  if(!client){
+    if(!hasReportedMapPlacesLoadError){
+      console.warn('MAP 공용 저장소 연결이 준비되지 않았습니다. Supabase 설정을 확인하세요.');
+      hasReportedMapPlacesLoadError=true;
+    }
+    return [];
+  }
+  mapPlacesLoadPromise=(async()=>{
+    try{
+      let {data, error}=await client
+        .from(MAP_PLACES_TABLE)
+        .select('*')
+        .order('created_at', {ascending:true});
+      if(error) throw error;
+      if((!data||!data.length)&&allowLegacyMigration){
+        const migrated=await migrateLegacyMapPlacesToSupabase(client);
+        if(migrated){
+          const response=await client
+            .from(MAP_PLACES_TABLE)
+            .select('*')
+            .order('created_at', {ascending:true});
+          data=response.data;
+          error=response.error;
+          if(error) throw error;
+        }
+      }
+      replacePlaceStore(data||[]);
+      hasReportedMapPlacesLoadError=false;
+      if(rerender&&document.getElementById('placeSystemGrid')) renderPlaceResults();
+      return placeStore;
+    }catch(error){
+      console.error('MAP 공용 장소 로드 실패:', error);
+      if(!hasReportedMapPlacesLoadError){
+        window.alert('공용 MAP 장소를 불러오지 못했습니다. Supabase 테이블 설정을 확인해주세요.');
+        hasReportedMapPlacesLoadError=true;
+      }
+      return placeStore;
+    }finally{
+      mapPlacesLoadPromise=null;
+    }
+  })();
+  return mapPlacesLoadPromise;
+}
+function loadPlaces(){
+  if(hasLoadedPlaces) return;
+  hasLoadedPlaces=true;
+  placeStore.length=0;
+  refreshMapPlacesFromSupabase({rerender:true});
+  startMapPlacesRealtimeSync();
+}
+async function persistPlaceData(input={}){
   loadPlaces();
+  await refreshMapPlacesFromSupabase({rerender:false, allowLegacyMigration:false});
   const place=normalizePlaceData(input);
   if(!place) return null;
   place.pendingGeocode=!hasPlaceCoordinates(place)||Boolean(place.pendingGeocode);
@@ -2861,34 +3009,85 @@ function persistPlaceData(input={}){
     window.alert('이미 저장된 장소입니다.');
     return null;
   }
-  placeStore.push(place);
-  activePlaceId=place.id;
-  savePlaces();
-  renderPlaceResults();
-  if(hasPlaceCoordinates(place)){
-    focusPlace(place.id);
-  }else{
-    renderPlaceListOnly();
+  const row=mapPlaceToSupabaseRow(place);
+  const client=getMapPlacesSupabaseClient();
+  if(!client||!row){
+    window.alert('공용 저장소 연결을 확인해주세요. 장소가 저장되지 않았습니다.');
+    return null;
   }
-  return place;
+  try{
+    const {data, error}=await client
+      .from(MAP_PLACES_TABLE)
+      .upsert(row, {onConflict:'id'})
+      .select('*')
+      .single();
+    if(error) throw error;
+    const savedPlace=mapPlaceFromSupabaseRow(data||row);
+    placeStore.push(savedPlace);
+    activePlaceId=savedPlace.id;
+    renderPlaceResults();
+    if(hasPlaceCoordinates(savedPlace)){
+      focusPlace(savedPlace.id);
+    }else{
+      renderPlaceListOnly();
+    }
+    return savedPlace;
+  }catch(error){
+    console.error('MAP 장소 저장 실패:', error);
+    window.alert('공용 MAP 장소 저장에 실패했습니다. Supabase 테이블 권한을 확인해주세요.');
+    return null;
+  }
 }
 function saveMapPlace(placeData={}){
   return persistPlaceData(placeData);
 }
-function loadPlaces(){
-  if(hasLoadedPlaces) return;
-  hasLoadedPlaces=true;
-  placeStore.length=0;
-  if(typeof window==='undefined'||!window.localStorage) return;
+async function updateMapPlaceInSupabase(place={}){
+  const client=getMapPlacesSupabaseClient();
+  const row=mapPlaceToSupabaseRow(place);
+  if(!client||!row) return null;
   try{
-    const saved=JSON.parse(window.localStorage.getItem(MAP_PLACES_STORAGE_KEY)||'[]');
-    const normalized=(Array.isArray(saved)?saved:[])
-      .map((entry,index)=>normalizePlaceEntry(entry,index))
-      .filter(Boolean);
-    placeStore.push(...normalized);
-    window.localStorage.setItem(MAP_PLACES_STORAGE_KEY, JSON.stringify(placeStore));
+    const {data, error}=await client
+      .from(MAP_PLACES_TABLE)
+      .upsert(row, {onConflict:'id'})
+      .select('*')
+      .single();
+    if(error) throw error;
+    const normalized=mapPlaceFromSupabaseRow(data||row);
+    const index=placeStore.findIndex(item=>String(item.id)===String(normalized.id));
+    if(index>=0) placeStore[index]=normalized;
+    else placeStore.push(normalized);
+    return normalized;
   }catch(error){
-    placeStore.length=0;
+    console.error('MAP 장소 업데이트 실패:', error);
+    window.alert('공용 MAP 장소 업데이트에 실패했습니다.');
+    return null;
+  }
+}
+async function deleteMapPlaceFromSupabase(placeId=''){
+  const client=getMapPlacesSupabaseClient();
+  const normalizedId=String(placeId||'').trim();
+  if(!client||!normalizedId) return false;
+  try{
+    const {error}=await client.from(MAP_PLACES_TABLE).delete().eq('id', normalizedId);
+    if(error) throw error;
+    return true;
+  }catch(error){
+    console.error('MAP 장소 삭제 실패:', error);
+    window.alert('공용 MAP 장소 삭제에 실패했습니다.');
+    return false;
+  }
+}
+function startMapPlacesRealtimeSync(){
+  const client=getMapPlacesSupabaseClient();
+  if(!client||mapPlacesRealtimeChannel) return;
+  try{
+    mapPlacesRealtimeChannel=client
+      .channel('map-places-shared')
+      .on('postgres_changes', {event:'*', schema:'public', table:MAP_PLACES_TABLE}, ()=>refreshMapPlacesFromSupabase({rerender:true, allowLegacyMigration:false}))
+      .subscribe();
+  }catch(error){
+    console.warn('MAP 실시간 동기화 시작 실패:', error);
+    mapPlacesRealtimeChannel=null;
   }
 }
 async function hydratePlacesMissingCoordinates(){
@@ -2914,7 +3113,7 @@ async function hydratePlacesMissingCoordinates(){
       didUpdate=true;
     }
     if(didUpdate){
-      savePlaces();
+      await Promise.all(targets.map(place=>updateMapPlaceInSupabase(place)));
       if(document.getElementById('placeSystemGrid')) renderPlaceResults();
     }
   }finally{
@@ -2923,8 +3122,7 @@ async function hydratePlacesMissingCoordinates(){
   }
 }
 function savePlaces(){
-  if(typeof window==='undefined'||!window.localStorage) return;
-  window.localStorage.setItem(MAP_PLACES_STORAGE_KEY, JSON.stringify(placeStore));
+  // MAP places are persisted through Supabase CRUD helpers. This no-op keeps older call sites safe.
 }
 function parseGoogleMapsText(rawText=''){
   const normalizedRaw=String(rawText||'').trim();
@@ -2978,7 +3176,7 @@ async function savePlaceFromPaste(){
     pasteInput?.focus();
     return;
   }
-  const saved=persistPlaceData({
+  const saved=await persistPlaceData({
     name:searchResult.name||parsed?.name||'이름 미지정 장소',
     category,
     address:searchResult.address||parsed?.address||'',
@@ -3163,7 +3361,7 @@ async function savePlace(){
     return;
   }
   const searchResult=candidates[0];
-  const saved=saveMapPlace({
+  const saved=await saveMapPlace({
     ...values,
     name:searchResult.name||values.name,
     displayName:searchResult.displayName||searchResult.name||values.name,
@@ -3246,7 +3444,7 @@ function updatePlaceSearchResultHighlight(index=0){
     card.classList.toggle('is-preview-active', card.dataset.candidateIndex===normalizedIndex);
   });
 }
-function selectPlaceCandidate(index=0){
+async function selectPlaceCandidate(index=0){
   const candidate=pendingPlaceCandidates[Number(index)];
   if(!candidate||!pendingPlaceDraft) return;
   const currentValues=getPlaceFormValues();
@@ -3256,7 +3454,7 @@ function selectPlaceCandidate(index=0){
     document.getElementById('placeCategorySelect')?.focus();
     return;
   }
-  const saved=saveMapPlace({
+  const saved=await saveMapPlace({
     ...draft,
     name:candidate.name||draft.name,
     displayName:candidate.displayName||candidate.name||draft.name,
@@ -3276,13 +3474,13 @@ function selectPlaceCandidate(index=0){
     clearPlacePreview();
   }
 }
-function savePendingPlaceWithoutCoordinates(){
+async function savePendingPlaceWithoutCoordinates(){
   const draft=pendingPlaceDraft||getPlaceFormValues();
   if(!draft?.name||!draft?.category){
     window.alert('장소명과 카테고리를 먼저 입력해주세요.');
     return;
   }
-  const saved=saveMapPlace({
+  const saved=await saveMapPlace({
     ...draft,
     address:draft.address||'',
     lat:null,
@@ -3383,7 +3581,7 @@ function openPlaceMapUrl(placeId=''){
   if(!mapUrl) return;
   window.open(mapUrl, '_blank');
 }
-function deletePlace(placeId=''){
+async function deletePlace(placeId=''){
   loadPlaces();
   const normalizedId=String(placeId||'').trim();
   if(!normalizedId) return;
@@ -3391,9 +3589,10 @@ function deletePlace(placeId=''){
   if(index===-1) return;
   const confirmed=window.confirm('이 장소를 삭제하시겠습니까?');
   if(!confirmed) return;
+  const deleted=await deleteMapPlaceFromSupabase(normalizedId);
+  if(!deleted) return;
   placeStore.splice(index, 1);
   if(activePlaceId===normalizedId) activePlaceId='';
-  savePlaces();
   renderPlaceResults();
 }
 async function retryGeocodeForPlace(placeId=''){
@@ -3416,10 +3615,11 @@ async function retryGeocodeForPlace(placeId=''){
   place.pendingGeocode=false;
   place.resolvedLabel=result.address||result.name||'';
   place.updatedAt=getTodayLocalDateString();
-  savePlaces();
-  activePlaceId=place.id;
+  const updatedPlace=await updateMapPlaceInSupabase(place);
+  if(!updatedPlace) return;
+  activePlaceId=updatedPlace.id;
   renderPlaceResults();
-  focusPlace(place.id);
+  focusPlace(updatedPlace.id);
 }
 function beginManualPinPlacement(placeDraft={}){
   pendingManualPlaceDraft={...placeDraft};
@@ -3432,7 +3632,7 @@ function beginManualPinPlacementForPlace(placeId=''){
   if(!place) return;
   beginManualPinPlacement({...place, existingId:place.id});
 }
-function handleManualMapClick(lat, lng){
+async function handleManualMapClick(lat, lng){
   if(!pendingManualPlaceDraft) return false;
   const draft={...pendingManualPlaceDraft};
   pendingManualPlaceDraft=null;
@@ -3445,13 +3645,14 @@ function handleManualMapClick(lat, lng){
       place.mapUrl=buildGoogleMapsPlaceUrl(place);
       place.resolvedLabel='지도에서 직접 지정';
       place.updatedAt=getTodayLocalDateString();
-      savePlaces();
+      const updatedPlace=await updateMapPlaceInSupabase(place);
+      if(!updatedPlace) return false;
       renderPlaceResults();
-      focusPlace(place.id);
+      focusPlace(updatedPlace.id);
       return true;
     }
   }
-  const saved=saveMapPlace({
+  const saved=await saveMapPlace({
     ...draft,
     lat:Number(lat),
     lng:Number(lng),
