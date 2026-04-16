@@ -399,13 +399,15 @@ let isMapLocationPinComposerOpen = {region:false,lodging:false};
 let mapLocationPinEntries = {region:[],lodging:[]};
 let mapLocationPinComposerImages = {region:[],lodging:[]};
 const mapSectionComposerState = {region:false,lodging:false};
-const MAP_PLACES_STORAGE_KEY = 'map_places';
 const MAP_PLACES_TABLE = 'map_places';
+const MAP_BUILD_VERSION = '2026-04-16-map-share-debug-02';
 const placeStore = [];
 let hasLoadedPlaces = false;
 let mapPlacesLoadPromise = null;
 let mapPlacesRealtimeChannel = null;
 let hasReportedMapPlacesLoadError = false;
+console.log('[MAP BUILD]', MAP_BUILD_VERSION);
+console.log('[MAP Supabase project]', maskMapSupabaseProjectUrl(window.APP_CONFIG?.supabaseUrl||''));
 let isHydratingPlaceCoordinates = false;
 let hasHydratedPlaceCoordinates = false;
 let placeComposerCategory = '';
@@ -2844,6 +2846,19 @@ function normalizePlaceData(input={}){
     updatedAt:input.updatedAt||getTodayLocalDateString()
   });
 }
+function maskMapSupabaseProjectUrl(url=''){
+  const text=String(url||'').trim();
+  const match=text.match(/^https:\/\/([^\.]+)\.supabase\.co/i);
+  if(!match) return text ? 'configured' : 'missing';
+  const ref=match[1];
+  return `https://${ref.slice(0,4)}...${ref.slice(-4)}.supabase.co`;
+}
+function logMapRenderCount(context='render'){
+  const total=placeStore.length;
+  const visible=getFilteredPlaces().length;
+  const pinned=getFilteredPlaces().filter(place=>hasPlaceCoordinates(place)).length;
+  console.log('[MAP render count]', {context, total, visible, pinned, filters:selectedPlaceCategories, search:currentPlaceSearch});
+}
 function isDuplicatePlace(place){
   if(!place) return false;
   return placeStore.some(existing=>{
@@ -2924,29 +2939,12 @@ function replacePlaceStore(rows=[]){
   placeStore.length=0;
   placeStore.push(...(Array.isArray(rows)?rows:[]).map((row,index)=>mapPlaceFromSupabaseRow(row,index)).filter(Boolean));
 }
-function getLegacyLocalMapPlaces(){
-  if(typeof window==='undefined'||!window.localStorage) return [];
-  try{
-    const saved=JSON.parse(window.localStorage.getItem(MAP_PLACES_STORAGE_KEY)||'[]');
-    return (Array.isArray(saved)?saved:[]).map((entry,index)=>normalizePlaceEntry(entry,index)).filter(Boolean);
-  }catch(error){
-    return [];
-  }
-}
-async function migrateLegacyMapPlacesToSupabase(client){
-  if(!client||typeof window==='undefined'||!window.localStorage) return false;
-  const legacyPlaces=getLegacyLocalMapPlaces();
-  if(!legacyPlaces.length) return false;
-  const rows=legacyPlaces.map(place=>mapPlaceToSupabaseRow(place)).filter(Boolean);
-  if(!rows.length) return false;
-  const {error}=await client.from(MAP_PLACES_TABLE).upsert(rows, {onConflict:'id'});
-  if(error) throw error;
-  window.localStorage.removeItem(MAP_PLACES_STORAGE_KEY);
-  return true;
-}
 async function refreshMapPlacesFromSupabase(options={}){
-  const {rerender=true, allowLegacyMigration=true}=options||{};
-  if(mapPlacesLoadPromise) return mapPlacesLoadPromise;
+  const {rerender=true, force=false}=options||{};
+  if(mapPlacesLoadPromise&&!force) return mapPlacesLoadPromise;
+  if(mapPlacesLoadPromise&&force){
+    try{ await mapPlacesLoadPromise; }catch(error){}
+  }
   const client=getMapPlacesSupabaseClient();
   if(!client){
     if(!hasReportedMapPlacesLoadError){
@@ -2962,19 +2960,9 @@ async function refreshMapPlacesFromSupabase(options={}){
         .select('*')
         .order('created_at', {ascending:true});
       if(error) throw error;
-      if((!data||!data.length)&&allowLegacyMigration){
-        const migrated=await migrateLegacyMapPlacesToSupabase(client);
-        if(migrated){
-          const response=await client
-            .from(MAP_PLACES_TABLE)
-            .select('*')
-            .order('created_at', {ascending:true});
-          data=response.data;
-          error=response.error;
-          if(error) throw error;
-        }
-      }
+      console.log('[MAP select count]', Array.isArray(data)?data.length:0);
       replacePlaceStore(data||[]);
+      logMapRenderCount('after-select');
       hasReportedMapPlacesLoadError=false;
       if(rerender&&document.getElementById('placeSystemGrid')) renderPlaceResults();
       return placeStore;
@@ -2999,8 +2987,9 @@ function loadPlaces(){
   startMapPlacesRealtimeSync();
 }
 async function persistPlaceData(input={}){
+  console.log('[MAP save start]', input);
   loadPlaces();
-  await refreshMapPlacesFromSupabase({rerender:false, allowLegacyMigration:false});
+  await refreshMapPlacesFromSupabase({rerender:false});
   const place=normalizePlaceData(input);
   if(!place) return null;
   place.pendingGeocode=!hasPlaceCoordinates(place)||Boolean(place.pendingGeocode);
@@ -3023,17 +3012,15 @@ async function persistPlaceData(input={}){
       .single();
     if(error) throw error;
     const savedPlace=mapPlaceFromSupabaseRow(data||row);
-    placeStore.push(savedPlace);
+    console.log('[MAP save success]', {id:savedPlace.id, lat:savedPlace.lat, lng:savedPlace.lng, response:data||row});
     activePlaceId=savedPlace.id;
-    renderPlaceResults();
+    await refreshMapPlacesFromSupabase({rerender:true, force:true});
     if(hasPlaceCoordinates(savedPlace)){
-      focusPlace(savedPlace.id);
-    }else{
-      renderPlaceListOnly();
+      window.setTimeout(()=>focusPlace(savedPlace.id), 0);
     }
     return savedPlace;
   }catch(error){
-    console.error('MAP 장소 저장 실패:', error);
+    console.error('[MAP save error]', error);
     window.alert('공용 MAP 장소 저장에 실패했습니다. Supabase 테이블 권한을 확인해주세요.');
     return null;
   }
@@ -3053,9 +3040,8 @@ async function updateMapPlaceInSupabase(place={}){
       .single();
     if(error) throw error;
     const normalized=mapPlaceFromSupabaseRow(data||row);
-    const index=placeStore.findIndex(item=>String(item.id)===String(normalized.id));
-    if(index>=0) placeStore[index]=normalized;
-    else placeStore.push(normalized);
+    console.log('[MAP save success]', {id:normalized.id, lat:normalized.lat, lng:normalized.lng, response:data||row});
+    await refreshMapPlacesFromSupabase({rerender:true, force:true});
     return normalized;
   }catch(error){
     console.error('MAP 장소 업데이트 실패:', error);
@@ -3083,7 +3069,10 @@ function startMapPlacesRealtimeSync(){
   try{
     mapPlacesRealtimeChannel=client
       .channel('map-places-shared')
-      .on('postgres_changes', {event:'*', schema:'public', table:MAP_PLACES_TABLE}, ()=>refreshMapPlacesFromSupabase({rerender:true, allowLegacyMigration:false}))
+      .on('postgres_changes', {event:'*', schema:'public', table:MAP_PLACES_TABLE}, payload=>{
+        console.log('[MAP realtime event type]', payload?.eventType||payload?.event||'unknown');
+        refreshMapPlacesFromSupabase({rerender:true, force:true});
+      })
       .subscribe();
   }catch(error){
     console.warn('MAP 실시간 동기화 시작 실패:', error);
@@ -3591,9 +3580,8 @@ async function deletePlace(placeId=''){
   if(!confirmed) return;
   const deleted=await deleteMapPlaceFromSupabase(normalizedId);
   if(!deleted) return;
-  placeStore.splice(index, 1);
   if(activePlaceId===normalizedId) activePlaceId='';
-  renderPlaceResults();
+  await refreshMapPlacesFromSupabase({rerender:true, force:true});
 }
 async function retryGeocodeForPlace(placeId=''){
   loadPlaces();
@@ -3760,6 +3748,7 @@ function addMarker(place){
 }
 function renderMarkers(){
   clearMarkers();
+  logMapRenderCount('markers');
   if(!mapInstance) return;
   const visiblePlaces=getFilteredPlaces().filter(place=>hasPlaceCoordinates(place));
   if(isLeafletMapInstance(mapInstance)&&isLeafletReady()){
@@ -3866,6 +3855,7 @@ async function initPlaceMap(){
   renderMarkers();
 }
 function renderPlaceResults(){
+  logMapRenderCount('renderPlaceResults');
   if(!document.getElementById('placeSystemGrid')){
     renderMapPanel();
     return;
