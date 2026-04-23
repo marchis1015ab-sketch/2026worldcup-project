@@ -1817,10 +1817,19 @@ function readFileAsText(file){
     reader.readAsText(file);
   });
 }
+const EQUIPMENT_CARNET_PREFERRED_SHEET_NAME = '총괄목록';
+function getEquipmentCarnetPreferredSheetName(workbook){
+  if(!workbook||!Array.isArray(workbook.SheetNames)||!workbook.SheetNames.length) return '';
+  return workbook.SheetNames.includes(EQUIPMENT_CARNET_PREFERRED_SHEET_NAME)
+    ? EQUIPMENT_CARNET_PREFERRED_SHEET_NAME
+    : workbook.SheetNames[0];
+}
 function getEquipmentCarnetRowsFromWorkbook(workbook){
-  if(!workbook||!Array.isArray(workbook.SheetNames)||!workbook.SheetNames.length) return [];
-  const firstSheet=workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(firstSheet, {header:1, defval:'', blankrows:false});
+  const sheetName=getEquipmentCarnetPreferredSheetName(workbook);
+  if(!sheetName) return [];
+  const selectedSheet=workbook.Sheets[sheetName];
+  if(!selectedSheet) return [];
+  return XLSX.utils.sheet_to_json(selectedSheet, {header:1, defval:'', blankrows:false});
 }
 function parseEquipmentCarnetSpreadsheetRowsFromText(text=''){
   if(!window.XLSX) return [];
