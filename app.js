@@ -1728,6 +1728,18 @@ function normalizeEquipmentCarnetEntry(entry={}, index=0){
     }
   };
 }
+function isEquipmentCarnetSampleEntry(entry={}){
+  const title=String(entry?.title||'').trim().toLowerCase();
+  const id=String(entry?.id||'').trim().toLowerCase();
+  const fileName=String(entry?.fileName||'').trim().toLowerCase();
+  return title==='작성예시'
+    || id.includes('sample')
+    || id.includes('example')
+    || id.includes('demo')
+    || fileName.includes('sample')
+    || fileName.includes('example')
+    || fileName.includes('demo');
+}
 function sortEquipmentCarnetEntries(entries=[]){
   return [...entries].sort((a,b)=>{
     const dateCompare=Number(b.createdAt||0)-Number(a.createdAt||0);
@@ -1751,11 +1763,25 @@ function loadEquipmentCarnetEntries(){
   hasLoadedEquipmentCarnetEntries=true;
   equipmentCarnetEntries=[];
   const raw=readEquipmentCarnetRaw();
-  if(!raw) return;
+  if(!raw){
+    console.log('[equipment-carnet] load', {itemCount:0, sampleInjected:false, sampleRemoved:0});
+    return;
+  }
   try{
     const parsed=JSON.parse(raw);
     const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
-    equipmentCarnetEntries=sortEquipmentCarnetEntries(source.map(normalizeEquipmentCarnetEntry).filter(Boolean));
+    const normalizedEntries=source.map(normalizeEquipmentCarnetEntry).filter(Boolean);
+    const actualEntries=normalizedEntries.filter(entry=>!isEquipmentCarnetSampleEntry(entry));
+    const removedCount=normalizedEntries.length-actualEntries.length;
+    equipmentCarnetEntries=sortEquipmentCarnetEntries(actualEntries);
+    console.log('[equipment-carnet] load', {
+      itemCount:equipmentCarnetEntries.length,
+      sampleInjected:false,
+      sampleRemoved:removedCount
+    });
+    if(removedCount>0){
+      saveEquipmentCarnetEntries();
+    }
   }catch(error){
     console.warn('[equipment-carnet] load failed', error);
   }
