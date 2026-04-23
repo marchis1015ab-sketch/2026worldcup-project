@@ -343,6 +343,8 @@ const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-
 const MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideMexicoStadiumEditor__';
 const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
 const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
+const EQUIPMENT_CARNET_STORAGE_KEY = 'worldcup-guide-equipment-carnet-v1';
+const EQUIPMENT_CARNET_WINDOW_NAME_KEY = '__worldcupGuideEquipmentCarnet__';
 const MAP_LOCATION_PIN_STORAGE_KEY = 'worldcup-guide-map-location-pins-v1';
 const MAP_LOCATION_PIN_WINDOW_NAME_KEY = '__worldcupGuideMapLocationPins__';
 let hasLoadedNewsEditorEntries = false;
@@ -351,6 +353,7 @@ let hasLoadedNewsProgrammingLocalPersistence = false;
 let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
+let hasLoadedEquipmentCarnetEntries = false;
 let hasLoadedMapLocationPinEntries = false;
 const tickerState = {
   schedule: '',
@@ -365,6 +368,7 @@ let currentBracketStage = '';
 let currentEquipmentMode = 'shared';
 let currentEquipmentUser = '';
 let isEquipmentCarnetComposerOpen = false;
+let equipmentCarnetEntries = [];
 let equipmentSummaryEditMode = false;
 let personalEquipmentEditModes = Object.create(null);
 let equipmentEditDraftRows = null;
@@ -1676,11 +1680,377 @@ function renderPersonalEquipmentTable(user=''){
   return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>{const rowId=String(row[row.length-1]||'').trim(); return `<tr><td data-label="선택">${isEditing?`<input type="checkbox" class="personal-equipment-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{if(index===headers.length-1){ return `<td data-label="${escapeHtml(label)}"><span class="equipment-personal-user-text">${escapeHtml(String(user||''))}</span></td>`; } const value=String(row[index]||''); if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label)}"><input type="${inputType}" class="equipment-table-input" data-personal-row-id="${escapeHtml(rowId)}" data-personal-col-index="${index}" value="${escapeHtml(value)}" oninput="updateEquipmentRow('${escapeHtml(rowId)}', ${index}, this.value)"></td>`; } return `<td data-label="${escapeHtml(label)}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
 }
 function renderEquipmentCarnetTitle(){
-  return `<span class="section-title-row"><span>까르네 목록</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()">작성</button><button type="button" class="section-title-action-btn delete" onclick="closeEquipmentCarnetComposer()">삭제</button></span></span>`;
+  return `<span class="section-title-row"><span>까르네 목록</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()" ${isEquipmentCarnetComposerOpen?'disabled':''}>작성</button></span></span>`;
+}
+function createEquipmentCarnetId(){
+  return `equipment-carnet-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+}
+function getEquipmentCarnetFileExtension(fileName=''){
+  const normalized=String(fileName||'').trim().toLowerCase();
+  const match=normalized.match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : '';
+}
+function getEquipmentCarnetFileType(fileName='', mimeType=''){
+  const extension=getEquipmentCarnetFileExtension(fileName);
+  if(['jpg','jpeg','png','webp'].includes(extension)||String(mimeType||'').startsWith('image/')) return 'image';
+  if(['xlsx','xls','csv'].includes(extension)) return extension==='csv' ? 'csv' : 'excel';
+  return '';
+}
+function isEquipmentCarnetFileAccepted(fileName='', mimeType=''){
+  return Boolean(getEquipmentCarnetFileType(fileName, mimeType));
+}
+function normalizeEquipmentCarnetRows(rows=[], maxRows=12, maxCols=8){
+  return (Array.isArray(rows)?rows:[])
+    .slice(0, maxRows)
+    .map(row=>(Array.isArray(row)?row:[])
+      .slice(0, maxCols)
+      .map(value=>String(value??'').trim()))
+    .filter(row=>row.some(value=>value));
+}
+function normalizeEquipmentCarnetEntry(entry={}, index=0){
+  const title=String(entry?.title||'').trim();
+  const fileName=String(entry?.fileName||'').trim();
+  const fileType=String(entry?.fileType||getEquipmentCarnetFileType(fileName)).trim();
+  const originalData=String(entry?.originalData||entry?.url||'').trim();
+  const previewData=entry?.previewData&&typeof entry.previewData==='object' ? entry.previewData : {};
+  if(!title&&!fileName&&!originalData) return null;
+  return {
+    id:String(entry?.id||`equipment-carnet-restored-${Date.now()}-${index}`).trim(),
+    title:title||fileName||'까르네 파일',
+    fileName,
+    fileType:fileType||'file',
+    createdAt:Number(entry?.createdAt)||Date.now()+index,
+    originalData,
+    previewData:{
+      type:String(previewData.type||fileType||'file').trim(),
+      rows:normalizeEquipmentCarnetRows(previewData.rows||[], 6, 5),
+      src:String(previewData.src||'').trim()
+    }
+  };
+}
+function sortEquipmentCarnetEntries(entries=[]){
+  return [...entries].sort((a,b)=>{
+    const dateCompare=Number(b.createdAt||0)-Number(a.createdAt||0);
+    if(dateCompare!==0) return dateCompare;
+    return String(a.title||'').localeCompare(String(b.title||''));
+  });
+}
+function readEquipmentCarnetRaw(){
+  return getSharedStateLocalRaw(EQUIPMENT_CARNET_STORAGE_KEY);
+}
+function writeEquipmentCarnetRaw(raw=''){
+  try{
+    setSharedStateLocalRaw(EQUIPMENT_CARNET_STORAGE_KEY, raw);
+  }catch(error){
+    console.warn('[equipment-carnet] local cache write failed; shared sync will still be attempted.', error);
+  }
+  scheduleSharedStateSyncWrite(EQUIPMENT_CARNET_STORAGE_KEY, raw);
+}
+function loadEquipmentCarnetEntries(){
+  if(hasLoadedEquipmentCarnetEntries) return;
+  hasLoadedEquipmentCarnetEntries=true;
+  equipmentCarnetEntries=[];
+  const raw=readEquipmentCarnetRaw();
+  if(!raw) return;
+  try{
+    const parsed=JSON.parse(raw);
+    const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
+    equipmentCarnetEntries=sortEquipmentCarnetEntries(source.map(normalizeEquipmentCarnetEntry).filter(Boolean));
+  }catch(error){
+    console.warn('[equipment-carnet] load failed', error);
+  }
+}
+function saveEquipmentCarnetEntries(){
+  loadEquipmentCarnetEntries();
+  const payload={
+    version:1,
+    updatedAt:Date.now(),
+    items:sortEquipmentCarnetEntries(equipmentCarnetEntries).map(entry=>({
+      id:entry.id,
+      title:entry.title,
+      fileName:entry.fileName,
+      fileType:entry.fileType,
+      createdAt:entry.createdAt,
+      originalData:entry.originalData,
+      previewData:entry.previewData
+    }))
+  };
+  writeEquipmentCarnetRaw(JSON.stringify(payload));
+  renderCache.equipmentCarnetPanel='';
+}
+function getEquipmentCarnetEntries(){
+  loadEquipmentCarnetEntries();
+  return sortEquipmentCarnetEntries(equipmentCarnetEntries);
+}
+function formatEquipmentCarnetDate(timestamp){
+  const value=Number(timestamp||0);
+  if(!Number.isFinite(value)||value<=0) return '';
+  try{
+    return new Date(value).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch(error){
+    return '';
+  }
+}
+function readFileAsDataUrl(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+function readFileAsArrayBuffer(file){
+  if(file&&typeof file.arrayBuffer==='function') return file.arrayBuffer();
+  return new Promise((resolve, reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+function readFileAsText(file){
+  if(file&&typeof file.text==='function') return file.text();
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>resolve('');
+    reader.readAsText(file);
+  });
+}
+function getEquipmentCarnetRowsFromWorkbook(workbook){
+  if(!workbook||!Array.isArray(workbook.SheetNames)||!workbook.SheetNames.length) return [];
+  const firstSheet=workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(firstSheet, {header:1, defval:'', blankrows:false});
+}
+function parseEquipmentCarnetSpreadsheetRowsFromText(text=''){
+  if(!window.XLSX) return [];
+  const workbook=XLSX.read(String(text||''), {type:'string'});
+  return getEquipmentCarnetRowsFromWorkbook(workbook);
+}
+function parseEquipmentCarnetSpreadsheetRowsFromArrayBuffer(arrayBuffer){
+  if(!window.XLSX) return [];
+  const workbook=XLSX.read(arrayBuffer, {type:'array'});
+  return getEquipmentCarnetRowsFromWorkbook(workbook);
+}
+function dataUrlToArrayBuffer(dataUrl=''){
+  const text=String(dataUrl||'');
+  const commaIndex=text.indexOf(',');
+  if(commaIndex<0) return new ArrayBuffer(0);
+  const meta=text.slice(0, commaIndex).toLowerCase();
+  const payload=text.slice(commaIndex+1);
+  const binary=meta.includes(';base64') ? atob(payload) : decodeURIComponent(payload);
+  const bytes=new Uint8Array(binary.length);
+  for(let index=0; index<binary.length; index+=1){
+    bytes[index]=binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+function dataUrlToText(dataUrl=''){
+  const text=String(dataUrl||'');
+  const commaIndex=text.indexOf(',');
+  if(commaIndex<0) return '';
+  const meta=text.slice(0, commaIndex).toLowerCase();
+  const payload=text.slice(commaIndex+1);
+  if(meta.includes(';base64')){
+    const binary=atob(payload);
+    const bytes=new Uint8Array(binary.length);
+    for(let index=0; index<binary.length; index+=1){
+      bytes[index]=binary.charCodeAt(index);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  return decodeURIComponent(payload);
+}
+async function parseEquipmentCarnetEntryRows(entry={}, maxRows=240, maxCols=24){
+  const fileType=String(entry?.fileType||'').trim();
+  if(fileType==='csv'){
+    const text=dataUrlToText(entry.originalData||'');
+    return normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromText(text), maxRows, maxCols);
+  }
+  const arrayBuffer=dataUrlToArrayBuffer(entry.originalData||'');
+  return normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromArrayBuffer(arrayBuffer), maxRows, maxCols);
+}
+function renderEquipmentCarnetSpreadsheetPreview(rows=[], className='equipment-carnet-preview-table'){
+  const normalizedRows=normalizeEquipmentCarnetRows(rows, 6, 5);
+  if(!normalizedRows.length){
+    return '<div class="equipment-carnet-file-icon">표 미리보기</div>';
+  }
+  return `<table class="${escapeHtml(className)}">${normalizedRows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value||'')}</td>`).join('')}</tr>`).join('')}</table>`;
+}
+function renderEquipmentCarnetComposer(){
+  if(!isEquipmentCarnetComposerOpen) return '';
+  return `<div class="carnet-list-composer" aria-label="까르네 파일 작성">
+    <div class="carnet-list-composer-title">까르네 파일 작성</div>
+    <div class="carnet-list-form-grid">
+      <label class="simple-form-field">
+        <span class="simple-form-label">제목</span>
+        <input id="equipmentCarnetTitleInput" class="simple-form-input" type="text" placeholder="예: 멕시코 입국 까르네 목록">
+      </label>
+      <label class="simple-form-field">
+        <span class="simple-form-label">파일 첨부</span>
+        <input id="equipmentCarnetFileInput" class="equipment-carnet-file-input" type="file" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.webp">
+      </label>
+    </div>
+    <p class="carnet-list-composer-description">엑셀(.xlsx, .xls, .csv) 또는 이미지(.jpg, .jpeg, .png, .webp)를 등록할 수 있습니다.</p>
+    <div class="simple-info-actions carnet-list-form-actions">
+      <button type="button" class="section-title-action-btn" onclick="saveEquipmentCarnetEntry(this)">저장</button>
+      <button type="button" class="section-title-action-btn" onclick="closeEquipmentCarnetComposer()">취소</button>
+    </div>
+  </div>`;
+}
+function renderEquipmentCarnetCard(entry){
+  const isImage=entry.fileType==='image';
+  const createdAt=formatEquipmentCarnetDate(entry.createdAt);
+  const thumbnail=isImage
+    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)} 미리보기">`
+    : renderEquipmentCarnetSpreadsheetPreview(entry.previewData?.rows||[]);
+  return `<article class="equipment-carnet-card" onclick="openEquipmentCarnetViewer('${escapeHtml(entry.id)}')" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEquipmentCarnetViewer('${escapeHtml(entry.id)}');}">
+    <div class="equipment-carnet-thumb">${thumbnail}</div>
+    <div class="equipment-carnet-card-body">
+      <h4 class="equipment-carnet-card-title">${escapeHtml(entry.title)}</h4>
+      <div class="equipment-carnet-card-file">${escapeHtml(entry.fileName||'파일명 없음')}</div>
+      <div class="equipment-carnet-card-date">${escapeHtml(createdAt)}</div>
+      ${isEquipmentCarnetComposerOpen?`<button type="button" class="section-title-action-btn delete equipment-carnet-delete-btn" onclick="event.stopPropagation();deleteEquipmentCarnetEntry('${escapeHtml(entry.id)}')">삭제</button>`:''}
+    </div>
+  </article>`;
+}
+function renderEquipmentCarnetMobileRow(entry){
+  const createdAt=formatEquipmentCarnetDate(entry.createdAt);
+  const meta=createdAt||entry.fileName||'등록 정보 없음';
+  return `<div class="equipment-carnet-mobile-row">
+    <button type="button" class="equipment-carnet-mobile-link" onclick="openEquipmentCarnetViewer('${escapeHtml(entry.id)}')">
+      <span class="equipment-carnet-mobile-title">${escapeHtml(entry.title)}</span>
+      <span class="equipment-carnet-mobile-meta">${escapeHtml(meta)}</span>
+    </button>
+    ${isEquipmentCarnetComposerOpen?`<button type="button" class="equipment-carnet-mobile-delete" onclick="deleteEquipmentCarnetEntry('${escapeHtml(entry.id)}')">삭제</button>`:''}
+  </div>`;
+}
+function renderEquipmentCarnetItems(entries=[]){
+  if(!entries.length){
+    return '<div class="carnet-list-placeholder">등록된 까르네 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div>';
+  }
+  return `<div class="equipment-carnet-desktop-grid">${entries.map(renderEquipmentCarnetCard).join('')}</div><div class="equipment-carnet-mobile-list">${entries.map(renderEquipmentCarnetMobileRow).join('')}</div>`;
 }
 function renderEquipmentCarnetPanelHtml(){
-  const composerHtml=isEquipmentCarnetComposerOpen?`<div class="carnet-list-composer"><div class="carnet-list-composer-title">까르네 작성 준비</div><p class="carnet-list-composer-description">추후 까르네 입력 폼을 이 영역에 연결할 수 있습니다.</p></div>`:'';
-  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="까르네 목록"><header class="carnet-list-header"><h3 class="carnet-list-title">까르네 목록</h3><p class="carnet-list-description">등록된 까르네 정보를 여기에 정리합니다.</p></header>${composerHtml}<div class="carnet-list-body"><div class="carnet-list-placeholder">추후 표 또는 카드 목록을 이 영역에 추가할 수 있습니다.</div></div></section></td></tr></tbody>`;
+  const entries=getEquipmentCarnetEntries();
+  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="까르네 목록"><header class="carnet-list-header"><h3 class="carnet-list-title">까르네 목록</h3><p class="carnet-list-description">PC에서는 썸네일 카드로, 모바일에서는 제목 목록으로 파일을 확인합니다.</p></header>${renderEquipmentCarnetComposer()}<div class="carnet-list-body">${renderEquipmentCarnetItems(entries)}</div></section></td></tr></tbody>`;
+}
+async function saveEquipmentCarnetEntry(saveButton=null){
+  loadEquipmentCarnetEntries();
+  const titleInput=document.getElementById('equipmentCarnetTitleInput');
+  const fileInput=document.getElementById('equipmentCarnetFileInput');
+  const title=String(titleInput?.value||'').trim();
+  const file=fileInput?.files?.[0]||null;
+  if(!title){
+    window.alert('제목을 입력해주세요.');
+    titleInput?.focus();
+    return;
+  }
+  if(!file){
+    window.alert('첨부할 파일을 선택해주세요.');
+    fileInput?.focus();
+    return;
+  }
+  const fileType=getEquipmentCarnetFileType(file.name, file.type);
+  if(!isEquipmentCarnetFileAccepted(file.name, file.type)){
+    window.alert('엑셀(.xlsx, .xls, .csv) 또는 이미지(.jpg, .jpeg, .png, .webp)만 등록할 수 있습니다.');
+    fileInput.value='';
+    fileInput.focus();
+    return;
+  }
+  if(fileType!=='image'&&!window.XLSX){
+    window.alert('엑셀 뷰어 라이브러리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  if(saveButton) saveButton.disabled=true;
+  try{
+    const originalData=await readFileAsDataUrl(file);
+    if(!originalData) throw new Error('file-read-failed');
+    let previewData={type:fileType};
+    if(fileType==='image'){
+      previewData={type:'image', src:originalData};
+    }else if(fileType==='csv'){
+      const text=await readFileAsText(file);
+      previewData={type:'spreadsheet', rows:normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromText(text), 6, 5)};
+    }else{
+      const arrayBuffer=await readFileAsArrayBuffer(file);
+      previewData={type:'spreadsheet', rows:normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromArrayBuffer(arrayBuffer), 6, 5)};
+    }
+    const nextEntry=normalizeEquipmentCarnetEntry({
+      id:createEquipmentCarnetId(),
+      title,
+      fileName:file.name,
+      fileType,
+      createdAt:Date.now(),
+      originalData,
+      previewData
+    });
+    if(!nextEntry) throw new Error('entry-normalize-failed');
+    equipmentCarnetEntries=sortEquipmentCarnetEntries([nextEntry, ...equipmentCarnetEntries]);
+    saveEquipmentCarnetEntries();
+    isEquipmentCarnetComposerOpen=false;
+    renderEquipmentCarnetDetail();
+  }catch(error){
+    console.warn('[equipment-carnet] save failed', error);
+    window.alert('까르네 파일 저장에 실패했습니다. 파일 형식과 용량을 확인해주세요.');
+  }finally{
+    if(saveButton) saveButton.disabled=false;
+  }
+}
+function deleteEquipmentCarnetEntry(entryId=''){
+  loadEquipmentCarnetEntries();
+  const normalized=String(entryId||'').trim();
+  const target=equipmentCarnetEntries.find(entry=>String(entry.id)===normalized);
+  if(!target) return;
+  const confirmed=window.confirm(`'${target.title}' 항목을 삭제하시겠습니까?`);
+  if(!confirmed) return;
+  equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>String(entry.id)!==normalized);
+  saveEquipmentCarnetEntries();
+  renderEquipmentCarnetDetail();
+}
+function ensureEquipmentCarnetViewerModal(){
+  let modal=document.getElementById('equipmentCarnetViewerModal');
+  if(modal) return modal;
+  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentCarnetViewerModal" class="news-editor-modal equipment-carnet-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentCarnetViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentCarnetViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentCarnetViewerTitle">까르네 파일</h3><p id="equipmentCarnetViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentCarnetViewerModal()" aria-label="닫기">×</button></div><div id="equipmentCarnetViewerBody" class="equipment-carnet-viewer-body"></div></div></div>`);
+  modal=document.getElementById('equipmentCarnetViewerModal');
+  modal.addEventListener('keydown', event=>{
+    if(event.key==='Escape') closeEquipmentCarnetViewerModal();
+  });
+  return modal;
+}
+function closeEquipmentCarnetViewerModal(){
+  const modal=document.getElementById('equipmentCarnetViewerModal');
+  if(!modal) return;
+  modal.classList.add('hidden');
+  document.body.classList.remove('equipment-carnet-modal-open');
+}
+async function openEquipmentCarnetViewer(entryId=''){
+  loadEquipmentCarnetEntries();
+  const entry=equipmentCarnetEntries.find(item=>String(item.id)===String(entryId));
+  if(!entry) return;
+  const modal=ensureEquipmentCarnetViewerModal();
+  const title=document.getElementById('equipmentCarnetViewerTitle');
+  const meta=document.getElementById('equipmentCarnetViewerMeta');
+  const body=document.getElementById('equipmentCarnetViewerBody');
+  title.textContent=entry.title;
+  meta.textContent=[entry.fileName, formatEquipmentCarnetDate(entry.createdAt)].filter(Boolean).join(' · ');
+  body.innerHTML='<div class="equipment-carnet-viewer-loading">파일을 여는 중입니다.</div>';
+  modal.classList.remove('hidden');
+  document.body.classList.add('equipment-carnet-modal-open');
+  modal.focus();
+  if(entry.fileType==='image'){
+    body.innerHTML=`<div class="equipment-carnet-image-viewer"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)}"></div>`;
+    return;
+  }
+  try{
+    const rows=await parseEquipmentCarnetEntryRows(entry, 240, 24);
+    body.innerHTML=rows.length
+      ? `<div class="equipment-carnet-sheet-wrap"><table class="equipment-carnet-sheet-table">${rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value||'')}</td>`).join('')}</tr>`).join('')}</table></div>`
+      : '<div class="equipment-carnet-viewer-empty">표 데이터를 읽을 수 없습니다.</div>';
+  }catch(error){
+    console.warn('[equipment-carnet] viewer failed', error);
+    body.innerHTML='<div class="equipment-carnet-viewer-empty">파일을 열 수 없습니다. 원본 파일 형식을 확인해주세요.</div>';
+  }
 }
 function renderSimpleInfoPanelHtml(title, description, placeholder){
   return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel" aria-label="${escapeHtml(title)}"><header class="simple-info-header"><h3 class="simple-info-title">${escapeHtml(title)}</h3><p class="simple-info-description">${escapeHtml(description)}</p></header><div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(placeholder)}</div></div></section></td></tr></tbody>`;
@@ -5159,6 +5529,7 @@ const SHARED_STATE_SYNC_REGISTRY = {
   [SQUAD_INJURY_STORAGE_KEY]: {windowNameKey: SQUAD_INJURY_WINDOW_NAME_KEY},
   [MEXICO_STADIUM_EDITOR_STORAGE_KEY]: {windowNameKey: MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY},
   [EQUIPMENT_EDITOR_STORAGE_KEY]: {windowNameKey: EQUIPMENT_EDITOR_WINDOW_NAME_KEY},
+  [EQUIPMENT_CARNET_STORAGE_KEY]: {windowNameKey: EQUIPMENT_CARNET_WINDOW_NAME_KEY},
   [MAP_LOCATION_PIN_STORAGE_KEY]: {windowNameKey: MAP_LOCATION_PIN_WINDOW_NAME_KEY},
   [TIMELINE_STORAGE_KEY]: {windowNameKey: TIMELINE_WINDOW_NAME_KEY},
   [PERSONAL_TIMELINE_SHARED_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY},
@@ -5427,13 +5798,17 @@ function resetMexicoStadiumSyncState(){
 }
 function resetEquipmentSyncState(){
   hasLoadedEquipmentEditorEntries=false;
+  hasLoadedEquipmentCarnetEntries=false;
   clearObjectEntries(equipmentEditorEntries);
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
+  renderCache.equipmentCarnetPanel='';
   equipmentSummaryEditMode=false;
   personalEquipmentEditModes=Object.create(null);
   equipmentEditDraftRows=null;
   equipmentState=[];
+  equipmentCarnetEntries=[];
+  isEquipmentCarnetComposerOpen=false;
 }
 function resetMapLocationPinSyncState(){
   hasLoadedMapLocationPinEntries=false;
@@ -5460,7 +5835,7 @@ function resetSharedStateSyncCaches(changedKeys=[]){
   if(changed.has(NEWS_PROGRAMMING_STORAGE_KEY)) resetNewsProgrammingSyncState();
   if(changed.has(SQUAD_INJURY_STORAGE_KEY)) resetSquadSyncState();
   if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)) resetMexicoStadiumSyncState();
-  if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)) resetEquipmentSyncState();
+  if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)||changed.has(EQUIPMENT_CARNET_STORAGE_KEY)) resetEquipmentSyncState();
   if(changed.has(MAP_LOCATION_PIN_STORAGE_KEY)) resetMapLocationPinSyncState();
   if(changed.has(TIMELINE_STORAGE_KEY)
     ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
@@ -5501,9 +5876,11 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
   if(changed.has(MEXICO_STADIUM_EDITOR_STORAGE_KEY)&&currentMexicoStadiumKey&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('mexicoStadiumMenu')){
     renderMexicoStadiumDetail(currentMexicoStadiumKey, currentMexicoStadiumSectionKey);
   }
-  if((changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)||timelineChanged)&&isSharedStateMenuActive('equipmentMenu')){
+  if((changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)||changed.has(EQUIPMENT_CARNET_STORAGE_KEY)||timelineChanged)&&isSharedStateMenuActive('equipmentMenu')){
     if(isSharedStatePanelVisible('detailCol')){
-      if(currentEquipmentMode==='personal'&&currentEquipmentUser){
+      if(currentEquipmentMode==='carnet'){
+        renderEquipmentCarnetDetail();
+      }else if(currentEquipmentMode==='personal'&&currentEquipmentUser){
         showEquipmentPersonal(currentEquipmentUser);
       }else{
         renderEquipmentSharedDetail();
@@ -8708,7 +9085,7 @@ function getVisibleMobilePanels(){
   return getMobilePanelIds().map(id=>document.getElementById(id)).filter(panel=>panel&&!panel.classList.contains('hidden'));
 }
 function getVisibleMobileModalCount(){
-  const modalIds=['timelineModal','newsEditorModal','squadInjuryModal','mexicoStadiumEditorModal','equipmentEditorModal'];
+  const modalIds=['timelineModal','newsEditorModal','squadInjuryModal','mexicoStadiumEditorModal','equipmentEditorModal','equipmentCarnetViewerModal'];
   return modalIds.reduce((count, id)=>{
     const modal=document.getElementById(id);
     return count + (modal&&!modal.classList.contains('hidden') ? 1 : 0);
@@ -9007,6 +9384,7 @@ function clearDetailExtras(){
   closeSquadInjuryModal();
   closeMexicoStadiumEditorModal();
   closeEquipmentEditorModal();
+  closeEquipmentCarnetViewerModal();
   closeTimelineGalleryModal();
   hideTimelineTooltip();
   document.body.classList.remove('timeline-modal-open');
@@ -10710,13 +11088,19 @@ function renderEquipmentSharedDetail(){
 function renderEquipmentCarnetDetail(){
   currentEquipmentMode='carnet';
   currentEquipmentUser='';
+  loadEquipmentCarnetEntries();
+  const detailTable=document.getElementById('detailTable');
   document.getElementById('equipmentCarnetTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentCarnetTitle();
   document.getElementById('detailSubtitle').textContent='';
-  document.getElementById('detailTable').className='data-table carnet-list-table';
+  detailTable.className='data-table carnet-list-table';
+  detailTable.parentElement.classList.remove('equipment-table-wrapper');
   renderCache.equipmentCarnetPanel=renderEquipmentCarnetPanelHtml();
-  document.getElementById('detailTable').innerHTML=renderCache.equipmentCarnetPanel;
+  detailTable.innerHTML=renderCache.equipmentCarnetPanel;
   document.getElementById('detailCol').classList.remove('hidden');
+  if(isEquipmentCarnetComposerOpen){
+    window.setTimeout(()=>document.getElementById('equipmentCarnetTitleInput')?.focus(), 0);
+  }
 }
 function openEquipmentCarnetComposer(){
   isEquipmentCarnetComposerOpen=true;
