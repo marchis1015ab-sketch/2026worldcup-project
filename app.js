@@ -1700,12 +1700,33 @@ function isEquipmentCarnetFileAccepted(fileName='', mimeType=''){
   return Boolean(getEquipmentCarnetFileType(fileName, mimeType));
 }
 function normalizeEquipmentCarnetRows(rows=[], maxRows=12, maxCols=8){
-  return (Array.isArray(rows)?rows:[])
+  return sanitizeEquipmentCarnetRows(Array.isArray(rows)?rows:[])
     .slice(0, maxRows)
     .map(row=>(Array.isArray(row)?row:[])
       .slice(0, maxCols)
       .map(value=>String(value??'').trim()))
     .filter(row=>row.some(value=>value));
+}
+function isEquipmentCarnetInvalidExampleRow(row=[]){
+  const text=(Array.isArray(row)?row:[row]).map(value=>String(value??'')).join(' ').trim().toLowerCase();
+  return text.includes('작성예시')
+    || text.includes('[작성예시]')
+    || text.includes('sample')
+    || text.includes('example')
+    || text.includes('demo');
+}
+function sanitizeEquipmentCarnetRows(rows=[]){
+  const sourceRows=Array.isArray(rows)?rows:[];
+  const invalidIndex=sourceRows.findIndex(isEquipmentCarnetInvalidExampleRow);
+  const sanitizedRows=invalidIndex>=0 ? sourceRows.slice(0, invalidIndex) : sourceRows;
+  if(invalidIndex>=0){
+    console.warn('[equipment-carnet] invalid example rows removed', {
+      originalRowCount:sourceRows.length,
+      removedRowCount:sourceRows.length-invalidIndex,
+      sampleInjected:false
+    });
+  }
+  return sanitizedRows;
 }
 function normalizeEquipmentCarnetEntry(entry={}, index=0){
   const title=String(entry?.title||'').trim();
@@ -1855,7 +1876,15 @@ function getEquipmentCarnetRowsFromWorkbook(workbook){
   if(!sheetName) return [];
   const selectedSheet=workbook.Sheets[sheetName];
   if(!selectedSheet) return [];
-  return XLSX.utils.sheet_to_json(selectedSheet, {header:1, defval:'', blankrows:false});
+  const rows=XLSX.utils.sheet_to_json(selectedSheet, {header:1, defval:'', blankrows:false});
+  const sanitizedRows=sanitizeEquipmentCarnetRows(rows);
+  console.log('[equipment-carnet] parsed rows', {
+    sheetName,
+    parsedRowCount:rows.length,
+    sanitizedRowCount:sanitizedRows.length,
+    sampleInjected:false
+  });
+  return sanitizedRows;
 }
 function parseEquipmentCarnetSpreadsheetRowsFromText(text=''){
   if(!window.XLSX) return [];
@@ -1907,6 +1936,10 @@ async function parseEquipmentCarnetEntryRows(entry={}, maxRows=240, maxCols=24){
 }
 function renderEquipmentCarnetSpreadsheetPreview(rows=[], className='equipment-carnet-preview-table'){
   const normalizedRows=normalizeEquipmentCarnetRows(rows, 6, 5);
+  console.log('[equipment-carnet] preview rows', {
+    previewRowCount:normalizedRows.length,
+    sampleInjected:false
+  });
   if(!normalizedRows.length){
     return '<div class="equipment-carnet-file-icon">표 미리보기</div>';
   }
@@ -2079,6 +2112,10 @@ async function openEquipmentCarnetViewer(entryId=''){
   }
   try{
     const rows=await parseEquipmentCarnetEntryRows(entry, 240, 24);
+    console.log('[equipment-carnet] viewer rows', {
+      viewerRowCount:rows.length,
+      sampleInjected:false
+    });
     body.innerHTML=rows.length
       ? `<div class="equipment-carnet-sheet-wrap"><table class="equipment-carnet-sheet-table">${rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value||'')}</td>`).join('')}</tr>`).join('')}</table></div>`
       : '<div class="equipment-carnet-viewer-empty">표 데이터를 읽을 수 없습니다.</div>';
