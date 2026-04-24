@@ -5588,6 +5588,11 @@ const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
 const TIMELINE_GALLERY_STORAGE_KEY = 'worldcup_timeline_gallery_v1';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
+const TIMELINE_GALLERY_DB_NAME = 'worldcup-guide-gallery-db';
+const TIMELINE_GALLERY_DB_VERSION = 1;
+const TIMELINE_GALLERY_DB_STORE = 'gallery_state';
+const TIMELINE_GALLERY_DB_RECORD_KEY = 'entries';
+const TIMELINE_GALLERY_SHARED_SYNC_MAX_LENGTH = 350000;
 const HEADER_REPORT_BOARD_RECENT_STORAGE_KEY = 'worldcup-guide-header-report-board-recent-v1';
 const HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY = '__worldcupGuideHeaderReportBoardRecent__';
 const SHARED_STATE_SYNC_SUPABASE_URL = window.APP_CONFIG?.supabaseUrl||'';
@@ -5738,11 +5743,13 @@ let timelineModalMediaSeq = 0;
 let personalTimelineSharedEditingDateKey = '';
 let personalTimelineSharedDeletingDateKey = '';
 let hasLoadedTimelineGalleryEntries = false;
+let hasHydratedTimelineGalleryEntries = false;
 let timelineGalleryEntrySeq = 0;
 let timelineGalleryImageSeq = 0;
 let isTimelineGalleryComposerOpen = false;
 let isTimelineGalleryDeleteMode = false;
 let timelineGalleryPreviewState = null;
+let timelineGalleryHydrationPromise = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
@@ -5899,12 +5906,14 @@ function resetTimelineSyncState(){
   hasLoadedPersonalTimelineSharedEntries=false;
   hasLoadedPersonalTimelineDetailSelections=false;
   hasLoadedTimelineGalleryEntries=false;
+  hasHydratedTimelineGalleryEntries=false;
   hasLoadedHeaderReportBoardRecentMarks=false;
   clearObjectEntries(personalTimelineSharedEntries);
   clearObjectEntries(personalTimelineDetailSelections);
   clearObjectEntries(headerReportBoardRecentMarks);
   timelineGalleryEntries=[];
   timelineGalleryPreviewState=null;
+  timelineGalleryHydrationPromise=null;
   isTimelineGalleryComposerOpen=false;
   isTimelineGalleryDeleteMode=false;
   timelineGallerySelectedIds.clear();
@@ -7863,6 +7872,152 @@ function writeTimelineGalleryRaw(raw){
   }
   scheduleSharedStateSyncWrite(TIMELINE_GALLERY_STORAGE_KEY, raw);
 }
+function supportsTimelineGalleryIndexedDb(){
+  return typeof window!=='undefined'&&typeof window.indexedDB!=='undefined';
+}
+function openTimelineGalleryDatabase(){
+  if(!supportsTimelineGalleryIndexedDb()){
+    return Promise.reject(new Error('IndexedDB is not available.'));
+  }
+  return new Promise((resolve, reject)=>{
+    const request=window.indexedDB.open(TIMELINE_GALLERY_DB_NAME, TIMELINE_GALLERY_DB_VERSION);
+    request.onupgradeneeded=event=>{
+      const db=event.target?.result;
+      if(!db) return;
+      if(!db.objectStoreNames.contains(TIMELINE_GALLERY_DB_STORE)){
+        db.createObjectStore(TIMELINE_GALLERY_DB_STORE, {keyPath:'id'});
+      }
+    };
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error||new Error('Failed to open gallery database.'));
+  });
+}
+async function readTimelineGalleryIndexedDbRaw(){
+  if(!supportsTimelineGalleryIndexedDb()) return '';
+  const db=await openTimelineGalleryDatabase();
+  return new Promise((resolve, reject)=>{
+    const transaction=db.transaction(TIMELINE_GALLERY_DB_STORE, 'readonly');
+    const store=transaction.objectStore(TIMELINE_GALLERY_DB_STORE);
+    const request=store.get(TIMELINE_GALLERY_DB_RECORD_KEY);
+    request.onsuccess=()=>{
+      resolve(typeof request.result?.raw==='string' ? request.result.raw : '');
+    };
+    request.onerror=()=>reject(request.error||new Error('Failed to read gallery database.'));
+    transaction.oncomplete=()=>db.close();
+    transaction.onabort=()=>db.close();
+    transaction.onerror=()=>db.close();
+  });
+}
+async function writeTimelineGalleryIndexedDbRaw(raw=''){
+  if(!supportsTimelineGalleryIndexedDb()) return;
+  const normalized=String(raw??'');
+  const db=await openTimelineGalleryDatabase();
+  return new Promise((resolve, reject)=>{
+    const transaction=db.transaction(TIMELINE_GALLERY_DB_STORE, 'readwrite');
+    const store=transaction.objectStore(TIMELINE_GALLERY_DB_STORE);
+    if(normalized){
+      store.put({
+        id:TIMELINE_GALLERY_DB_RECORD_KEY,
+        raw:normalized,
+        updatedAt:new Date().toISOString()
+      });
+    }else{
+      store.delete(TIMELINE_GALLERY_DB_RECORD_KEY);
+    }
+    transaction.oncomplete=()=>{
+      db.close();
+      resolve();
+    };
+    transaction.onabort=()=>{
+      db.close();
+      reject(transaction.error||new Error('Failed to write gallery database.'));
+    };
+    transaction.onerror=()=>{
+      db.close();
+      reject(transaction.error||new Error('Failed to write gallery database.'));
+    };
+  });
+}
+function parseTimelineGalleryEntriesRaw(raw=''){
+  if(!raw) return [];
+  try{
+    const parsed=JSON.parse(raw);
+    return sortTimelineGalleryEntries(Array.isArray(parsed) ? parsed.map(normalizeTimelineGalleryEntry).filter(Boolean) : []);
+  }catch(error){
+    console.warn('Failed to parse timeline gallery data.', error);
+    return [];
+  }
+}
+function buildTimelineGalleryEntriesRaw(entries=[]){
+  return JSON.stringify(sortTimelineGalleryEntries(entries.map(normalizeTimelineGalleryEntry).filter(Boolean)));
+}
+function applyTimelineGalleryEntries(entries=[], source='unknown'){
+  timelineGalleryEntries=sortTimelineGalleryEntries(entries.map(normalizeTimelineGalleryEntry).filter(Boolean));
+  const rawLength=buildTimelineGalleryEntriesRaw(timelineGalleryEntries).length;
+  console.log('[timeline-gallery] load', {
+    itemCount:timelineGalleryEntries.length,
+    source,
+    rawLength
+  });
+}
+async function hydrateTimelineGalleryEntries(force=false){
+  if(!force&&hasHydratedTimelineGalleryEntries) return timelineGalleryEntries;
+  if(!force&&timelineGalleryHydrationPromise) return timelineGalleryHydrationPromise;
+  timelineGalleryHydrationPromise=(async ()=>{
+    const indexedDbRaw=await readTimelineGalleryIndexedDbRaw();
+    if(indexedDbRaw){
+      applyTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(indexedDbRaw), 'indexeddb');
+    }else if(timelineGalleryEntries.length){
+      await persistTimelineGalleryEntries();
+      console.log('[timeline-gallery] indexeddb migration', {itemCount:timelineGalleryEntries.length});
+    }else{
+      console.log('[timeline-gallery] load', {itemCount:0, source:'indexeddb', rawLength:0});
+    }
+    hasHydratedTimelineGalleryEntries=true;
+    if(document.querySelector('.timeline-gallery-view')){
+      refreshTimelineGalleryView();
+    }
+    return timelineGalleryEntries;
+  })().catch(error=>{
+    console.warn('Failed to hydrate timeline gallery.', error);
+    return timelineGalleryEntries;
+  }).finally(()=>{
+    timelineGalleryHydrationPromise=null;
+  });
+  return timelineGalleryHydrationPromise;
+}
+async function persistTimelineGalleryEntries(){
+  const raw=buildTimelineGalleryEntriesRaw(timelineGalleryEntries);
+  let indexedDbSaved=false;
+  try{
+    await writeTimelineGalleryIndexedDbRaw(raw);
+    indexedDbSaved=true;
+  }catch(error){
+    console.warn('Failed to save timeline gallery to IndexedDB.', error);
+  }
+  const shouldSyncShared=raw.length<=TIMELINE_GALLERY_SHARED_SYNC_MAX_LENGTH;
+  if(shouldSyncShared){
+    writeTimelineGalleryRaw(raw);
+  }else{
+    try{
+      setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, '');
+    }catch(error){
+      console.warn('Failed to clear oversized gallery shared cache.', error);
+    }
+    scheduleSharedStateSyncWrite(TIMELINE_GALLERY_STORAGE_KEY, '');
+    console.log('[timeline-gallery] shared sync skipped', {
+      itemCount:timelineGalleryEntries.length,
+      rawLength:raw.length,
+      maxLength:TIMELINE_GALLERY_SHARED_SYNC_MAX_LENGTH
+    });
+  }
+  console.log('[timeline-gallery] save', {
+    itemCount:timelineGalleryEntries.length,
+    rawLength:raw.length,
+    indexedDbSaved,
+    sharedSynced:shouldSyncShared
+  });
+}
 function normalizeTimelineGalleryDate(value=''){
   const date=String(value||'').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
@@ -7904,22 +8059,16 @@ function loadTimelineGalleryEntries(){
   hasLoadedTimelineGalleryEntries=true;
   const raw=readTimelineGalleryRaw();
   if(!raw){
-    console.log('[timeline-gallery] load', {itemCount:0, source:'shared/local'});
+    console.log('[timeline-gallery] load', {itemCount:0, source:'shared/local', rawLength:0});
+    hydrateTimelineGalleryEntries();
     return;
   }
-  try{
-    const parsed=JSON.parse(raw);
-    timelineGalleryEntries=sortTimelineGalleryEntries(Array.isArray(parsed) ? parsed.map(normalizeTimelineGalleryEntry).filter(Boolean) : []);
-    console.log('[timeline-gallery] load', {itemCount:timelineGalleryEntries.length, source:'shared/local'});
-    saveTimelineGalleryEntries();
-  }catch(error){
-    console.warn('Failed to load timeline gallery.', error);
-  }
+  applyTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(raw), 'shared/local');
+  hydrateTimelineGalleryEntries();
 }
 function saveTimelineGalleryEntries(){
   timelineGalleryEntries=sortTimelineGalleryEntries(timelineGalleryEntries.map(normalizeTimelineGalleryEntry).filter(Boolean));
-  console.log('[timeline-gallery] save', {itemCount:timelineGalleryEntries.length});
-  writeTimelineGalleryRaw(JSON.stringify(timelineGalleryEntries));
+  persistTimelineGalleryEntries();
 }
 function createTimelineGalleryComposerState(){
   return {date:getTodayTimelineKey(), title:'', memo:'', images:[]};
@@ -7993,6 +8142,9 @@ function renderTimelineGalleryCard(entry){
 }
 function renderTimelineGalleryList(){
   const groups=getTimelineGalleryDateGroups();
+  if(!groups.length&&timelineGalleryHydrationPromise){
+    return '<div class="timeline-gallery-empty">갤러리를 불러오는 중입니다.</div>';
+  }
   if(!groups.length){
     return '<div class="timeline-gallery-empty">등록된 사진이 없습니다.</div>';
   }
@@ -8033,6 +8185,7 @@ function openTimelineGalleryView(){
   detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list,.timeline-gallery-view').forEach(node=>node.remove());
   detailTable.insertAdjacentHTML('afterend', renderGalleryView());
   bindTimelineGalleryViewEvents();
+  hydrateTimelineGalleryEntries();
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
   focusPanelStart('#detailCol');
