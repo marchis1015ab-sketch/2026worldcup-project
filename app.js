@@ -5709,8 +5709,8 @@ const PERSONAL_TIMELINE_SHARED_STORAGE_KEY = 'worldcup-guide-personal-timeline-s
 const PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineShared__';
 const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-v1';
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
-const TIMELINE_GALLERY_STORAGE_KEY = 'worldcup-gallery-items-v1';
-const LEGACY_TIMELINE_GALLERY_STORAGE_KEYS = ['worldcup_timeline_gallery_v1'];
+const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
+const LEGACY_TIMELINE_GALLERY_STORAGE_KEYS = ['worldcup-gallery-items-v1','worldcup_timeline_gallery_v1'];
 const TIMELINE_GALLERY_LEGACY_DB_NAME = 'worldcup-guide-gallery-db';
 const TIMELINE_GALLERY_LEGACY_DB_VERSION = 1;
 const TIMELINE_GALLERY_LEGACY_DB_STORE = 'gallery_state';
@@ -8048,11 +8048,18 @@ function buildTimelineGalleryMemo(title='', memo=''){
   const parts=[String(title||'').trim(), String(memo||'').trim()].filter(Boolean);
   return parts.join(' · ');
 }
+function normalizeTimelineGallerySavedAt(value){
+  if(typeof value==='number'&&Number.isFinite(value)&&value>0) return Math.floor(value);
+  const numeric=Number(value);
+  if(Number.isFinite(numeric)&&numeric>0) return Math.floor(numeric);
+  const parsed=Date.parse(String(value||'').trim());
+  if(Number.isFinite(parsed)&&parsed>0) return parsed;
+  return Date.now();
+}
 function normalizeTimelineGalleryItem(item){
   const dataUrl=String(item?.dataUrl||item?.imageData||item?.src||'').trim();
   if(!dataUrl) return null;
-  const savedAtValue=String(item?.savedAt||item?.createdAt||'').trim();
-  const savedAt=Number.isNaN(Date.parse(savedAtValue)) ? new Date().toISOString() : new Date(savedAtValue).toISOString();
+  const savedAt=normalizeTimelineGallerySavedAt(item?.savedAt??item?.createdAt);
   const rawCapturedDate=String(item?.capturedDate||item?.shootDate||item?.date||'').trim();
   const capturedDate=/^\d{4}-\d{2}-\d{2}$/.test(rawCapturedDate) ? rawCapturedDate : '';
   return {
@@ -8160,9 +8167,7 @@ function persistTimelineGalleryEntries(){
   });
 }
 function sortTimelineGalleryEntries(entries=[]){
-  return [...entries].sort((a,b)=>{
-    return String(b.savedAt||'').localeCompare(String(a.savedAt||''));
-  });
+  return [...entries].sort((a,b)=>normalizeTimelineGallerySavedAt(b?.savedAt)-normalizeTimelineGallerySavedAt(a?.savedAt));
 }
 function loadTimelineGalleryEntries(){
   if(hasLoadedTimelineGalleryEntries||timelineGalleryHydrationPromise) return;
@@ -8175,7 +8180,9 @@ function loadTimelineGalleryEntries(){
   hasLoadedTimelineGalleryEntries=true;
 }
 function saveTimelineGalleryEntries(){
-  timelineGalleryEntries=sortTimelineGalleryEntries(timelineGalleryEntries.map(normalizeTimelineGalleryItem).filter(Boolean));
+  const normalizedEntries=sortTimelineGalleryEntries(timelineGalleryEntries.map(normalizeTimelineGalleryItem).filter(Boolean));
+  timelineGalleryEntries.length=0;
+  timelineGalleryEntries.push(...normalizedEntries);
   persistTimelineGalleryEntries();
 }
 function createTimelineGalleryComposerState(){
@@ -8203,7 +8210,7 @@ function readTimelineGalleryFiles(files){
   }))).then(items=>items.filter(Boolean));
 }
 function formatTimelineGallerySavedAt(value=''){
-  const date=new Date(value);
+  const date=new Date(normalizeTimelineGallerySavedAt(value));
   if(Number.isNaN(date.getTime())) return '';
   const pad=value=>String(value).padStart(2, '0');
   return `${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -8241,16 +8248,16 @@ function getTimelineGalleryGroupItems(signature={}, entries=timelineGalleryEntri
   });
 }
 function getTimelineGalleryDateGroups(entries=[]){
-  const dateGroups=new Map();
-  sortTimelineGalleryEntries(entries).forEach(entry=>{
+  const dateGroups=sortTimelineGalleryEntries(entries).reduce((map, entry)=>{
     const signature=getTimelineGalleryGroupSignature(entry);
     const dateKey=signature.capturedDate||'unspecified';
-    if(!dateGroups.has(dateKey)) dateGroups.set(dateKey, new Map());
-    const memoGroups=dateGroups.get(dateKey);
+    if(!map.has(dateKey)) map.set(dateKey, new Map());
+    const memoGroups=map.get(dateKey);
     const groupKey=buildTimelineGalleryGroupKey(signature);
     if(!memoGroups.has(groupKey)) memoGroups.set(groupKey, []);
     memoGroups.get(groupKey).push(entry);
-  });
+    return map;
+  }, new Map());
   return Array.from(dateGroups.entries())
     .sort((a,b)=>{
       if(a[0]==='unspecified') return 1;
@@ -8264,7 +8271,7 @@ function getTimelineGalleryDateGroups(entries=[]){
         .map(([groupKey, items])=>{
           const sortedItems=sortTimelineGalleryEntries(items);
           const representative=[...sortedItems].sort((a,b)=>{
-            const savedCompare=String(a.savedAt||'').localeCompare(String(b.savedAt||''));
+            const savedCompare=normalizeTimelineGallerySavedAt(a?.savedAt)-normalizeTimelineGallerySavedAt(b?.savedAt);
             if(savedCompare!==0) return savedCompare;
             return String(a.id||'').localeCompare(String(b.id||''));
           })[0]||sortedItems[0]||null;
@@ -8276,7 +8283,7 @@ function getTimelineGalleryDateGroups(entries=[]){
             count:sortedItems.length
           };
         })
-        .sort((a,b)=>String(b.representative?.savedAt||'').localeCompare(String(a.representative?.savedAt||''))),
+        .sort((a,b)=>normalizeTimelineGallerySavedAt(b.representative?.savedAt)-normalizeTimelineGallerySavedAt(a.representative?.savedAt)),
       count:Array.from(memoGroups.values()).reduce((total, items)=>total+items.length, 0)
     }));
 }
@@ -8287,7 +8294,7 @@ function renderTimelineGalleryComposerPreview(){
 }
 function renderGalleryForm(){
   const state=timelineGalleryComposerState;
-  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진 기록 작성</h4><p>촬영일과 메모를 함께 기록할 수 있습니다.</p></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진첨부</span><input type="file" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea timeline-gallery-memo" data-gallery-field="memo" placeholder="현장 메모가 있으면 입력하세요.">${escapeHtml(state.memo||'')}</textarea></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
+  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진첨부</span><input type="file" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
 }
 function renderTimelineGalleryCard(group){
   if(!group?.representative) return '';
@@ -8315,8 +8322,10 @@ function renderGalleryView(){
   const selectedCount=timelineGallerySelectedIds.size;
   const totalCount=timelineGalleryEntries.length;
   const deleteButtonText=isTimelineGalleryDeleteMode ? '삭제 종료' : '삭제';
-  const selectedDeleteHtml=isTimelineGalleryDeleteMode ? `<button type="button" class="section-title-action-btn delete" data-gallery-action="delete-selected"${selectedCount?'':' disabled aria-disabled="true"'}>선택 삭제${selectedCount?` ${selectedCount}`:''}</button>` : '';
-  return `<section class="timeline-gallery-view" aria-label="갤러리"><header class="timeline-gallery-header"><div><span class="timeline-gallery-eyebrow">일정타임라인</span><h3>갤러리</h3></div><div class="timeline-gallery-actions"><span class="timeline-gallery-count">총 ${totalCount}장</span><button type="button" class="section-title-action-btn" data-gallery-action="back">뒤로가기</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="open-form">작성</button><button type="button" class="section-title-action-btn delete${isTimelineGalleryDeleteMode?' is-active':''}" data-gallery-action="toggle-delete">${deleteButtonText}</button>${selectedDeleteHtml}</div></header>${isTimelineGalleryComposerOpen ? renderGalleryForm() : ''}${renderTimelineGalleryList()}</section>`;
+  const deleteActionHtml=isTimelineGalleryComposerOpen ? `<button type="button" class="section-title-action-btn delete${isTimelineGalleryDeleteMode?' is-active':''}" data-gallery-action="toggle-delete">${deleteButtonText}</button>` : '';
+  const selectedDeleteHtml=isTimelineGalleryComposerOpen&&isTimelineGalleryDeleteMode ? `<button type="button" class="section-title-action-btn delete" data-gallery-action="delete-selected"${selectedCount?'':' disabled aria-disabled="true"'}>선택 삭제${selectedCount?` ${selectedCount}`:''}</button>` : '';
+  const formButtonText=isTimelineGalleryComposerOpen ? '작성 닫기' : '작성';
+  return `<section class="timeline-gallery-view" aria-label="갤러리"><header class="timeline-gallery-header"><div><span class="timeline-gallery-eyebrow">일정타임라인</span><h3>갤러리</h3></div><div class="timeline-gallery-actions"><span class="timeline-gallery-count">총 ${totalCount}장</span><button type="button" class="section-title-action-btn" data-gallery-action="back">뒤로가기</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="open-form">${formButtonText}</button>${deleteActionHtml}${selectedDeleteHtml}</div></header>${isTimelineGalleryComposerOpen ? renderGalleryForm() : ''}${renderTimelineGalleryList()}</section>`;
 }
 function refreshTimelineGalleryView(){
   const root=document.querySelector('.timeline-gallery-view');
@@ -8363,15 +8372,24 @@ function toggleTimelineGalleryForm(){
   isTimelineGalleryComposerOpen=!isTimelineGalleryComposerOpen;
   if(isTimelineGalleryComposerOpen){
     resetTimelineGalleryComposerState();
+    isTimelineGalleryDeleteMode=false;
+    timelineGallerySelectedIds.clear();
+  }else{
+    isTimelineGalleryDeleteMode=false;
+    timelineGallerySelectedIds.clear();
   }
   refreshTimelineGalleryView();
+  if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
 function cancelTimelineGalleryForm(){
   isTimelineGalleryComposerOpen=false;
+  isTimelineGalleryDeleteMode=false;
+  timelineGallerySelectedIds.clear();
   resetTimelineGalleryComposerState();
   refreshTimelineGalleryView();
 }
 function toggleTimelineGalleryDeleteMode(){
+  if(!isTimelineGalleryComposerOpen) return;
   isTimelineGalleryDeleteMode=!isTimelineGalleryDeleteMode;
   timelineGallerySelectedIds.clear();
   refreshTimelineGalleryView();
@@ -8388,7 +8406,7 @@ function saveGalleryEntry(){
     return;
   }
   loadTimelineGalleryEntries();
-  const savedAt=new Date().toISOString();
+  const savedAt=Date.now();
   const nextItems=images.map(image=>({
     id:createTimelineGalleryEntryId(),
     fileName:image.fileName,
@@ -8411,7 +8429,11 @@ function deleteGalleryEntries(){
   const confirmed=window.confirm(`선택한 사진 ${timelineGallerySelectedIds.size}장을 삭제하시겠습니까?`);
   if(!confirmed) return;
   loadTimelineGalleryEntries();
-  timelineGalleryEntries=timelineGalleryEntries.filter(entry=>!timelineGallerySelectedIds.has(entry.id));
+  for(let index=timelineGalleryEntries.length-1;index>=0;index-=1){
+    if(timelineGallerySelectedIds.has(timelineGalleryEntries[index]?.id)){
+      timelineGalleryEntries.splice(index, 1);
+    }
+  }
   timelineGallerySelectedIds.clear();
   if(!timelineGalleryEntries.length) isTimelineGalleryDeleteMode=false;
   saveTimelineGalleryEntries();
