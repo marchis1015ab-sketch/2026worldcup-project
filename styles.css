@@ -4845,6 +4845,42 @@ body.timeline-modal-open{overflow:hidden}
   font-size:15px;
   font-weight:900;
 }
+.timeline-gallery-date-list{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+.timeline-gallery-date-section{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.timeline-gallery-date-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:0 4px;
+}
+.timeline-gallery-date-header h4{
+  margin:0;
+  color:#10253b;
+  font-size:18px;
+  font-weight:900;
+  line-height:1.3;
+}
+.timeline-gallery-date-header span{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:46px;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#e8f1fb;
+  color:#17314c;
+  font-size:12px;
+  font-weight:900;
+}
 .timeline-gallery-grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
@@ -8366,6 +8402,11 @@ textarea.simple-form-input,
   .timeline-gallery-form-actions{
     justify-content:flex-start;
     flex-wrap:wrap;
+  }
+
+  .timeline-gallery-date-header{
+    align-items:flex-start;
+    flex-direction:column;
   }
 
   .timeline-gallery-grid{

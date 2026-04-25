@@ -8053,9 +8053,8 @@ function normalizeTimelineGalleryItem(item){
   if(!imageData) return null;
   const createdAtValue=String(item?.createdAt||'').trim();
   const createdAt=Number.isNaN(Date.parse(createdAtValue)) ? new Date().toISOString() : new Date(createdAtValue).toISOString();
-  const fallbackShootDate=createdAt.slice(0, 10);
   const rawShootDate=String(item?.shootDate||item?.date||'').trim();
-  const shootDate=/^\d{4}-\d{2}-\d{2}$/.test(rawShootDate) ? rawShootDate : fallbackShootDate;
+  const shootDate=/^\d{4}-\d{2}-\d{2}$/.test(rawShootDate) ? rawShootDate : '';
   return {
     id:String(item?.id||createTimelineGalleryEntryId()),
     imageData,
@@ -8213,6 +8212,28 @@ function formatTimelineGalleryShootDate(value=''){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
   return text;
 }
+function getTimelineGalleryShootDateLabel(value=''){
+  return formatTimelineGalleryShootDate(value)||'촬영일 미지정';
+}
+function getTimelineGalleryGroups(entries=[]){
+  const groups=new Map();
+  sortTimelineGalleryEntries(entries).forEach(entry=>{
+    const key=formatTimelineGalleryShootDate(entry.shootDate)||'unspecified';
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(entry);
+  });
+  return Array.from(groups.entries())
+    .sort((a,b)=>{
+      if(a[0]==='unspecified') return 1;
+      if(b[0]==='unspecified') return -1;
+      return String(b[0]).localeCompare(String(a[0]));
+    })
+    .map(([key, items])=>({
+      key,
+      label:key==='unspecified' ? '촬영일 미지정' : key,
+      items
+    }));
+}
 function renderTimelineGalleryComposerPreview(){
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images : [];
   if(!images.length) return '<div class="timeline-gallery-preview-empty">선택된 사진이 없습니다.</div>';
@@ -8225,9 +8246,8 @@ function renderGalleryForm(){
 function renderTimelineGalleryCard(entry){
   const isSelected=timelineGallerySelectedIds.has(entry.id);
   const deleteControl=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-card-check"><input type="checkbox" data-gallery-check="${escapeHtml(entry.id)}"${isSelected?' checked':''}><span>선택</span></label>` : '';
-  const shootDate=formatTimelineGalleryShootDate(entry.shootDate)||formatTimelineGalleryShootDate(String(entry.createdAt||'').slice(0, 10));
   const memoHtml=entry.memo ? `<p class="timeline-gallery-card-memo">${escapeHtml(entry.memo)}</p>` : '';
-  const shootDateHtml=shootDate ? `<div class="timeline-gallery-card-shoot-date">촬영일: ${escapeHtml(shootDate)}</div>` : '';
+  const shootDateHtml=`<div class="timeline-gallery-card-shoot-date">촬영일: ${escapeHtml(getTimelineGalleryShootDateLabel(entry.shootDate))}</div>`;
   return `<article class="timeline-gallery-card${isSelected?' is-selected':''}" data-gallery-id="${escapeHtml(entry.id)}">${deleteControl}<button type="button" class="timeline-gallery-main-image" data-gallery-preview="${escapeHtml(entry.id)}"><img src="${entry.imageData}" alt="${escapeHtml(entry.name)}"></button><div class="timeline-gallery-card-body"><h4>${escapeHtml(entry.name)}</h4>${shootDateHtml}<time>${escapeHtml(formatTimelineGalleryCreatedAt(entry.createdAt))}</time>${memoHtml}</div></article>`;
 }
 function renderTimelineGalleryList(){
@@ -8238,7 +8258,8 @@ function renderTimelineGalleryList(){
   if(!items.length){
     return '<div class="timeline-gallery-empty">등록된 사진이 없습니다.</div>';
   }
-  return `<div class="timeline-gallery-grid">${items.map(renderTimelineGalleryCard).join('')}</div>`;
+  const groups=getTimelineGalleryGroups(items);
+  return `<div class="timeline-gallery-date-list">${groups.map(group=>`<section class="timeline-gallery-date-section"><header class="timeline-gallery-date-header"><h4>${escapeHtml(group.label)}</h4><span>${group.items.length}장</span></header><div class="timeline-gallery-grid">${group.items.map(renderTimelineGalleryCard).join('')}</div></section>`).join('')}</div>`;
 }
 function renderGalleryView(){
   loadTimelineGalleryEntries();
@@ -8444,7 +8465,7 @@ function renderTimelineGalleryModal(){
     imageEl.alt=entry.name;
   }
   if(titleEl) titleEl.textContent=entry.name;
-  if(metaEl) metaEl.textContent=[formatTimelineGalleryShootDate(entry.shootDate)?`촬영일 ${formatTimelineGalleryShootDate(entry.shootDate)}`:'', formatTimelineGalleryCreatedAt(entry.createdAt), entry.memo].filter(Boolean).join(' · ');
+  if(metaEl) metaEl.textContent=[`촬영일 ${getTimelineGalleryShootDateLabel(entry.shootDate)}`, formatTimelineGalleryCreatedAt(entry.createdAt), entry.memo].filter(Boolean).join(' · ');
   const items=sortTimelineGalleryEntries(timelineGalleryEntries);
   const currentIndex=items.findIndex(item=>item.id===entry.id);
   const hasMultiple=items.length>1;
