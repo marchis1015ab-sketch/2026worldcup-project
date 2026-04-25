@@ -8049,19 +8049,19 @@ function buildTimelineGalleryMemo(title='', memo=''){
   return parts.join(' · ');
 }
 function normalizeTimelineGalleryItem(item){
-  const imageData=String(item?.imageData||item?.dataUrl||item?.src||'').trim();
-  if(!imageData) return null;
-  const createdAtValue=String(item?.createdAt||'').trim();
-  const createdAt=Number.isNaN(Date.parse(createdAtValue)) ? new Date().toISOString() : new Date(createdAtValue).toISOString();
-  const rawShootDate=String(item?.shootDate||item?.date||'').trim();
-  const shootDate=/^\d{4}-\d{2}-\d{2}$/.test(rawShootDate) ? rawShootDate : '';
+  const dataUrl=String(item?.dataUrl||item?.imageData||item?.src||'').trim();
+  if(!dataUrl) return null;
+  const savedAtValue=String(item?.savedAt||item?.createdAt||'').trim();
+  const savedAt=Number.isNaN(Date.parse(savedAtValue)) ? new Date().toISOString() : new Date(savedAtValue).toISOString();
+  const rawCapturedDate=String(item?.capturedDate||item?.shootDate||item?.date||'').trim();
+  const capturedDate=/^\d{4}-\d{2}-\d{2}$/.test(rawCapturedDate) ? rawCapturedDate : '';
   return {
     id:String(item?.id||createTimelineGalleryEntryId()),
-    imageData,
-    name:String(item?.name||item?.fileName||item?.title||'photo.jpg').trim()||'photo.jpg',
-    createdAt,
-    shootDate,
-    memo:String(item?.memo||'').trim()
+    fileName:String(item?.fileName||item?.name||item?.title||'photo.jpg').trim()||'photo.jpg',
+    dataUrl,
+    capturedDate,
+    memo:String(item?.memo||'').trim(),
+    savedAt
   };
 }
 function extractTimelineGalleryItems(entry){
@@ -8070,9 +8070,10 @@ function extractTimelineGalleryItems(entry){
     return entry.images
       .map((image,index)=>normalizeTimelineGalleryItem({
         id:`${String(entry?.id||createTimelineGalleryEntryId())}_${String(image?.id||index)}`,
-        imageData:image?.dataUrl||image?.src||'',
-        name:image?.name||entry?.title||`photo-${index+1}.jpg`,
-        createdAt:entry?.createdAt,
+        dataUrl:image?.dataUrl||image?.src||'',
+        fileName:image?.name||entry?.title||`photo-${index+1}.jpg`,
+        savedAt:entry?.savedAt||entry?.createdAt,
+        capturedDate:entry?.capturedDate||entry?.shootDate||entry?.date||'',
         memo
       }))
       .filter(Boolean);
@@ -8160,7 +8161,7 @@ function persistTimelineGalleryEntries(){
 }
 function sortTimelineGalleryEntries(entries=[]){
   return [...entries].sort((a,b)=>{
-    return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+    return String(b.savedAt||'').localeCompare(String(a.savedAt||''));
   });
 }
 function loadTimelineGalleryEntries(){
@@ -8194,61 +8195,109 @@ function readTimelineGalleryFiles(files){
     const reader=new FileReader();
     reader.onload=()=>resolve({
       id:createTimelineGalleryImageId(),
-      name:file.name||'photo.jpg',
-      imageData:String(reader.result||'')
+      fileName:file.name||'photo.jpg',
+      dataUrl:String(reader.result||'')
     });
     reader.onerror=()=>resolve(null);
     reader.readAsDataURL(file);
   }))).then(items=>items.filter(Boolean));
 }
-function formatTimelineGalleryCreatedAt(value=''){
+function formatTimelineGallerySavedAt(value=''){
   const date=new Date(value);
   if(Number.isNaN(date.getTime())) return '';
   const pad=value=>String(value).padStart(2, '0');
   return `${date.getFullYear()}.${pad(date.getMonth()+1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
-function formatTimelineGalleryShootDate(value=''){
+function formatTimelineGalleryCapturedDate(value=''){
   const text=String(value||'').trim();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
   return text;
 }
-function getTimelineGalleryShootDateLabel(value=''){
-  return formatTimelineGalleryShootDate(value)||'촬영일 미지정';
+function getTimelineGalleryCapturedDateLabel(value=''){
+  return formatTimelineGalleryCapturedDate(value)||'촬영일 미지정';
 }
-function getTimelineGalleryGroups(entries=[]){
-  const groups=new Map();
-  sortTimelineGalleryEntries(entries).forEach(entry=>{
-    const key=formatTimelineGalleryShootDate(entry.shootDate)||'unspecified';
-    if(!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(entry);
+function getTimelineGalleryMemoLabel(value=''){
+  const normalized=String(value||'').trim();
+  return normalized||'메모 없음';
+}
+function getTimelineGalleryGroupSignature(entry={}){
+  return {
+    capturedDate:formatTimelineGalleryCapturedDate(entry?.capturedDate||''),
+    memo:String(entry?.memo||'').trim()
+  };
+}
+function buildTimelineGalleryGroupKey(signature={}){
+  return JSON.stringify({
+    capturedDate:formatTimelineGalleryCapturedDate(signature.capturedDate||''),
+    memo:String(signature.memo||'').trim()
   });
-  return Array.from(groups.entries())
+}
+function getTimelineGalleryGroupItems(signature={}, entries=timelineGalleryEntries){
+  const targetDate=formatTimelineGalleryCapturedDate(signature.capturedDate||'');
+  const targetMemo=String(signature.memo||'').trim();
+  return sortTimelineGalleryEntries(entries).filter(entry=>{
+    const entrySignature=getTimelineGalleryGroupSignature(entry);
+    return entrySignature.capturedDate===targetDate&&entrySignature.memo===targetMemo;
+  });
+}
+function getTimelineGalleryDateGroups(entries=[]){
+  const dateGroups=new Map();
+  sortTimelineGalleryEntries(entries).forEach(entry=>{
+    const signature=getTimelineGalleryGroupSignature(entry);
+    const dateKey=signature.capturedDate||'unspecified';
+    if(!dateGroups.has(dateKey)) dateGroups.set(dateKey, new Map());
+    const memoGroups=dateGroups.get(dateKey);
+    const groupKey=buildTimelineGalleryGroupKey(signature);
+    if(!memoGroups.has(groupKey)) memoGroups.set(groupKey, []);
+    memoGroups.get(groupKey).push(entry);
+  });
+  return Array.from(dateGroups.entries())
     .sort((a,b)=>{
       if(a[0]==='unspecified') return 1;
       if(b[0]==='unspecified') return -1;
       return String(b[0]).localeCompare(String(a[0]));
     })
-    .map(([key, items])=>({
-      key,
-      label:key==='unspecified' ? '촬영일 미지정' : key,
-      items
+    .map(([dateKey, memoGroups])=>({
+      key:dateKey,
+      label:dateKey==='unspecified' ? '촬영일 미지정' : dateKey,
+      groups:Array.from(memoGroups.entries())
+        .map(([groupKey, items])=>{
+          const sortedItems=sortTimelineGalleryEntries(items);
+          const representative=[...sortedItems].sort((a,b)=>{
+            const savedCompare=String(a.savedAt||'').localeCompare(String(b.savedAt||''));
+            if(savedCompare!==0) return savedCompare;
+            return String(a.id||'').localeCompare(String(b.id||''));
+          })[0]||sortedItems[0]||null;
+          return {
+            key:groupKey,
+            representative,
+            items:sortedItems,
+            memoLabel:getTimelineGalleryMemoLabel(representative?.memo||''),
+            count:sortedItems.length
+          };
+        })
+        .sort((a,b)=>String(b.representative?.savedAt||'').localeCompare(String(a.representative?.savedAt||''))),
+      count:Array.from(memoGroups.values()).reduce((total, items)=>total+items.length, 0)
     }));
 }
 function renderTimelineGalleryComposerPreview(){
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images : [];
   if(!images.length) return '<div class="timeline-gallery-preview-empty">선택된 사진이 없습니다.</div>';
-  return images.map(image=>`<figure class="timeline-gallery-preview-item"><img src="${image.imageData}" alt="${escapeHtml(image.name)}"><figcaption>${escapeHtml(image.name)}</figcaption><button type="button" class="timeline-gallery-preview-remove" data-gallery-remove-image="${escapeHtml(image.id)}" aria-label="${escapeHtml(image.name)} 삭제">×</button></figure>`).join('');
+  return images.map(image=>`<figure class="timeline-gallery-preview-item"><img src="${image.dataUrl}" alt="${escapeHtml(image.fileName)}"><figcaption>${escapeHtml(image.fileName)}</figcaption><button type="button" class="timeline-gallery-preview-remove" data-gallery-remove-image="${escapeHtml(image.id)}" aria-label="${escapeHtml(image.fileName)} 삭제">×</button></figure>`).join('');
 }
 function renderGalleryForm(){
   const state=timelineGalleryComposerState;
   return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진 기록 작성</h4><p>촬영일과 메모를 함께 기록할 수 있습니다.</p></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진첨부</span><input type="file" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea timeline-gallery-memo" data-gallery-field="memo" placeholder="현장 메모가 있으면 입력하세요.">${escapeHtml(state.memo||'')}</textarea></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
 }
-function renderTimelineGalleryCard(entry){
-  const isSelected=timelineGallerySelectedIds.has(entry.id);
-  const deleteControl=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-card-check"><input type="checkbox" data-gallery-check="${escapeHtml(entry.id)}"${isSelected?' checked':''}><span>선택</span></label>` : '';
-  const memoHtml=entry.memo ? `<p class="timeline-gallery-card-memo">${escapeHtml(entry.memo)}</p>` : '';
-  const shootDateHtml=`<div class="timeline-gallery-card-shoot-date">촬영일: ${escapeHtml(getTimelineGalleryShootDateLabel(entry.shootDate))}</div>`;
-  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}" data-gallery-id="${escapeHtml(entry.id)}">${deleteControl}<button type="button" class="timeline-gallery-main-image" data-gallery-preview="${escapeHtml(entry.id)}"><img src="${entry.imageData}" alt="${escapeHtml(entry.name)}"></button><div class="timeline-gallery-card-body"><h4>${escapeHtml(entry.name)}</h4>${shootDateHtml}<time>${escapeHtml(formatTimelineGalleryCreatedAt(entry.createdAt))}</time>${memoHtml}</div></article>`;
+function renderTimelineGalleryCard(group){
+  if(!group?.representative) return '';
+  const representative=group.representative;
+  const capturedDateHtml=`<div class="timeline-gallery-card-shoot-date">촬영일: ${escapeHtml(getTimelineGalleryCapturedDateLabel(representative.capturedDate))}</div>`;
+  const memoHtml=`<p class="timeline-gallery-card-memo">${escapeHtml(group.memoLabel)}</p>`;
+  const fileHtml=`<div class="timeline-gallery-card-file">${escapeHtml(representative.fileName)}</div>`;
+  const countHtml=`<span class="timeline-gallery-card-count">${group.count}장</span>`;
+  const deleteHintHtml=isTimelineGalleryDeleteMode?'<span class="timeline-gallery-card-delete-hint">삭제 모드: 열어서 개별 선택</span>':'';
+  return `<article class="timeline-gallery-card" data-gallery-group-key="${escapeHtml(group.key)}"><button type="button" class="timeline-gallery-main-image" data-gallery-group-preview="${escapeHtml(group.key)}"><img src="${representative.dataUrl}" alt="${escapeHtml(group.memoLabel)} 대표 썸네일">${countHtml}</button><div class="timeline-gallery-card-body"><h4>${escapeHtml(group.memoLabel)}</h4>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}</div></article>`;
 }
 function renderTimelineGalleryList(){
   const items=sortTimelineGalleryEntries(timelineGalleryEntries);
@@ -8258,8 +8307,8 @@ function renderTimelineGalleryList(){
   if(!items.length){
     return '<div class="timeline-gallery-empty">등록된 사진이 없습니다.</div>';
   }
-  const groups=getTimelineGalleryGroups(items);
-  return `<div class="timeline-gallery-date-list">${groups.map(group=>`<section class="timeline-gallery-date-section"><header class="timeline-gallery-date-header"><h4>${escapeHtml(group.label)}</h4><span>${group.items.length}장</span></header><div class="timeline-gallery-grid">${group.items.map(renderTimelineGalleryCard).join('')}</div></section>`).join('')}</div>`;
+  const groups=getTimelineGalleryDateGroups(items);
+  return `<div class="timeline-gallery-date-list">${groups.map(group=>`<section class="timeline-gallery-date-section"><header class="timeline-gallery-date-header"><h4>${escapeHtml(group.label)}</h4><span>${group.count}장</span></header><div class="timeline-gallery-grid">${group.groups.map(renderTimelineGalleryCard).join('')}</div></section>`).join('')}</div>`;
 }
 function renderGalleryView(){
   loadTimelineGalleryEntries();
@@ -8326,11 +8375,12 @@ function toggleTimelineGalleryDeleteMode(){
   isTimelineGalleryDeleteMode=!isTimelineGalleryDeleteMode;
   timelineGallerySelectedIds.clear();
   refreshTimelineGalleryView();
+  if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
 function saveGalleryEntry(){
   const root=document.querySelector('.timeline-gallery-view')||document;
   updateTimelineGalleryComposerStateFromForm(root);
-  const shootDate=formatTimelineGalleryShootDate(timelineGalleryComposerState.shootDate)||getTodayTimelineKey();
+  const capturedDate=formatTimelineGalleryCapturedDate(timelineGalleryComposerState.shootDate)||'';
   const memo=String(timelineGalleryComposerState.memo||'').trim();
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images.map(normalizeTimelineGalleryItem).filter(Boolean) : [];
   if(!images.length){
@@ -8338,13 +8388,13 @@ function saveGalleryEntry(){
     return;
   }
   loadTimelineGalleryEntries();
-  const createdAt=new Date().toISOString();
+  const savedAt=new Date().toISOString();
   const nextItems=images.map(image=>({
     id:createTimelineGalleryEntryId(),
-    imageData:image.imageData,
-    name:image.name,
-    createdAt,
-    shootDate,
+    fileName:image.fileName,
+    dataUrl:image.dataUrl,
+    capturedDate,
+    savedAt,
     memo
   }));
   timelineGalleryEntries.push(...nextItems);
@@ -8354,8 +8404,11 @@ function saveGalleryEntry(){
   refreshTimelineGalleryView();
 }
 function deleteGalleryEntries(){
-  if(!timelineGallerySelectedIds.size) return;
-  const confirmed=window.confirm(`선택한 갤러리 카드 ${timelineGallerySelectedIds.size}개를 삭제하시겠습니까?`);
+  if(!timelineGallerySelectedIds.size){
+    window.alert('삭제할 사진을 선택하세요.');
+    return;
+  }
+  const confirmed=window.confirm(`선택한 사진 ${timelineGallerySelectedIds.size}장을 삭제하시겠습니까?`);
   if(!confirmed) return;
   loadTimelineGalleryEntries();
   timelineGalleryEntries=timelineGalleryEntries.filter(entry=>!timelineGallerySelectedIds.has(entry.id));
@@ -8363,6 +8416,17 @@ function deleteGalleryEntries(){
   if(!timelineGalleryEntries.length) isTimelineGalleryDeleteMode=false;
   saveTimelineGalleryEntries();
   refreshTimelineGalleryView();
+  if(timelineGalleryPreviewState){
+    const remainingItems=getTimelineGalleryModalItems();
+    if(!remainingItems.length){
+      closeTimelineGalleryModal();
+      return;
+    }
+    if(!remainingItems.some(entry=>entry.id===timelineGalleryPreviewState.activeEntryId)){
+      timelineGalleryPreviewState.activeEntryId=remainingItems[0].id;
+    }
+    renderTimelineGalleryModal();
+  }
 }
 function updateTimelineGalleryComposerPreview(){
   const preview=document.getElementById('timelineGalleryComposerPreview');
@@ -8390,25 +8454,15 @@ function bindTimelineGalleryViewEvents(){
       updateTimelineGalleryComposerPreview();
       return;
     }
-    const previewButton=event.target.closest('[data-gallery-preview]');
+    const previewButton=event.target.closest('[data-gallery-group-preview]');
     if(previewButton&&root.contains(previewButton)){
-      openGalleryModal(previewButton.dataset.galleryPreview||'', Number(previewButton.dataset.imageIndex||0));
+      openGalleryModal(previewButton.dataset.galleryGroupPreview||'');
     }
   };
   root.oninput=event=>{
     if(event.target.closest('.timeline-gallery-form')) updateTimelineGalleryComposerStateFromForm(root);
   };
   root.onchange=async event=>{
-    const check=event.target.closest('[data-gallery-check]');
-    if(check&&root.contains(check)){
-      if(check.checked){
-        timelineGallerySelectedIds.add(check.dataset.galleryCheck||'');
-      }else{
-        timelineGallerySelectedIds.delete(check.dataset.galleryCheck||'');
-      }
-      refreshTimelineGalleryView();
-      return;
-    }
     const fileInput=event.target.closest('.timeline-gallery-file-input');
     if(fileInput&&root.contains(fileInput)){
       updateTimelineGalleryComposerStateFromForm(root);
@@ -8423,10 +8477,25 @@ function getTimelineGalleryEntry(entryId=''){
   loadTimelineGalleryEntries();
   return timelineGalleryEntries.find(entry=>entry.id===entryId)||null;
 }
+function getTimelineGalleryGroupByKey(groupKey='', entries=timelineGalleryEntries){
+  const target=String(groupKey||'').trim();
+  if(!target) return null;
+  const dateGroups=getTimelineGalleryDateGroups(entries);
+  for(const dateGroup of dateGroups){
+    const group=(dateGroup.groups||[]).find(item=>item.key===target);
+    if(group) return group;
+  }
+  return null;
+}
+function getTimelineGalleryModalItems(){
+  if(!timelineGalleryPreviewState?.groupKey) return [];
+  const group=getTimelineGalleryGroupByKey(timelineGalleryPreviewState.groupKey, timelineGalleryEntries);
+  return Array.isArray(group?.items) ? group.items : [];
+}
 function ensureTimelineGalleryModal(){
   if(document.getElementById('timelineGalleryModal')) return;
   const mount=document.getElementById('timelineGalleryModalMount')||document.body;
-  mount.insertAdjacentHTML('beforeend', `<div id="timelineGalleryModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-gallery-modal-close="true"></div><div class="timeline-gallery-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineGalleryModalTitle"><button type="button" class="timeline-gallery-modal-close" data-gallery-modal-close="true" aria-label="닫기">×</button><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-prev" data-gallery-modal-step="-1" aria-label="이전 사진">‹</button><figure class="timeline-gallery-modal-figure"><img id="timelineGalleryModalImage" src="" alt=""><figcaption><h3 id="timelineGalleryModalTitle"></h3><p id="timelineGalleryModalMeta"></p></figcaption></figure><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-next" data-gallery-modal-step="1" aria-label="다음 사진">›</button></div></div>`);
+  mount.insertAdjacentHTML('beforeend', `<div id="timelineGalleryModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-gallery-modal-close="true"></div><div class="timeline-gallery-modal-panel timeline-gallery-modal-panel-group" role="dialog" aria-modal="true" aria-labelledby="timelineGalleryModalTitle"><button type="button" class="timeline-gallery-modal-close" data-gallery-modal-close="true" aria-label="닫기">×</button><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-prev" data-gallery-modal-step="-1" aria-label="이전 사진">‹</button><div class="timeline-gallery-modal-content"><figure class="timeline-gallery-modal-figure"><img id="timelineGalleryModalImage" src="" alt=""><figcaption><h3 id="timelineGalleryModalTitle"></h3><p id="timelineGalleryModalMeta"></p></figcaption></figure><div class="timeline-gallery-modal-actions"><div id="timelineGalleryModalGroupMeta" class="timeline-gallery-modal-group-meta"></div><div id="timelineGalleryModalDeleteActions" class="timeline-gallery-modal-delete-actions"></div></div><div id="timelineGalleryModalThumbList" class="timeline-gallery-modal-thumb-list" aria-label="묶음 사진 목록"></div></div><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-next" data-gallery-modal-step="1" aria-label="다음 사진">›</button></div></div>`);
   const modal=document.getElementById('timelineGalleryModal');
   modal.addEventListener('click', event=>{
     if(event.target.closest('[data-gallery-modal-close]')){
@@ -8436,7 +8505,30 @@ function ensureTimelineGalleryModal(){
     const stepButton=event.target.closest('[data-gallery-modal-step]');
     if(stepButton){
       moveTimelineGalleryModal(Number(stepButton.dataset.galleryModalStep||0));
+      return;
     }
+    const entryButton=event.target.closest('[data-gallery-modal-entry]');
+    if(entryButton){
+      timelineGalleryPreviewState.activeEntryId=entryButton.dataset.galleryModalEntry||'';
+      renderTimelineGalleryModal();
+      return;
+    }
+    const deleteButton=event.target.closest('[data-gallery-modal-delete-selected]');
+    if(deleteButton){
+      deleteGalleryEntries();
+    }
+  });
+  modal.addEventListener('change', event=>{
+    const check=event.target.closest('[data-gallery-modal-check]');
+    if(!check) return;
+    const entryId=check.dataset.galleryModalCheck||'';
+    if(check.checked){
+      timelineGallerySelectedIds.add(entryId);
+    }else{
+      timelineGallerySelectedIds.delete(entryId);
+    }
+    renderTimelineGalleryModal();
+    refreshTimelineGalleryView();
   });
   modal.addEventListener('keydown', event=>{
     if(event.key==='Escape'){
@@ -8450,33 +8542,55 @@ function ensureTimelineGalleryModal(){
 function renderTimelineGalleryModal(){
   const modal=document.getElementById('timelineGalleryModal');
   if(!modal||!timelineGalleryPreviewState) return;
-  const entry=getTimelineGalleryEntry(timelineGalleryPreviewState.entryId);
-  if(!entry){
+  const group=getTimelineGalleryGroupByKey(timelineGalleryPreviewState.groupKey, timelineGalleryEntries);
+  const items=Array.isArray(group?.items) ? group.items : [];
+  if(!items.length){
     closeTimelineGalleryModal();
     return;
   }
+  if(!items.some(entry=>entry.id===timelineGalleryPreviewState.activeEntryId)){
+    timelineGalleryPreviewState.activeEntryId=items[0].id;
+  }
+  const entry=items.find(item=>item.id===timelineGalleryPreviewState.activeEntryId)||items[0];
   const imageEl=document.getElementById('timelineGalleryModalImage');
   const titleEl=document.getElementById('timelineGalleryModalTitle');
   const metaEl=document.getElementById('timelineGalleryModalMeta');
+  const groupMetaEl=document.getElementById('timelineGalleryModalGroupMeta');
+  const deleteActionsEl=document.getElementById('timelineGalleryModalDeleteActions');
+  const thumbListEl=document.getElementById('timelineGalleryModalThumbList');
   const prevButton=modal.querySelector('.timeline-gallery-modal-prev');
   const nextButton=modal.querySelector('.timeline-gallery-modal-next');
   if(imageEl){
-    imageEl.src=entry.imageData;
-    imageEl.alt=entry.name;
+    imageEl.src=entry.dataUrl;
+    imageEl.alt=entry.fileName||group.memoLabel||'갤러리 사진';
   }
-  if(titleEl) titleEl.textContent=entry.name;
-  if(metaEl) metaEl.textContent=[`촬영일 ${getTimelineGalleryShootDateLabel(entry.shootDate)}`, formatTimelineGalleryCreatedAt(entry.createdAt), entry.memo].filter(Boolean).join(' · ');
-  const items=sortTimelineGalleryEntries(timelineGalleryEntries);
+  if(titleEl) titleEl.textContent=entry.fileName||group.memoLabel||'갤러리 사진';
+  if(metaEl) metaEl.textContent=[`촬영일 ${getTimelineGalleryCapturedDateLabel(entry.capturedDate)}`, `저장 ${formatTimelineGallerySavedAt(entry.savedAt)}`, getTimelineGalleryMemoLabel(entry.memo)].filter(Boolean).join(' · ');
+  if(groupMetaEl){
+    groupMetaEl.innerHTML=`<span class="timeline-gallery-modal-group-pill">${escapeHtml(getTimelineGalleryCapturedDateLabel(group.representative?.capturedDate))}</span><span class="timeline-gallery-modal-group-pill">${escapeHtml(group.memoLabel)}</span><span class="timeline-gallery-modal-group-pill">${items.length}장</span>`;
+  }
+  if(deleteActionsEl){
+    const selectedCount=items.filter(item=>timelineGallerySelectedIds.has(item.id)).length;
+    deleteActionsEl.innerHTML=isTimelineGalleryDeleteMode ? `<span class="timeline-gallery-modal-delete-copy">개별 사진을 선택해 삭제할 수 있습니다.</span><button type="button" class="section-title-action-btn delete" data-gallery-modal-delete-selected="true"${selectedCount?'':' disabled aria-disabled="true"'}>선택 삭제${selectedCount?` ${selectedCount}`:''}</button>` : '';
+  }
+  if(thumbListEl){
+    thumbListEl.innerHTML=items.map(item=>{
+      const isActive=item.id===entry.id;
+      const isChecked=timelineGallerySelectedIds.has(item.id);
+      const checkboxHtml=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-modal-thumb-check"><input type="checkbox" data-gallery-modal-check="${escapeHtml(item.id)}"${isChecked?' checked':''}><span>선택</span></label>` : '';
+      return `<article class="timeline-gallery-modal-thumb${isActive?' is-active':''}"><button type="button" class="timeline-gallery-thumb-btn" data-gallery-modal-entry="${escapeHtml(item.id)}"><img src="${item.dataUrl}" alt="${escapeHtml(item.fileName||'갤러리 사진')}"></button><div class="timeline-gallery-modal-thumb-meta"><strong class="timeline-gallery-modal-thumb-name">${escapeHtml(item.fileName||'사진')}</strong><span>${escapeHtml(formatTimelineGallerySavedAt(item.savedAt))}</span></div>${checkboxHtml}</article>`;
+    }).join('');
+  }
   const currentIndex=items.findIndex(item=>item.id===entry.id);
   const hasMultiple=items.length>1;
   if(prevButton) prevButton.disabled=!hasMultiple||currentIndex<0;
   if(nextButton) nextButton.disabled=!hasMultiple||currentIndex<0;
 }
-function openGalleryModal(entryId=''){
-  const entry=getTimelineGalleryEntry(entryId);
-  if(!entry) return;
+function openGalleryModal(groupKey=''){
+  const group=getTimelineGalleryGroupByKey(groupKey, timelineGalleryEntries);
+  if(!group?.representative) return;
   ensureTimelineGalleryModal();
-  timelineGalleryPreviewState={entryId};
+  timelineGalleryPreviewState={groupKey:group.key, activeEntryId:group.representative.id};
   renderTimelineGalleryModal();
   const modal=document.getElementById('timelineGalleryModal');
   document.body.classList.add('timeline-modal-open');
@@ -8485,12 +8599,12 @@ function openGalleryModal(entryId=''){
 }
 function moveTimelineGalleryModal(step=0){
   if(!timelineGalleryPreviewState) return;
-  const items=sortTimelineGalleryEntries(timelineGalleryEntries);
+  const items=getTimelineGalleryModalItems();
   if(items.length<2) return;
-  const currentIndex=items.findIndex(entry=>entry.id===timelineGalleryPreviewState.entryId);
+  const currentIndex=items.findIndex(entry=>entry.id===timelineGalleryPreviewState.activeEntryId);
   if(currentIndex<0) return;
   const nextIndex=(currentIndex+step+items.length)%items.length;
-  timelineGalleryPreviewState.entryId=items[nextIndex].id;
+  timelineGalleryPreviewState.activeEntryId=items[nextIndex].id;
   renderTimelineGalleryModal();
 }
 function closeTimelineGalleryModal(){
