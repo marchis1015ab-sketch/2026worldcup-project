@@ -4918,6 +4918,12 @@ body.timeline-modal-open{overflow:hidden}
   line-height:1.35;
   word-break:break-word;
 }
+.timeline-gallery-card-shoot-date{
+  color:#315f8d;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.4;
+}
 .timeline-gallery-card-memo{
   margin:0;
   color:#475569;
