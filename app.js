@@ -653,6 +653,23 @@ function normalizeNewsDate(dateValue, fallbackYear=''){
   }
   return raw;
 }
+function parseNewsDate(value=''){
+  const normalized=normalizeNewsDate(value);
+  if(!normalized) return 0;
+  if(/^\d{4}\.\d{2}\.\d{2}$/.test(normalized)){
+    const [year,month,day]=normalized.split('.');
+    const parsed=Date.UTC(Number(year), Number(month)-1, Number(day));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if(/^\d{4}\.\d{2}$/.test(normalized)){
+    const [year,month]=normalized.split('.');
+    const parsed=Date.UTC(Number(year), Number(month)-1, 1);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  const sanitized=String(value||'').trim().replace(/\./g,'-').replace(/\//g,'-');
+  const parsed=Date.parse(sanitized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 function getNewsData(){
   if(newsData) return newsData;
   newsData = {
@@ -785,9 +802,9 @@ function normalizeNewsEditorEntry(entry, fallbackYear=''){
 }
 function sortNewsEditorEntries(entries){
   return [...entries].sort((a,b)=>{
-    const dateA=a.date||'9999.99.99';
-    const dateB=b.date||'9999.99.99';
-    if(dateA!==dateB) return dateA.localeCompare(dateB);
+    const dateA=parseNewsDate(a?.date||'');
+    const dateB=parseNewsDate(b?.date||'');
+    if(dateA!==dateB) return dateB-dateA;
     return String(a.id).localeCompare(String(b.id));
   });
 }
