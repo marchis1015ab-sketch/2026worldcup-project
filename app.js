@@ -6108,6 +6108,7 @@ const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimeli
 const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_STORAGE_BUCKET = 'timeline-gallery';
+const TIMELINE_GALLERY_DRAFT_KEY = 'draft_timeline_gallery_composer';
 const LEGACY_TIMELINE_GALLERY_STORAGE_KEYS = ['worldcup-gallery-items-v1','worldcup_timeline_gallery_v1'];
 const TIMELINE_GALLERY_LEGACY_DB_NAME = 'worldcup-guide-gallery-db';
 const TIMELINE_GALLERY_LEGACY_DB_VERSION = 1;
@@ -8836,17 +8837,85 @@ function saveTimelineGalleryEntries(){
   timelineGalleryEntries.push(...normalizedEntries);
   persistTimelineGalleryEntries();
 }
+function saveDraft(key, value){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  try{
+    window.localStorage.setItem(String(key||''), String(value??''));
+  }catch(error){
+    console.warn('Failed to save draft.', error);
+  }
+}
+function loadDraft(key){
+  if(typeof window==='undefined'||!window.localStorage) return '';
+  try{
+    return window.localStorage.getItem(String(key||''))||'';
+  }catch(error){
+    console.warn('Failed to load draft.', error);
+    return '';
+  }
+}
+function clearDraft(key=TIMELINE_GALLERY_DRAFT_KEY){
+  if(typeof window==='undefined'||!window.localStorage) return;
+  try{
+    window.localStorage.removeItem(String(key||''));
+  }catch(error){
+    console.warn('Failed to clear draft.', error);
+  }
+}
 function createTimelineGalleryComposerState(){
   return {shootDate:getTodayTimelineKey(), memo:'', images:[]};
 }
 function resetTimelineGalleryComposerState(){
   timelineGalleryComposerState=createTimelineGalleryComposerState();
 }
+function normalizeTimelineGalleryDraftState(value={}){
+  const fallback=createTimelineGalleryComposerState();
+  const source=value&&typeof value==='object' ? value : {};
+  const rawDate=String(source.shootDate||'').trim();
+  const shootDate=/^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : fallback.shootDate;
+  const images=Array.isArray(source.images)
+    ? source.images.map(image=>({
+      id:String(image?.id||createTimelineGalleryImageId()),
+      fileName:String(image?.fileName||'photo.jpg').trim()||'photo.jpg',
+      dataUrl:String(image?.dataUrl||'').trim(),
+      mimeType:String(image?.mimeType||'image/jpeg').trim()||'image/jpeg',
+      fileSize:Number(image?.fileSize)||0
+    })).filter(image=>image.dataUrl)
+    : [];
+  return {
+    shootDate,
+    memo:String(source.memo||'').trim(),
+    images
+  };
+}
+function readTimelineGalleryComposerDraft(){
+  const raw=loadDraft(TIMELINE_GALLERY_DRAFT_KEY);
+  if(!raw) return null;
+  try{
+    return normalizeTimelineGalleryDraftState(JSON.parse(raw));
+  }catch(error){
+    console.warn('Failed to parse timeline gallery draft.', error);
+    return null;
+  }
+}
+function hasTimelineGalleryComposerDraft(){
+  const draft=readTimelineGalleryComposerDraft();
+  return Boolean(draft&&(draft.memo||draft.images.length||draft.shootDate!==getTodayTimelineKey()));
+}
+function restoreTimelineGalleryComposerDraft(){
+  const draft=readTimelineGalleryComposerDraft();
+  timelineGalleryComposerState=draft||createTimelineGalleryComposerState();
+}
+function persistTimelineGalleryComposerDraft(){
+  const payload=normalizeTimelineGalleryDraftState(timelineGalleryComposerState);
+  saveDraft(TIMELINE_GALLERY_DRAFT_KEY, JSON.stringify(payload));
+}
 function updateTimelineGalleryComposerStateFromForm(root=document){
   const form=root.querySelector?.('.timeline-gallery-form');
   if(!form) return;
   timelineGalleryComposerState.shootDate=String(form.querySelector('[data-gallery-field="shoot-date"]')?.value||'').trim();
   timelineGalleryComposerState.memo=String(form.querySelector('[data-gallery-field="memo"]')?.value||'').trim();
+  persistTimelineGalleryComposerDraft();
 }
 function readTimelineGalleryFiles(files){
   return Promise.all(Array.from(files||[]).filter(file=>!file.type||String(file.type).startsWith('image/')).map(file=>new Promise(resolve=>{
@@ -9077,6 +9146,10 @@ function openTimelineGalleryView(){
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
   detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list,.timeline-gallery-view').forEach(node=>node.remove());
+  if(!isTimelineGalleryComposerOpen&&hasTimelineGalleryComposerDraft()){
+    isTimelineGalleryComposerOpen=true;
+    restoreTimelineGalleryComposerDraft();
+  }
   detailTable.insertAdjacentHTML('afterend', renderGalleryView());
   bindTimelineGalleryViewEvents();
   hydrateTimelineGalleryEntries();
@@ -9095,7 +9168,7 @@ function closeTimelineGalleryView(){
 function toggleTimelineGalleryForm(){
   isTimelineGalleryComposerOpen=!isTimelineGalleryComposerOpen;
   if(isTimelineGalleryComposerOpen){
-    resetTimelineGalleryComposerState();
+    restoreTimelineGalleryComposerDraft();
     isTimelineGalleryDeleteMode=false;
     timelineGallerySelectedIds.clear();
   }else{
@@ -9110,6 +9183,7 @@ function cancelTimelineGalleryForm(){
   isTimelineGalleryDeleteMode=false;
   timelineGallerySelectedIds.clear();
   resetTimelineGalleryComposerState();
+  clearDraft();
   refreshTimelineGalleryView();
 }
 function toggleTimelineGalleryDeleteMode(){
@@ -9155,6 +9229,7 @@ async function saveGalleryEntry(){
     saveTimelineGalleryEntries();
     isTimelineGalleryComposerOpen=false;
     resetTimelineGalleryComposerState();
+    clearDraft();
     refreshTimelineGalleryView();
   }catch(error){
     console.warn('Timeline gallery upload failed.', error);
@@ -9218,6 +9293,7 @@ function bindTimelineGalleryViewEvents(){
     if(removeButton&&root.contains(removeButton)){
       const imageId=removeButton.dataset.galleryRemoveImage||'';
       timelineGalleryComposerState.images=(timelineGalleryComposerState.images||[]).filter(image=>image.id!==imageId);
+      persistTimelineGalleryComposerDraft();
       updateTimelineGalleryComposerPreview();
       return;
     }
@@ -9235,6 +9311,7 @@ function bindTimelineGalleryViewEvents(){
       updateTimelineGalleryComposerStateFromForm(root);
       const nextImages=await readTimelineGalleryFiles(fileInput.files);
       timelineGalleryComposerState.images=[...(timelineGalleryComposerState.images||[]), ...nextImages];
+      persistTimelineGalleryComposerDraft();
       updateTimelineGalleryComposerPreview();
       fileInput.value='';
     }
@@ -12643,6 +12720,11 @@ if(typeof window!=='undefined'){
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
   window.addEventListener('resize', ensureMobileHistoryGuard);
   window.addEventListener('resize', applyMobileTimelineAStructure);
+  window.addEventListener('beforeunload', event=>{
+    if(!isTimelineGalleryComposerOpen&&!hasTimelineGalleryComposerDraft()) return;
+    event.preventDefault();
+    event.returnValue='';
+  });
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState==='visible'){
       fetchSharedStateSnapshot();
