@@ -8756,17 +8756,44 @@ function applyTimelineGalleryEntries(entries=[], source='unknown'){
     rawLength
   });
 }
+async function fetchTimelineGallerySharedRaw(){
+  const client=getSharedStateSyncClient();
+  if(!client) return '';
+  try{
+    const {data, error}=await client
+      .from(SHARED_STATE_SYNC_TABLE)
+      .select('state_value')
+      .eq('state_key', TIMELINE_GALLERY_STORAGE_KEY)
+      .limit(1);
+    if(error){
+      console.warn('Failed to fetch shared timeline gallery.', error);
+      return '';
+    }
+    return String(data?.[0]?.state_value??'');
+  }catch(error){
+    console.warn('Failed to fetch shared timeline gallery.', error);
+    return '';
+  }
+}
+async function getTimelineGalleryEntriesForSave(){
+  const sources=[
+    timelineGalleryEntries,
+    parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw())
+  ];
+  const sharedRaw=await fetchTimelineGallerySharedRaw();
+  if(sharedRaw){
+    setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, sharedRaw);
+    sources.push(parseTimelineGalleryEntriesRaw(sharedRaw));
+  }
+  return normalizeTimelineGalleryEntries(sources.flat());
+}
 async function hydrateTimelineGalleryEntries(force=false){
   if(!force&&timelineGalleryHydrationPromise) return timelineGalleryHydrationPromise;
   timelineGalleryHydrationPromise=(async ()=>{
     const storage=getTimelineGalleryStorage();
-    if(!storage){
-      hasLoadedTimelineGalleryEntries=true;
-      return timelineGalleryEntries;
-    }
-    let raw=String(storage.getItem(TIMELINE_GALLERY_STORAGE_KEY)||'');
-    let source='localStorage';
-    if(!raw){
+    let raw=readTimelineGalleryRaw();
+    let source=raw ? 'shared-local' : 'localStorage';
+    if(!raw&&storage){
       for(const legacyKey of LEGACY_TIMELINE_GALLERY_STORAGE_KEYS){
         const legacyRaw=String(storage.getItem(legacyKey)||'');
         if(legacyRaw){
@@ -8774,6 +8801,13 @@ async function hydrateTimelineGalleryEntries(force=false){
           source=`legacy:${legacyKey}`;
           break;
         }
+      }
+    }
+    if(!raw){
+      const sharedRaw=await fetchTimelineGallerySharedRaw();
+      if(sharedRaw){
+        raw=sharedRaw;
+        source='shared-state';
       }
     }
     if(!raw){
@@ -8787,7 +8821,8 @@ async function hydrateTimelineGalleryEntries(force=false){
       applyTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(raw), source);
       writeTimelineGalleryRaw(buildTimelineGalleryEntriesRaw(timelineGalleryEntries));
     }else{
-      applyTimelineGalleryEntries([], 'localStorage-empty');
+      hasLoadedTimelineGalleryEntries=true;
+      return timelineGalleryEntries;
     }
     hasLoadedTimelineGalleryEntries=true;
     if(document.querySelector('.timeline-gallery-view')){
@@ -9224,7 +9259,7 @@ async function saveGalleryEntry(){
         memo
       });
     }
-    const latestStoredEntries=parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw());
+    const latestStoredEntries=await getTimelineGalleryEntriesForSave();
     timelineGalleryEntries=sortTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, ...nextItems]);
     saveTimelineGalleryEntries();
     isTimelineGalleryComposerOpen=false;
