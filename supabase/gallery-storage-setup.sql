@@ -15,20 +15,23 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists "allow public read" on storage.objects;
 drop policy if exists "timeline_gallery_public_read" on storage.objects;
-create policy "timeline_gallery_public_read"
+create policy "allow public read"
 on storage.objects for select
-to public
+to anon, authenticated
 using (bucket_id = 'timeline-gallery');
 
+drop policy if exists "allow upload" on storage.objects;
 drop policy if exists "timeline_gallery_anon_insert" on storage.objects;
-create policy "timeline_gallery_anon_insert"
+create policy "allow upload"
 on storage.objects for insert
-to anon
+to anon, authenticated
 with check (bucket_id = 'timeline-gallery');
 
+drop policy if exists "allow delete" on storage.objects;
 drop policy if exists "timeline_gallery_anon_delete" on storage.objects;
-create policy "timeline_gallery_anon_delete"
+create policy "allow delete"
 on storage.objects for delete
-to anon
+to anon, authenticated
 using (bucket_id = 'timeline-gallery');
