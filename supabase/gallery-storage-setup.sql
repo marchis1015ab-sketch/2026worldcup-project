@@ -1,5 +1,6 @@
 -- Timeline gallery shared photo storage setup.
--- Run once in Supabase SQL Editor before using the shared gallery upload.
+-- Run this in Supabase SQL Editor for the same project configured in index.html:
+-- https://dwujummgbntrtvmldqmz.supabase.co
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -16,22 +17,58 @@ set
   allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "allow public read" on storage.objects;
-drop policy if exists "timeline_gallery_public_read" on storage.objects;
-create policy "allow public read"
-on storage.objects for select
-to anon, authenticated
-using (bucket_id = 'timeline-gallery');
-
 drop policy if exists "allow upload" on storage.objects;
-drop policy if exists "timeline_gallery_anon_insert" on storage.objects;
-create policy "allow upload"
-on storage.objects for insert
-to anon, authenticated
-with check (bucket_id = 'timeline-gallery');
-
 drop policy if exists "allow delete" on storage.objects;
+drop policy if exists "timeline_gallery_anon_insert" on storage.objects;
 drop policy if exists "timeline_gallery_anon_delete" on storage.objects;
-create policy "allow delete"
-on storage.objects for delete
-to anon, authenticated
-using (bucket_id = 'timeline-gallery');
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'timeline_gallery_public_read'
+  ) then
+    create policy "timeline_gallery_public_read"
+    on storage.objects
+    for select
+    to anon, authenticated
+    using (bucket_id = 'timeline-gallery');
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'timeline_gallery_public_upload'
+  ) then
+    create policy "timeline_gallery_public_upload"
+    on storage.objects
+    for insert
+    to anon, authenticated
+    with check (bucket_id = 'timeline-gallery');
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'timeline_gallery_public_delete'
+  ) then
+    create policy "timeline_gallery_public_delete"
+    on storage.objects
+    for delete
+    to anon, authenticated
+    using (bucket_id = 'timeline-gallery');
+  end if;
+end $$;

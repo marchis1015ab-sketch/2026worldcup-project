@@ -8994,6 +8994,49 @@ function sanitizeTimelineGalleryStorageSegment(value=''){
     .replace(/-+/g, '-')
     .slice(0, 80)||'photo';
 }
+function getTimelineGallerySupabaseUrl(){
+  return String(SHARED_STATE_SYNC_SUPABASE_URL||window.APP_CONFIG?.supabaseUrl||'').trim();
+}
+function getTimelineGalleryStorageErrorDetails(error){
+  const source=error&&typeof error==='object' ? error : {};
+  return {
+    message:String(source.message||error||'').trim(),
+    statusCode:source.statusCode||source.status||source.code||'',
+    error:source.error||source.name||'',
+    details:source.details||source.hint||source.cause||''
+  };
+}
+function createTimelineGalleryStoragePath(image={}, entryId=''){
+  const dataUrl=String(image?.dataUrl||'');
+  const mimeType=String(image?.mimeType||getTimelineGalleryDataUrlMimeType(dataUrl)).trim()||'image/jpeg';
+  const extension=getTimelineGalleryFileExtension(image?.fileName||'', mimeType);
+  const capturedDate=sanitizeTimelineGalleryStorageSegment(timelineGalleryComposerState.shootDate||getTodayTimelineKey());
+  const originalName=sanitizeTimelineGalleryStorageSegment(String(image?.fileName||`photo.${extension}`).replace(/\.[a-z0-9]+$/i, ''));
+  const randomValue=typeof crypto!=='undefined'&&crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
+    : Math.random().toString(36).slice(2, 12);
+  return `${capturedDate}/${Date.now()}-${randomValue}-${originalName}.${extension}`;
+}
+function logTimelineGalleryStorageSuccess(info={}){
+  console.log('[timeline-gallery] upload success', {
+    bucketName:TIMELINE_GALLERY_STORAGE_BUCKET,
+    filePath:info.storagePath||'',
+    supabaseUrl:getTimelineGallerySupabaseUrl(),
+    publicUrl:info.publicUrl||''
+  });
+}
+function logTimelineGalleryStorageFailure(error, context={}){
+  const details=getTimelineGalleryStorageErrorDetails(error);
+  console.error('[timeline-gallery] upload failed', {
+    bucketName:TIMELINE_GALLERY_STORAGE_BUCKET,
+    filePath:context.storagePath||'',
+    supabaseUrl:getTimelineGallerySupabaseUrl(),
+    message:details.message,
+    statusCode:details.statusCode,
+    error:details.error,
+    details:details.details
+  });
+}
 async function uploadTimelineGalleryImage(image={}, entryId=''){
   const client=getTimelineGalleryClient();
   if(!client?.storage?.from){
@@ -9002,9 +9045,7 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
   const dataUrl=String(image?.dataUrl||'');
   if(!dataUrl) throw new Error('Image data is empty.');
   const mimeType=String(image?.mimeType||getTimelineGalleryDataUrlMimeType(dataUrl)).trim()||'image/jpeg';
-  const extension=getTimelineGalleryFileExtension(image?.fileName||'', mimeType);
-  const capturedDate=sanitizeTimelineGalleryStorageSegment(timelineGalleryComposerState.shootDate||getTodayTimelineKey());
-  const storagePath=`${capturedDate}/${Date.now()}-${sanitizeTimelineGalleryStorageSegment(entryId||createTimelineGalleryEntryId())}.${extension}`;
+  const storagePath=createTimelineGalleryStoragePath(image, entryId);
   const arrayBuffer=dataUrlToArrayBuffer(dataUrl);
   const {error}=await client.storage
     .from(TIMELINE_GALLERY_STORAGE_BUCKET)
@@ -9012,12 +9053,16 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
       contentType:mimeType,
       upsert:false
     });
-  if(error) throw error;
+  if(error){
+    logTimelineGalleryStorageFailure(error, {storagePath});
+    throw error;
+  }
   const {data}=client.storage
     .from(TIMELINE_GALLERY_STORAGE_BUCKET)
     .getPublicUrl(storagePath);
   const publicUrl=String(data?.publicUrl||'').trim();
   if(!publicUrl) throw new Error('Uploaded image URL is empty.');
+  logTimelineGalleryStorageSuccess({storagePath, publicUrl});
   return {
     storagePath,
     publicUrl,
@@ -9267,8 +9312,9 @@ async function saveGalleryEntry(){
     clearDraft();
     refreshTimelineGalleryView();
   }catch(error){
-    console.warn('Timeline gallery upload failed.', error);
-    window.alert(`사진 저장에 실패했습니다.\nSupabase Storage 버킷 "${TIMELINE_GALLERY_STORAGE_BUCKET}"이 생성되어 있고 업로드/공개 읽기 정책이 허용되어 있는지 확인해주세요.`);
+    logTimelineGalleryStorageFailure(error);
+    const details=getTimelineGalleryStorageErrorDetails(error);
+    window.alert(`사진 저장에 실패했습니다.\n원인: ${details.message||'알 수 없는 오류'}`);
   }finally{
     if(saveButton) saveButton.disabled=false;
   }
