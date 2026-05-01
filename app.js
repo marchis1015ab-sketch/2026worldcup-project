@@ -369,6 +369,7 @@ let currentGroupKey = '';
 let currentBracketStage = '';
 let currentEquipmentMode = 'shared';
 let currentEquipmentUser = '';
+let currentPersonalTimelineDateKey = getTodayTimelineKey();
 let isEquipmentCarnetComposerOpen = false;
 let isEquipmentCarnetDeleteMode = false;
 let equipmentCarnetEntries = [];
@@ -7541,6 +7542,52 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     return a.entryIndex-b.entryIndex;
   });
 }
+function isPersonalTimelineEndActiveForDate(detail={}, viewDateKey=''){
+  const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
+  if(!endDate) return true;
+  const normalizedViewDate=String(viewDateKey||'').trim();
+  return !normalizedViewDate || normalizedViewDate<=endDate;
+}
+function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
+  loadPersonalTimelineDetailSelections();
+  const normalizedViewDate=normalizePersonalTimelineViewDateKey(viewDateKey);
+  const latestReportsByName=new Map();
+  Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>dateKey<=normalizedViewDate).forEach(dateKey=>{
+    personalTimelineMemberNames.forEach(name=>{
+      getPersonalTimelineDetailEntries(dateKey, name).forEach((detail, entryIndex)=>{
+        const item={
+          id:buildPersonalTimelineGeneratedReportId(dateKey, name, entryIndex),
+          name,
+          dateKey,
+          detail,
+          entryIndex,
+          savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
+          timeSort:getPersonalTimelineTimeSortValue(detail.시간),
+          text:buildPersonalTimelineReportText(name, detail)
+        };
+        if(!item.text) return;
+        const previous=latestReportsByName.get(name);
+        if(!previous){
+          latestReportsByName.set(name, item);
+          return;
+        }
+        if(item.dateKey>previous.dateKey){
+          latestReportsByName.set(name, item);
+          return;
+        }
+        if(item.dateKey===previous.dateKey&&item.entryIndex>=previous.entryIndex){
+          latestReportsByName.set(name, item);
+        }
+      });
+    });
+  });
+  return [...latestReportsByName.values()].filter(item=>isPersonalTimelineEndActiveForDate(item.detail, normalizedViewDate)).sort((a,b)=>{
+    if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
+    if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
+    if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
+    return a.entryIndex-b.entryIndex;
+  });
+}
 function getAllPersonalTimelineGeneratedReports(){
   loadPersonalTimelineDetailSelections();
   const reports=Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
@@ -7560,7 +7607,7 @@ function getAllPersonalTimelineGeneratedReports(){
         isUpcoming,
         urgencyDelta
       };
-    }).filter(item=>item.isUpcoming);
+    }).filter(item=>item.isUpcoming&&isPersonalTimelineEndActiveForDate(item.detail, getTodayTimelineKey()));
   });
   const latestReportsByName=new Map();
   reports.forEach(item=>{
@@ -7626,7 +7673,7 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   savePersonalTimelineDetailSelectionBatch(dateKey, name, nextValues);
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
-  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const items=getPersonalTimelineOngoingReportsForDate(dateKey);
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
 }
@@ -7634,7 +7681,7 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   if(!item||!dateKey) return;
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
-  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const items=getPersonalTimelineOngoingReportsForDate(dateKey);
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
@@ -7652,7 +7699,7 @@ function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
   const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-  const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+  const hasGeneratedReport=getPersonalTimelineOngoingReportsForDate(dateKey).length>0;
   item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
   item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
 }
@@ -7801,7 +7848,7 @@ function savePersonalTimelinePersonRow(row){
   updatePersonalTimelineSummaryBoard(item, dateKey);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-    const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+    const hasGeneratedReport=getPersonalTimelineOngoingReportsForDate(dateKey).length>0;
     item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
     item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
   }
@@ -8199,6 +8246,29 @@ function getTodayTimelineKey(){
   const today=getKstDateParts();
   return `${today.year}-${String(today.month).padStart(2,'0')}-${String(today.day).padStart(2,'0')}`;
 }
+function normalizePersonalTimelineViewDateKey(dateKey=''){
+  const dates=getTimelineDates();
+  if(!dates.length) return getTodayTimelineKey();
+  const normalized=String(dateKey||'').trim();
+  const keys=dates.map(formatTimelineKey);
+  if(keys.includes(normalized)) return normalized;
+  return keys.includes(getTodayTimelineKey()) ? getTodayTimelineKey() : keys[0];
+}
+function setPersonalTimelineViewDateKey(dateKey=''){
+  currentPersonalTimelineDateKey=normalizePersonalTimelineViewDateKey(dateKey);
+  return currentPersonalTimelineDateKey;
+}
+function getPersonalTimelineViewDateIndex(dateKey=''){
+  const normalized=setPersonalTimelineViewDateKey(dateKey||currentPersonalTimelineDateKey);
+  return getTimelineDates().findIndex(date=>formatTimelineKey(date)===normalized);
+}
+function movePersonalTimelineViewDate(step=0){
+  const dates=getTimelineDates();
+  if(!dates.length) return setPersonalTimelineViewDateKey();
+  const currentIndex=Math.max(0, getPersonalTimelineViewDateIndex(currentPersonalTimelineDateKey));
+  const nextIndex=Math.min(dates.length-1, Math.max(0, currentIndex+Number(step||0)));
+  return setPersonalTimelineViewDateKey(formatTimelineKey(dates[nextIndex]));
+}
 function isPastTimelineDateKey(dateKey=''){
   return Boolean(dateKey)&&dateKey<getTodayTimelineKey();
 }
@@ -8294,7 +8364,9 @@ function findTimelineActionsWrap(){
   if(topBtn&&todayBtn&&topBtn.parentElement===todayBtn.parentElement){
     return topBtn.parentElement;
   }
-  return topBtn?.closest('.timeline-actions, .schedule-actions, .timeline-toolbar, .date-controls, .personal-timeline-quick-actions')||null;
+  return todayBtn?.closest('.timeline-actions, .schedule-actions, .timeline-toolbar, .date-controls, .personal-timeline-quick-actions, .personal-timeline-day-actions')
+    || topBtn?.closest('.timeline-actions, .schedule-actions, .timeline-toolbar, .date-controls, .personal-timeline-quick-actions, .personal-timeline-day-actions')
+    || null;
 }
 function ensureTimelineExportButton(){
   if(typeof document==='undefined') return;
@@ -9146,7 +9218,7 @@ function renderPersonalTimelinePersonRow(name, dateKey){
 function renderPersonalTimelinePersonalColumn(dateKey){
   const activeName=personalTimelineMemberNames[0]||'';
   const tabsHtml=`<div class="personal-timeline-person-tabs">${personalTimelineMemberNames.map(name=>`<button type="button" class="personal-timeline-person-tab${name===activeName?' is-active':''}" data-person="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}</div>`;
-  return `<div class="personal-timeline-person-list" data-active-person="${escapeHtml(activeName)}">${tabsHtml}${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}${renderPersonalTimelineSummaryBoard(dateKey)}</div>`;
+  return `<div class="personal-timeline-person-list" data-active-person="${escapeHtml(activeName)}">${tabsHtml}${personalTimelineMemberNames.map(name=>renderPersonalTimelinePersonRow(name, dateKey)).join('')}<section class="personal-timeline-summary-section"><div class="personal-timeline-summary-heading">누적일정 관리</div>${renderPersonalTimelineSummaryBoard(dateKey)}</section></div>`;
 }
 function renderPersonalTimelineItem(date, index, rows){
   const dateKey=formatTimelineKey(date);
@@ -9436,9 +9508,36 @@ function scrollPersonalTimelineToDate(dateKey='', options={}){
   }
   scrollPersonalTimelineNode(target, options);
 }
+function renderPersonalTimelineDayNavigator(dateKey){
+  const normalizedDateKey=setPersonalTimelineViewDateKey(dateKey);
+  const dates=getTimelineDates();
+  const currentIndex=Math.max(0, dates.findIndex(date=>formatTimelineKey(date)===normalizedDateKey));
+  const currentDate=dates[currentIndex]||dates[0]||new Date();
+  const title=formatPersonalTimelineNavigatorLabel(normalizedDateKey)||`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
+  return `<div class="personal-timeline-day-nav"><div class="personal-timeline-day-nav-main"><button type="button" class="personal-timeline-day-nav-btn" data-timeline-day-move="-1"${currentIndex<=0?' disabled aria-disabled="true"':''}>이전 날짜</button><label class="personal-timeline-day-picker"><span>${escapeHtml(title)}</span><input type="date" class="personal-timeline-day-picker-input" data-timeline-day-picker="true" value="${escapeHtml(normalizedDateKey)}" min="${escapeHtml(formatTimelineKey(dates[0]||currentDate))}" max="${escapeHtml(formatTimelineKey(dates[dates.length-1]||currentDate))}"></label><button type="button" class="personal-timeline-day-nav-btn" data-timeline-day-move="1"${currentIndex>=dates.length-1?' disabled aria-disabled="true"':''}>다음 날짜</button></div><div class="personal-timeline-day-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div>`;
+}
+function renderPersonalTimelineDayCard(dateKey, view){
+  const normalizedDateKey=setPersonalTimelineViewDateKey(dateKey);
+  const dates=getTimelineDates();
+  const currentDate=dates.find(date=>formatTimelineKey(date)===normalizedDateKey)||dates[0]||new Date();
+  const phase=getPersonalTimelinePhase(currentDate);
+  const dateLabel=`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
+  const generatedReports=getPersonalTimelineOngoingReportsForDate(normalizedDateKey);
+  const assignments=(view?.rows||[]).map(row=>({
+    label:row.label,
+    value:getTimelineLabel(row.label, normalizedDateKey),
+    kind:row.label==='영상취재팀 공동'?'shared':'personal'
+  })).filter(item=>item.value);
+  const hasEntries=assignments.length||generatedReports.length;
+  return `<article class="personal-timeline-item personal-timeline-day-item ${hasEntries?'has-entry':'is-empty'} personal-timeline-phase-${phase.key} is-open" data-month="${currentDate.getMonth()+1}" data-date-key="${normalizedDateKey}" data-date="${normalizedDateKey}"><div class="personal-timeline-day-head"><div class="personal-timeline-day-badges"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day-label">${escapeHtml(formatPersonalTimelineNavigatorLabel(normalizedDateKey)||dateLabel)}</span></div><div class="personal-timeline-day-clock">${escapeHtml(getPersonalTimelineNavigatorTimeLabel())}</div></div><div class="personal-timeline-content"><div class="personal-timeline-card"><div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header-wrap">${renderPersonalTimelineSharedColumnHeader(normalizedDateKey, dateLabel)}</div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(normalizedDateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span><span class="personal-timeline-column-date">${escapeHtml(dateLabel)}</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(normalizedDateKey)}</div></section></div></div></div></article>`;
+}
+function renderPersonalTimelineDayView(view){
+  const dateKey=setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey);
+  return `<div class="personal-timeline-list is-day-view">${renderPersonalTimelineDayNavigator(dateKey)}${renderPersonalTimelineDayCard(dateKey, view)}</div>`;
+}
 function renderPersonalTimelineSchedule(view){
   resetPersonalTimelineEndEditorState();
-  const dates=getTimelineDates();
+  setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey||getTodayTimelineKey());
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
   detailCol.classList.add('timeline-mode','personal-timeline-mode');
@@ -9449,30 +9548,17 @@ function renderPersonalTimelineSchedule(view){
   detailTable.parentElement.classList.remove('timeline-gallery-shell-card');
   detailTable.className='data-table hidden';
   detailTable.innerHTML='';
-  detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list').forEach(node=>node.remove());
-  detailTable.insertAdjacentHTML('afterend',`${renderPersonalTimelineTopbar()}<div class="personal-timeline-list">${renderPersonalTimelineMonthGroups(dates, view.rows)}</div>`);
+  detailCol.querySelectorAll('.personal-timeline-topbar,.personal-timeline-mobile-nav,.personal-timeline-list,.personal-timeline-day-nav').forEach(node=>node.remove());
+  detailTable.insertAdjacentHTML('afterend', renderPersonalTimelineDayView(view));
   const list=detailCol.querySelector('.personal-timeline-list');
   if(list){
-    let personalTimelineScrollTimer=null;
-    list.onmouseover=event=>{
-      const trigger=event.target.closest('.personal-timeline-rail');
-      if(!trigger||!list.contains(trigger)) return;
-      const item=trigger.closest('.personal-timeline-item');
-      if(item) updatePersonalTimelineHoverWave(list, item);
-    };
-    list.onmouseout=event=>{
-      const trigger=event.target.closest('.personal-timeline-rail');
-      if(!trigger||!list.contains(trigger)) return;
-      const related=event.relatedTarget;
-      if(related&&trigger.contains(related)) return;
-      const nextTrigger=related&&typeof related.closest==='function'?related.closest('.personal-timeline-rail'):null;
-      if(nextTrigger&&list.contains(nextTrigger)) return;
-      updatePersonalTimelineHoverWave(list, null);
-    };
-    list.onmouseleave=()=>{
-      updatePersonalTimelineHoverWave(list, null);
-    };
     list.onchange=event=>{
+      const dayPicker=event.target.closest('[data-timeline-day-picker]');
+      if(dayPicker&&list.contains(dayPicker)){
+        setPersonalTimelineViewDateKey(dayPicker.value||'');
+        renderPersonalTimelineSchedule(view);
+        return;
+      }
       const select=event.target.closest('.personal-timeline-detail-select');
       if(!select||!list.contains(select)) return;
       setPersonalTimelineRowDirty(select.closest('.personal-timeline-person-row'), true);
@@ -9482,6 +9568,22 @@ function renderPersonalTimelineSchedule(view){
     };
     list.onclick=event=>{
       event.stopPropagation();
+      const dayMoveButton=event.target.closest('[data-timeline-day-move]');
+      if(dayMoveButton&&list.contains(dayMoveButton)){
+        movePersonalTimelineViewDate(Number(dayMoveButton.dataset.timelineDayMove||0));
+        renderPersonalTimelineSchedule(view);
+        return;
+      }
+      const quickActionButton=event.target.closest('.personal-timeline-quick-btn[data-timeline-action]');
+      if(quickActionButton&&list.contains(quickActionButton)){
+        if(quickActionButton.dataset.timelineAction==='gallery'){
+          openTimelineGalleryView();
+          return;
+        }
+        setPersonalTimelineViewDateKey(getTodayTimelineKey());
+        renderPersonalTimelineSchedule(view);
+        return;
+      }
       const personTab=event.target.closest('.personal-timeline-person-tab');
       if(personTab&&list.contains(personTab)){
         activatePersonalTimelinePersonTab(personTab.closest('.personal-timeline-person-list'), personTab.dataset.person||'');
@@ -9524,10 +9626,9 @@ function renderPersonalTimelineSchedule(view){
         const personName=deleteButton.dataset.person||'';
         const entryIndex=Number(deleteButton.dataset.entryIndex);
         if(deletePersonalTimelineDetailEntry(dateKey, personName, entryIndex)){
-          updatePersonalTimelineSummaryBoard(item, dateKey);
-          syncPersonalTimelinePersonRowFromSavedState(item, dateKey, personName);
-          updatePersonalTimelineItemEntryState(item, dateKey);
-          if(item) item.classList.add('is-open');
+          updatePersonalTimelineSummaryBoard(item, item?.dataset.dateKey||dateKey);
+          syncPersonalTimelinePersonRowFromSavedState(item, item?.dataset.dateKey||dateKey, personName);
+          updatePersonalTimelineItemEntryState(item, item?.dataset.dateKey||dateKey);
           updateHeaderTimes();
         }
         return;
@@ -9536,43 +9637,33 @@ function renderPersonalTimelineSchedule(view){
       if(endButton&&list.contains(endButton)){
         openPersonalTimelineEndEditor(endButton.dataset.dateKey||'', endButton.dataset.person||'', Number(endButton.dataset.entryIndex));
         const item=endButton.closest('.personal-timeline-item');
-        if(item) updatePersonalTimelineSummaryBoard(item, endButton.dataset.dateKey||'');
+        if(item) updatePersonalTimelineSummaryBoard(item, item.dataset.dateKey||'');
         return;
       }
       const endCancelButton=event.target.closest('[data-end-editor-cancel="true"]');
       if(endCancelButton&&list.contains(endCancelButton)){
         resetPersonalTimelineEndEditorState();
         const item=endCancelButton.closest('.personal-timeline-item');
-        const board=item?.querySelector('.personal-timeline-summary-board');
-        const dateKey=board?.dataset.summaryBoardDate||'';
+        const dateKey=item?.dataset.dateKey||'';
         if(item&&dateKey) updatePersonalTimelineSummaryBoard(item, dateKey);
         return;
       }
       const endSaveButton=event.target.closest('[data-end-editor-save="true"]');
       if(endSaveButton&&list.contains(endSaveButton)){
         const item=endSaveButton.closest('.personal-timeline-item');
-        const dateKey=endSaveButton.dataset.dateKey||'';
+        const originalDateKey=endSaveButton.dataset.dateKey||'';
         const personName=endSaveButton.dataset.person||'';
         const entryIndex=Number(endSaveButton.dataset.entryIndex);
         const endDate=String(item?.querySelector('[data-end-editor-date]')?.value||'').trim();
         const endTime=String(item?.querySelector('[data-end-editor-time]')?.value||'').trim();
-        if(savePersonalTimelineEndInfo(dateKey, personName, entryIndex, endDate, endTime)){
-          if(item&&dateKey){
-            updatePersonalTimelineSummaryBoard(item, dateKey);
-            syncPersonalTimelinePersonRowFromSavedState(item, dateKey, personName);
-            updatePersonalTimelineItemEntryState(item, dateKey);
+        if(savePersonalTimelineEndInfo(originalDateKey, personName, entryIndex, endDate, endTime)){
+          if(item){
+            updatePersonalTimelineSummaryBoard(item, item.dataset.dateKey||originalDateKey);
+            syncPersonalTimelinePersonRowFromSavedState(item, item.dataset.dateKey||originalDateKey, personName);
+            updatePersonalTimelineItemEntryState(item, item.dataset.dateKey||originalDateKey);
           }
           updateHeaderTimes();
         }
-        return;
-      }
-      const trigger=event.target.closest('.personal-timeline-rail');
-      const item=event.target.closest('.personal-timeline-item');
-      if(!trigger||!item||!list.contains(item)) return;
-      const wasOpen=item.classList.contains('is-open');
-      if(!wasOpen){
-        setPersonalTimelineOpenItem(list, item);
-        scrollPersonalTimelineNode(item, {offset:16});
       }
     };
     list.querySelectorAll('.personal-timeline-person-list').forEach(personList=>{
@@ -9581,79 +9672,13 @@ function renderPersonalTimelineSchedule(view){
         activatePersonalTimelinePersonTab(personList, activeName);
       }
     });
-    const mobilePrevButton=detailCol.querySelector('.personal-timeline-mobile-nav-prev');
-    const mobileNextButton=detailCol.querySelector('.personal-timeline-mobile-nav-next');
-    const mobileCalendarButton=detailCol.querySelector('.personal-timeline-mobile-nav-calendar');
-    const mobilePickerInput=detailCol.querySelector('.personal-timeline-mobile-nav-picker');
-    if(mobilePrevButton){
-      mobilePrevButton.onclick=event=>{
-        event.stopPropagation();
-        const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
-        const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
-        const nextItem=items[Math.max(0, currentIndex-1)];
-        if(nextItem){
-          setPersonalTimelineOpenItem(list, nextItem);
-          scrollPersonalTimelineNode(nextItem, {behavior:'smooth'});
-        }
-      };
-    }
-    if(mobileNextButton){
-      mobileNextButton.onclick=event=>{
-        event.stopPropagation();
-        const items=Array.from(list.querySelectorAll('.personal-timeline-item'));
-        const currentIndex=Math.max(0, items.findIndex(item=>item.classList.contains('is-open')));
-        const nextItem=items[Math.min(items.length-1, currentIndex+1)];
-        if(nextItem){
-          setPersonalTimelineOpenItem(list, nextItem);
-          scrollPersonalTimelineNode(nextItem, {behavior:'smooth'});
-        }
-      };
-    }
-    if(mobileCalendarButton&&mobilePickerInput){
-      mobileCalendarButton.onclick=event=>{
-        event.stopPropagation();
-        if(typeof mobilePickerInput.showPicker==='function'){
-          mobilePickerInput.showPicker();
-        }else{
-          mobilePickerInput.click();
-        }
-      };
-      mobilePickerInput.onchange=event=>{
-        event.stopPropagation();
-        const nextDateKey=String(mobilePickerInput.value||'').trim();
-        if(nextDateKey){
-          scrollPersonalTimelineToDate(nextDateKey, {behavior:'smooth'});
-        }
-      };
-    }
-    detailCol.querySelectorAll('.personal-timeline-quick-btn[data-timeline-action]').forEach(button=>{
-      button.onclick=event=>{
-        event.stopPropagation();
-        if(button.dataset.timelineAction==='gallery'){
-          openTimelineGalleryView();
-          return;
-        }
-        if(button.dataset.timelineAction==='top'){
-          scrollPersonalTimelineToTop({behavior:'smooth'});
-          return;
-        }
-        scrollPersonalTimelineToDate(getTodayTimelineKey(), {behavior:'smooth'});
-      };
-    });
     ensureTimelineExportButton();
-    setupPersonalTimelineStickyMonth(detailCol);
-    updatePersonalTimelineMobileNavigator(detailCol, list);
     applyMobileTimelineAStructure();
   }
-  detailCol.onclick=event=>{
-    if(event.target.closest('.personal-timeline-list, .personal-timeline-mobile-nav')) return;
-    if(isMobileViewport()) return;
-    detailCol.querySelectorAll('.personal-timeline-item.is-open').forEach(node=>node.classList.remove('is-open'));
-    updatePersonalTimelineMobileNavigator(detailCol, list);
-    if(list) updatePersonalTimelineHoverWave(list, null);
-  };
+  detailCol.onclick=null;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 function renderTimelineHeaderCell(date){
   const classes=getTimelineDayClasses(date);

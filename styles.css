@@ -4469,6 +4469,139 @@ body.timeline-modal-open{overflow:hidden}
   gap:0;
   padding:18px 28px 28px;
 }
+.personal-timeline-list.is-day-view{
+  gap:18px;
+  padding-top:18px;
+}
+.personal-timeline-day-nav{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:16px 18px;
+  border:1px solid #d7e0ea;
+  border-radius:18px;
+  background:linear-gradient(180deg,#f8fbff 0%,#f2f6fb 100%);
+  box-shadow:0 14px 30px rgba(15,23,42,.08);
+}
+.personal-timeline-day-nav-main{
+  display:flex;
+  flex:1 1 420px;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:12px;
+}
+.personal-timeline-day-nav-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:112px;
+  min-height:42px;
+  padding:0 16px;
+  border:1px solid #cfdae6;
+  border-radius:999px;
+  background:#fff;
+  color:#17314c;
+  font:inherit;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease;
+}
+.personal-timeline-day-nav-btn:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:0 8px 18px rgba(15,23,42,.08);
+}
+.personal-timeline-day-nav-btn:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+}
+.personal-timeline-day-picker{
+  display:flex;
+  flex:1 1 240px;
+  flex-direction:column;
+  gap:6px;
+  min-width:220px;
+  color:#35516d;
+  font-size:12px;
+  font-weight:800;
+}
+.personal-timeline-day-picker-input{
+  min-height:42px;
+}
+.personal-timeline-day-actions{
+  display:flex;
+  flex:0 0 auto;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+}
+.personal-timeline-list.is-day-view .personal-timeline-day-item{
+  --personal-rail-width:0px;
+  min-height:0;
+  padding-top:0;
+}
+.personal-timeline-day-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.personal-timeline-day-badges{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+}
+.personal-timeline-day-label{
+  display:inline-flex;
+  align-items:center;
+  min-height:34px;
+  padding:0 14px;
+  border-radius:999px;
+  background:#eef3f8;
+  color:#17314c;
+  font-size:17px;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
+.personal-timeline-day-clock{
+  color:#4f6278;
+  font-size:13px;
+  font-weight:800;
+}
+.personal-timeline-list.is-day-view .personal-timeline-rail{
+  display:none;
+}
+.personal-timeline-list.is-day-view .personal-timeline-content{
+  display:block;
+  position:relative;
+  left:auto;
+  top:auto;
+  width:100%;
+  min-width:0;
+  padding-bottom:0;
+  pointer-events:auto;
+}
+.personal-timeline-list.is-day-view .personal-timeline-item .personal-timeline-content>.personal-timeline-card{
+  padding:24px 26px;
+  box-shadow:0 18px 36px rgba(15,23,42,.12);
+}
+.personal-timeline-summary-section{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.personal-timeline-summary-heading{
+  color:#17314c;
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:-.02em;
+}
 .personal-timeline-month-group{position:relative}
 .personal-timeline-month-banner{
   position:relative;
@@ -6190,6 +6323,13 @@ textarea.simple-form-input,
   .table-column.personal-timeline-mode{--personal-timeline-sticky-offset:112px}
   .personal-timeline-topbar{padding:16px 16px 12px;margin-bottom:8px}
   .personal-timeline-list{padding:16px 16px 20px}
+  .personal-timeline-list.is-day-view{gap:14px}
+  .personal-timeline-day-nav{padding:14px}
+  .personal-timeline-day-nav-main{flex-direction:column;align-items:stretch}
+  .personal-timeline-day-nav-btn{width:100%}
+  .personal-timeline-day-picker{min-width:0;width:100%}
+  .personal-timeline-day-actions{width:100%;justify-content:stretch}
+  .personal-timeline-day-actions .personal-timeline-quick-btn{flex:1 1 0}
   .personal-timeline-month-banner{margin:0 -16px 10px;padding:12px 16px 10px}
   .personal-timeline-item{--personal-rail-width:90px}
   .personal-timeline-content{left:calc(var(--personal-rail-width) + 10px);width:calc(100% - var(--personal-rail-width) - 10px)}
@@ -8136,6 +8276,14 @@ textarea.simple-form-input,
   .personal-timeline-summary-actions{
     width:100%;
     justify-content:flex-end;
+  }
+
+  .personal-timeline-day-head{
+    align-items:flex-start;
+  }
+
+  .personal-timeline-day-label{
+    font-size:15px;
   }
 
   .personal-timeline-end-editor{
