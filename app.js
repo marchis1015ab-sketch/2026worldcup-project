@@ -324,6 +324,7 @@ const renderCache = {
   squadViews:Object.create(null),
   equipmentSharedTable:'',
   equipmentCarnetPanel:'',
+  equipmentFileStoragePanel:'',
   equipmentPersonalTables:Object.create(null),
   mapPanel:'',
   newsProgrammingPanel:'',
@@ -345,6 +346,7 @@ const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
 const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 const EQUIPMENT_CARNET_STORAGE_KEY = 'worldcup-guide-equipment-carnet-v1';
 const EQUIPMENT_CARNET_WINDOW_NAME_KEY = '__worldcupGuideEquipmentCarnet__';
+const EQUIPMENT_FILE_STORAGE_KEY = 'worldcup-file-storage-v1';
 const MAP_LOCATION_PIN_STORAGE_KEY = 'worldcup-guide-map-location-pins-v1';
 const MAP_LOCATION_PIN_WINDOW_NAME_KEY = '__worldcupGuideMapLocationPins__';
 let hasLoadedNewsEditorEntries = false;
@@ -371,6 +373,11 @@ let isEquipmentCarnetComposerOpen = false;
 let isEquipmentCarnetDeleteMode = false;
 let equipmentCarnetEntries = [];
 const equipmentCarnetSelectedIds = new Set();
+let hasLoadedEquipmentFileStorageEntries = false;
+let isEquipmentFileStorageComposerOpen = false;
+let isEquipmentFileStorageDeleteMode = false;
+let equipmentFileStorageEntries = [];
+const equipmentFileStorageSelectedIds = new Set();
 let equipmentSummaryEditMode = false;
 let personalEquipmentEditModes = Object.create(null);
 let equipmentEditDraftRows = null;
@@ -2263,6 +2270,377 @@ async function openEquipmentCarnetViewer(entryId=''){
     console.warn('[equipment-carnet] viewer failed', error);
     body.innerHTML='<div class="equipment-carnet-viewer-empty">파일을 열 수 없습니다. 원본 파일 형식을 확인해주세요.</div>';
   }
+}
+function renderEquipmentFileStorageTitle(){
+  const hasEntries=equipmentFileStorageEntries.length>0;
+  const deleteLabel=isEquipmentFileStorageDeleteMode ? '선택 삭제' : '삭제';
+  return `<span class="section-title-row"><span>파일보관</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentFileStorageComposer()" ${isEquipmentFileStorageComposerOpen||isEquipmentFileStorageDeleteMode?'disabled':''}>작성</button><button type="button" class="section-title-action-btn delete" onclick="${isEquipmentFileStorageDeleteMode?'deleteSelectedEquipmentFileStorageEntries()':'enterEquipmentFileStorageDeleteMode()'}" ${hasEntries?'':'disabled'}>${deleteLabel}</button>${isEquipmentFileStorageDeleteMode?'<button type="button" class="section-title-action-btn" onclick="cancelEquipmentFileStorageDeleteMode()">취소</button>':''}</span></span>`;
+}
+function createEquipmentFileStorageId(){
+  return `equipment-file-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+}
+function getEquipmentFileStorageExtension(fileName=''){
+  const normalized=String(fileName||'').trim().toLowerCase();
+  const match=normalized.match(/\.([a-z0-9]+)$/);
+  return match ? match[1] : '';
+}
+function getEquipmentFileStorageType(fileName='', mimeType=''){
+  const extension=getEquipmentFileStorageExtension(fileName);
+  const normalizedMime=String(mimeType||'').toLowerCase();
+  if(['jpg','jpeg','png','gif','webp','bmp','svg'].includes(extension)||normalizedMime.startsWith('image/')) return 'image';
+  if(extension==='pdf'||normalizedMime==='application/pdf') return 'pdf';
+  if(['txt','md','json','xml','csv','log','js','css','html'].includes(extension)||normalizedMime.startsWith('text/')||normalizedMime==='application/json') return 'text';
+  if(['xlsx','xls'].includes(extension)) return 'excel';
+  if(['doc','docx'].includes(extension)) return 'word';
+  if(['ppt','pptx'].includes(extension)) return 'ppt';
+  if(['hwp','hwpx'].includes(extension)) return 'hwp';
+  if(['zip','rar','7z'].includes(extension)) return 'zip';
+  return 'file';
+}
+function formatEquipmentFileStorageDate(timestamp){
+  const value=Number(timestamp||0);
+  if(!Number.isFinite(value)||value<=0) return '';
+  try{
+    return new Date(value).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch(error){
+    return '';
+  }
+}
+function formatEquipmentFileStorageSize(size){
+  const value=Number(size||0);
+  if(!Number.isFinite(value)||value<=0) return '0 B';
+  const units=['B','KB','MB','GB'];
+  let current=value;
+  let unitIndex=0;
+  while(current>=1024&&unitIndex<units.length-1){
+    current/=1024;
+    unitIndex+=1;
+  }
+  const digits=current>=100||unitIndex===0 ? 0 : current>=10 ? 1 : 2;
+  return `${current.toFixed(digits)} ${units[unitIndex]}`;
+}
+function normalizeEquipmentFileStorageEntry(entry={}, index=0){
+  const originalData=String(entry?.originalData||entry?.dataUrl||entry?.url||'').trim();
+  const fileName=String(entry?.fileName||entry?.name||'').trim();
+  const title=String(entry?.title||fileName||'').trim();
+  if(!originalData&&!fileName&&!title) return null;
+  const fileType=String(entry?.fileType||getEquipmentFileStorageType(fileName, entry?.mimeType||'')).trim()||'file';
+  const previewData=entry?.previewData&&typeof entry.previewData==='object' ? entry.previewData : {};
+  return {
+    id:String(entry?.id||`equipment-file-restored-${Date.now()}-${index}`).trim(),
+    title:title||fileName||'자료 파일',
+    fileName:fileName||'파일',
+    fileType,
+    mimeType:String(entry?.mimeType||previewData.mimeType||'').trim(),
+    fileSize:Number(entry?.fileSize)||0,
+    createdAt:Number(entry?.createdAt)||Date.now()+index,
+    originalData,
+    previewData:{
+      extension:String(previewData.extension||getEquipmentFileStorageExtension(fileName)).trim(),
+      text:String(previewData.text||'').trim(),
+      src:String(previewData.src||originalData||'').trim()
+    }
+  };
+}
+function sortEquipmentFileStorageEntries(entries=[]){
+  return [...entries].sort((a,b)=>{
+    const createdCompare=Number(b.createdAt||0)-Number(a.createdAt||0);
+    if(createdCompare!==0) return createdCompare;
+    return String(a.title||'').localeCompare(String(b.title||''));
+  });
+}
+function getEquipmentFileStorageStorage(){
+  if(typeof window==='undefined'||!window.localStorage) return null;
+  try{
+    const probe='__equipment_file_storage_probe__';
+    window.localStorage.setItem(probe, '1');
+    window.localStorage.removeItem(probe);
+    return window.localStorage;
+  }catch(error){
+    console.warn('[equipment-file-storage] localStorage unavailable', error);
+    return null;
+  }
+}
+function readEquipmentFileStorageRaw(){
+  const storage=getEquipmentFileStorageStorage();
+  return storage ? String(storage.getItem(EQUIPMENT_FILE_STORAGE_KEY)||'') : '';
+}
+function writeEquipmentFileStorageRaw(raw=''){
+  const storage=getEquipmentFileStorageStorage();
+  if(!storage) return;
+  const normalized=String(raw||'');
+  if(normalized){
+    storage.setItem(EQUIPMENT_FILE_STORAGE_KEY, normalized);
+  }else{
+    storage.removeItem(EQUIPMENT_FILE_STORAGE_KEY);
+  }
+}
+function loadEquipmentFileStorageEntries(){
+  if(hasLoadedEquipmentFileStorageEntries) return;
+  hasLoadedEquipmentFileStorageEntries=true;
+  equipmentFileStorageEntries=[];
+  const raw=readEquipmentFileStorageRaw();
+  if(!raw) return;
+  try{
+    const parsed=JSON.parse(raw);
+    const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
+    equipmentFileStorageEntries=sortEquipmentFileStorageEntries(source.map(normalizeEquipmentFileStorageEntry).filter(Boolean));
+  }catch(error){
+    console.warn('[equipment-file-storage] load failed', error);
+  }
+}
+function saveEquipmentFileStorageEntries(){
+  loadEquipmentFileStorageEntries();
+  const payload={
+    version:1,
+    updatedAt:Date.now(),
+    items:sortEquipmentFileStorageEntries(equipmentFileStorageEntries).map(entry=>({
+      id:entry.id,
+      title:entry.title,
+      fileName:entry.fileName,
+      fileType:entry.fileType,
+      mimeType:entry.mimeType,
+      fileSize:entry.fileSize,
+      createdAt:entry.createdAt,
+      originalData:entry.originalData,
+      previewData:entry.previewData
+    }))
+  };
+  writeEquipmentFileStorageRaw(JSON.stringify(payload));
+  renderCache.equipmentFileStoragePanel='';
+}
+function getEquipmentFileStorageEntries(){
+  loadEquipmentFileStorageEntries();
+  return sortEquipmentFileStorageEntries(equipmentFileStorageEntries);
+}
+function renderEquipmentFileStorageComposer(){
+  if(!isEquipmentFileStorageComposerOpen) return '';
+  return `<div class="carnet-list-composer equipment-file-storage-composer" aria-label="파일보관 작성"><div class="carnet-list-composer-title">파일보관 작성</div><div class="carnet-list-form-grid"><label class="simple-form-field"><span class="simple-form-label">제목</span><input id="equipmentFileStorageTitleInput" class="simple-form-input" type="text" placeholder="예: 경기장 안내 PDF"></label><label class="simple-form-field"><span class="simple-form-label">파일 첨부</span><input id="equipmentFileStorageInput" class="equipment-carnet-file-input" type="file"></label></div><p class="carnet-list-composer-description">PDF, 이미지, 엑셀, 워드, 한글, PPT, ZIP을 포함한 모든 자료 파일을 저장할 수 있습니다.</p><div class="simple-info-actions carnet-list-form-actions"><button type="button" class="section-title-action-btn" onclick="saveEquipmentFileStorageEntry(this)">저장</button><button type="button" class="section-title-action-btn" onclick="closeEquipmentFileStorageComposer()">취소</button></div></div>`;
+}
+function isEquipmentFileStorageEntrySelected(entryId=''){
+  return equipmentFileStorageSelectedIds.has(String(entryId||''));
+}
+function toggleEquipmentFileStorageSelection(entryId=''){
+  const normalized=String(entryId||'').trim();
+  if(!normalized) return;
+  if(equipmentFileStorageSelectedIds.has(normalized)){
+    equipmentFileStorageSelectedIds.delete(normalized);
+  }else{
+    equipmentFileStorageSelectedIds.add(normalized);
+  }
+  renderEquipmentFileStorageDetail();
+}
+function enterEquipmentFileStorageDeleteMode(){
+  loadEquipmentFileStorageEntries();
+  if(!equipmentFileStorageEntries.length) return;
+  isEquipmentFileStorageDeleteMode=true;
+  equipmentFileStorageSelectedIds.clear();
+  renderEquipmentFileStorageDetail();
+}
+function cancelEquipmentFileStorageDeleteMode(){
+  isEquipmentFileStorageDeleteMode=false;
+  equipmentFileStorageSelectedIds.clear();
+  renderEquipmentFileStorageDetail();
+}
+function deleteSelectedEquipmentFileStorageEntries(){
+  loadEquipmentFileStorageEntries();
+  if(!isEquipmentFileStorageDeleteMode){
+    enterEquipmentFileStorageDeleteMode();
+    return;
+  }
+  if(!equipmentFileStorageSelectedIds.size){
+    window.alert('삭제할 항목을 선택하세요.');
+    return;
+  }
+  if(!window.confirm(`선택한 파일 ${equipmentFileStorageSelectedIds.size}개를 삭제하시겠습니까?`)) return;
+  equipmentFileStorageEntries=equipmentFileStorageEntries.filter(entry=>!equipmentFileStorageSelectedIds.has(String(entry.id)));
+  equipmentFileStorageSelectedIds.clear();
+  isEquipmentFileStorageDeleteMode=false;
+  saveEquipmentFileStorageEntries();
+  renderEquipmentFileStorageDetail();
+}
+function renderEquipmentFileStorageThumb(entry){
+  const extension=(entry.previewData?.extension||getEquipmentFileStorageExtension(entry.fileName)||entry.fileType||'file').toUpperCase();
+  if(entry.fileType==='image'){
+    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)} 미리보기">`;
+  }
+  const typeClass=entry.fileType==='pdf' ? ' is-pdf' : '';
+  const label=entry.fileType==='pdf' ? 'PDF' : extension||'FILE';
+  return `<div class="equipment-file-storage-file-icon${typeClass}"><span>${escapeHtml(label)}</span></div>`;
+}
+function renderEquipmentFileStorageCard(entry){
+  const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
+  const meta=[formatEquipmentFileStorageDate(entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize)].filter(Boolean).join(' · ');
+  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
+  return `<article class="equipment-carnet-card equipment-file-storage-card${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body"><h4 class="equipment-carnet-card-title">${escapeHtml(entry.title)}</h4><div class="equipment-carnet-card-file">${escapeHtml(entry.fileName||'파일명 없음')}</div><div class="equipment-carnet-card-date">${escapeHtml(meta||'등록 정보 없음')}</div><div class="equipment-file-storage-card-actions"><button type="button" class="section-title-action-btn export-action-btn equipment-file-storage-export-btn" onclick="event.stopPropagation();downloadEquipmentFileStorageEntry('${escapeHtml(entry.id)}')">내보내기</button></div></div></article>`;
+}
+function renderEquipmentFileStorageMobileRow(entry){
+  const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
+  const meta=[formatEquipmentFileStorageDate(entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize)].filter(Boolean).join(' · ');
+  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
+  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link" onclick="${openAction}"><span class="equipment-carnet-mobile-title">${escapeHtml(entry.title)}</span><span class="equipment-carnet-mobile-meta">${escapeHtml([entry.fileName, meta].filter(Boolean).join(' · '))}</span></button><button type="button" class="section-title-action-btn export-action-btn equipment-file-storage-mobile-export" onclick="downloadEquipmentFileStorageEntry('${escapeHtml(entry.id)}')">내보내기</button></div>`;
+}
+function renderEquipmentFileStorageItems(entries=[]){
+  if(!entries.length){
+    return '<div class="carnet-list-placeholder">등록된 보관 파일이 없습니다. 작성 버튼으로 자료를 추가하세요.</div>';
+  }
+  return `<div class="equipment-carnet-desktop-grid equipment-file-storage-grid">${entries.map(renderEquipmentFileStorageCard).join('')}</div><div class="equipment-carnet-mobile-list equipment-file-storage-mobile-list">${entries.map(renderEquipmentFileStorageMobileRow).join('')}</div>`;
+}
+function renderEquipmentFileStoragePanelHtml(){
+  const entries=getEquipmentFileStorageEntries();
+  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel equipment-file-storage-panel" aria-label="파일보관"><header class="carnet-list-header"><h3 class="carnet-list-title">파일보관</h3></header>${renderEquipmentFileStorageComposer()}<div class="carnet-list-body">${renderEquipmentFileStorageItems(entries)}</div></section></td></tr></tbody>`;
+}
+async function buildEquipmentFileStoragePreviewData(file, fileType, originalData){
+  const previewData={extension:getEquipmentFileStorageExtension(file?.name||''), src:originalData, text:''};
+  if(fileType==='text'){
+    previewData.text=String(await readFileAsText(file)||'').trim();
+  }
+  return previewData;
+}
+async function saveEquipmentFileStorageEntry(saveButton=null){
+  loadEquipmentFileStorageEntries();
+  const titleInput=document.getElementById('equipmentFileStorageTitleInput');
+  const fileInput=document.getElementById('equipmentFileStorageInput');
+  const title=String(titleInput?.value||'').trim();
+  const file=fileInput?.files?.[0]||null;
+  if(!title){
+    window.alert('제목을 입력해주세요.');
+    titleInput?.focus();
+    return;
+  }
+  if(!file){
+    window.alert('첨부할 파일을 선택해주세요.');
+    fileInput?.focus();
+    return;
+  }
+  if(saveButton) saveButton.disabled=true;
+  try{
+    const originalData=await readFileAsDataUrl(file);
+    if(!originalData) throw new Error('file-read-failed');
+    const fileType=getEquipmentFileStorageType(file.name, file.type);
+    const previewData=await buildEquipmentFileStoragePreviewData(file, fileType, originalData);
+    const nextEntry=normalizeEquipmentFileStorageEntry({
+      id:createEquipmentFileStorageId(),
+      title,
+      fileName:file.name,
+      fileType,
+      mimeType:file.type||'',
+      fileSize:file.size||0,
+      createdAt:Date.now(),
+      originalData,
+      previewData
+    });
+    if(!nextEntry) throw new Error('entry-normalize-failed');
+    equipmentFileStorageEntries=sortEquipmentFileStorageEntries([nextEntry, ...equipmentFileStorageEntries]);
+    saveEquipmentFileStorageEntries();
+    isEquipmentFileStorageComposerOpen=false;
+    isEquipmentFileStorageDeleteMode=false;
+    equipmentFileStorageSelectedIds.clear();
+    renderEquipmentFileStorageDetail();
+  }catch(error){
+    console.warn('[equipment-file-storage] save failed', error);
+    window.alert('파일 저장에 실패했습니다. 파일 형식과 용량을 확인해주세요.');
+  }finally{
+    if(saveButton) saveButton.disabled=false;
+  }
+}
+function downloadEquipmentFileStorageEntry(entryId=''){
+  loadEquipmentFileStorageEntries();
+  const entry=equipmentFileStorageEntries.find(item=>String(item.id)===String(entryId));
+  if(!entry||!entry.originalData) return;
+  const link=document.createElement('a');
+  link.href=entry.originalData;
+  link.download=entry.fileName||`${entry.title||'file'}.${entry.previewData?.extension||'dat'}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+function ensureEquipmentFileStorageViewerModal(){
+  let modal=document.getElementById('equipmentFileStorageViewerModal');
+  if(modal) return modal;
+  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentFileStorageViewerModal" class="news-editor-modal equipment-carnet-viewer-modal equipment-file-storage-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentFileStorageViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel equipment-file-storage-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentFileStorageViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentFileStorageViewerTitle">파일보관</h3><p id="equipmentFileStorageViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentFileStorageViewerModal()" aria-label="닫기">×</button></div><div id="equipmentFileStorageViewerBody" class="equipment-carnet-viewer-body equipment-file-storage-viewer-body"></div></div></div>`);
+  modal=document.getElementById('equipmentFileStorageViewerModal');
+  modal.addEventListener('keydown', event=>{
+    if(event.key==='Escape') closeEquipmentFileStorageViewerModal();
+  });
+  return modal;
+}
+function closeEquipmentFileStorageViewerModal(){
+  const modal=document.getElementById('equipmentFileStorageViewerModal');
+  if(modal) modal.classList.add('hidden');
+}
+function renderEquipmentFileStorageUnsupportedPreview(){
+  return '<div class="equipment-file-storage-unsupported">미리보기를 지원하지 않는 파일입니다. 내보내기로 확인하세요.</div>';
+}
+function openEquipmentFileStorageViewer(entryId=''){
+  loadEquipmentFileStorageEntries();
+  const entry=equipmentFileStorageEntries.find(item=>String(item.id)===String(entryId));
+  if(!entry) return;
+  const modal=ensureEquipmentFileStorageViewerModal();
+  const title=document.getElementById('equipmentFileStorageViewerTitle');
+  const meta=document.getElementById('equipmentFileStorageViewerMeta');
+  const body=document.getElementById('equipmentFileStorageViewerBody');
+  title.textContent=entry.title;
+  meta.textContent=[entry.fileName, formatEquipmentFileStorageDate(entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize)].filter(Boolean).join(' · ');
+  if(entry.fileType==='image'){
+    body.innerHTML=`<div class="equipment-carnet-image-viewer"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)}"></div>`;
+  }else if(entry.fileType==='pdf'){
+    body.innerHTML=`<div class="equipment-file-storage-pdf-viewer"><iframe src="${escapeHtml(entry.originalData)}" title="${escapeHtml(entry.title)} PDF 미리보기"></iframe></div>`;
+  }else if(entry.fileType==='text'){
+    const text=String(entry.previewData?.text||dataUrlToText(entry.originalData||'')).trim();
+    body.innerHTML=text ? `<pre class="equipment-file-storage-text-viewer">${escapeHtml(text)}</pre>` : '<div class="equipment-carnet-viewer-empty">표시할 텍스트 내용이 없습니다.</div>';
+  }else{
+    body.innerHTML=renderEquipmentFileStorageUnsupportedPreview();
+  }
+  modal.classList.remove('hidden');
+  modal.focus();
+}
+function renderEquipmentFileStorageDetail(){
+  currentEquipmentMode='fileStorage';
+  currentEquipmentUser='';
+  loadEquipmentFileStorageEntries();
+  const detailTable=document.getElementById('detailTable');
+  document.getElementById('equipmentFileStorageTab')?.classList.add('active');
+  document.getElementById('detailTitle').innerHTML=renderEquipmentFileStorageTitle();
+  document.getElementById('detailSubtitle').textContent='';
+  detailTable.className='data-table carnet-list-table equipment-file-storage-table';
+  detailTable.parentElement.classList.remove('equipment-table-wrapper');
+  renderCache.equipmentFileStoragePanel=renderEquipmentFileStoragePanelHtml();
+  detailTable.innerHTML=renderCache.equipmentFileStoragePanel;
+  document.getElementById('detailCol').classList.remove('hidden');
+  if(isEquipmentFileStorageComposerOpen){
+    window.setTimeout(()=>document.getElementById('equipmentFileStorageTitleInput')?.focus(), 0);
+  }
+}
+function openEquipmentFileStorageComposer(){
+  isEquipmentFileStorageDeleteMode=false;
+  equipmentFileStorageSelectedIds.clear();
+  isEquipmentFileStorageComposerOpen=true;
+  if(currentEquipmentMode==='fileStorage'){
+    renderEquipmentFileStorageDetail();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function closeEquipmentFileStorageComposer(){
+  isEquipmentFileStorageComposerOpen=false;
+  if(currentEquipmentMode==='fileStorage'){
+    renderEquipmentFileStorageDetail();
+    updateMobileHeaderReportBoardVisibility();
+  }
+}
+function showEquipmentFileStorage(el){
+  currentEquipmentMode='fileStorage';
+  currentEquipmentUser='';
+  isEquipmentCarnetComposerOpen=false;
+  isEquipmentCarnetDeleteMode=false;
+  equipmentCarnetSelectedIds.clear();
+  clearDetailExtras();
+  ensureEquipmentEditorEntries();
+  renderEquipmentFileStorageDetail();
+  document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  updateMobileHeaderReportBoardVisibility();
+  focusPanelStart('#detailCol');
 }
 function renderSimpleInfoPanelHtml(title, description, placeholder){
   return `<tbody><tr><td class="simple-info-cell"><section class="simple-info-panel" aria-label="${escapeHtml(title)}"><header class="simple-info-header"><h3 class="simple-info-title">${escapeHtml(title)}</h3><p class="simple-info-description">${escapeHtml(description)}</p></header><div class="simple-info-body"><div class="simple-info-placeholder">${escapeHtml(placeholder)}</div></div></section></td></tr></tbody>`;
@@ -5766,6 +6144,7 @@ const sharedStatePendingWrites = new Map();
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
 const personalTimelineDetailFields = ['시간','장소','취재기자','TVU','업무내용'];
+const PERSONAL_TIMELINE_END_TIME_OPTIONS = [...personalTimelineDetailFieldOptions.시간];
 const personalTimelineTaskReportLabels = {
   경기취재:'경기 취재',
   외곽취재:'외곽 취재',
@@ -5778,6 +6157,14 @@ const personalTimelineTvuLabelMap = {
   '17번':'TVU 17번 TRS 0017',
   '18번':'TVU 18번 TRS 0018',
   '19번':'TVU 19번 TRS 0019'
+};
+let personalTimelineEndEditorState = {
+  itemId:'',
+  dateKey:'',
+  name:'',
+  entryIndex:-1,
+  endDate:'',
+  endTime:''
 };
 const headerClockModes = {
   venue:'venue',
@@ -6108,6 +6495,8 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
     if(isSharedStatePanelVisible('detailCol')){
       if(currentEquipmentMode==='carnet'){
         renderEquipmentCarnetDetail();
+      }else if(currentEquipmentMode==='fileStorage'){
+        renderEquipmentFileStorageDetail();
       }else if(currentEquipmentMode==='personal'&&currentEquipmentUser){
         showEquipmentPersonal(currentEquipmentUser);
       }else{
@@ -6958,11 +7347,40 @@ function getHeaderReportBoardRecentState(itemId){
   const elapsedMs=Math.max(0, HEADER_REPORT_BOARD_RECENT_DURATION_MS-remainingMs);
   return {remainingMs, elapsedMs};
 }
+function normalizePersonalTimelineEndDate(value=''){
+  const text=String(value||'').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+function normalizePersonalTimelineEndTime(value=''){
+  const text=String(value||'').trim();
+  return PERSONAL_TIMELINE_END_TIME_OPTIONS.includes(text) ? text : '';
+}
+function formatPersonalTimelineEndLabel(detail={}){
+  const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
+  const endTime=normalizePersonalTimelineEndTime(detail?.endTime||'');
+  if(!endDate&&!endTime) return '';
+  if(endDate&&endTime) return `종료: ${endDate} ${endTime}`;
+  if(endDate) return `종료: ${endDate}`;
+  return `종료: ${endTime}`;
+}
+function buildPersonalTimelineEndEditorId(dateKey='', name='', entryIndex=-1){
+  return `${dateKey}::${name}::end::${entryIndex}`;
+}
+function isPersonalTimelineEndEditorOpen(item={}){
+  return personalTimelineEndEditorState.itemId&&personalTimelineEndEditorState.itemId===buildPersonalTimelineEndEditorId(item.dateKey, item.name, item.entryIndex);
+}
+function renderPersonalTimelineEndEditor(item){
+  if(!isPersonalTimelineEndEditorOpen(item)) return '';
+  const selectedDate=normalizePersonalTimelineEndDate(personalTimelineEndEditorState.endDate||item?.detail?.endDate||'');
+  const selectedTime=normalizePersonalTimelineEndTime(personalTimelineEndEditorState.endTime||item?.detail?.endTime||'');
+  return `<div class="personal-timeline-end-editor"><label class="personal-timeline-end-editor-field"><span>종료일</span><input type="date" class="simple-form-input personal-timeline-end-date-input" data-end-editor-date="${item.dateKey}" value="${escapeHtml(selectedDate)}"></label><label class="personal-timeline-end-editor-field"><span>종료시간</span><select class="personal-timeline-detail-select personal-timeline-end-time-select" data-end-editor-time="${item.dateKey}"><option value="">시간 선택</option>${PERSONAL_TIMELINE_END_TIME_OPTIONS.map(option=>`<option value="${escapeHtml(option)}"${option===selectedTime?' selected':''}>${escapeHtml(option)}</option>`).join('')}</select></label><div class="personal-timeline-end-editor-actions"><button type="button" class="section-title-action-btn" data-end-editor-save="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="section-title-action-btn" data-end-editor-cancel="true">취소</button></div></div>`;
+}
 function renderPersonalTimelineSummaryLine(item){
   const desktopText=escapeHtml(item.text);
   const mobileLines=buildPersonalTimelineMobileReportLines(item);
   const mobileText=mobileLines.map(line=>`<span class="personal-timeline-summary-text-mobile-line">${escapeHtml(line)}</span>`).join('');
-  return `<div class="personal-timeline-summary-line"><span class="personal-timeline-summary-text personal-timeline-summary-text-desktop">${desktopText}</span><span class="personal-timeline-summary-text personal-timeline-summary-text-mobile">${mobileText}</span><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>`;
+  const endLabel=formatPersonalTimelineEndLabel(item.detail);
+  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text personal-timeline-summary-text-desktop">${desktopText}</span><span class="personal-timeline-summary-text personal-timeline-summary-text-mobile">${mobileText}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-end" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">종료</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
@@ -6977,16 +7395,7 @@ function loadPersonalTimelineDetailSelections(){
       Object.entries(people).forEach(([name, fields])=>{
         if(!fields||typeof fields!=='object') return;
         const entries=Array.isArray(fields) ? fields : [fields];
-        const sanitizedEntries=entries.map(entry=>{
-          if(!entry||typeof entry!=='object') return null;
-          const sanitizedFields=Object.create(null);
-          personalTimelineDetailFields.forEach(field=>{
-            if(typeof entry[field]!=='string') return;
-            const text=field==='TVU' ? normalizeTvuNumberValue(entry[field]) : entry[field].trim();
-            if(text) sanitizedFields[field]=text;
-          });
-          return Object.keys(sanitizedFields).length ? sanitizedFields : null;
-        }).filter(Boolean);
+        const sanitizedEntries=entries.map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
         if(sanitizedEntries.length){
           sanitizedPeople[name]=sanitizedEntries;
         }
@@ -6999,6 +7408,22 @@ function loadPersonalTimelineDetailSelections(){
   }catch(error){
     console.warn('Failed to load personal timeline detail selections.', error);
   }
+}
+function sanitizePersonalTimelineDetailEntry(entry){
+  if(!entry||typeof entry!=='object') return null;
+  const sanitizedFields=Object.create(null);
+  personalTimelineDetailFields.forEach(field=>{
+    if(typeof entry[field]!=='string') return;
+    const text=field==='TVU' ? normalizeTvuNumberValue(entry[field]) : entry[field].trim();
+    if(text) sanitizedFields[field]=text;
+  });
+  const endDate=normalizePersonalTimelineEndDate(entry.endDate||'');
+  const endTime=normalizePersonalTimelineEndTime(entry.endTime||'');
+  if(endDate) sanitizedFields.endDate=endDate;
+  if(endTime) sanitizedFields.endTime=endTime;
+  const savedAtValue=Number(entry?._savedAt||0);
+  if(Number.isFinite(savedAtValue)&&savedAtValue>0) sanitizedFields._savedAt=savedAtValue;
+  return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
 }
 function savePersonalTimelineDetailSelections(){
   writePersonalTimelineDetailsRaw(JSON.stringify(personalTimelineDetailSelections));
@@ -7252,6 +7677,9 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
   }
   savePersonalTimelineDetailSelections();
   saveHeaderReportBoardRecentMarks();
+  if(personalTimelineEndEditorState.itemId===buildPersonalTimelineEndEditorId(dateKey, name, entryIndex)){
+    resetPersonalTimelineEndEditorState();
+  }
   updateHeaderReportBoard();
   return true;
 }
@@ -7265,8 +7693,12 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
     const text=field==='TVU' ? normalizeTvuNumberValue(detailValues?.[field]) : String(detailValues?.[field]||'').trim();
     if(text) normalized[field]=text;
   });
+  const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||'');
+  const endTime=normalizePersonalTimelineEndTime(detailValues?.endTime||'');
+  if(endDate) normalized.endDate=endDate;
+  if(endTime) normalized.endTime=endTime;
   if(Object.keys(normalized).length){
-    normalized._savedAt=Date.now();
+    normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
     const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
     const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
     const lastEntry=entries[entries.length-1]||null;
@@ -7287,6 +7719,50 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   savePersonalTimelineDetailSelections();
   updateHeaderReportBoard();
   return {didAppendNew, entryIndex};
+}
+function resetPersonalTimelineEndEditorState(){
+  personalTimelineEndEditorState={itemId:'',dateKey:'',name:'',entryIndex:-1,endDate:'',endTime:''};
+}
+function openPersonalTimelineEndEditor(dateKey='', name='', entryIndex=-1){
+  const entries=getPersonalTimelineDetailEntries(dateKey, name);
+  const detail=entries[entryIndex]||{};
+  personalTimelineEndEditorState={
+    itemId:buildPersonalTimelineEndEditorId(dateKey, name, entryIndex),
+    dateKey,
+    name,
+    entryIndex,
+    endDate:normalizePersonalTimelineEndDate(detail?.endDate||dateKey||''),
+    endTime:normalizePersonalTimelineEndTime(detail?.endTime||'')
+  };
+}
+function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate='', endTime=''){
+  const normalizedDate=normalizePersonalTimelineEndDate(endDate||'');
+  const normalizedTime=normalizePersonalTimelineEndTime(endTime||'');
+  if(!normalizedDate){
+    window.alert('종료 날짜를 선택하세요.');
+    return false;
+  }
+  if(!normalizedTime){
+    window.alert('종료 시간을 선택하세요.');
+    return false;
+  }
+  loadPersonalTimelineDetailSelections();
+  const dateSelections=personalTimelineDetailSelections[dateKey];
+  const entries=Array.isArray(dateSelections?.[name]) ? [...dateSelections[name]] : [];
+  if(!entries[entryIndex]) return false;
+  const nextEntry=sanitizePersonalTimelineDetailEntry({
+    ...entries[entryIndex],
+    endDate:normalizedDate,
+    endTime:normalizedTime,
+    _savedAt:entries[entryIndex]?._savedAt||Date.now()
+  });
+  if(!nextEntry) return false;
+  entries[entryIndex]=nextEntry;
+  dateSelections[name]=entries;
+  savePersonalTimelineDetailSelections();
+  updateHeaderReportBoard();
+  resetPersonalTimelineEndEditorState();
+  return true;
 }
 function collectPersonalTimelineRowValues(row){
   const values=Object.create(null);
@@ -8109,18 +8585,19 @@ function parseTimelineGalleryEntriesRaw(raw=''){
   if(!raw) return [];
   try{
     const parsed=JSON.parse(raw);
-    if(!Array.isArray(parsed)) return [];
-    return sortTimelineGalleryEntries(parsed.flatMap(extractTimelineGalleryItems));
+    const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
+    if(!Array.isArray(source)) return [];
+    return sortTimelineGalleryEntries(source.flatMap(extractTimelineGalleryItems));
   }catch(error){
     console.warn('Failed to parse timeline gallery data.', error);
     return [];
   }
 }
 function buildTimelineGalleryEntriesRaw(entries=[]){
-  return JSON.stringify(sortTimelineGalleryEntries(entries.map(normalizeTimelineGalleryItem).filter(Boolean)));
+  return JSON.stringify(normalizeTimelineGalleryEntries(entries));
 }
 function applyTimelineGalleryEntries(entries=[], source='unknown'){
-  timelineGalleryEntries=sortTimelineGalleryEntries(entries.map(normalizeTimelineGalleryItem).filter(Boolean));
+  timelineGalleryEntries=normalizeTimelineGalleryEntries(entries);
   const rawLength=buildTimelineGalleryEntriesRaw(timelineGalleryEntries).length;
   console.log('[timeline-gallery] load', {
     itemCount:timelineGalleryEntries.length,
@@ -8186,6 +8663,13 @@ function persistTimelineGalleryEntries(){
 function sortTimelineGalleryEntries(entries=[]){
   return [...entries].sort((a,b)=>normalizeTimelineGallerySavedAt(b?.savedAt)-normalizeTimelineGallerySavedAt(a?.savedAt));
 }
+function normalizeTimelineGalleryEntries(entries=[]){
+  const map=new Map();
+  entries.map(normalizeTimelineGalleryItem).filter(Boolean).forEach(entry=>{
+    map.set(String(entry.id||createTimelineGalleryEntryId()), entry);
+  });
+  return sortTimelineGalleryEntries(Array.from(map.values()));
+}
 function loadTimelineGalleryEntries(){
   if(hasLoadedTimelineGalleryEntries||timelineGalleryHydrationPromise) return;
   const raw=readTimelineGalleryRaw();
@@ -8197,7 +8681,7 @@ function loadTimelineGalleryEntries(){
   hasLoadedTimelineGalleryEntries=true;
 }
 function saveTimelineGalleryEntries(){
-  const normalizedEntries=sortTimelineGalleryEntries(timelineGalleryEntries.map(normalizeTimelineGalleryItem).filter(Boolean));
+  const normalizedEntries=normalizeTimelineGalleryEntries(timelineGalleryEntries);
   timelineGalleryEntries.length=0;
   timelineGalleryEntries.push(...normalizedEntries);
   persistTimelineGalleryEntries();
@@ -8415,14 +8899,14 @@ function toggleTimelineGalleryDeleteMode(){
 function saveGalleryEntry(){
   const root=document.querySelector('.timeline-gallery-view')||document;
   updateTimelineGalleryComposerStateFromForm(root);
-  const capturedDate=formatTimelineGalleryCapturedDate(timelineGalleryComposerState.shootDate)||'';
+  const capturedDate=formatTimelineGalleryCapturedDate(timelineGalleryComposerState.shootDate)||getTodayTimelineKey();
   const memo=String(timelineGalleryComposerState.memo||'').trim();
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images.map(normalizeTimelineGalleryItem).filter(Boolean) : [];
   if(!images.length){
     window.alert('사진을 1장 이상 첨부해주세요.');
     return;
   }
-  loadTimelineGalleryEntries();
+  const latestStoredEntries=parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw());
   const savedAt=Date.now();
   const nextItems=images.map(image=>({
     id:createTimelineGalleryEntryId(),
@@ -8432,7 +8916,7 @@ function saveGalleryEntry(){
     savedAt,
     memo
   }));
-  timelineGalleryEntries.push(...nextItems);
+  timelineGalleryEntries=sortTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, ...nextItems]);
   saveTimelineGalleryEntries();
   isTimelineGalleryComposerOpen=false;
   resetTimelineGalleryComposerState();
@@ -8953,6 +9437,7 @@ function scrollPersonalTimelineToDate(dateKey='', options={}){
   scrollPersonalTimelineNode(target, options);
 }
 function renderPersonalTimelineSchedule(view){
+  resetPersonalTimelineEndEditorState();
   const dates=getTimelineDates();
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
@@ -9043,6 +9528,40 @@ function renderPersonalTimelineSchedule(view){
           syncPersonalTimelinePersonRowFromSavedState(item, dateKey, personName);
           updatePersonalTimelineItemEntryState(item, dateKey);
           if(item) item.classList.add('is-open');
+          updateHeaderTimes();
+        }
+        return;
+      }
+      const endButton=event.target.closest('.personal-timeline-summary-end');
+      if(endButton&&list.contains(endButton)){
+        openPersonalTimelineEndEditor(endButton.dataset.dateKey||'', endButton.dataset.person||'', Number(endButton.dataset.entryIndex));
+        const item=endButton.closest('.personal-timeline-item');
+        if(item) updatePersonalTimelineSummaryBoard(item, endButton.dataset.dateKey||'');
+        return;
+      }
+      const endCancelButton=event.target.closest('[data-end-editor-cancel="true"]');
+      if(endCancelButton&&list.contains(endCancelButton)){
+        resetPersonalTimelineEndEditorState();
+        const item=endCancelButton.closest('.personal-timeline-item');
+        const board=item?.querySelector('.personal-timeline-summary-board');
+        const dateKey=board?.dataset.summaryBoardDate||'';
+        if(item&&dateKey) updatePersonalTimelineSummaryBoard(item, dateKey);
+        return;
+      }
+      const endSaveButton=event.target.closest('[data-end-editor-save="true"]');
+      if(endSaveButton&&list.contains(endSaveButton)){
+        const item=endSaveButton.closest('.personal-timeline-item');
+        const dateKey=endSaveButton.dataset.dateKey||'';
+        const personName=endSaveButton.dataset.person||'';
+        const entryIndex=Number(endSaveButton.dataset.entryIndex);
+        const endDate=String(item?.querySelector('[data-end-editor-date]')?.value||'').trim();
+        const endTime=String(item?.querySelector('[data-end-editor-time]')?.value||'').trim();
+        if(savePersonalTimelineEndInfo(dateKey, personName, entryIndex, endDate, endTime)){
+          if(item&&dateKey){
+            updatePersonalTimelineSummaryBoard(item, dateKey);
+            syncPersonalTimelinePersonRowFromSavedState(item, dateKey, personName);
+            updatePersonalTimelineItemEntryState(item, dateKey);
+          }
           updateHeaderTimes();
         }
         return;
@@ -9579,7 +10098,7 @@ function getVisibleMobilePanels(){
   return getMobilePanelIds().map(id=>document.getElementById(id)).filter(panel=>panel&&!panel.classList.contains('hidden'));
 }
 function getVisibleMobileModalCount(){
-  const modalIds=['timelineModal','newsEditorModal','squadInjuryModal','mexicoStadiumEditorModal','equipmentEditorModal','equipmentCarnetViewerModal','equipmentCarnetExportModal'];
+  const modalIds=['timelineModal','newsEditorModal','squadInjuryModal','mexicoStadiumEditorModal','equipmentEditorModal','equipmentCarnetViewerModal','equipmentCarnetExportModal','equipmentFileStorageViewerModal'];
   return modalIds.reduce((count, id)=>{
     const modal=document.getElementById(id);
     return count + (modal&&!modal.classList.contains('hidden') ? 1 : 0);
@@ -9653,7 +10172,10 @@ function closeMobileOverlayModalIfOpen(){
     {id:'newsEditorModal', close:closeNewsEditorModal},
     {id:'squadInjuryModal', close:closeSquadInjuryModal},
     {id:'mexicoStadiumEditorModal', close:closeMexicoStadiumEditorModal},
-    {id:'equipmentEditorModal', close:closeEquipmentEditorModal}
+    {id:'equipmentEditorModal', close:closeEquipmentEditorModal},
+    {id:'equipmentCarnetViewerModal', close:closeEquipmentCarnetViewerModal},
+    {id:'equipmentCarnetExportModal', close:closeEquipmentCarnetExportModal},
+    {id:'equipmentFileStorageViewerModal', close:closeEquipmentFileStorageViewerModal}
   ];
   for(const entry of closers){
     const modal=document.getElementById(entry.id);
@@ -9868,6 +10390,7 @@ function clearDetailExtras(){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
   const detailTitleActions=document.getElementById('detailTitleActions');
+  resetPersonalTimelineEndEditorState();
   if(personalTimelineStickyMonthCleanup){
     personalTimelineStickyMonthCleanup();
     personalTimelineStickyMonthCleanup=null;
@@ -9880,6 +10403,7 @@ function clearDetailExtras(){
   closeEquipmentEditorModal();
   closeEquipmentCarnetViewerModal();
   closeEquipmentCarnetExportModal();
+  closeEquipmentFileStorageViewerModal();
   closeTimelineGalleryModal();
   hideTimelineTooltip();
   document.body.classList.remove('timeline-modal-open');
@@ -11617,6 +12141,9 @@ function showEquipmentShared(el){
   currentEquipmentMode='shared';
   currentEquipmentUser='';
   isEquipmentCarnetComposerOpen=false;
+  isEquipmentFileStorageComposerOpen=false;
+  isEquipmentFileStorageDeleteMode=false;
+  equipmentFileStorageSelectedIds.clear();
   if(isMobileViewport()){
     clearDetailExtras();
     ensureEquipmentEditorEntries();
@@ -11632,6 +12159,9 @@ function showEquipmentShared(el){
 function showEquipmentCarnet(el){
   currentEquipmentMode='carnet';
   currentEquipmentUser='';
+  isEquipmentFileStorageComposerOpen=false;
+  isEquipmentFileStorageDeleteMode=false;
+  equipmentFileStorageSelectedIds.clear();
   clearDetailExtras();
   ensureEquipmentEditorEntries();
   renderEquipmentCarnetDetail();
@@ -11645,6 +12175,9 @@ function showEquipmentPersonal(user, el){
   currentEquipmentMode='personal';
   currentEquipmentUser=user;
   isEquipmentCarnetComposerOpen=false;
+  isEquipmentFileStorageComposerOpen=false;
+  isEquipmentFileStorageDeleteMode=false;
+  equipmentFileStorageSelectedIds.clear();
   document.querySelectorAll('#equipmentUserCol .item').forEach(b=>b.classList.remove('active'));
   if(!el){
     el=Array.from(document.querySelectorAll('#equipmentUserCol .item')).find(item=>item.textContent.trim()===user)||null;
