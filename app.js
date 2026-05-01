@@ -6142,6 +6142,8 @@ let sharedStateSyncNeedsRefetch = false;
 let sharedStateSyncWriteInProgress = false;
 let sharedStateSyncWriteTimerId = null;
 const sharedStatePendingWrites = new Map();
+const sharedStateLocalWriteGuards = new Map();
+const SHARED_STATE_LOCAL_WRITE_GUARD_MS = 5000;
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
 const personalTimelineDetailFields = ['시간','장소','취재기자','TVU','업무내용'];
@@ -6600,12 +6602,14 @@ function schedulePendingSharedStateFlush(delay=120){
 function scheduleSharedStateSyncWrite(storageKey, raw=''){
   if(sharedStateSyncDisabled||!SHARED_STATE_SYNC_REGISTRY[storageKey]) return;
   sharedStatePendingWrites.set(storageKey, String(raw??''));
+  sharedStateLocalWriteGuards.set(storageKey, Date.now()+SHARED_STATE_LOCAL_WRITE_GUARD_MS);
   if(sharedStateSyncReady){
     schedulePendingSharedStateFlush(120);
   }
 }
 function applySharedStateSnapshot(rows=[]){
   const nextStateByKey=Object.create(null);
+  const now=Date.now();
   rows.forEach(row=>{
     const stateKey=String(row?.state_key||'').trim();
     if(!stateKey||!SHARED_STATE_SYNC_REGISTRY[stateKey]) return;
@@ -6615,9 +6619,15 @@ function applySharedStateSnapshot(rows=[]){
   SHARED_STATE_SYNC_KEYS.forEach(storageKey=>{
     const currentRaw=getSharedStateLocalRaw(storageKey);
     const nextRaw=Object.prototype.hasOwnProperty.call(nextStateByKey, storageKey) ? nextStateByKey[storageKey] : '';
+    const guardUntil=Number(sharedStateLocalWriteGuards.get(storageKey)||0);
+    if(guardUntil>now&&currentRaw!==nextRaw){
+      return;
+    }
     if(currentRaw!==nextRaw){
       setSharedStateLocalRaw(storageKey, nextRaw);
       changedKeys.push(storageKey);
+    }else if(guardUntil){
+      sharedStateLocalWriteGuards.delete(storageKey);
     }
   });
   if(!changedKeys.length) return;
@@ -7371,7 +7381,7 @@ function parseLegacyPersonalTimelineEndAt(value=''){
 function formatPersonalTimelineEndLabel(detail={}){
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(detail?.endTime||'');
-  const endTimeLabel=String(detail?.endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
+  const endTimeLabel=String(detail?.endTimeLabel||detail?.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   if(!endDate&&!endTime) return '';
   if(endDate&&endTimeLabel) return `종료: ${endDate} ${endTimeLabel}`;
   if(endDate) return `종료: ${endDate}`;
@@ -7396,11 +7406,11 @@ function renderPersonalTimelineSummaryLine(item){
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text personal-timeline-summary-text-desktop">${desktopText}</span><span class="personal-timeline-summary-text personal-timeline-summary-text-mobile">${mobileText}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-end" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">종료</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
-function loadPersonalTimelineDetailSelections(){
-  if(hasLoadedPersonalTimelineDetailSelections) return;
-  hasLoadedPersonalTimelineDetailSelections = true;
-  const raw=readPersonalTimelineDetailsRaw();
-  if(!raw) return;
+function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
+  const {persist=false}=options;
+  clearObjectEntries(personalTimelineDetailSelections);
+  if(!raw) return false;
+  let didSanitize=false;
   try{
     const savedSelections=JSON.parse(raw);
     Object.entries(savedSelections||{}).forEach(([dateKey, people])=>{
@@ -7410,6 +7420,9 @@ function loadPersonalTimelineDetailSelections(){
         if(!fields||typeof fields!=='object') return;
         const entries=Array.isArray(fields) ? fields : [fields];
         const sanitizedEntries=entries.map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+        if(!didSanitize&&JSON.stringify(entries)!==JSON.stringify(sanitizedEntries)){
+          didSanitize=true;
+        }
         if(sanitizedEntries.length){
           sanitizedPeople[name]=sanitizedEntries;
         }
@@ -7418,10 +7431,24 @@ function loadPersonalTimelineDetailSelections(){
         personalTimelineDetailSelections[dateKey]=sanitizedPeople;
       }
     });
-    savePersonalTimelineDetailSelections();
+    if(persist&&didSanitize){
+      savePersonalTimelineDetailSelections();
+    }
+    return true;
   }catch(error){
     console.warn('Failed to load personal timeline detail selections.', error);
+    return false;
   }
+}
+function loadPersonalTimelineDetailSelections(){
+  if(hasLoadedPersonalTimelineDetailSelections) return;
+  hasLoadedPersonalTimelineDetailSelections = true;
+  populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:true});
+}
+function reloadPersonalTimelineDetailSelectionsFromStorage(){
+  hasLoadedPersonalTimelineDetailSelections=false;
+  populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:false});
+  hasLoadedPersonalTimelineDetailSelections=true;
 }
 function sanitizePersonalTimelineDetailEntry(entry){
   if(!entry||typeof entry!=='object') return null;
@@ -7438,6 +7465,7 @@ function sanitizePersonalTimelineDetailEntry(entry){
   if(endDate) sanitizedFields.endDate=endDate;
   if(endTime) sanitizedFields.endTime=endTime;
   if(endTimeLabel) sanitizedFields.endTimeLabel=endTimeLabel;
+  if(endTimeLabel) sanitizedFields.endLabel=endTimeLabel;
   const savedAtValue=Number(entry?._savedAt||0);
   if(Number.isFinite(savedAtValue)&&savedAtValue>0) sanitizedFields._savedAt=savedAtValue;
   return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
@@ -7689,6 +7717,7 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   savePersonalTimelineDetailSelectionBatch(dateKey, name, nextValues);
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
+  reloadPersonalTimelineDetailSelectionsFromStorage();
   const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
@@ -7697,6 +7726,7 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   if(!item||!dateKey) return;
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
+  reloadPersonalTimelineDetailSelectionsFromStorage();
   const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
@@ -7762,6 +7792,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   if(endDate) normalized.endDate=endDate;
   if(endTime) normalized.endTime=endTime;
   if(endTimeLabel) normalized.endTimeLabel=endTimeLabel;
+  if(endTimeLabel) normalized.endLabel=endTimeLabel;
   if(Object.keys(normalized).length){
     normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
     const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
@@ -7820,12 +7851,14 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
     endDate:normalizedDate,
     endTime:normalizedTime,
     endTimeLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
+    endLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
     _savedAt:entries[entryIndex]?._savedAt||Date.now()
   });
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
   dateSelections[name]=entries;
   savePersonalTimelineDetailSelections();
+  reloadPersonalTimelineDetailSelectionsFromStorage();
   updateHeaderReportBoard();
   resetPersonalTimelineEndEditorState();
   return true;
