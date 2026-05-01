@@ -9190,7 +9190,7 @@ function openTimelineGalleryView(){
   hydrateTimelineGalleryEntries();
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
-  focusPanelStart('#detailCol');
+  if(!isMobileViewport()) focusPanelStart('#detailCol');
 }
 function closeTimelineGalleryView(){
   isTimelineGalleryComposerOpen=false;
@@ -9798,7 +9798,7 @@ function renderPersonalTimelineDayNavigator(dateKey){
   const currentIndex=Math.max(0, dates.findIndex(date=>formatTimelineKey(date)===normalizedDateKey));
   const currentDate=dates[currentIndex]||dates[0]||new Date();
   const title=formatPersonalTimelineNavigatorLabel(normalizedDateKey)||`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
-  return `<div class="personal-timeline-day-nav"><div class="personal-timeline-day-nav-main"><button type="button" class="personal-timeline-day-nav-btn" data-timeline-day-move="-1"${currentIndex<=0?' disabled aria-disabled="true"':''}>이전 날짜</button><div class="personal-timeline-day-current">${escapeHtml(title)}</div><label class="personal-timeline-day-picker"><span class="sr-only">날짜 선택</span><input type="date" class="personal-timeline-day-picker-input" data-timeline-day-picker="true" value="${escapeHtml(normalizedDateKey)}" min="${escapeHtml(formatTimelineKey(dates[0]||currentDate))}" max="${escapeHtml(formatTimelineKey(dates[dates.length-1]||currentDate))}"></label><button type="button" class="personal-timeline-day-nav-btn" data-timeline-day-move="1"${currentIndex>=dates.length-1?' disabled aria-disabled="true"':''}>다음 날짜</button></div><div class="personal-timeline-day-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div>`;
+  return `<div class="personal-timeline-day-nav"><div class="personal-timeline-day-nav-main"><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-prev" data-timeline-day-move="-1" aria-label="이전 날짜"${currentIndex<=0?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">이전 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">‹</span></button><div class="personal-timeline-day-current">${escapeHtml(title)}</div><label class="personal-timeline-day-picker"><span class="sr-only">날짜 선택</span><input type="date" class="personal-timeline-day-picker-input" data-timeline-day-picker="true" value="${escapeHtml(normalizedDateKey)}" min="${escapeHtml(formatTimelineKey(dates[0]||currentDate))}" max="${escapeHtml(formatTimelineKey(dates[dates.length-1]||currentDate))}"></label><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-next" data-timeline-day-move="1" aria-label="다음 날짜"${currentIndex>=dates.length-1?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">다음 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">›</span></button></div><div class="personal-timeline-day-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div>`;
 }
 function renderPersonalTimelineDayCard(dateKey, view){
   const normalizedDateKey=setPersonalTimelineViewDateKey(dateKey);
