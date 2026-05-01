@@ -7360,9 +7360,9 @@ function formatPersonalTimelineEndLabel(detail={}){
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(detail?.endTime||'');
   if(!endDate&&!endTime) return '';
-  if(endDate&&endTime) return `종료: ${endDate} ${endTime}`;
+  if(endDate&&endTime) return `종료: ${endDate} ${formatPersonalTimelineTimeLabel(endTime)}`;
   if(endDate) return `종료: ${endDate}`;
-  return `종료: ${endTime}`;
+  return `종료: ${formatPersonalTimelineTimeLabel(endTime)}`;
 }
 function buildPersonalTimelineEndEditorId(dateKey='', name='', entryIndex=-1){
   return `${dateKey}::${name}::end::${entryIndex}`;
@@ -7374,7 +7374,7 @@ function renderPersonalTimelineEndEditor(item){
   if(!isPersonalTimelineEndEditorOpen(item)) return '';
   const selectedDate=normalizePersonalTimelineEndDate(personalTimelineEndEditorState.endDate||item?.detail?.endDate||'');
   const selectedTime=normalizePersonalTimelineEndTime(personalTimelineEndEditorState.endTime||item?.detail?.endTime||'');
-  return `<div class="personal-timeline-end-editor"><label class="personal-timeline-end-editor-field"><span>종료일</span><input type="date" class="simple-form-input personal-timeline-end-date-input" data-end-editor-date="${item.dateKey}" value="${escapeHtml(selectedDate)}"></label><label class="personal-timeline-end-editor-field"><span>종료시간</span><select class="personal-timeline-detail-select personal-timeline-end-time-select" data-end-editor-time="${item.dateKey}"><option value="">시간 선택</option>${PERSONAL_TIMELINE_END_TIME_OPTIONS.map(option=>`<option value="${escapeHtml(option)}"${option===selectedTime?' selected':''}>${escapeHtml(option)}</option>`).join('')}</select></label><div class="personal-timeline-end-editor-actions"><button type="button" class="section-title-action-btn" data-end-editor-save="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="section-title-action-btn" data-end-editor-cancel="true">취소</button></div></div>`;
+  return `<div class="personal-timeline-end-editor"><label class="personal-timeline-end-editor-field"><span>종료일</span><input type="date" class="simple-form-input personal-timeline-end-date-input" data-end-editor-date="${item.dateKey}" value="${escapeHtml(selectedDate)}"></label><label class="personal-timeline-end-editor-field"><span>종료시간</span><select class="personal-timeline-detail-select personal-timeline-end-time-select" data-end-editor-time="${item.dateKey}"><option value="">시간 선택</option>${PERSONAL_TIMELINE_END_TIME_OPTIONS.map(option=>`<option value="${escapeHtml(option)}"${option===selectedTime?' selected':''}>${escapeHtml(formatPersonalTimelineTimeLabel(option))}</option>`).join('')}</select></label><div class="personal-timeline-end-editor-actions"><button type="button" class="section-title-action-btn" data-end-editor-save="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="section-title-action-btn" data-end-editor-cancel="true">취소</button></div></div>`;
 }
 function renderPersonalTimelineSummaryLine(item){
   const desktopText=escapeHtml(item.text);
@@ -7673,7 +7673,7 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   savePersonalTimelineDetailSelectionBatch(dateKey, name, nextValues);
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
-  const items=getPersonalTimelineOngoingReportsForDate(dateKey);
+  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
 }
@@ -7681,7 +7681,7 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   if(!item||!dateKey) return;
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
-  const items=getPersonalTimelineOngoingReportsForDate(dateKey);
+  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
@@ -7699,7 +7699,7 @@ function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
   const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-  const hasGeneratedReport=getPersonalTimelineOngoingReportsForDate(dateKey).length>0;
+  const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
   item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
   item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
 }
@@ -7848,7 +7848,7 @@ function savePersonalTimelinePersonRow(row){
   updatePersonalTimelineSummaryBoard(item, dateKey);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-    const hasGeneratedReport=getPersonalTimelineOngoingReportsForDate(dateKey).length>0;
+    const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
     item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
     item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
   }
@@ -9522,7 +9522,7 @@ function renderPersonalTimelineDayCard(dateKey, view){
   const currentDate=dates.find(date=>formatTimelineKey(date)===normalizedDateKey)||dates[0]||new Date();
   const phase=getPersonalTimelinePhase(currentDate);
   const dateLabel=`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
-  const generatedReports=getPersonalTimelineOngoingReportsForDate(normalizedDateKey);
+  const generatedReports=getPersonalTimelineGeneratedReportsForDate(normalizedDateKey);
   const assignments=(view?.rows||[]).map(row=>({
     label:row.label,
     value:getTimelineLabel(row.label, normalizedDateKey),
