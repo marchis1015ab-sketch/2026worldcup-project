@@ -5716,8 +5716,8 @@ body.timeline-modal-open{overflow:hidden}
   display:flex;
   flex-direction:column;
   gap:6px;
-  min-width:220px;
-  flex:1 1 260px;
+  min-width:260px;
+  flex:1 1 320px;
 }
 .personal-timeline-end-editor-field span{
   color:#4f6278;
@@ -5725,7 +5725,8 @@ body.timeline-modal-open{overflow:hidden}
   font-weight:800;
 }
 .personal-timeline-end-time-select{
-  min-width:320px;
+  min-width:260px;
+  max-width:100%;
   width:100%;
   padding-left:14px;
   padding-right:40px;

@@ -7356,13 +7356,26 @@ function normalizePersonalTimelineEndTime(value=''){
   const text=String(value||'').trim();
   return PERSONAL_TIMELINE_END_TIME_OPTIONS.includes(text) ? text : '';
 }
+function buildPersonalTimelineEndTimeLabel(value=''){
+  const normalizedTime=normalizePersonalTimelineEndTime(value);
+  return normalizedTime ? formatPersonalTimelineTimeLabel(normalizedTime) : '';
+}
+function parseLegacyPersonalTimelineEndAt(value=''){
+  const text=String(value||'').trim();
+  const match=text.match(/(\d{4}-\d{2}-\d{2}).*?(\d{2}:\d{2})/);
+  return {
+    endDate:normalizePersonalTimelineEndDate(match?.[1]||''),
+    endTime:normalizePersonalTimelineEndTime(match?.[2]||'')
+  };
+}
 function formatPersonalTimelineEndLabel(detail={}){
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(detail?.endTime||'');
+  const endTimeLabel=String(detail?.endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   if(!endDate&&!endTime) return '';
-  if(endDate&&endTime) return `종료: ${endDate} ${formatPersonalTimelineTimeLabel(endTime)}`;
+  if(endDate&&endTimeLabel) return `종료: ${endDate} ${endTimeLabel}`;
   if(endDate) return `종료: ${endDate}`;
-  return `종료: ${formatPersonalTimelineTimeLabel(endTime)}`;
+  return `종료: ${endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)}`;
 }
 function buildPersonalTimelineEndEditorId(dateKey='', name='', entryIndex=-1){
   return `${dateKey}::${name}::end::${entryIndex}`;
@@ -7418,10 +7431,13 @@ function sanitizePersonalTimelineDetailEntry(entry){
     const text=field==='TVU' ? normalizeTvuNumberValue(entry[field]) : entry[field].trim();
     if(text) sanitizedFields[field]=text;
   });
-  const endDate=normalizePersonalTimelineEndDate(entry.endDate||'');
-  const endTime=normalizePersonalTimelineEndTime(entry.endTime||'');
+  const legacyEndAt=parseLegacyPersonalTimelineEndAt(entry.endAt||'');
+  const endDate=normalizePersonalTimelineEndDate(entry.endDate||legacyEndAt.endDate||'');
+  const endTime=normalizePersonalTimelineEndTime(entry.endTime||legacyEndAt.endTime||'');
+  const endTimeLabel=String(entry.endTimeLabel||entry.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   if(endDate) sanitizedFields.endDate=endDate;
   if(endTime) sanitizedFields.endTime=endTime;
+  if(endTimeLabel) sanitizedFields.endTimeLabel=endTimeLabel;
   const savedAtValue=Number(entry?._savedAt||0);
   if(Number.isFinite(savedAtValue)&&savedAtValue>0) sanitizedFields._savedAt=savedAtValue;
   return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
@@ -7742,8 +7758,10 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   });
   const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(detailValues?.endTime||'');
+  const endTimeLabel=String(detailValues?.endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   if(endDate) normalized.endDate=endDate;
   if(endTime) normalized.endTime=endTime;
+  if(endTimeLabel) normalized.endTimeLabel=endTimeLabel;
   if(Object.keys(normalized).length){
     normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
     const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
@@ -7801,6 +7819,7 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
     ...entries[entryIndex],
     endDate:normalizedDate,
     endTime:normalizedTime,
+    endTimeLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
     _savedAt:entries[entryIndex]?._savedAt||Date.now()
   });
   if(!nextEntry) return false;
