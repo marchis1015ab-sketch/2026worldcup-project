@@ -108,6 +108,193 @@ const knockoutSchedule = {
   M104:{date:'2026-07-20',time:'04:00 KST',stadium:'New York New Jersey Stadium'}
 };
 
+const NEWS_PROGRAMMING_DEFAULT_CITY = 'Mexico City';
+const WC_TIMEZONE_OFFSET = {
+  'Mexico City': 14,
+  'Guadalajara': 14,
+  'Monterrey': 14,
+  'New York': 13,
+  'Miami': 13,
+  'Boston': 13,
+  'Los Angeles': 16,
+  'Seattle': 16,
+  'Vancouver': 16,
+  'Atlanta': 13,
+  'Philadelphia': 13,
+  'Toronto': 13,
+  'Dallas': 14,
+  'Houston': 14,
+  'Kansas City': 14,
+  'San Francisco': 16
+};
+const WC_TIMEZONE_CITY_ALIAS = {
+  '멕시코시티': 'Mexico City',
+  '과달라하라': 'Guadalajara',
+  '몬테레이': 'Monterrey',
+  '뉴욕': 'New York',
+  '뉴욕/뉴저지': 'New York',
+  '뉴저지': 'New York',
+  '마이애미': 'Miami',
+  '보스턴': 'Boston',
+  '로스앤젤레스': 'Los Angeles',
+  '시애틀': 'Seattle',
+  '밴쿠버': 'Vancouver',
+  '애틀랜타': 'Atlanta',
+  '필라델피아': 'Philadelphia',
+  '토론토': 'Toronto',
+  '댈러스': 'Dallas',
+  '휴스턴': 'Houston',
+  '캔자스시티': 'Kansas City',
+  '샌프란시스코': 'San Francisco'
+};
+const WC_STADIUM_CITY_MAP = {
+  'Mexico City Stadium': 'Mexico City',
+  'Estadio Ciudad de México': 'Mexico City',
+  'Estadio Guadalajara': 'Guadalajara',
+  'Guadalajara Stadium': 'Guadalajara',
+  'Monterrey Stadium': 'Monterrey',
+  'Estadio Monterrey': 'Monterrey',
+  'New York New Jersey Stadium': 'New York',
+  'Miami Stadium': 'Miami',
+  'Boston Stadium': 'Boston',
+  'Los Angeles Stadium': 'Los Angeles',
+  'Seattle Stadium': 'Seattle',
+  'BC Place Vancouver': 'Vancouver',
+  'Toronto Stadium': 'Toronto',
+  'Atlanta Stadium': 'Atlanta',
+  'Philadelphia Stadium': 'Philadelphia',
+  'Dallas Stadium': 'Dallas',
+  'Houston Stadium': 'Houston',
+  'Kansas City Stadium': 'Kansas City',
+  'San Francisco Bay Area Stadium': 'San Francisco'
+};
+const WC_MATCH_TIME_OVERRIDES = {
+  M1:{date:'2026-06-11', time:'19:00', city:'Mexico City'}
+};
+function resolveWorldCupCityName(value=''){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  if(WC_TIMEZONE_OFFSET[raw]!==undefined) return raw;
+  if(WC_TIMEZONE_CITY_ALIAS[raw]) return WC_TIMEZONE_CITY_ALIAS[raw];
+  const normalized=raw.toLowerCase();
+  const directKey=Object.keys(WC_TIMEZONE_OFFSET).find(key=>key.toLowerCase()===normalized);
+  if(directKey) return directKey;
+  const aliasKey=Object.keys(WC_TIMEZONE_CITY_ALIAS).find(key=>key.toLowerCase()===normalized);
+  if(aliasKey) return WC_TIMEZONE_CITY_ALIAS[aliasKey];
+  return raw;
+}
+function resolveWorldCupScheduleCity(value=''){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  return resolveWorldCupCityName(WC_STADIUM_CITY_MAP[raw]||raw);
+}
+function getWorldCupTimeOffset(city=''){
+  const resolvedCity=resolveWorldCupCityName(city);
+  return WC_TIMEZONE_OFFSET[resolvedCity] ?? 14;
+}
+function formatWorldCupDateKey(date){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+function convertToKoreaTime(localDateTime, city) {
+  const offset = getWorldCupTimeOffset(city);
+  const date = new Date(localDateTime);
+  if(Number.isNaN(date.getTime())) return null;
+  date.setHours(date.getHours() + offset);
+  return date;
+}
+function formatKoreaTime(date) {
+  if(!(date instanceof Date)||Number.isNaN(date.getTime())) return '';
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+function getDayDiff(localDate, koreaDate) {
+  if(!(localDate instanceof Date)||Number.isNaN(localDate.getTime())||!(koreaDate instanceof Date)||Number.isNaN(koreaDate.getTime())) return '';
+  const localMidnight=Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
+  const koreaMidnight=Date.UTC(koreaDate.getFullYear(), koreaDate.getMonth(), koreaDate.getDate());
+  const diff=Math.round((koreaMidnight-localMidnight)/86400000);
+  if (diff === 1) return '(+1일)';
+  if (diff === 2) return '(+2일)';
+  return '';
+}
+function buildWorldCupTimeInfo(localDateText='', localTimeText='', city=''){
+  const normalizedDate=String(localDateText||'').trim();
+  const normalizedTime=String(localTimeText||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)||!/^\d{2}:\d{2}$/.test(normalizedTime)) return null;
+  const localDateTime=`${normalizedDate}T${normalizedTime}:00`;
+  const localDate=new Date(localDateTime);
+  const koreaDate=convertToKoreaTime(localDateTime, city);
+  if(Number.isNaN(localDate.getTime())||!(koreaDate instanceof Date)||Number.isNaN(koreaDate.getTime())) return null;
+  const dayDiff=getDayDiff(localDate, koreaDate);
+  return {
+    localDate,
+    koreaDate,
+    koreaTime:formatKoreaTime(koreaDate),
+    dayDiff,
+    koreaDateText:formatWorldCupDateKey(koreaDate)
+  };
+}
+function buildWorldCupTimeLabel(localDateText='', localTimeText='', city=''){
+  const info=buildWorldCupTimeInfo(localDateText, localTimeText, city);
+  if(!info) return '';
+  return `현지 ${localTimeText} / 한국 ${info.koreaTime}${info.dayDiff}`;
+}
+function convertLegacyKstScheduleEntryToLocal(entry={}, matchId=''){
+  const override=WC_MATCH_TIME_OVERRIDES[matchId]||null;
+  const fallbackCity=resolveWorldCupScheduleCity(entry?.city||entry?.stadium||'');
+  if(override){
+    return {
+      ...entry,
+      ...override,
+      city:resolveWorldCupScheduleCity(override.city||fallbackCity)
+    };
+  }
+  const rawDate=String(entry?.date||'').trim();
+  const rawTime=String(entry?.time||'').replace(' KST','').trim();
+  const resolvedCity=resolveWorldCupScheduleCity(entry?.city||entry?.stadium||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)||!/^\d{2}:\d{2}$/.test(rawTime)){
+    return {
+      ...entry,
+      time:rawTime||String(entry?.time||'').trim(),
+      city:resolvedCity
+    };
+  }
+  if(!String(entry?.time||'').includes('KST')){
+    return {
+      ...entry,
+      date:rawDate,
+      time:rawTime,
+      city:resolvedCity
+    };
+  }
+  const offset=getWorldCupTimeOffset(resolvedCity);
+  const kstDate=new Date(`${rawDate}T${rawTime}:00+09:00`);
+  if(Number.isNaN(kstDate.getTime())){
+    return {
+      ...entry,
+      date:rawDate,
+      time:rawTime,
+      city:resolvedCity
+    };
+  }
+  kstDate.setHours(kstDate.getHours()-offset);
+  return {
+    ...entry,
+    date:formatWorldCupDateKey(kstDate),
+    time:`${String(kstDate.getHours()).padStart(2,'0')}:${String(kstDate.getMinutes()).padStart(2,'0')}`,
+    city:resolvedCity
+  };
+}
+function normalizeWorldCupScheduleCollections(){
+  Object.keys(groupMatches).forEach(groupKey=>{
+    groupMatches[groupKey]=(groupMatches[groupKey]||[]).map(match=>convertLegacyKstScheduleEntryToLocal(match, match?.number||''));
+  });
+  Object.keys(knockoutSchedule).forEach(matchId=>{
+    knockoutSchedule[matchId]=convertLegacyKstScheduleEntryToLocal(knockoutSchedule[matchId], matchId);
+  });
+}
+normalizeWorldCupScheduleCollections();
+
 const squads = {
   korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
   mexico:[{position:'GK',number:23,name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'GK',number:'-',name:'Guillermo Ochoa',club:'AEL Limassol',age:'-',injury:'-'},{position:'GK',number:12,name:'Carlos Acevedo',club:'Santos Laguna',age:'-',injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Richard Ledezma',club:'Chivas',age:'-',injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa FC',age:'-',injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Lokomotiv Moscú',age:'-',injury:'-'},{position:'DF',number:4,name:'Jesús Angulo',club:'Tigres',age:'-',injury:'-'},{position:'DF',number:19,name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Gallardo',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:6,name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Denzell García',club:'FC Juárez',age:'-',injury:'-'},{position:'MF',number:8,name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:17,name:'Orbelín Pineda',club:'AEK Athens',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Atlético de Madrid',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chivas',age:'-',injury:'-'},{position:'MF',number:14,name:'Erick Sánchez',club:'América',age:'-',injury:'-'},{position:'MF',number:'-',name:'Álvaro Fidalgo',club:'Real Betis',age:'-',injury:'-'},{position:'MF',number:25,name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:9,name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'FW',number:10,name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'FW',number:7,name:'Germán Berterame',club:'Inter Miami',age:'-',injury:'-'},{position:'FW',number:22,name:'Guillermo Martínez',club:'Club Universidad Nacional',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Chivas',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham FC',age:'-',injury:'-'}],
@@ -386,11 +573,11 @@ let equipmentState = [];
 let currentMapSubTab = 'region';
 let currentMapActionMode = '';
 const NEWS_PROGRAMMING_TEMPLATE = [
-  {baseId:'jtbc-program-1', title:'아침&', koreaTime:'07:30', status:'본방', memo:''},
-  {baseId:'jtbc-program-2', title:'장르가 머니', koreaTime:'10:00', status:'본방', memo:''},
-  {baseId:'jtbc-program-3', title:'이가혁 라이브', koreaTime:'17:00', status:'생방', memo:''},
-  {baseId:'jtbc-program-4', title:'JTBC 뉴스룸', koreaTime:'18:30', status:'생방', memo:''},
-  {baseId:'jtbc-program-5', title:'사건반장', koreaTime:'19:50', status:'본방', memo:''}
+  {baseId:'jtbc-program-1', title:'아침&', localTime:'17:30', localDayOffset:-1, city:'Mexico City', status:'본방', memo:''},
+  {baseId:'jtbc-program-2', title:'장르가 머니', localTime:'20:00', localDayOffset:-1, city:'Mexico City', status:'본방', memo:''},
+  {baseId:'jtbc-program-3', title:'이가혁 라이브', localTime:'03:00', localDayOffset:0, city:'Mexico City', status:'생방', memo:''},
+  {baseId:'jtbc-program-4', title:'JTBC 뉴스룸', localTime:'04:30', localDayOffset:0, city:'Mexico City', status:'생방', memo:''},
+  {baseId:'jtbc-program-5', title:'사건반장', localTime:'05:50', localDayOffset:0, city:'Mexico City', status:'본방', memo:''}
 ];
 let currentNewsProgrammingFilters = {
   date:getTodayTimelineKey(),
@@ -2753,7 +2940,7 @@ function normalizeNewsProgrammingSpecialEntry(entry={}, index=0){
     date:normalizedDate,
     localDayOffset:Number(entry?.localDayOffset)||0,
     localTime:String(entry?.localTime||'--:--').trim()||'--:--',
-    koreaTime:String(entry?.koreaTime||'--:--').trim()||'--:--',
+    city:String(entry?.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY,
     title:normalizedTitle,
     programKey:getNewsProgrammingProgramKey(normalizedTitle),
     status:String(entry?.status||'본방').trim()==='생방' ? '생방' : '본방',
@@ -2832,7 +3019,7 @@ function saveNewsProgrammingState(){
       date:item.date,
       localDayOffset:item.localDayOffset,
       localTime:item.localTime,
-      koreaTime:item.koreaTime,
+      city:item.city,
       title:item.title,
       status:item.status,
       memo:item.memo,
@@ -4921,17 +5108,6 @@ function getNewsProgrammingWeekdayLabel(dateKey=''){
   const weekdayLabels=['일','월','화','수','목','금','토'];
   return `${normalized} (${weekdayLabels[baseDate.getDay()]})`;
 }
-function convertKoreaTimeToLocalSlot(koreaTime='00:00'){
-  const [hourText='0', minuteText='0']=String(koreaTime||'00:00').split(':');
-  const koreaMinutes=(Number(hourText)||0)*60+(Number(minuteText)||0);
-  const localMinutes=koreaMinutes-(15*60);
-  const normalizedMinutes=((localMinutes%(24*60))+(24*60))%(24*60);
-  const localDayOffset=Math.floor(localMinutes/(24*60));
-  return {
-    localDayOffset,
-    localTime:`${padNewsProgrammingNumber(Math.floor(normalizedMinutes/60))}:${padNewsProgrammingNumber(normalizedMinutes%60)}`
-  };
-}
 function getNewsProgrammingProgramKey(title=''){
   const normalized=String(title||'').trim();
   if(!normalized) return '프로그램';
@@ -4940,21 +5116,18 @@ function getNewsProgrammingProgramKey(title=''){
 }
 function buildBaseNewsProgrammingSchedules(dateKey=''){
   const normalizedDate=String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
-  return NEWS_PROGRAMMING_TEMPLATE.map(item=>{
-    const localSlot=convertKoreaTimeToLocalSlot(item.koreaTime);
-    return {
-      id:`${item.baseId}-${normalizedDate}`,
-      date:normalizedDate,
-      localDayOffset:localSlot.localDayOffset,
-      localTime:localSlot.localTime,
-      koreaTime:String(item.koreaTime||'').trim()||'00:00',
-      title:item.title,
-      programKey:getNewsProgrammingProgramKey(item.title),
-      status:item.status,
-      memo:String(item.memo||''),
-      isBaseSchedule:true
-    };
-  });
+  return NEWS_PROGRAMMING_TEMPLATE.map(item=>({
+    id:`${item.baseId}-${normalizedDate}`,
+    date:normalizedDate,
+    localDayOffset:Number(item.localDayOffset)||0,
+    localTime:String(item.localTime||'').trim()||'00:00',
+    city:String(item.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY,
+    title:item.title,
+    programKey:getNewsProgrammingProgramKey(item.title),
+    status:item.status,
+    memo:String(item.memo||''),
+    isBaseSchedule:true
+  }));
 }
 function getNewsProgrammingTimeOptionKey(item={}){
   return [
@@ -4968,21 +5141,28 @@ function getActiveNewsProgrammingDateKey(){
 }
 function getNewsProgrammingTimeOptions(){
   const selectedDate=getActiveNewsProgrammingDateKey();
-  return Array.from({length:24}, (_, hour)=>({
-    date:selectedDate,
-    localHour:hour,
-    localDayOffset:0,
-    localTime:`${padNewsProgrammingNumber(hour)}:00`,
-    koreaTime:`${padNewsProgrammingNumber((hour+15)%24)}:00`,
-    koreaDayOffset:hour+15>=24?1:0,
-    key:getNewsProgrammingTimeOptionKey({date:selectedDate, localHour:hour})
-  }));
+  return Array.from({length:24}, (_, hour)=>{
+    const localTime=`${padNewsProgrammingNumber(hour)}:00`;
+    const timeInfo=buildWorldCupTimeInfo(selectedDate, localTime, NEWS_PROGRAMMING_DEFAULT_CITY);
+    const dayDiff=timeInfo?.dayDiff||'';
+    const koreaDayOffset=dayDiff==='(+2일)' ? 2 : dayDiff==='(+1일)' ? 1 : 0;
+    return {
+      date:selectedDate,
+      localHour:hour,
+      localDayOffset:0,
+      localTime,
+      city:NEWS_PROGRAMMING_DEFAULT_CITY,
+      koreaTime:timeInfo?.koreaTime||'--:--',
+      koreaDayOffset,
+      key:getNewsProgrammingTimeOptionKey({date:selectedDate, localHour:hour})
+    };
+  });
 }
 function getNewsProgrammingTimeOptionLabel(option={}){
   const localTime=String(option.localTime||'--:--').trim()||'--:--';
-  const koreaTime=String(option.koreaTime||'--:--').trim()||'--:--';
-  const koreaDayLabel=Number(option.koreaDayOffset||0)>0?'익일 ':'';
-  return `현지시각 ${localTime} / 한국시각 ${koreaDayLabel}${koreaTime}`;
+  const city=String(option.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY;
+  const label=buildWorldCupTimeLabel(String(option.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey(), localTime, city);
+  return label||`현지 ${localTime}`;
 }
 function getSelectedNewsProgrammingTimeOption(){
   loadNewsProgrammingState();
@@ -5157,7 +5337,7 @@ function buildTimelineExportTextBody(){
     appendExportField(lines, '날짜', formatExportDateLabel(row.날짜));
     appendExportField(lines, '담당자', row.취재기자);
     appendExportField(lines, '현지시각', row.시간);
-    appendExportField(lines, '한국시각', row.시간 ? formatKoreaTimeLabel(row.시간) : '');
+    appendExportField(lines, '한국시각', row.시간 ? formatKoreaTimeLabel(row.날짜, row.시간, row.장소) : '');
     appendExportField(lines, '활동', row.내용);
     appendExportField(lines, '장소', row.장소);
     appendExportField(lines, '장비', formatExportEquipmentLabel(row.장비));
@@ -5250,7 +5430,7 @@ function getTimelineDetailExportRows(){
           취재기자:reporterNames,
           장비:detail?.TVU ? getPersonalTimelineOptionLabel('TVU', detail.TVU) : '',
           내용:detail?.업무내용 ? getPersonalTimelineTaskReportLabel(detail.업무내용) : '',
-          메모:buildPersonalTimelineReportText(name, detail)||`개별 일정 ${entryIndex+1}`
+          메모:buildPersonalTimelineReportText(name, detail, dateKey)||`개별 일정 ${entryIndex+1}`
         };
       }).filter(Boolean);
     });
@@ -5545,16 +5725,20 @@ function renderHeaderProgrammingTickerLine(track, text='', options={}){
   track.__renderedTickerHtml=nextHtml;
   track.innerHTML=nextHtml;
 }
-function formatKoreaTimeLabel(localTime=''){
-  const raw=String(localTime||'').trim();
-  const match=raw.match(/^(\d{2}):(\d{2})$/);
-  if(!match) return '';
-  const hour=Number(match[1]);
-  const minute=match[2];
-  const koreaHourTotal=hour+15;
-  const koreaDayOffset=Math.floor(koreaHourTotal/24);
-  const koreaHour=String(koreaHourTotal%24).padStart(2,'0');
-  return `${koreaHour}:${minute}${koreaDayOffset>0?`(+${koreaDayOffset}일)`:''}`;
+function formatKoreaTimeLabel(dateKey='', localTime='', cityOrLocation=''){
+  let normalizedDate=String(dateKey||'').trim();
+  let normalizedTime=String(localTime||'').trim();
+  const normalizedCityOrLocation=String(cityOrLocation||'').trim();
+  if(/^\d{2}:\d{2}$/.test(normalizedDate)&&!normalizedTime){
+    normalizedTime=normalizedDate;
+    normalizedDate=getTodayTimelineKey();
+  }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) normalizedDate=getTodayTimelineKey();
+  if(!/^\d{2}:\d{2}$/.test(normalizedTime)) return '';
+  const resolvedCityContext=normalizedCityOrLocation ? resolveScheduleCityContext(normalizedCityOrLocation) : {city:''};
+  const resolvedCity=resolveWorldCupCityName(resolvedCityContext.city||normalizedCityOrLocation||NEWS_PROGRAMMING_DEFAULT_CITY);
+  const info=buildWorldCupTimeInfo(normalizedDate, normalizedTime, resolvedCity);
+  return info ? `${info.koreaTime}${info.dayDiff}` : '';
 }
 function formatEquipmentLabel(detail={}){
   const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', detail?.TVU||'')||'').trim();
@@ -5586,10 +5770,10 @@ function formatScheduleTickerItem(schedule){
   const primaryReporterTag=formatPrimaryReporterTag(schedule?.name||'', detail.취재기자||'');
   const reporterPairLabel=formatReporterPairLabel(schedule?.name||'', detail.취재기자||'');
   const localTime=String(detail.시간||'').trim();
-  const koreaTimeLabel=formatKoreaTimeLabel(localTime);
+  const placeLabel=String(detail.장소||'').trim();
+  const koreaTimeLabel=formatKoreaTimeLabel(schedule?.dateKey||getTodayTimelineKey(), localTime, placeLabel);
   const timeLabel=localTime ? `현지 ${localTime}${koreaTimeLabel?` / 한국 ${koreaTimeLabel}`:''}` : '';
   const taskLabel=String(getPersonalTimelineTaskReportLabel(detail.업무내용||'')||'').trim();
-  const placeLabel=String(detail.장소||'').trim();
   const equipmentLabel=formatEquipmentLabel(detail);
   const actionParts=[];
   if(taskLabel&&placeLabel){
@@ -5695,9 +5879,10 @@ function refreshTicker(){
 }
 function buildNewsProgrammingTimeLabel(item={}){
   const localTime=String(item.localTime||'--:--').trim()||'--:--';
-  const koreaTime=String(item.koreaTime||'--:--').trim()||'--:--';
-  const hasPreviousDay=Number(item.localDayOffset||0)<0;
-  return `<span class="news-programming-time-text"><span class="news-programming-time-prefix">현지시각</span>${hasPreviousDay?'<span class="news-programming-day-flag">전일</span>':''}<span class="news-programming-time-value">${escapeHtml(localTime)}</span><span class="news-programming-time-divider">/</span><span class="news-programming-time-prefix">한국시각</span><span class="news-programming-time-value">${escapeHtml(koreaTime)}</span></span>`;
+  const city=String(item.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY;
+  const label=buildWorldCupTimeLabel(String(item.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey(), localTime, city);
+  const normalizedLabel=label||`현지 ${localTime}`;
+  return `<span class="news-programming-time-text">${escapeHtml(normalizedLabel)}</span>`;
 }
 function toggleNewsProgrammingSpecialComposer(forceOpen){
   if(typeof forceOpen==='boolean'){
@@ -5752,7 +5937,7 @@ function submitNewsProgrammingSpecialEntry(){
     date:normalizedDate,
     localDayOffset:Number(selectedTimeOption.localDayOffset)||0,
     localTime:String(selectedTimeOption.localTime||'').trim()||'--:--',
-    koreaTime:String(selectedTimeOption.koreaTime||'').trim()||'--:--',
+    city:String(selectedTimeOption.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY,
     title:normalizedTitle,
     programKey:getNewsProgrammingProgramKey(normalizedTitle),
     status:normalizedStatus,
@@ -6756,24 +6941,31 @@ function initUserSelect(){
   });
 }
 function normalizeScheduleData(data={}){
+  const location=String(data?.location||'').trim();
+  const resolvedCityContext=location ? resolveScheduleCityContext(location) : {city:''};
+  const normalizedDate=String(data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedTime=String(data?.time||data?.local_time||'').trim();
+  const normalizedCity=resolveWorldCupCityName(String(data?.city||resolvedCityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY);
   return {
     title:String(data?.title||'').trim(),
     assignee:String(data?.assignee||'').trim(),
-    local_time:String(data?.local_time||'').trim(),
-    korea_time:String(data?.korea_time||'').trim(),
-    location:String(data?.location||'').trim()
+    date:normalizedDate,
+    time:normalizedTime,
+    city:normalizedCity,
+    location,
+    tvu:String(data?.tvu||'').trim()
   };
 }
 function renderSchedules(data){
   window.supabaseSchedules=Array.isArray(data) ? data : [];
 }
 function buildMessage(schedule) {
+  const timeLabel=buildWorldCupTimeLabel(schedule?.date||'', schedule?.time||'', schedule?.city||'');
   return `
 [월드컵 일정]
 ${schedule.assignee}
 
-현지 ${schedule.local_time}
-한국 ${schedule.korea_time}
+${timeLabel||`현지 ${schedule.time||''}`}
 
 ${schedule.title}
 ${schedule.location}
@@ -6827,7 +7019,7 @@ async function sendScheduleSMS(scheduleData){
       return;
     }
 
-    const text=`[일정 알림] ${scheduleData.title} / ${scheduleData.location} / ${scheduleData.local_time}`;
+    const text=`[일정 알림] ${scheduleData.title} / ${scheduleData.location} / ${buildWorldCupTimeLabel(scheduleData.date, scheduleData.time, scheduleData.city)}`;
     const response=await fetch('https://dwujummgbntrtvmldqmz.supabase.co/functions/v1/dynamic-api', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -6874,12 +7066,27 @@ async function saveSchedule(data) {
     return;
   }
   const scheduleData=normalizeScheduleData(data);
-  const { error } = await supabaseClient
+  let insertError=null;
+  const primaryResult=await supabaseClient
     .from(SCHEDULES_TABLE)
     .insert([scheduleData]);
+  insertError=primaryResult.error||null;
 
-  if (error) {
-    console.error('저장 실패:', error);
+  if(insertError&&/column|schema cache|date|time|city|tvu/i.test(String(insertError.message||''))){
+    const legacyFallback={
+      title:scheduleData.title,
+      assignee:scheduleData.assignee,
+      local_time:scheduleData.time,
+      location:scheduleData.location
+    };
+    const fallbackResult=await supabaseClient
+      .from(SCHEDULES_TABLE)
+      .insert([legacyFallback]);
+    insertError=fallbackResult.error||null;
+  }
+
+  if (insertError) {
+    console.error('저장 실패:', insertError);
     alert('저장 실패');
   } else {
     alert('저장 완료');
@@ -6925,13 +7132,16 @@ function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailVal
   const localTime=String(detailValues?.시간||'').trim();
   const task=String(detailValues?.업무내용||'').trim();
   const taskLabel=String(getPersonalTimelineTaskReportLabel(task)||task).trim();
-  const koreaTimeLabel=localTime ? formatPersonalTimelineTimeLabel(localTime).replace(/^현지\s[^/]+\/\s한국\s/,'') : '';
+  const location=String(detailValues?.장소||'').trim();
+  const cityContext=resolveScheduleCityContext(location);
   return {
     title:taskLabel||`${dateKey} 일정`,
     assignee:personName,
-    local_time:localTime,
-    korea_time:koreaTimeLabel,
-    location:String(detailValues?.장소||'').trim()
+    date:String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey(),
+    time:localTime,
+    city:resolveWorldCupCityName(cityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY),
+    location,
+    tvu:normalizeTvuNumberValue(detailValues?.TVU||'')
   };
 }
 const WORLD_CUP_OPENING_DATE = {year:2026,month:6,day:11};
@@ -7489,17 +7699,14 @@ function getPersonalTimelineDetailEntries(dateKey, name){
   const entries=personalTimelineDetailSelections[dateKey]?.[name];
   return Array.isArray(entries) ? entries : [];
 }
-function formatPersonalTimelineTimeLabel(localTime=''){
+function formatPersonalTimelineTimeLabel(localTime='', dateKey='', cityOrLocation=''){
   const raw=String(localTime||'').trim();
-  const match=raw.match(/^(\d{2}):(\d{2})$/);
-  if(!match) return raw;
-  const hour=Number(match[1]);
-  const minute=match[2];
-  const koreaHourTotal=hour+15;
-  const koreaDayOffset=Math.floor(koreaHourTotal/24);
-  const koreaHour=String(koreaHourTotal%24).padStart(2,'0');
-  const koreaSuffix=koreaDayOffset>0 ? `(+${koreaDayOffset}일)` : '';
-  return `현지 ${raw} / 한국 ${koreaHour}:${minute}${koreaSuffix}`;
+  if(!/^\d{2}:\d{2}$/.test(raw)) return raw;
+  const normalizedDate=/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey||'').trim()) ? String(dateKey||'').trim() : getTodayTimelineKey();
+  const resolvedCityContext=cityOrLocation ? resolveScheduleCityContext(cityOrLocation) : {city:''};
+  const resolvedCity=resolveWorldCupCityName(resolvedCityContext.city||cityOrLocation||NEWS_PROGRAMMING_DEFAULT_CITY);
+  const label=buildWorldCupTimeLabel(normalizedDate, raw, resolvedCity);
+  return label||raw;
 }
 function getPersonalTimelineTimeSortValue(localTime=''){
   const raw=String(localTime||'').trim();
@@ -7544,7 +7751,7 @@ function getPersonalTimelineEntryTimeZone(detail){
   return cityContext.timeZone||headerLocalClockState.fallbackTimeZone;
 }
 function getPersonalTimelineOptionLabel(field, option){
-  if(field==='시간') return formatPersonalTimelineTimeLabel(option);
+  if(field==='시간') return formatPersonalTimelineTimeLabel(option, getTodayTimelineKey(), NEWS_PROGRAMMING_DEFAULT_CITY);
   if(field==='TVU'){
     const normalized=normalizeTvuNumberValue(option);
     return personalTimelineTvuLabelMap[normalized]||normalized;
@@ -7562,19 +7769,19 @@ function buildPersonalTimelineMobileReportLines(item){
   const detail=item?.detail;
   if(!detail) return [String(item?.text||'').trim()].filter(Boolean);
   const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', detail.취재기자||'');
-  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'');
+  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'', item?.dateKey||getTodayTimelineKey(), detail?.장소||'');
   const taskPlaceLabel=`${String(detail.업무내용||'').trim()}를 ${String(detail.장소||'').trim()}에서`;
   const equipmentLabel=`${getPersonalTimelineOptionLabel('TVU', detail.TVU)}을 가지고 진행`;
   return [participantLabel, timeLabel, taskPlaceLabel, equipmentLabel];
 }
-function buildPersonalTimelineReportText(name, detail){
+function buildPersonalTimelineReportText(name, detail, dateKey=''){
   if(!detail) return '';
   const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
   if(values.some(value=>!value)) return '';
   const participantLabel=buildPersonalTimelineParticipantLabel(name, detail.취재기자);
   const taskLabel=String(detail.업무내용||'').trim();
   const tvuLabel=getPersonalTimelineOptionLabel('TVU', detail.TVU);
-  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간)} ${taskLabel}를 ${detail.장소}에서 ${tvuLabel}을 가지고 진행`;
+  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간, dateKey, detail.장소)} ${taskLabel}를 ${detail.장소}에서 ${tvuLabel}을 가지고 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
@@ -7585,7 +7792,7 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     entryIndex,
     savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
     timeSort:getPersonalTimelineTimeSortValue(detail.시간),
-    text:buildPersonalTimelineReportText(name, detail)
+    text:buildPersonalTimelineReportText(name, detail, dateKey)
   }))).filter(item=>item.text).sort((a,b)=>{
     if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
     if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
@@ -7613,7 +7820,7 @@ function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
           entryIndex,
           savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
           timeSort:getPersonalTimelineTimeSortValue(detail.시간),
-          text:buildPersonalTimelineReportText(name, detail)
+          text:buildPersonalTimelineReportText(name, detail, dateKey)
         };
         if(!item.text) return;
         const previous=latestReportsByName.get(name);
@@ -11695,10 +11902,13 @@ function showBracketStage(stage, el){
   updateMobileHeaderReportBoardVisibility();
 }
 function renderScheduleMatchRow(number, mainHtml, date, time, stadium, rowClass=''){
-  const local=kstToLocal(date,time);
+  const resolvedCity=resolveWorldCupScheduleCity(stadium);
+  const timeInfo=buildWorldCupTimeInfo(date, time, resolvedCity);
+  const koreaDate=timeInfo?.koreaDateText||'-';
+  const koreaTimeLabel=timeInfo ? `${timeInfo.koreaTime}${timeInfo.dayDiff}` : '-';
   const normalizedRowClass=String(rowClass||'').trim();
   const rowClassName=normalizedRowClass ? `schedule-match-row ${normalizedRowClass}` : 'schedule-match-row';
-  return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${local.date} / ${date}</div><div class="match-meta">시간: 현지 ${local.time} / ${time}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
+  return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${date} / 한국 ${koreaDate}</div><div class="match-meta">시간: 현지 ${time} / 한국 ${koreaTimeLabel}</div><div class="match-meta">도시: ${resolvedCity||'-'}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
 }
 function renderKnockoutTable(stage){
   clearDetailExtras();
@@ -12758,6 +12968,7 @@ function runTests(){
   console.assert(Array.isArray(groupMatches.B)&&groupMatches.B.length===6,'Group B should have 6 matches');
   console.assert(Array.isArray(groupMatches.K)&&groupMatches.K.length===6,'Group K should have 6 matches');
   console.assert(Array.isArray(groupMatches.L)&&groupMatches.L.length===6,'Group L should have 6 matches');
+  console.assert(buildWorldCupTimeLabel('2026-06-11','19:00','Mexico City')==='현지 19:00 / 한국 09:00(+1일)','Opening match Korea conversion should match expected label');
   console.assert(groupData.A[3].name==='Czechia','Group A fourth team should be Czechia');
   console.assert(groupData.B[1].name==='Bosnia and Herzegovina','Group B second team should be Bosnia and Herzegovina');
   console.assert(groupData.D[3].name==='Türkiye','Group D fourth team should be Türkiye');
@@ -12799,6 +13010,22 @@ function runTests(){
   console.assert(renderScheduleStadiumMedia('MetLife Stadium (New York/New Jersey)').includes('schedule-stadium-photo'),'Schedule stadium media should render for mapped stadium');
 }
 
+const LEGACY_WC_TIME_RESET_FLAG = 'worldcup-time-reset-2026-05-03';
+function resetLegacyWorldCupTimeStorage(){
+  if(typeof window==='undefined'||!window.localStorage||!window.sessionStorage) return;
+  if(window.sessionStorage.getItem(LEGACY_WC_TIME_RESET_FLAG)==='done') return;
+  let shouldReload=false;
+  ['scheduleState','worldcup-schedule'].forEach(key=>{
+    if(window.localStorage.getItem(key)!==null){
+      window.localStorage.removeItem(key);
+      shouldReload=true;
+    }
+  });
+  window.sessionStorage.setItem(LEGACY_WC_TIME_RESET_FLAG, 'done');
+  if(shouldReload){
+    window.location.reload();
+  }
+}
 function initializeNewsProgrammingPersistence(){
   loadTicker();
   loadNewsProgrammingState();
@@ -12806,6 +13033,7 @@ function initializeNewsProgrammingPersistence(){
   renderAllBoards();
 }
 
+resetLegacyWorldCupTimeStorage();
 initializeNewsProgrammingPersistence();
 updateHeaderCountdown();
 updateHeaderReportBoard();
@@ -12839,3 +13067,8 @@ console.log("DEPLOY CHECK: 2026-04-16-vercel-static-final-03");
 // deploy refresh 2026-04-16
 // deploy refresh 2026-04-16-pages-fix-01
 // deploy refresh 2026-04-16-vercel-static-final-03
+
+
+
+
+
