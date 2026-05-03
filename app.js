@@ -168,9 +168,7 @@ const WC_STADIUM_CITY_MAP = {
   'Kansas City Stadium': 'Kansas City',
   'San Francisco Bay Area Stadium': 'San Francisco'
 };
-const WC_MATCH_TIME_OVERRIDES = {
-  M1:{date:'2026-06-11', time:'19:00', city:'Mexico City'}
-};
+const WC_MATCH_TIME_OVERRIDES = {};
 function resolveWorldCupCityName(value=''){
   const raw=String(value||'').trim();
   if(!raw) return '';
@@ -12968,7 +12966,7 @@ function runTests(){
   console.assert(Array.isArray(groupMatches.B)&&groupMatches.B.length===6,'Group B should have 6 matches');
   console.assert(Array.isArray(groupMatches.K)&&groupMatches.K.length===6,'Group K should have 6 matches');
   console.assert(Array.isArray(groupMatches.L)&&groupMatches.L.length===6,'Group L should have 6 matches');
-  console.assert(buildWorldCupTimeLabel('2026-06-11','19:00','Mexico City')==='현지 19:00 / 한국 09:00(+1일)','Opening match Korea conversion should match expected label');
+  console.assert(buildWorldCupTimeLabel('2026-06-11','14:00','Mexico City')==='현지 14:00 / 한국 04:00(+1일)','Opening match Korea conversion should match expected label');
   console.assert(groupData.A[3].name==='Czechia','Group A fourth team should be Czechia');
   console.assert(groupData.B[1].name==='Bosnia and Herzegovina','Group B second team should be Bosnia and Herzegovina');
   console.assert(groupData.D[3].name==='Türkiye','Group D fourth team should be Türkiye');
@@ -13010,7 +13008,7 @@ function runTests(){
   console.assert(renderScheduleStadiumMedia('MetLife Stadium (New York/New Jersey)').includes('schedule-stadium-photo'),'Schedule stadium media should render for mapped stadium');
 }
 
-const LEGACY_WC_TIME_RESET_FLAG = 'worldcup-time-reset-2026-05-03';
+const LEGACY_WC_TIME_RESET_FLAG = 'worldcup-time-reset-2026-05-03-bracket-kst-01';
 function resetLegacyWorldCupTimeStorage(){
   if(typeof window==='undefined'||!window.localStorage||!window.sessionStorage) return;
   if(window.sessionStorage.getItem(LEGACY_WC_TIME_RESET_FLAG)==='done') return;
