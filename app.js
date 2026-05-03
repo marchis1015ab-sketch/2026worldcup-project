@@ -168,7 +168,14 @@ const WC_STADIUM_CITY_MAP = {
   'Kansas City Stadium': 'Kansas City',
   'San Francisco Bay Area Stadium': 'San Francisco'
 };
-const WC_MATCH_TIME_OVERRIDES = {};
+const WORLD_CUP_STAGE_NAMES = Object.freeze({
+  round32:'32강',
+  round16:'16강',
+  quarterfinal:'8강',
+  semifinal:'4강',
+  final:'결승'
+});
+const DEFAULT_SCHEDULE_MATCH_INFO = Object.freeze({date:'-',time:'-',stadium:'-'});
 function resolveWorldCupCityName(value=''){
   const raw=String(value||'').trim();
   if(!raw) return '';
@@ -237,16 +244,7 @@ function buildWorldCupTimeLabel(localDateText='', localTimeText='', city=''){
   if(!info) return '';
   return `현지 ${localTimeText} / 한국 ${info.koreaTime}${info.dayDiff}`;
 }
-function convertLegacyKstScheduleEntryToLocal(entry={}, matchId=''){
-  const override=WC_MATCH_TIME_OVERRIDES[matchId]||null;
-  const fallbackCity=resolveWorldCupScheduleCity(entry?.city||entry?.stadium||'');
-  if(override){
-    return {
-      ...entry,
-      ...override,
-      city:resolveWorldCupScheduleCity(override.city||fallbackCity)
-    };
-  }
+function convertLegacyKstScheduleEntryToLocal(entry={}){
   const rawDate=String(entry?.date||'').trim();
   const rawTime=String(entry?.time||'').replace(' KST','').trim();
   const resolvedCity=resolveWorldCupScheduleCity(entry?.city||entry?.stadium||'');
@@ -285,13 +283,21 @@ function convertLegacyKstScheduleEntryToLocal(entry={}, matchId=''){
 }
 function normalizeWorldCupScheduleCollections(){
   Object.keys(groupMatches).forEach(groupKey=>{
-    groupMatches[groupKey]=(groupMatches[groupKey]||[]).map(match=>convertLegacyKstScheduleEntryToLocal(match, match?.number||''));
+    groupMatches[groupKey]=(groupMatches[groupKey]||[]).map(match=>convertLegacyKstScheduleEntryToLocal(match));
   });
   Object.keys(knockoutSchedule).forEach(matchId=>{
-    knockoutSchedule[matchId]=convertLegacyKstScheduleEntryToLocal(knockoutSchedule[matchId], matchId);
+    knockoutSchedule[matchId]=convertLegacyKstScheduleEntryToLocal(knockoutSchedule[matchId]);
   });
 }
 normalizeWorldCupScheduleCollections();
+function parseKnockoutTemplateMatch(match=''){
+  const normalizedMatch=String(match||'').trim();
+  const firstSpace=normalizedMatch.indexOf(' ');
+  return {
+    matchNum:firstSpace===-1 ? normalizedMatch : normalizedMatch.slice(0, firstSpace),
+    matchText:firstSpace===-1 ? '' : normalizedMatch.slice(firstSpace+1)
+  };
+}
 
 const squads = {
   korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
@@ -11908,36 +11914,6 @@ function renderScheduleMatchRow(number, mainHtml, date, time, stadium, rowClass=
   const rowClassName=normalizedRowClass ? `schedule-match-row ${normalizedRowClass}` : 'schedule-match-row';
   return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${date} / 한국 ${koreaDate}</div><div class="match-meta">시간: 현지 ${time} / 한국 ${koreaTimeLabel}</div><div class="match-meta">도시: ${resolvedCity||'-'}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
 }
-function renderKnockoutTable(stage){
-  clearDetailExtras();
-  currentBracketStage=stage;
-  updateRoundOf32WithThirdPlaceTeams();
-  const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
-  document.getElementById('detailTitle').textContent=stageNames[stage]||'';
-  document.getElementById('detailSubtitle').textContent='';
-  document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
-  const rows=knockoutTemplates[stage]||[];
-  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const resolvedMatchText=stage==='round32'?buildKnockoutMatchLabel(matchNum, matchText):escapeHtml(matchText);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};return renderScheduleMatchRow(matchNum, `<div class="match-text">${resolvedMatchText}</div>`, info.date, info.time, info.stadium);}).join('')}</tbody>`;
-  document.getElementById('detailCol').classList.remove('hidden');
-  updateMobileHeaderReportBoardVisibility();
-}
-
-function showGroup(groupKey, el){
-  document.querySelectorAll('#groupCol .item').forEach(n=>n.classList.remove('active'));
-  if(el) el.classList.add('active');
-  currentGroupKey=groupKey;
-  currentBracketStage='group';
-  const view=buildGroupTableView(groupKey);
-  document.getElementById('detailTitle').textContent=`Group ${groupKey}`;
-  document.getElementById('detailSubtitle').textContent='';
-  clearDetailExtras();
-  document.getElementById('detailTable').className='data-table group-table';
-  document.getElementById('detailTable').innerHTML=view.tableHtml;
-  document.getElementById('detailTable').insertAdjacentHTML('afterend',view.matchSection);
-  document.getElementById('detailCol').classList.remove('hidden');
-  updateMobileHeaderReportBoardVisibility();
-}
-
 function findTournamentTeamMetaByName(teamName=''){
   const normalizedName=String(teamName||'').trim();
   if(!normalizedName) return null;
@@ -12373,9 +12349,7 @@ function resolveKnockoutOutcome(matchNum='', homeTeam=null, awayTeam=null){
 }
 function buildKnockoutStageMatches(stage=''){
   return (knockoutTemplates[stage]||[]).map(([match])=>{
-    const firstSpace=match.indexOf(' ');
-    const matchNum=firstSpace===-1?match:match.slice(0, firstSpace);
-    const matchText=firstSpace===-1?'':match.slice(firstSpace+1);
+    const {matchNum, matchText}=parseKnockoutTemplateMatch(match);
     const [homeToken='', awayToken='']=matchText.split(/\s+vs\s+/);
     const homeTeam=resolveKnockoutToken(matchNum, homeToken);
     const awayTeam=resolveKnockoutToken(matchNum, awayToken);
@@ -12465,12 +12439,11 @@ function renderKnockoutTable(stage){
   clearDetailExtras();
   currentBracketStage=stage;
   updateRoundOf32WithThirdPlaceTeams();
-  const stageNames={round32:'32강',round16:'16강',quarterfinal:'8강',semifinal:'4강',final:'결승'};
-  document.getElementById('detailTitle').textContent=stageNames[stage]||'';
+  document.getElementById('detailTitle').textContent=WORLD_CUP_STAGE_NAMES[stage]||'';
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
   const rows=knockoutTemplates[stage]||[];
-  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const firstSpace=match.indexOf(' ');const matchNum=firstSpace===-1?match:match.slice(0,firstSpace);const matchText=firstSpace===-1?'':match.slice(firstSpace+1);const info=knockoutSchedule[matchNum]||{date:'-',time:'-',stadium:'-'};const rowClass=stage==='final'?(matchNum==='M104'?'knockout-final-row':matchNum==='M103'?'knockout-third-place-row':''):'';return renderScheduleMatchRow(matchNum, buildKnockoutMatchLabel(matchNum, matchText), info.date, info.time, info.stadium, rowClass);}).join('')}</tbody>`;
+  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const {matchNum, matchText}=parseKnockoutTemplateMatch(match);const info=knockoutSchedule[matchNum]||DEFAULT_SCHEDULE_MATCH_INFO;const rowClass=stage==='final'?(matchNum==='M104'?'knockout-final-row':matchNum==='M103'?'knockout-third-place-row':''):'';return renderScheduleMatchRow(matchNum, buildKnockoutMatchLabel(matchNum, matchText), info.date, info.time, info.stadium, rowClass);}).join('')}</tbody>`;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
 }
@@ -12919,101 +12892,13 @@ function showMexicoStadiumSection(sectionKey, el){
   focusPanelStart('#detailCol');
 }
 
-function runTests(){
-  updateHeaderCountdown();
-  ensureTimelineDataReady();
-  const dates=getTimelineDates();
-  const photoSources=getPlayerPhotoSources();
-  const photoTitles=getPlayerPhotoTitles();
-  const importedNewsData=getNewsData();
-  const headerPrefix=document.querySelector('#headerCountdown .header-countdown-prefix')?.textContent||'';
-  const headerNumber=document.querySelector('#headerCountdown .header-countdown-number')?.textContent||'';
-  const headerCountdownText=`${headerPrefix}${headerNumber}`;
-  console.assert(headerCountdownText.startsWith('D-')||headerCountdownText==='D-DAY'||headerCountdownText.startsWith('D+'),'Header countdown should render');
-  console.assert(typeof toggleMain==='function','toggleMain should be defined');
-  console.assert(typeof toggleBracket==='function','toggleBracket should be defined');
-  console.assert(typeof toggleGroupASquads==='function','toggleGroupASquads should be defined');
-  console.assert(typeof showGroupASquad==='function','showGroupASquad should be defined');
-  console.assert(typeof toggleEquipment==='function','toggleEquipment should be defined');
-  console.assert(typeof togglePersonalTimeline==='function','togglePersonalTimeline should be defined');
-  console.assert(typeof saveTimelineSelection==='function','saveTimelineSelection should be defined');
-  console.assert(typeof clearTimelineSelectionEntries==='function','clearTimelineSelectionEntries should be defined');
-  console.assert(typeof updateHeaderReportBoard==='function','updateHeaderReportBoard should be defined');
-  console.assert(typeof buildPersonalTimelineReportText==='function','buildPersonalTimelineReportText should be defined');
-  console.assert(typeof getThirdPlaceTeams==='function','getThirdPlaceTeams should be defined');
-  console.assert(typeof renderThirdPlaceRankingTable==='function','renderThirdPlaceRankingTable should be defined');
-  console.assert(Array.isArray(timelineRows)&&timelineRows.length===10,'Timeline rows should exist');
-  console.assert(Array.isArray(timelineEditableRows)&&timelineEditableRows.length===10,'Editable timeline rows should exist');
-  console.assert(personalTimelineDetailFields.length===5,'Personal timeline detail fields should exist');
-  console.assert(teamTimelineRows[0].label==='대한민국'&&teamTimelineRows[3].label==='체코','Team timeline row ordering should exist');
-  console.assert(personalTimelineRows[0].label==='영상취재팀 공동'&&personalTimelineRows[6].label==='정재우','Personal timeline row ordering should exist');
-  console.assert(timelineOfficialTeamSchedules['대한민국'][0].label.includes('vs 체코'),'Korea official timeline should include opponent');
-  console.assert(timelineOfficialTeamSchedules['멕시코'][1].label.includes('vs 대한민국'),'Mexico official timeline should include opponent');
-  console.assert(timelineOfficialTeamSchedules['남아공'][2].label.includes('대한민국'),'South Africa official timeline should include opponent');
-  console.assert(Array.isArray(dates)&&dates.length===153,'Timeline dates should exist');
-  console.assert(formatTimelineDate(dates[0])==='3/1','Timeline should start on March 1');
-  console.assert(formatTimelineDate(dates[dates.length-1])==='7/31','Timeline should end on July 31');
-  console.assert(typeof toggleMexicoStadium==='function','toggleMexicoStadium should be defined');
-  console.assert(photoSources['손흥민'].includes('joinkfa.com'),'Son Heung-min official photo should exist');
-  console.assert(photoSources['Guillermo Ochoa'].includes('miseleccion.mx'),'Guillermo Ochoa official photo should exist');
-  console.assert(photoTitles['손흥민']==='Son Heung-min','Son Heung-min photo title should exist');
-  console.assert(photoTitles['Guillermo Ochoa']==='Guillermo Ochoa','Guillermo Ochoa photo title should exist');
-  console.assert(photoTitles['Ronwen Williams']==='Ronwen Williams','Ronwen Williams photo title should exist');
-  console.assert(photoTitles['Patrik Schick']==='Patrik Schick','Patrik Schick photo title should exist');
-  console.assert(mexicoStadiums.akron.sections.route.rows[1][1]==='미디어 입구 -> 작업 구역 -> 피치 접근','Akron route section should exist');
-  console.assert(mexicoStadiums.bbva.sections.mixedZone.rows[1][1]==='라커룸 출구 인접 인터뷰 구역','BBVA mixed zone section should exist');
-  console.assert(Array.isArray(groupMatches.A)&&groupMatches.A.length===6,'Group A should have 6 matches');
-  console.assert(Array.isArray(groupMatches.B)&&groupMatches.B.length===6,'Group B should have 6 matches');
-  console.assert(Array.isArray(groupMatches.K)&&groupMatches.K.length===6,'Group K should have 6 matches');
-  console.assert(Array.isArray(groupMatches.L)&&groupMatches.L.length===6,'Group L should have 6 matches');
-  console.assert(buildWorldCupTimeLabel('2026-06-11','14:00','Mexico City')==='현지 14:00 / 한국 04:00(+1일)','Opening match Korea conversion should match expected label');
-  console.assert(groupData.A[3].name==='Czechia','Group A fourth team should be Czechia');
-  console.assert(groupData.B[1].name==='Bosnia and Herzegovina','Group B second team should be Bosnia and Herzegovina');
-  console.assert(groupData.D[3].name==='Türkiye','Group D fourth team should be Türkiye');
-  console.assert(groupData.F[2].name==='Sweden','Group F third team should be Sweden');
-  console.assert(groupData.I[2].name==='Iraq','Group I third team should be Iraq');
-  console.assert(groupData.K[1].name==='Congo DR','Group K second team should be Congo DR');
-  toggleMain();
-  console.assert(!document.getElementById('newsCol').classList.contains('hidden'),'News panel should open');
-  showNewsYear('2022', document.querySelector('#newsCol .item'));
-  activateBroadcaster(document.querySelector('#newsBroadcasterCol .item'), 'KBS');
-  console.assert(document.querySelector('.news-detail-title-ci.broadcaster-ci-kbs')!==null,'News detail CI title should render');
-  console.assert(document.querySelectorAll('.news-table tbody tr').length===getNewsEntries('2022','KBS').length,'News rows should match current news entries');
-  console.assert(importedNewsData['2022'].SBS.every(item=>item.date&&item.date.startsWith('2022.')),'SBS news dates should be filled from official publish dates');
-  toggleGroupASquads();
-  console.assert(!document.getElementById('groupASquadCol').classList.contains('hidden'),'Group A squad panel should open');
-  showGroupASquad('korea', document.querySelector('#groupASquadCol .item'));
-  console.assert(document.getElementById('detailTitle').textContent==='대한민국 선수단','Group A squad detail should render');
-  console.assert(document.getElementById('detailTable').classList.contains('squad-table'),'Group A squad table class should render');
-  console.assert(document.querySelector('.player-photo-shell')!==null,'Squad player photo shell should render');
-  toggleEquipment();
-  console.assert(!document.getElementById('equipmentUserCol').classList.contains('hidden'),'Equipment user panel should open');
-  console.assert(document.getElementById('detailTitle').textContent==='장비종합현황','Equipment panel should render');
-  showEquipmentPersonal('박재현', document.querySelector('#equipmentUserCol .item'));
-  console.assert(document.getElementById('detailTitle').textContent==='박재현 개인장비','Equipment personal detail should render');
-  togglePersonalTimeline();
-  console.assert(document.getElementById('detailTitle').textContent==='일정타임라인','Personal timeline detail should render');
-  console.assert(document.querySelectorAll('.personal-timeline-item').length===dates.length,'Personal timeline items should render');
-  console.assert(document.querySelector('.personal-timeline-dot')!==null,'Personal timeline daily dots should render');
-  toggleMexicoStadium();
-  console.assert(!document.getElementById('mexicoStadiumCol').classList.contains('hidden'),'Mexico stadium panel should open');
-  showMexicoStadium('akron', document.querySelector('#mexicoStadiumCol .item'));
-  console.assert(!document.getElementById('mexicoStadiumSectionCol').classList.contains('hidden'),'Mexico stadium section panel should open');
-  console.assert(document.getElementById('detailTitle').textContent==='아크론스타디움, 과달라하라','Mexico stadium detail should render');
-  console.assert(document.querySelector('.stadium-photo')!==null,'Mexico stadium image should render');
-  showMexicoStadiumSection('shooting', document.querySelector('#mexicoStadiumSectionCol .item'));
-  console.assert(document.getElementById('detailTitle').textContent==='아크론스타디움 - 촬영 구역','Mexico stadium subfolder detail should render');
-  console.assert(document.querySelector('.stadium-photo')===null,'Mexico stadium subfolder should not reuse parent image');
-  console.assert(document.querySelector('.stadium-slot')!==null,'Mexico stadium subfolder should render image slot');
-  console.assert(renderScheduleStadiumMedia('MetLife Stadium (New York/New Jersey)').includes('schedule-stadium-photo'),'Schedule stadium media should render for mapped stadium');
-}
-
 const LEGACY_WC_TIME_RESET_FLAG = 'worldcup-time-reset-2026-05-03-bracket-kst-01';
+const LEGACY_WC_TIME_STORAGE_KEYS = ['scheduleState','worldcup-schedule'];
 function resetLegacyWorldCupTimeStorage(){
   if(typeof window==='undefined'||!window.localStorage||!window.sessionStorage) return;
   if(window.sessionStorage.getItem(LEGACY_WC_TIME_RESET_FLAG)==='done') return;
   let shouldReload=false;
-  ['scheduleState','worldcup-schedule'].forEach(key=>{
+  LEGACY_WC_TIME_STORAGE_KEYS.forEach(key=>{
     if(window.localStorage.getItem(key)!==null){
       window.localStorage.removeItem(key);
       shouldReload=true;
@@ -13061,10 +12946,6 @@ if(typeof window!=='undefined'){
   });
 }
 updateMobileHeaderReportBoardVisibility();
-console.log("DEPLOY CHECK: 2026-04-16-vercel-static-final-03");
-// deploy refresh 2026-04-16
-// deploy refresh 2026-04-16-pages-fix-01
-// deploy refresh 2026-04-16-vercel-static-final-03
 
 
 
