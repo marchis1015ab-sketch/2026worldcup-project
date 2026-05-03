@@ -1028,7 +1028,6 @@ function loadNewsEditorEntries(){
 }
 function saveNewsEditorEntries(){
   writeNewsEditorRaw(JSON.stringify(newsEditorEntries));
-  updateTopTabBadges();
 }
 function buildNewsEditorEntryFromBase(entry, year, broadcaster){
   return normalizeNewsEditorEntry({
@@ -1369,7 +1368,6 @@ function ensureMexicoStadiumEditorEntries(){
 }
 function saveMexicoStadiumEditorEntries(){
   writeMexicoStadiumEditorRaw(JSON.stringify(mexicoStadiumEditorEntries));
-  updateTopTabBadges();
 }
 function invalidateMexicoStadiumDetails(){
   renderCache.mexicoStadiumDetails=Object.create(null);
@@ -1633,7 +1631,6 @@ function saveEquipmentState(rows=equipmentState){
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
   saveEquipmentEditorEntries();
-  updateTopTabBadges();
   return cloneEquipmentRows(equipmentState);
 }
 function hasActiveEquipmentEditMode(){
@@ -2047,7 +2044,6 @@ function saveEquipmentCarnetEntries(){
   };
   writeEquipmentCarnetRaw(JSON.stringify(payload));
   renderCache.equipmentCarnetPanel='';
-  updateTopTabBadges();
 }
 function getEquipmentCarnetEntries(){
   loadEquipmentCarnetEntries();
@@ -2604,7 +2600,6 @@ function saveEquipmentFileStorageEntries(){
   };
   writeEquipmentFileStorageRaw(JSON.stringify(payload));
   renderCache.equipmentFileStoragePanel='';
-  updateTopTabBadges();
 }
 function getEquipmentFileStorageEntries(){
   loadEquipmentFileStorageEntries();
@@ -3040,7 +3035,6 @@ function saveNewsProgrammingState(){
     }
   };
   writeNewsProgrammingRaw(JSON.stringify(payload));
-  updateTopTabBadges();
 }
 function loadProgrammingMemos(){
   if(typeof window==='undefined'||!window.localStorage) return {};
@@ -3076,7 +3070,6 @@ function loadProgrammingMemos(){
 function saveProgrammingMemos(nextMemos=currentNewsProgrammingSavedMemos){
   if(typeof window==='undefined'||!window.localStorage) return;
   window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(createDatedMemoStoragePayload(nextMemos)));
-  updateTopTabBadges();
 }
 function ensureNewsProgrammingLocalPersistenceLoaded(){
   if(hasLoadedNewsProgrammingLocalPersistence) return;
@@ -3110,7 +3103,6 @@ function saveMapLocationPinEntries(){
     region:sortMapLocationPinEntries(Array.isArray(mapLocationPinEntries.region)?mapLocationPinEntries.region:[]),
     lodging:sortMapLocationPinEntries(Array.isArray(mapLocationPinEntries.lodging)?mapLocationPinEntries.lodging:[])
   }));
-  updateTopTabBadges();
 }
 function getMapLocationPinEntries(sectionKey='region'){
   loadMapLocationPinEntries();
@@ -4098,7 +4090,6 @@ function mapPlaceToSupabaseRow(input={}){
 function replacePlaceStore(rows=[]){
   placeStore.length=0;
   placeStore.push(...(Array.isArray(rows)?rows:[]).map((row,index)=>mapPlaceFromSupabaseRow(row,index)).filter(Boolean));
-  updateTopTabBadges();
 }
 async function refreshMapPlacesFromSupabase(options={}){
   const {rerender=true, force=false}=options||{};
@@ -6971,7 +6962,6 @@ function normalizeScheduleData(data={}){
 }
 function renderSchedules(data){
   window.supabaseSchedules=Array.isArray(data) ? data : [];
-  updateTopTabBadges();
 }
 function buildMessage(schedule) {
   const timeLabel=buildWorldCupTimeLabel(schedule?.date||'', schedule?.time||'', schedule?.city||'');
@@ -7424,7 +7414,6 @@ function loadPersonalTimelineSharedEntries(){
 }
 function savePersonalTimelineSharedEntries(){
   writePersonalTimelineSharedRaw(JSON.stringify(personalTimelineSharedEntries));
-  updateTopTabBadges();
 }
 function getPersonalTimelineSharedEntries(dateKey){
   loadPersonalTimelineSharedEntries();
@@ -8977,7 +8966,6 @@ function applyTimelineGalleryEntries(entries=[], source='unknown'){
     source,
     rawLength
   });
-  updateTopTabBadges();
 }
 async function fetchTimelineGallerySharedRaw(){
   const client=getSharedStateSyncClient();
@@ -9094,7 +9082,6 @@ function saveTimelineGalleryEntries(){
   timelineGalleryEntries.length=0;
   timelineGalleryEntries.push(...normalizedEntries);
   persistTimelineGalleryEntries();
-  updateTopTabBadges();
 }
 function saveDraft(key, value){
   if(typeof window==='undefined'||!window.localStorage) return;
@@ -11489,7 +11476,6 @@ function ensureSquadInjuryEntries(){
 }
 function saveSquadInjuryEntries(){
   writeSquadInjuryRaw(JSON.stringify(squadInjuryEntries));
-  updateTopTabBadges();
 }
 function invalidateSquadViews(){
   renderCache.squadViews=Object.create(null);
@@ -12528,7 +12514,6 @@ function setGroupMatchResult(matchNum, result={}){
   if(!entry) return false;
   Object.assign(entry.match, result||{});
   rerenderTournamentViews();
-  updateTopTabBadges();
   return true;
 }
 function setKnockoutMatchResult(matchNum, result={}){
@@ -12539,7 +12524,6 @@ function setKnockoutMatchResult(matchNum, result={}){
     ...(result||{})
   };
   rerenderTournamentViews();
-  updateTopTabBadges();
   return true;
 }
 if(typeof window!=='undefined'){
@@ -12908,163 +12892,6 @@ function showMexicoStadiumSection(sectionKey, el){
   focusPanelStart('#detailCol');
 }
 
-const TOP_TAB_BADGE_KEYS = Object.freeze(['schedule','equipment','bracket','squad','stadium','map','newsProgramming','news']);
-let isUpdatingTopTabBadges = false;
-function clampTopTabBadgeCount(value=0){
-  const count=Number(value);
-  if(!Number.isFinite(count)||count<=0) return 0;
-  return Math.max(0, Math.floor(count));
-}
-function formatTopTabBadgeCount(value=0){
-  const count=clampTopTabBadgeCount(value);
-  if(count<=0) return '0';
-  return count>99 ? '99+' : String(count);
-}
-function ensureTopTabBadgeShell(menu){
-  if(!(menu instanceof HTMLElement)) return null;
-  const badgeKey=String(menu.dataset.topTabKey||'').trim();
-  if(!badgeKey) return null;
-  let label=menu.querySelector('.top-tab-label');
-  let badge=menu.querySelector('.top-tab-badge');
-  if(!label){
-    label=document.createElement('span');
-    label.className='top-tab-label';
-    label.textContent=String(menu.textContent||'').trim();
-    menu.textContent='';
-    menu.appendChild(label);
-  }
-  if(!badge){
-    badge=document.createElement('span');
-    badge.className='top-tab-badge';
-    badge.dataset.tabBadge=badgeKey;
-    badge.hidden=true;
-    badge.textContent='0';
-    menu.appendChild(badge);
-  }
-  return {label, badge};
-}
-function setTopTabBadge(key='', count=0){
-  if(typeof document==='undefined') return;
-  const normalizedKey=String(key||'').trim();
-  if(!normalizedKey) return;
-  const normalizedCount=clampTopTabBadgeCount(count);
-  const badgeLabel=formatTopTabBadgeCount(normalizedCount);
-  document.querySelectorAll(`[data-top-tab-key="${normalizedKey}"]`).forEach(menu=>{
-    const shell=ensureTopTabBadgeShell(menu);
-    if(!shell?.badge) return;
-    shell.badge.hidden=normalizedCount<=0;
-    shell.badge.textContent=badgeLabel;
-  });
-}
-function getTimelineGalleryGroupCount(entries=[]){
-  return getTimelineGalleryDateGroups(Array.isArray(entries)?entries:[]).reduce((sum, [, memoGroups])=>sum+memoGroups.size, 0);
-}
-function getScheduleTabBadgeCount(){
-  loadPersonalTimelineSharedEntries();
-  loadTimelineGalleryEntries();
-  const sharedScheduleCount=(Array.isArray(window.supabaseSchedules)?window.supabaseSchedules:[])
-    .filter(item=>String(item?.title||item?.assignee||item?.location||item?.time||item?.tvu||'').trim()!=='')
-    .length;
-  const sharedTimelineCount=Object.values(personalTimelineSharedEntries).reduce((sum, entries)=>sum+normalizePersonalTimelineSharedEntries(entries).length, 0);
-  const galleryGroupCount=getTimelineGalleryGroupCount(timelineGalleryEntries);
-  return sharedScheduleCount+sharedTimelineCount+galleryGroupCount;
-}
-function getEquipmentTabBadgeCount(){
-  ensureEquipmentEditorEntries();
-  const storedSharedRows=equipmentEditorEntries[getEquipmentEditorKey('shared', '')];
-  const equipmentCount=(Array.isArray(storedSharedRows)?storedSharedRows:[]).filter(row=>isEquipmentRowTouched(row)).length;
-  const carnetCount=getEquipmentCarnetEntries().length;
-  const fileStorageCount=getEquipmentFileStorageEntries().length;
-  return equipmentCount+carnetCount+fileStorageCount;
-}
-function hasMeaningfulKnockoutResultEntry(entry={}){
-  const winner=String(entry?.winnerName||entry?.winner||'').trim();
-  const homeScore=normalizeMatchScoreValue(entry?.homeScore ?? entry?.home_score ?? entry?.score?.home);
-  const awayScore=normalizeMatchScoreValue(entry?.awayScore ?? entry?.away_score ?? entry?.score?.away);
-  return Boolean(winner||homeScore!==null||awayScore!==null);
-}
-function getBracketTabBadgeCount(){
-  const groupResultCount=Object.values(groupMatches).flat().filter(match=>{
-    const result=getGroupMatchResult(match);
-    return result.isPlayed||result.homeFairPlay!==0||result.awayFairPlay!==0;
-  }).length;
-  const knockoutCount=Object.values(knockoutResultState).filter(hasMeaningfulKnockoutResultEntry).length;
-  return groupResultCount+knockoutCount;
-}
-function getSquadTabBadgeCount(){
-  ensureSquadInjuryEntries();
-  return Object.keys(squadInjuryEntries).filter(key=>key&&squadInjuryEntries[key]).length;
-}
-function hasMeaningfulMexicoStadiumEditorEntry(entry={}){
-  const hasRows=Array.isArray(entry?.rows)&&entry.rows.some(row=>String(row?.[1]||'').trim()!=='');
-  const hasMedia=Array.isArray(entry?.mediaItems)&&entry.mediaItems.some(item=>String(item?.src||'').trim()!=='');
-  return hasRows||hasMedia;
-}
-function getStadiumTabBadgeCount(){
-  ensureMexicoStadiumEditorEntries();
-  return Object.values(mexicoStadiumEditorEntries).filter(hasMeaningfulMexicoStadiumEditorEntry).length;
-}
-function getMapTabBadgeCount(){
-  loadMapLocationPinEntries();
-  const placeCount=Array.isArray(placeStore)?placeStore.filter(place=>String(place?.name||place?.title||place?.address||'').trim()!=='').length:0;
-  const pinCount=getMapLocationPinEntries('region').length+getMapLocationPinEntries('lodging').length;
-  return placeCount+pinCount;
-}
-function getNewsProgrammingTabBadgeCount(){
-  loadNewsProgrammingState();
-  const memoCount=Object.values(currentNewsProgrammingSavedMemos).filter(value=>String(value||'').trim()!=='').length;
-  const specialCount=(Array.isArray(newsProgrammingSpecialEntries)?newsProgrammingSpecialEntries:[]).length;
-  return memoCount+specialCount;
-}
-function getNewsTabBadgeCount(){
-  const raw=readNewsEditorRaw();
-  if(!raw) return 0;
-  try{
-    const parsed=JSON.parse(raw);
-    return Object.entries(parsed||{}).reduce((sum, [key, entries])=>{
-      const [year='']=String(key||'').split(':');
-      return sum+normalizeNewsEditorEntries(entries, year).length;
-    }, 0);
-  }catch(error){
-    return 0;
-  }
-}
-const TOP_TAB_BADGE_RESOLVERS = Object.freeze({
-  schedule:getScheduleTabBadgeCount,
-  equipment:getEquipmentTabBadgeCount,
-  bracket:getBracketTabBadgeCount,
-  squad:getSquadTabBadgeCount,
-  stadium:getStadiumTabBadgeCount,
-  map:getMapTabBadgeCount,
-  newsProgramming:getNewsProgrammingTabBadgeCount,
-  news:getNewsTabBadgeCount
-});
-function updateTopTabBadges(){
-  if(typeof document==='undefined') return {};
-  if(isUpdatingTopTabBadges) return {};
-  isUpdatingTopTabBadges=true;
-  const counts={};
-  try{
-    TOP_TAB_BADGE_KEYS.forEach(key=>{
-      let nextCount=0;
-      try{
-        nextCount=TOP_TAB_BADGE_RESOLVERS[key]?.()??0;
-      }catch(error){
-        nextCount=0;
-      }
-      const normalizedCount=clampTopTabBadgeCount(nextCount);
-      counts[key]=normalizedCount;
-      setTopTabBadge(key, normalizedCount);
-    });
-  }finally{
-    isUpdatingTopTabBadges=false;
-  }
-  return counts;
-}
-if(typeof window!=='undefined'){
-  window.updateTopTabBadges=updateTopTabBadges;
-}
-
 const LEGACY_WC_TIME_RESET_FLAG = 'worldcup-time-reset-2026-05-03-bracket-kst-01';
 const LEGACY_WC_TIME_STORAGE_KEYS = ['scheduleState','worldcup-schedule'];
 function resetLegacyWorldCupTimeStorage(){
@@ -13095,7 +12922,6 @@ updateHeaderCountdown();
 updateHeaderReportBoard();
 startHeaderTimeTicker();
 ensureMobileHistoryGuard();
-updateTopTabBadges();
 if(typeof window!=='undefined'){
   window.initMap=initMap;
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
@@ -13103,7 +12929,6 @@ if(typeof window!=='undefined'){
   document.addEventListener('DOMContentLoaded', loadSchedules);
   document.addEventListener('DOMContentLoaded', subscribeRealtime);
   document.addEventListener('DOMContentLoaded', applyMobileTimelineAStructure);
-  document.addEventListener('DOMContentLoaded', updateTopTabBadges);
   window.addEventListener('load', initSharedStateSync);
   window.addEventListener('focus', fetchSharedStateSnapshot);
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
