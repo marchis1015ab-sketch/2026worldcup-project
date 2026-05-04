@@ -3161,7 +3161,7 @@ function renderEquipmentFileStorageCard(entry){
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
-  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
+  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
   return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><strong class="equipment-carnet-card-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</strong><span class="equipment-carnet-card-date file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
 }
 function renderEquipmentFileStorageMobileRow(entry){
@@ -3169,7 +3169,7 @@ function renderEquipmentFileStorageMobileRow(entry){
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
-  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
+  const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
   return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" onclick="${openAction}"><strong class="equipment-carnet-mobile-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'자료 파일')}</strong><span class="equipment-carnet-mobile-meta file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
 }
 function renderEquipmentFileStorageItems(entries=[]){
@@ -3234,6 +3234,11 @@ function downloadEquipmentFileStorageEntry(entryId=''){
   link.click();
   link.remove();
 }
+function openEquipmentFileStoragePreviewById(entryId=''){
+  loadEquipmentFileStorageEntries();
+  const entry=equipmentFileStorageEntries.find(item=>String(item.id)===String(entryId));
+  if(entry) openFilePreview(entry);
+}
 function getFileExt(fileName=''){
   const parts=String(fileName||'').split('.');
   return parts.length>1 ? parts.pop().toLowerCase() : '';
@@ -3250,6 +3255,9 @@ function isVideoFile(fileName=''){
 function isPdfFile(fileName=''){
   return getFileExt(fileName)==='pdf';
 }
+function isExcelFile(fileName=''){
+  return ['xls','xlsx'].includes(getFileExt(fileName));
+}
 function isOfficeFile(fileName=''){
   return ['xls','xlsx','doc','docx','ppt','pptx','hwp','hwpx'].includes(getFileExt(fileName));
 }
@@ -3258,6 +3266,7 @@ function getFilePreviewType(item={}){
   if(isImageFile(fileName)) return 'image';
   if(isVideoFile(fileName)) return 'video';
   if(isPdfFile(fileName)) return 'pdf';
+  if(isExcelFile(fileName)) return 'excel';
   if(isOfficeFile(fileName)) return 'office';
   return 'unsupported';
 }
@@ -3288,6 +3297,38 @@ function ensureFilePreviewModalEvents(){
     });
   }
 }
+async function previewExcelFile(item){
+  const body=document.getElementById('file-preview-body');
+  if(!body||!item) return;
+  const fileUrl=String(item.public_url||item.publicUrl||item.url||item.originalData||'').trim();
+  const fileName=String(item.file_name||item.fileName||item.title||'엑셀 파일');
+  body.innerHTML='<p class="file-preview-loading">엑셀 미리보기를 불러오는 중입니다...</p>';
+  const xlsx=window.XLSX;
+  if(!xlsx){
+    throw new Error('SheetJS 라이브러리를 불러오지 못했습니다.');
+  }
+  const response=await fetch(fileUrl);
+  if(!response.ok){
+    throw new Error(`파일을 불러오지 못했습니다. (${response.status})`);
+  }
+  const arrayBuffer=await response.arrayBuffer();
+  const workbook=xlsx.read(arrayBuffer, {type:'array'});
+  const firstSheetName=workbook.SheetNames?.[0]||'Sheet1';
+  const sheet=workbook.Sheets[firstSheetName];
+  if(!sheet){
+    throw new Error('미리보기할 시트를 찾지 못했습니다.');
+  }
+  const rows=xlsx.utils.sheet_to_json(sheet, {
+    header:1,
+    blankrows:false,
+    defval:''
+  });
+  const previewRows=rows.slice(0, 100);
+  const tableRows=previewRows.length
+    ? previewRows.map(row=>`<tr>${(Array.isArray(row)?row:[]).map(cell=>`<td>${escapeHtml(cell ?? '')}</td>`).join('')}</tr>`).join('')
+    : '<tr><td>표시할 데이터가 없습니다.</td></tr>';
+  body.innerHTML=`<div class="excel-preview-wrap"><div class="excel-preview-head"><strong>${escapeHtml(fileName)}</strong><span>첫 번째 시트: ${escapeHtml(firstSheetName)} · 상위 ${previewRows.length}행 미리보기</span></div><div class="excel-preview-table-scroll"><table class="excel-preview-table"><tbody>${tableRows}</tbody></table></div><div class="file-preview-actions"><a href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">다운로드</a></div></div>`;
+}
 function openFilePreview(item){
   ensureFilePreviewModalEvents();
   const modal=document.getElementById('file-preview-modal');
@@ -3301,6 +3342,13 @@ function openFilePreview(item){
   modal.style.display='block';
   modal.setAttribute('aria-hidden', 'false');
   modal.focus?.();
+  if(previewType==='excel'){
+    previewExcelFile(item).catch(error=>{
+      console.error('엑셀 미리보기 실패:', error);
+      body.innerHTML=`<div class="file-preview-message"><strong>${escapeHtml(fileName)}</strong><p>엑셀 미리보기를 불러오지 못했습니다.</p><div class="file-preview-actions"><a href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">다운로드</a></div></div>`;
+    });
+    return;
+  }
   if(previewType==='image'){
     body.innerHTML=`<img class="file-preview-image" src="${escapeHtml(fileUrl)}" alt="${escapeHtml(fileName)}">`;
     return;
