@@ -2906,10 +2906,13 @@ function getFileStorageClient(){
 }
 function createFileStoragePath(file={}){
   const originalName=file?.name||'file';
-  const safeName=String(originalName)
-    .replace(/\s+/g, '_')
-    .replace(/[^\w.\-가-힣]/g, '');
-  return `${Date.now()}_${safeName||'file'}`;
+  const ext=String(originalName).includes('.')
+    ? String(originalName).split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '')||'bin'
+    : 'bin';
+  const randomId=typeof crypto!=='undefined'&&crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '')
+    : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  return `file_${Date.now()}_${randomId}.${ext}`;
 }
 function logFileStorageError(error, context={}){
   const source=error&&typeof error==='object' ? error : {};
@@ -3017,8 +3020,10 @@ async function uploadFileStorageItem(file, title=''){
   if(!client?.storage?.from){
     throw new Error('Supabase Storage 연결이 준비되지 않았습니다.');
   }
+  const originalName=file.name||'file';
   const storagePath=createFileStoragePath(file);
-  console.log('UPLOAD PATH:', storagePath);
+  console.log('UPLOAD ORIGINAL NAME:', originalName);
+  console.log('UPLOAD STORAGE PATH:', storagePath);
   const {error:uploadError}=await client.storage
     .from(FILE_STORAGE_BUCKET)
     .upload(storagePath, file, {
@@ -3034,10 +3039,10 @@ async function uploadFileStorageItem(file, title=''){
   const publicUrl=String(urlData?.publicUrl||'').trim();
   if(!publicUrl) throw new Error('업로드된 파일 URL을 만들 수 없습니다.');
   const payload={
-    file_name:file.name,
+    file_name:originalName,
     storage_path:storagePath,
     public_url:publicUrl,
-    file_type:file.type||getEquipmentFileStorageType(file.name, file.type)||'',
+    file_type:file.type||getEquipmentFileStorageType(originalName, file.type)||'',
     file_size:file.size||0,
     uploader:String(currentUser?.name||currentEquipmentUser||'').trim(),
     uploaded_at:new Date().toISOString()
