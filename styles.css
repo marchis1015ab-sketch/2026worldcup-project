@@ -4662,6 +4662,7 @@ video{width:100%;height:auto;border-radius:8px}
 .timeline-modal-btn:hover{background:#f8fafc}
 .timeline-modal-btn.primary{border-color:#1d4f86;background:#1d4f86;color:#fff}
 .timeline-modal-btn.primary:hover{background:#163f6c}
+.timeline-modal-btn:disabled{cursor:not-allowed;opacity:.62}
 
 .table-column.personal-timeline-mode{
   overflow:visible;

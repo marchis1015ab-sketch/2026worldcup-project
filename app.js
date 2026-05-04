@@ -7982,22 +7982,36 @@ function createTimelineModalMediaId(){
   return `timeline-media-${Date.now()}-${timelineModalMediaSeq}`;
 }
 function normalizePersonalTimelineSharedMediaItem(item){
-  const src=String(item?.src||'').trim();
+  const src=String(item?.publicUrl||item?.url||item?.src||'').trim();
   if(!src) return null;
   return {
     id:String(item?.id||createTimelineModalMediaId()),
-    name:String(item?.name||'사진').trim()||'사진',
-    src
+    name:String(item?.name||item?.fileName||'사진').trim()||'사진',
+    src,
+    publicUrl:String(item?.publicUrl||item?.url||src).trim(),
+    storagePath:String(item?.storagePath||item?.path||'').trim(),
+    fileName:String(item?.fileName||item?.name||'사진').trim()||'사진',
+    fileType:String(item?.fileType||item?.mimeType||'').trim(),
+    source:String(item?.source||'schedule').trim()||'schedule',
+    scheduleId:String(item?.scheduleId||item?.sourceId||'').trim(),
+    uploadedAt:String(item?.uploadedAt||item?.savedAt||'').trim(),
+    file:typeof File!=='undefined'&&item?.file instanceof File ? item.file : null
   };
 }
 function normalizePersonalTimelineSharedEntry(entry){
   if(typeof entry==='string'){
     entry={text:entry, images:[]};
   }
+  const id=String(entry?.id||'').trim()||`schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const text=String(entry?.text||'').trim();
   const images=Array.isArray(entry?.images) ? entry.images.map(normalizePersonalTimelineSharedMediaItem).filter(Boolean) : [];
   if(!text&&!images.length) return null;
-  return {text, images};
+  return {
+    id,
+    text,
+    images,
+    updatedAt:String(entry?.updatedAt||new Date().toISOString())
+  };
 }
 function normalizePersonalTimelineSharedEntries(entries){
   if(Array.isArray(entries)){
@@ -8069,6 +8083,69 @@ function setPersonalTimelineSharedEntries(dateKey, entries){
 }
 function setPersonalTimelineSharedEntry(dateKey, entry){
   setPersonalTimelineSharedEntries(dateKey, entry ? [entry] : []);
+}
+function setScheduleSavingState(isSaving){
+  const modal=document.getElementById('timelineModal');
+  const saveButton=modal?.querySelector('.timeline-modal-btn.primary');
+  const fileInput=document.getElementById('timelineModalFile');
+  const input=document.getElementById('timelineModalInput');
+  if(saveButton){
+    saveButton.disabled=Boolean(isSaving);
+    saveButton.textContent=isSaving ? '저장 중...' : '저장';
+  }
+  if(fileInput) fileInput.disabled=Boolean(isSaving);
+  if(input) input.disabled=Boolean(isSaving);
+}
+async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryIndex=-1, text='', selection=null}={}){
+  const scheduleId=String(selection?.scheduleId||selection?.entryId||'').trim()
+    || String(selection?.initialEntry?.id||'').trim()
+    || (typeof crypto!=='undefined'&&crypto.randomUUID ? crypto.randomUUID() : `schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const nextEntries=[...getPersonalTimelineSharedEntries(dateKey)];
+  const mediaItems=Array.isArray(selection?.mediaItems) ? selection.mediaItems : [];
+  const uploadedImages=[];
+  for(const mediaItem of mediaItems){
+    const attachment=await uploadScheduleAttachmentToGallery(mediaItem, scheduleId);
+    if(!attachment) continue;
+    uploadedImages.push({
+      id:String(mediaItem?.id||createTimelineModalMediaId()),
+      name:attachment.fileName,
+      fileName:attachment.fileName,
+      fileType:attachment.fileType,
+      src:attachment.publicUrl,
+      publicUrl:attachment.publicUrl,
+      storagePath:attachment.storagePath,
+      source:'schedule',
+      scheduleId,
+      uploadedAt:attachment.uploadedAt
+    });
+    if(!mediaItem?.storagePath){
+      await insertSchedulePhotoToGallery(attachment, dateKey, text);
+    }
+  }
+  const nextEntry=normalizePersonalTimelineSharedEntry({
+    id:scheduleId,
+    text,
+    images:uploadedImages,
+    updatedAt:new Date().toISOString()
+  });
+  if(entryIndex>=0){
+    if(nextEntry){
+      nextEntries[entryIndex]=nextEntry;
+    }else{
+      nextEntries.splice(entryIndex, 1);
+    }
+  }else if(nextEntry){
+    nextEntries.push(nextEntry);
+  }
+  setPersonalTimelineSharedEntries(dateKey, nextEntries);
+  updatePersonalTimelineSharedColumn(item, dateKey);
+  updatePersonalTimelineItemEntryState(item, dateKey);
+  if(item) item.classList.add('is-open');
+  updateHeaderTimes();
+  if(document.querySelector('.timeline-gallery-view')){
+    await hydrateTimelineGalleryEntries(true);
+    refreshTimelineGalleryView();
+  }
 }
 function readPersonalTimelineDetailsRaw(){
   const storages=getTimelineStorageAreas();
@@ -9346,29 +9423,11 @@ function openPersonalTimelineSharedEditor(item, dateKey, entryIndex=-1){
     cells:[],
     mode:'shared',
     sharedAction:entryIndex>=0 ? 'edit' : 'write',
+    entryId:sharedEntry?.id||'',
+    initialEntry:sharedEntry||null,
     mediaItems:(sharedEntry?.images||[]).map(image=>({...image})),
     initialText:sharedEntry?.text||'',
-    onWrite:(text, selection)=>{
-      const nextEntries=[...getPersonalTimelineSharedEntries(dateKey)];
-      const nextEntry=normalizePersonalTimelineSharedEntry({
-        text,
-        images:Array.isArray(selection?.mediaItems) ? selection.mediaItems : []
-      });
-      if(entryIndex>=0){
-        if(nextEntry){
-          nextEntries[entryIndex]=nextEntry;
-        }else{
-          nextEntries.splice(entryIndex,1);
-        }
-      }else if(nextEntry){
-        nextEntries.push(nextEntry);
-      }
-      setPersonalTimelineSharedEntries(dateKey, nextEntries);
-      updatePersonalTimelineSharedColumn(item, dateKey);
-      updatePersonalTimelineItemEntryState(item, dateKey);
-      if(item) item.classList.add('is-open');
-      updateHeaderTimes();
-    }
+    onWrite:(text, selection)=>saveCommonScheduleWithAttachment({item, dateKey, entryIndex, text, selection})
   };
   openTimelineModal();
 }
@@ -9421,7 +9480,11 @@ function readTimelineModalFiles(files){
     reader.onload=()=>resolve({
       id:createTimelineModalMediaId(),
       name:file.name||'사진',
-      src:String(reader.result||'')
+      fileName:file.name||'사진',
+      fileType:file.type||'',
+      src:String(reader.result||''),
+      file,
+      source:'schedule'
     });
     reader.onerror=()=>resolve(null);
     reader.readAsDataURL(file);
@@ -9542,6 +9605,8 @@ function normalizeTimelineGalleryItem(item){
     capturedDate,
     memo:String(item?.memo||'').trim(),
     savedAt,
+    source:String(item?.source||'gallery').trim()||'gallery',
+    sourceId:String(item?.sourceId||item?.source_id||'').trim(),
     file:typeof File!=='undefined'&&item?.file instanceof File ? item.file : null
   };
 }
@@ -9551,13 +9616,17 @@ function extractTimelineGalleryItems(entry){
     return entry.images
       .map((image,index)=>normalizeTimelineGalleryItem({
         id:`${String(entry?.id||createTimelineGalleryEntryId())}_${String(image?.id||index)}`,
-        dataUrl:image?.dataUrl||image?.src||'',
+        dataUrl:image?.dataUrl||image?.src||image?.publicUrl||'',
+        publicUrl:image?.publicUrl||image?.url||'',
+        storagePath:image?.storagePath||image?.path||'',
         fileName:image?.name||entry?.title||`photo-${index+1}.jpg`,
         type:image?.type||image?.mediaType||'',
         mimeType:image?.mimeType||image?.contentType||'',
         savedAt:entry?.savedAt||entry?.createdAt,
         capturedDate:entry?.capturedDate||entry?.shootDate||entry?.date||'',
-        memo
+        memo,
+        source:entry?.source||image?.source||'gallery',
+        sourceId:entry?.sourceId||image?.sourceId||image?.scheduleId||''
       }))
       .filter(Boolean);
   }
@@ -9588,7 +9657,9 @@ function buildTimelineGalleryEntriesRaw(entries=[]){
     fileSize:entry.fileSize||0,
     capturedDate:entry.capturedDate||'',
     memo:entry.memo||'',
-    savedAt:entry.savedAt
+    savedAt:entry.savedAt,
+    source:entry.source||'gallery',
+    sourceId:entry.sourceId||''
   })));
 }
 function applyTimelineGalleryEntries(entries=[], source='unknown'){
@@ -9952,6 +10023,91 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
     mimeType,
     fileSize:Number(image?.fileSize)||file?.size||uploadBody.byteLength||0
   };
+}
+async function uploadScheduleAttachmentToGallery(fileOrImage, scheduleId=''){
+  if(!fileOrImage) return null;
+  if(fileOrImage.publicUrl&&fileOrImage.storagePath){
+    return {
+      fileName:String(fileOrImage.fileName||fileOrImage.name||'schedule-photo').trim()||'schedule-photo',
+      storagePath:String(fileOrImage.storagePath||'').trim(),
+      publicUrl:String(fileOrImage.publicUrl||fileOrImage.src||'').trim(),
+      fileType:String(fileOrImage.fileType||fileOrImage.mimeType||'').trim(),
+      source:'schedule',
+      scheduleId:scheduleId||fileOrImage.scheduleId||null,
+      uploadedAt:String(fileOrImage.uploadedAt||new Date().toISOString())
+    };
+  }
+  const client=getTimelineGalleryClient();
+  if(!client?.storage?.from){
+    throw new Error('Supabase Storage is not ready.');
+  }
+  const file=typeof File!=='undefined'&&fileOrImage instanceof File
+    ? fileOrImage
+    : (typeof File!=='undefined'&&fileOrImage?.file instanceof File ? fileOrImage.file : null);
+  const originalName=String(file?.name||fileOrImage?.fileName||fileOrImage?.name||'schedule-photo').trim()||'schedule-photo';
+  const ext=originalName.includes('.') ? originalName.split('.').pop().toLowerCase() : getTimelineGalleryFileExtension(originalName, file?.type||fileOrImage?.fileType||fileOrImage?.mimeType||'image/jpeg');
+  const randomId=typeof crypto!=='undefined'&&crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const storagePath=`schedule_${Date.now()}_${randomId}.${ext}`;
+  const dataUrl=String(fileOrImage?.src||fileOrImage?.dataUrl||'').trim();
+  const mimeType=String(file?.type||fileOrImage?.fileType||fileOrImage?.mimeType||getTimelineGalleryDataUrlMimeType(dataUrl, 'image/jpeg')).trim()||'image/jpeg';
+  const uploadBody=file||dataUrlToArrayBuffer(dataUrl);
+  if(!file&&!dataUrl){
+    throw new Error('첨부 사진 데이터가 비어 있습니다.');
+  }
+  const {error:uploadError}=await client.storage
+    .from(TIMELINE_GALLERY_STORAGE_BUCKET)
+    .upload(storagePath, uploadBody, {
+      cacheControl:'3600',
+      contentType:mimeType,
+      upsert:false
+    });
+  if(uploadError){
+    logTimelineGalleryStorageFailure(uploadError, {storagePath});
+    throw uploadError;
+  }
+  const {data:urlData}=client.storage
+    .from(TIMELINE_GALLERY_STORAGE_BUCKET)
+    .getPublicUrl(storagePath);
+  const publicUrl=String(urlData?.publicUrl||'').trim();
+  if(!publicUrl) throw new Error('Uploaded schedule image URL is empty.');
+  logTimelineGalleryStorageSuccess({storagePath, publicUrl});
+  return {
+    fileName:originalName,
+    storagePath,
+    publicUrl,
+    fileType:mimeType,
+    source:'schedule',
+    scheduleId:scheduleId||null,
+    uploadedAt:new Date().toISOString()
+  };
+}
+async function insertSchedulePhotoToGallery(attachment, scheduleDate='', memo=''){
+  if(!attachment?.publicUrl) return;
+  try{
+    const latestStoredEntries=await getTimelineGalleryEntriesForSave();
+    const galleryItem=normalizeTimelineGalleryItem({
+      id:`schedule_${attachment.scheduleId||Date.now()}_${String(attachment.storagePath||attachment.publicUrl).replace(/[^a-z0-9]/gi, '').slice(-12)}`,
+      fileName:attachment.fileName,
+      type:String(attachment.fileType||'').toLowerCase().startsWith('video/') ? 'video' : 'image',
+      dataUrl:'',
+      publicUrl:attachment.publicUrl,
+      storagePath:attachment.storagePath,
+      mimeType:attachment.fileType,
+      capturedDate:scheduleDate,
+      memo:memo||'공용일정 첨부',
+      savedAt:attachment.uploadedAt||Date.now(),
+      source:'schedule',
+      sourceId:attachment.scheduleId||''
+    });
+    if(!galleryItem) return;
+    timelineGalleryEntries=sortTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, galleryItem]);
+    saveTimelineGalleryEntries();
+    if(document.querySelector('.timeline-gallery-view')) refreshTimelineGalleryView();
+  }catch(error){
+    console.warn('갤러리 메타데이터 저장 실패:', error);
+  }
 }
 async function removeTimelineGalleryStorageFiles(entries=[]){
   const paths=Array.from(new Set((entries||[]).map(entry=>String(entry?.storagePath||'').trim()).filter(Boolean)));
@@ -11095,13 +11251,22 @@ function closeTimelineModal(){
   clearTimelinePreview();
   syncMobileHistoryState();
 }
-function writeTimelineSelection(value){
+async function writeTimelineSelection(value){
   if(!pendingTimelineSelection) return;
   const text=value.trim();
   const selection=pendingTimelineSelection;
   if(typeof selection.onWrite==='function'){
-    selection.onWrite(text, selection);
-    closeTimelineModal();
+    try{
+      setScheduleSavingState(true);
+      await selection.onWrite(text, selection);
+      closeTimelineModal();
+      if(selection.mode==='shared') window.alert('공용일정이 저장되었습니다.');
+    }catch(error){
+      console.error('공용일정 저장 실패:', error);
+      window.alert(`공용일정 저장에 실패했습니다. 원인: ${error?.message||error||'알 수 없는 오류'}`);
+    }finally{
+      setScheduleSavingState(false);
+    }
     return;
   }
   const {person,dates,cells}=selection;
