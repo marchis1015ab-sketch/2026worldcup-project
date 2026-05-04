@@ -3160,17 +3160,17 @@ function renderEquipmentFileStorageCard(entry){
   const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
-  const previewUrl=escapeHtml(getFileStoragePreviewUrl(entry));
+  const previewPayload=escapeHtml(JSON.stringify(entry));
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
-  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><h4 class="equipment-carnet-card-title" onclick="event.stopPropagation();openFilePreview('${previewUrl}')">${escapeHtml(entry.title||entry.fileName||'파일명 없음')}</h4><div class="equipment-carnet-card-file">${escapeHtml(entry.fileName||'파일명 없음')}</div><div class="equipment-carnet-card-date">${escapeHtml(meta||'등록 정보 없음')}</div><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
+  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><h4 class="equipment-carnet-card-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.title||entry.fileName||'파일명 없음')}</h4><div class="equipment-carnet-card-file">${escapeHtml(entry.fileName||'파일명 없음')}</div><div class="equipment-carnet-card-date">${escapeHtml(meta||'등록 정보 없음')}</div><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
 }
 function renderEquipmentFileStorageMobileRow(entry){
   const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
-  const previewUrl=escapeHtml(getFileStoragePreviewUrl(entry));
+  const previewPayload=escapeHtml(JSON.stringify(entry));
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStorageViewer('${escapeHtml(entry.id)}')`;
-  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" onclick="${openAction}"><span class="equipment-carnet-mobile-title" onclick="event.stopPropagation();openFilePreview('${previewUrl}')">${escapeHtml(entry.title||entry.fileName||'자료 파일')}</span><span class="equipment-carnet-mobile-meta">${escapeHtml([entry.fileName, meta].filter(Boolean).join(' · '))}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
+  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" onclick="${openAction}"><span class="equipment-carnet-mobile-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.title||entry.fileName||'자료 파일')}</span><span class="equipment-carnet-mobile-meta">${escapeHtml([entry.fileName, meta].filter(Boolean).join(' · '))}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
 }
 function renderEquipmentFileStorageItems(entries=[]){
   if(!entries.length){
@@ -3234,22 +3234,22 @@ function downloadEquipmentFileStorageEntry(entryId=''){
   link.click();
   link.remove();
 }
-function getFileStoragePreviewUrl(entryOrUrl){
-  if(!entryOrUrl) return '';
-  if(typeof entryOrUrl==='string') return entryOrUrl;
-  const publicUrl=String(entryOrUrl.publicUrl||entryOrUrl.originalData||entryOrUrl.previewData?.src||'').trim();
-  if(!publicUrl) return '';
-  const fileName=String(entryOrUrl.fileName||entryOrUrl.title||publicUrl).toLowerCase();
-  const fileType=String(entryOrUrl.fileType||entryOrUrl.mimeType||'').toLowerCase();
-  if(fileType.startsWith('image/')||fileType.startsWith('video/')||fileType==='image'||fileType==='pdf'||fileName.match(/\.(jpg|jpeg|png|webp|gif|bmp|svg|mp4|webm|ogg|pdf)$/i)){
-    return publicUrl;
-  }
-  return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(publicUrl)}`;
+function getFilePreviewExtension(fileName=''){
+  const parts=String(fileName||'').split('.');
+  return parts.length>1 ? parts.pop().toLowerCase() : '';
+}
+function getFilePreviewType(item={}){
+  const ext=getFilePreviewExtension(item.file_name||item.fileName||item.title||'');
+  if(['jpg','jpeg','png','gif','webp'].includes(ext)) return 'image';
+  if(['mp4','mov','webm'].includes(ext)) return 'video';
+  if(ext==='pdf') return 'pdf';
+  if(['xls','xlsx','doc','docx','ppt','pptx'].includes(ext)) return 'office';
+  return 'unsupported';
 }
 function closeFilePreview(){
   const modal=document.getElementById('file-preview-modal');
-  const frame=document.getElementById('file-preview-frame');
-  if(frame) frame.src='';
+  const body=document.getElementById('file-preview-body');
+  if(body) body.innerHTML='';
   if(modal){
     modal.classList.remove('is-open');
     modal.style.display='none';
@@ -3273,16 +3273,37 @@ function ensureFilePreviewModalEvents(){
     });
   }
 }
-function openFilePreview(url){
+function openFilePreview(item){
   ensureFilePreviewModalEvents();
   const modal=document.getElementById('file-preview-modal');
-  const frame=document.getElementById('file-preview-frame');
-  if(!modal||!frame||!url) return;
-  frame.src=url;
+  const body=document.getElementById('file-preview-body');
+  if(!modal||!body||!item) return;
+  const fileName=String(item.file_name||item.fileName||item.title||'파일');
+  const fileUrl=String(item.public_url||item.publicUrl||item.url||item.originalData||'').trim();
+  if(!fileUrl) return;
+  const previewType=getFilePreviewType(item);
   modal.classList.add('is-open');
   modal.style.display='block';
   modal.setAttribute('aria-hidden', 'false');
   modal.focus?.();
+  if(previewType==='image'){
+    body.innerHTML=`<img class="file-preview-image" src="${escapeHtml(fileUrl)}" alt="${escapeHtml(fileName)}">`;
+    return;
+  }
+  if(previewType==='video'){
+    body.innerHTML=`<video class="file-preview-video" src="${escapeHtml(fileUrl)}" controls playsinline></video>`;
+    return;
+  }
+  if(previewType==='pdf'){
+    body.innerHTML=`<iframe class="file-preview-frame" src="${escapeHtml(fileUrl)}" title="${escapeHtml(fileName)}"></iframe>`;
+    return;
+  }
+  if(previewType==='office'){
+    const googleViewerUrl=`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
+    body.innerHTML=`<div class="file-preview-fallback"><p>문서 미리보기가 열리지 않으면 새 탭으로 확인하세요.</p><iframe class="file-preview-frame" src="${escapeHtml(googleViewerUrl)}" title="${escapeHtml(fileName)}"></iframe><div class="file-preview-actions"><a href="${escapeHtml(googleViewerUrl)}" target="_blank" rel="noopener noreferrer">새 탭 미리보기</a><a href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">다운로드</a></div></div>`;
+    return;
+  }
+  body.innerHTML=`<div class="file-preview-fallback"><p>미리보기를 지원하지 않는 파일입니다.</p><div class="file-preview-actions"><a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer">새 탭에서 열기</a><a href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">다운로드</a></div></div>`;
 }
 function ensureEquipmentFileStorageViewerModal(){
   let modal=document.getElementById('equipmentFileStorageViewerModal');
@@ -3305,16 +3326,15 @@ function openEquipmentFileStorageViewer(entryId=''){
   loadEquipmentFileStorageEntries();
   const entry=equipmentFileStorageEntries.find(item=>String(item.id)===String(entryId));
   if(!entry) return;
-  const previewUrl=getFileStoragePreviewUrl(entry);
-  if(previewUrl){
-    openFilePreview(previewUrl);
+  const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
+  if(publicUrl){
+    openFilePreview(entry);
     return;
   }
   const modal=ensureEquipmentFileStorageViewerModal();
   const title=document.getElementById('equipmentFileStorageViewerTitle');
   const meta=document.getElementById('equipmentFileStorageViewerMeta');
   const body=document.getElementById('equipmentFileStorageViewerBody');
-  const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
   title.textContent=entry.title;
   meta.textContent=[entry.fileName, formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   if(entry.fileType==='image'||String(entry.fileType||'').startsWith('image/')){
