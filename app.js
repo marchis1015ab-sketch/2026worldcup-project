@@ -10182,7 +10182,7 @@ function renderTimelineGalleryEditForm(group){
   const memo=String(representative.memo||'').trim();
   return `<form class="timeline-gallery-edit-form" data-gallery-edit-form="${escapeHtml(group.key)}" onsubmit="event.preventDefault()"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" class="simple-form-input" data-gallery-edit-date value="${escapeHtml(capturedDate)}"></label><label class="simple-form-field"><span class="simple-form-label">메모</span><input type="text" class="simple-form-input" data-gallery-edit-memo value="${escapeHtml(memo)}" placeholder="메모 입력"></label><div class="timeline-gallery-edit-actions"><button type="button" class="section-title-action-btn" data-gallery-edit-cancel="${escapeHtml(group.key)}">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-edit-save="${escapeHtml(group.key)}">수정 저장</button></div></form>`;
 }
-function saveTimelineGalleryGroupEdit(groupKey='', form=null){
+function saveTimelineGalleryGroupEdit(groupKey='', form=null, options={}){
   const signature=parseTimelineGalleryGroupKey(groupKey);
   const nextDate=formatTimelineGalleryCapturedDate(form?.querySelector('[data-gallery-edit-date]')?.value||'');
   const nextMemo=String(form?.querySelector('[data-gallery-edit-memo]')?.value||'').trim();
@@ -10203,7 +10203,7 @@ function saveTimelineGalleryGroupEdit(groupKey='', form=null){
   }
   timelineGalleryEditingGroupKey='';
   saveTimelineGalleryEntries();
-  refreshTimelineGalleryView();
+  refreshTimelineGalleryView(options);
   if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
 function getTimelineGalleryDateGroups(entries=[]){
@@ -10293,11 +10293,33 @@ function renderGalleryView(){
   const formButtonText=isTimelineGalleryComposerOpen ? '작성 닫기' : '작성';
   return `<section class="timeline-gallery-view" aria-label="갤러리"><header class="timeline-gallery-header"><div><span class="timeline-gallery-eyebrow">일정타임라인</span><h3>갤러리</h3></div><div class="timeline-gallery-actions"><span class="timeline-gallery-count">총 ${totalCount}장</span><button type="button" class="section-title-action-btn" data-gallery-action="back">뒤로가기</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="open-form">${formButtonText}</button>${deleteActionHtml}</div></header>${isTimelineGalleryComposerOpen ? renderGalleryForm() : ''}${renderTimelineGalleryList()}</section>`;
 }
-function refreshTimelineGalleryView(){
+function getTimelineGalleryScrollState(){
+  if(typeof window==='undefined') return null;
+  return {
+    windowX:window.scrollX||0,
+    windowY:window.scrollY||0,
+    detailTop:document.getElementById('detailCol')?.scrollTop||0,
+    cardTop:document.querySelector('.timeline-card')?.scrollTop||0
+  };
+}
+function restoreTimelineGalleryScrollState(scrollState){
+  if(!scrollState||typeof window==='undefined') return;
+  requestAnimationFrame(()=>{
+    const detailCol=document.getElementById('detailCol');
+    const timelineCard=document.querySelector('.timeline-card');
+    if(detailCol) detailCol.scrollTop=scrollState.detailTop||0;
+    if(timelineCard) timelineCard.scrollTop=scrollState.cardTop||0;
+    window.scrollTo(scrollState.windowX||0, scrollState.windowY||0);
+  });
+}
+function refreshTimelineGalleryView(options={}){
   const root=document.querySelector('.timeline-gallery-view');
   if(!root) return;
+  const shouldPreserveScroll=Boolean(options.preserveScroll);
+  const scrollState=shouldPreserveScroll ? getTimelineGalleryScrollState() : null;
   root.outerHTML=renderGalleryView();
   bindTimelineGalleryViewEvents();
+  if(shouldPreserveScroll) restoreTimelineGalleryScrollState(scrollState);
 }
 function openTimelineGalleryView(){
   const detailCol=document.getElementById('detailCol');
@@ -10491,19 +10513,19 @@ function bindTimelineGalleryViewEvents(){
       isTimelineGalleryComposerOpen=false;
       isTimelineGalleryDeleteMode=false;
       timelineGallerySelectedIds.clear();
-      refreshTimelineGalleryView();
+      refreshTimelineGalleryView({preserveScroll:true});
       return;
     }
     const editCancelButton=event.target.closest('[data-gallery-edit-cancel]');
     if(editCancelButton&&root.contains(editCancelButton)){
       timelineGalleryEditingGroupKey='';
-      refreshTimelineGalleryView();
+      refreshTimelineGalleryView({preserveScroll:true});
       return;
     }
     const editSaveButton=event.target.closest('[data-gallery-edit-save]');
     if(editSaveButton&&root.contains(editSaveButton)){
       const form=editSaveButton.closest('.timeline-gallery-edit-form');
-      saveTimelineGalleryGroupEdit(editSaveButton.dataset.galleryEditSave||'', form);
+      saveTimelineGalleryGroupEdit(editSaveButton.dataset.galleryEditSave||'', form, {preserveScroll:true});
       return;
     }
   };
