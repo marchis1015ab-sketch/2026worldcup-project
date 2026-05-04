@@ -1956,7 +1956,7 @@ function renderPersonalEquipmentTable(user=''){
 function renderEquipmentCarnetTitle(){
   const hasEntries=equipmentCarnetEntries.length>0;
   const deleteLabel=isEquipmentCarnetDeleteMode ? '선택 삭제' : '삭제';
-  return `<span class="section-title-row"><span>까르네 목록</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()" ${isEquipmentCarnetComposerOpen||isEquipmentCarnetDeleteMode?'disabled':''}>작성</button><button type="button" class="section-title-action-btn delete" onclick="${isEquipmentCarnetDeleteMode?'deleteSelectedEquipmentCarnetEntries()':'enterEquipmentCarnetDeleteMode()'}" ${hasEntries?'':'disabled'}>${deleteLabel}</button>${isEquipmentCarnetDeleteMode?'<button type="button" class="section-title-action-btn" onclick="cancelEquipmentCarnetDeleteMode()">취소</button>':''}<button type="button" class="section-title-action-btn export-action-btn" onclick="openEquipmentCarnetExportModal()" ${hasEntries?'':'disabled'}>내보내기</button></span></span>`;
+  return `<span class="section-title-row"><span>문서보관</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentCarnetComposer()" ${isEquipmentCarnetComposerOpen||isEquipmentCarnetDeleteMode?'disabled':''}>작성</button><button type="button" class="section-title-action-btn delete" onclick="${isEquipmentCarnetDeleteMode?'deleteSelectedEquipmentCarnetEntries()':'enterEquipmentCarnetDeleteMode()'}" ${hasEntries?'':'disabled'}>${deleteLabel}</button>${isEquipmentCarnetDeleteMode?'<button type="button" class="section-title-action-btn" onclick="cancelEquipmentCarnetDeleteMode()">취소</button>':''}<button type="button" class="section-title-action-btn export-action-btn" onclick="openEquipmentCarnetExportModal()" ${hasEntries?'':'disabled'}>내보내기</button></span></span>`;
 }
 function createEquipmentCarnetId(){
   return `equipment-carnet-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -2013,7 +2013,7 @@ function normalizeEquipmentCarnetEntry(entry={}, index=0){
   if(!title&&!fileName&&!originalData) return null;
   return {
     id:String(entry?.id||`equipment-carnet-restored-${Date.now()}-${index}`).trim(),
-    title:title||fileName||'까르네 파일',
+    title:title||fileName||'문서 파일',
     fileName,
     fileType:fileType||'file',
     createdAt:Number(entry?.createdAt)||Date.now()+index,
@@ -2223,12 +2223,12 @@ function renderEquipmentCarnetSpreadsheetPreview(rows=[], className='equipment-c
 }
 function renderEquipmentCarnetComposer(){
   if(!isEquipmentCarnetComposerOpen) return '';
-  return `<div class="carnet-list-composer" aria-label="까르네 파일 작성">
-    <div class="carnet-list-composer-title">까르네 파일 작성</div>
+  return `<div class="carnet-list-composer" aria-label="문서 파일 작성">
+    <div class="carnet-list-composer-title">문서 파일 작성</div>
     <div class="carnet-list-form-grid">
       <label class="simple-form-field">
         <span class="simple-form-label">제목</span>
-        <input id="equipmentCarnetTitleInput" class="simple-form-input" type="text" placeholder="예: 멕시코 입국 까르네 목록">
+        <input id="equipmentCarnetTitleInput" class="simple-form-input" type="text" placeholder="예: 멕시코 입국 문서 목록">
       </label>
       <label class="simple-form-field">
         <span class="simple-form-label">파일 첨부</span>
@@ -2274,10 +2274,10 @@ function deleteSelectedEquipmentCarnetEntries(){
     return;
   }
   if(!equipmentCarnetSelectedIds.size){
-    window.alert('삭제할 까르네 항목을 선택해주세요.');
+    window.alert('삭제할 문서 항목을 선택해주세요.');
     return;
   }
-  const confirmed=window.confirm(`선택한 까르네 항목 ${equipmentCarnetSelectedIds.size}개를 삭제하시겠습니까?`);
+  const confirmed=window.confirm(`선택한 문서 항목 ${equipmentCarnetSelectedIds.size}개를 삭제하시겠습니까?`);
   if(!confirmed) return;
   equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>!equipmentCarnetSelectedIds.has(String(entry.id)));
   equipmentCarnetSelectedIds.clear();
@@ -2317,13 +2317,13 @@ function renderEquipmentCarnetMobileRow(entry){
 }
 function renderEquipmentCarnetItems(entries=[]){
   if(!entries.length){
-    return '<div class="carnet-list-placeholder">등록된 까르네 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div>';
+    return '<div class="carnet-list-placeholder">등록된 문서 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div>';
   }
   return `<div class="equipment-carnet-desktop-grid">${entries.map(renderEquipmentCarnetCard).join('')}</div><div class="equipment-carnet-mobile-list">${entries.map(renderEquipmentCarnetMobileRow).join('')}</div>`;
 }
 function renderEquipmentCarnetPanelHtml(){
   const entries=getEquipmentCarnetEntries();
-  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="까르네 목록"><header class="carnet-list-header"><h3 class="carnet-list-title">까르네 목록</h3></header>${renderEquipmentCarnetComposer()}<div class="carnet-list-body">${renderEquipmentCarnetItems(entries)}</div></section></td></tr></tbody>`;
+  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="문서보관"><header class="carnet-list-header"><h3 class="carnet-list-title">문서보관</h3></header>${renderEquipmentCarnetComposer()}<div class="carnet-list-body">${renderEquipmentCarnetItems(entries)}</div></section></td></tr></tbody>`;
 }
 async function saveEquipmentCarnetEntry(saveButton=null){
   loadEquipmentCarnetEntries();
@@ -2384,7 +2384,7 @@ async function saveEquipmentCarnetEntry(saveButton=null){
     renderEquipmentCarnetDetail();
   }catch(error){
     console.warn('[equipment-carnet] save failed', error);
-    window.alert('까르네 파일 저장에 실패했습니다. 파일 형식과 용량을 확인해주세요.');
+    window.alert('문서 파일 저장에 실패했습니다. 파일 형식과 용량을 확인해주세요.');
   }finally{
     if(saveButton) saveButton.disabled=false;
   }
@@ -2403,7 +2403,7 @@ function deleteEquipmentCarnetEntry(entryId=''){
 function ensureEquipmentCarnetExportModal(){
   let modal=document.getElementById('equipmentCarnetExportModal');
   if(modal) return modal;
-  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentCarnetExportModal" class="news-editor-modal equipment-carnet-export-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentCarnetExportModal()"></div><div class="news-editor-modal-panel equipment-carnet-export-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentCarnetExportTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentCarnetExportTitle">까르네 목록 내보내기</h3><p id="equipmentCarnetExportMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentCarnetExportModal()" aria-label="닫기">×</button></div><div id="equipmentCarnetExportBody" class="equipment-carnet-export-body"></div><div class="news-editor-modal-actions equipment-carnet-export-actions"><button type="button" class="news-editor-modal-btn" onclick="closeEquipmentCarnetExportModal()">닫기</button><button type="button" class="news-editor-modal-btn primary" onclick="printEquipmentCarnetExportModal()">인쇄</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentCarnetExportModal" class="news-editor-modal equipment-carnet-export-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentCarnetExportModal()"></div><div class="news-editor-modal-panel equipment-carnet-export-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentCarnetExportTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentCarnetExportTitle">문서보관 내보내기</h3><p id="equipmentCarnetExportMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentCarnetExportModal()" aria-label="닫기">×</button></div><div id="equipmentCarnetExportBody" class="equipment-carnet-export-body"></div><div class="news-editor-modal-actions equipment-carnet-export-actions"><button type="button" class="news-editor-modal-btn" onclick="closeEquipmentCarnetExportModal()">닫기</button><button type="button" class="news-editor-modal-btn primary" onclick="printEquipmentCarnetExportModal()">인쇄</button></div></div></div>`);
   modal=document.getElementById('equipmentCarnetExportModal');
   modal.addEventListener('keydown', event=>{
     if(event.key==='Escape') closeEquipmentCarnetExportModal();
@@ -2420,17 +2420,17 @@ async function buildEquipmentCarnetExportItemsHtml(entries=[]){
   const blocks=await Promise.all(entries.map(async entry=>{
     const createdAt=formatEquipmentCarnetDate(entry.createdAt);
     if(entry.fileType==='image'){
-      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'까르네 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-image"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title||entry.fileName||'까르네 이미지')}"></div></article>`;
+      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'문서 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-image"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title||entry.fileName||'문서 이미지')}"></div></article>`;
     }
     try{
       const rows=await parseEquipmentCarnetEntryRows(entry, 240, 24);
       const tableHtml=rows.length
         ? `<div class="equipment-carnet-export-sheet"><table class="equipment-carnet-export-table">${rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value||'')}</td>`).join('')}</tr>`).join('')}</table></div>`
         : '<div class="equipment-carnet-export-empty">표 데이터를 읽을 수 없습니다.</div>';
-      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'까르네 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header>${tableHtml}</article>`;
+      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'문서 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header>${tableHtml}</article>`;
     }catch(error){
       console.warn('[equipment-carnet] export render failed', error);
-      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'까르네 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-empty">내보내기용 데이터를 읽을 수 없습니다.</div></article>`;
+      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'문서 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-empty">내보내기용 데이터를 읽을 수 없습니다.</div></article>`;
     }
   }));
   return blocks.join('');
@@ -2439,7 +2439,7 @@ async function openEquipmentCarnetExportModal(){
   loadEquipmentCarnetEntries();
   const entries=getEquipmentCarnetEntries();
   if(!entries.length){
-    window.alert('내보낼 까르네 항목이 없습니다.');
+    window.alert('내보낼 문서 항목이 없습니다.');
     return;
   }
   const modal=ensureEquipmentCarnetExportModal();
@@ -2461,7 +2461,7 @@ function printEquipmentCarnetExportModal(){
     window.alert('인쇄 창을 열 수 없습니다. 팝업 차단 설정을 확인해주세요.');
     return;
   }
-  printWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>까르네 목록 인쇄</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#10253b}h1{font-size:24px;margin:0 0 20px}.equipment-carnet-export-list{display:flex;flex-direction:column;gap:20px}.equipment-carnet-export-item{border:1px solid #d9e3ee;border-radius:12px;padding:16px;page-break-inside:avoid}.equipment-carnet-export-item-header{margin-bottom:12px}.equipment-carnet-export-item-header h4{margin:0 0 6px;font-size:18px}.equipment-carnet-export-item-meta{color:#5c6e82;font-size:12px}.equipment-carnet-export-sheet{overflow:auto}.equipment-carnet-export-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px}.equipment-carnet-export-table td{padding:6px 8px;border:1px solid #d9e3ee;vertical-align:top;word-break:break-word}.equipment-carnet-export-image img{max-width:100%;height:auto;border:1px solid #d9e3ee;border-radius:8px}.equipment-carnet-export-empty{padding:18px;border:1px dashed #c7d4e2;border-radius:10px;color:#5b6d82;font-size:13px}</style></head><body><h1>까르네 목록</h1>${printArea.outerHTML}</body></html>`);
+  printWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>문서보관 인쇄</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#10253b}h1{font-size:24px;margin:0 0 20px}.equipment-carnet-export-list{display:flex;flex-direction:column;gap:20px}.equipment-carnet-export-item{border:1px solid #d9e3ee;border-radius:12px;padding:16px;page-break-inside:avoid}.equipment-carnet-export-item-header{margin-bottom:12px}.equipment-carnet-export-item-header h4{margin:0 0 6px;font-size:18px}.equipment-carnet-export-item-meta{color:#5c6e82;font-size:12px}.equipment-carnet-export-sheet{overflow:auto}.equipment-carnet-export-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px}.equipment-carnet-export-table td{padding:6px 8px;border:1px solid #d9e3ee;vertical-align:top;word-break:break-word}.equipment-carnet-export-image img{max-width:100%;height:auto;border:1px solid #d9e3ee;border-radius:8px}.equipment-carnet-export-empty{padding:18px;border:1px dashed #c7d4e2;border-radius:10px;color:#5b6d82;font-size:13px}</style></head><body><h1>문서보관</h1>${printArea.outerHTML}</body></html>`);
   printWindow.document.close();
   printWindow.focus();
   printWindow.print();
@@ -2474,7 +2474,7 @@ function syncEquipmentCarnetModalBodyState(){
 function ensureEquipmentCarnetViewerModal(){
   let modal=document.getElementById('equipmentCarnetViewerModal');
   if(modal) return modal;
-  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentCarnetViewerModal" class="news-editor-modal equipment-carnet-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentCarnetViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentCarnetViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentCarnetViewerTitle">까르네 파일</h3><p id="equipmentCarnetViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentCarnetViewerModal()" aria-label="닫기">×</button></div><div id="equipmentCarnetViewerBody" class="equipment-carnet-viewer-body"></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentCarnetViewerModal" class="news-editor-modal equipment-carnet-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentCarnetViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentCarnetViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentCarnetViewerTitle">문서 파일</h3><p id="equipmentCarnetViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentCarnetViewerModal()" aria-label="닫기">×</button></div><div id="equipmentCarnetViewerBody" class="equipment-carnet-viewer-body"></div></div></div>`);
   modal=document.getElementById('equipmentCarnetViewerModal');
   modal.addEventListener('keydown', event=>{
     if(event.key==='Escape') closeEquipmentCarnetViewerModal();
@@ -2522,7 +2522,7 @@ async function openEquipmentCarnetViewer(entryId=''){
 function renderEquipmentFileStorageTitle(){
   const hasEntries=equipmentFileStorageEntries.length>0;
   const deleteLabel=isEquipmentFileStorageDeleteMode ? '선택 삭제' : '삭제';
-  return `<span class="section-title-row"><span>파일보관</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentFileStorageComposer()" ${isEquipmentFileStorageComposerOpen||isEquipmentFileStorageDeleteMode?'disabled':''}>작성</button><button type="button" class="section-title-action-btn delete" onclick="${isEquipmentFileStorageDeleteMode?'deleteSelectedEquipmentFileStorageEntries()':'enterEquipmentFileStorageDeleteMode()'}" ${hasEntries?'':'disabled'}>${deleteLabel}</button>${isEquipmentFileStorageDeleteMode?'<button type="button" class="section-title-action-btn" onclick="cancelEquipmentFileStorageDeleteMode()">취소</button>':''}</span></span>`;
+  return `<span class="section-title-row"><span>파일 보관</span><span class="section-title-actions"><button type="button" class="section-title-action-btn" onclick="openEquipmentFileStorageComposer()" ${isEquipmentFileStorageComposerOpen||isEquipmentFileStorageDeleteMode?'disabled':''}>작성</button><button type="button" class="section-title-action-btn delete" onclick="${isEquipmentFileStorageDeleteMode?'deleteSelectedEquipmentFileStorageEntries()':'enterEquipmentFileStorageDeleteMode()'}" ${hasEntries?'':'disabled'}>${deleteLabel}</button>${isEquipmentFileStorageDeleteMode?'<button type="button" class="section-title-action-btn" onclick="cancelEquipmentFileStorageDeleteMode()">취소</button>':''}</span></span>`;
 }
 function createEquipmentFileStorageId(){
   return `equipment-file-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -2663,7 +2663,7 @@ function getEquipmentFileStorageEntries(){
 }
 function renderEquipmentFileStorageComposer(){
   if(!isEquipmentFileStorageComposerOpen) return '';
-  return `<div class="carnet-list-composer equipment-file-storage-composer" aria-label="파일보관 작성"><div class="carnet-list-composer-title">파일보관 작성</div><div class="carnet-list-form-grid"><label class="simple-form-field"><span class="simple-form-label">제목</span><input id="equipmentFileStorageTitleInput" class="simple-form-input" type="text" placeholder="예: 경기장 안내 PDF"></label><label class="simple-form-field"><span class="simple-form-label">파일 첨부</span><input id="equipmentFileStorageInput" class="equipment-carnet-file-input" type="file"></label></div><p class="carnet-list-composer-description">PDF, 이미지, 엑셀, 워드, 한글, PPT, ZIP을 포함한 모든 자료 파일을 저장할 수 있습니다.</p><div class="simple-info-actions carnet-list-form-actions"><button type="button" class="section-title-action-btn" onclick="saveEquipmentFileStorageEntry(this)">저장</button><button type="button" class="section-title-action-btn" onclick="closeEquipmentFileStorageComposer()">취소</button></div></div>`;
+  return `<div class="carnet-list-composer equipment-file-storage-composer" aria-label="파일 보관 작성"><div class="carnet-list-composer-title">파일 보관 작성</div><div class="carnet-list-form-grid"><label class="simple-form-field"><span class="simple-form-label">제목</span><input id="equipmentFileStorageTitleInput" class="simple-form-input" type="text" placeholder="예: 경기장 안내 PDF"></label><label class="simple-form-field"><span class="simple-form-label">파일 첨부</span><input id="equipmentFileStorageInput" class="equipment-carnet-file-input" type="file"></label></div><p class="carnet-list-composer-description">PDF, 이미지, 엑셀, 워드, 한글, PPT, ZIP을 포함한 모든 자료 파일을 저장할 수 있습니다.</p><div class="simple-info-actions carnet-list-form-actions"><button type="button" class="section-title-action-btn" onclick="saveEquipmentFileStorageEntry(this)">저장</button><button type="button" class="section-title-action-btn" onclick="closeEquipmentFileStorageComposer()">취소</button></div></div>`;
 }
 function isEquipmentFileStorageEntrySelected(entryId=''){
   return equipmentFileStorageSelectedIds.has(String(entryId||''));
@@ -2736,7 +2736,7 @@ function renderEquipmentFileStorageItems(entries=[]){
 }
 function renderEquipmentFileStoragePanelHtml(){
   const entries=getEquipmentFileStorageEntries();
-  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel equipment-file-storage-panel" aria-label="파일보관"><header class="carnet-list-header"><h3 class="carnet-list-title">파일보관</h3></header>${renderEquipmentFileStorageComposer()}<div class="carnet-list-body">${renderEquipmentFileStorageItems(entries)}</div></section></td></tr></tbody>`;
+  return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel equipment-file-storage-panel" aria-label="파일 보관"><header class="carnet-list-header"><h3 class="carnet-list-title">파일 보관</h3></header>${renderEquipmentFileStorageComposer()}<div class="carnet-list-body">${renderEquipmentFileStorageItems(entries)}</div></section></td></tr></tbody>`;
 }
 async function buildEquipmentFileStoragePreviewData(file, fileType, originalData){
   const previewData={extension:getEquipmentFileStorageExtension(file?.name||''), src:originalData, text:''};
@@ -2806,7 +2806,7 @@ function downloadEquipmentFileStorageEntry(entryId=''){
 function ensureEquipmentFileStorageViewerModal(){
   let modal=document.getElementById('equipmentFileStorageViewerModal');
   if(modal) return modal;
-  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentFileStorageViewerModal" class="news-editor-modal equipment-carnet-viewer-modal equipment-file-storage-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentFileStorageViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel equipment-file-storage-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentFileStorageViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentFileStorageViewerTitle">파일보관</h3><p id="equipmentFileStorageViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentFileStorageViewerModal()" aria-label="닫기">×</button></div><div id="equipmentFileStorageViewerBody" class="equipment-carnet-viewer-body equipment-file-storage-viewer-body"></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend', `<div id="equipmentFileStorageViewerModal" class="news-editor-modal equipment-carnet-viewer-modal equipment-file-storage-viewer-modal hidden" tabindex="-1"><div class="news-editor-modal-backdrop" onclick="closeEquipmentFileStorageViewerModal()"></div><div class="news-editor-modal-panel equipment-carnet-viewer-panel equipment-file-storage-viewer-panel" role="dialog" aria-modal="true" aria-labelledby="equipmentFileStorageViewerTitle"><div class="news-editor-modal-header"><div><h3 id="equipmentFileStorageViewerTitle">파일 보관</h3><p id="equipmentFileStorageViewerMeta" class="news-editor-modal-meta"></p></div><button type="button" class="news-editor-modal-close" onclick="closeEquipmentFileStorageViewerModal()" aria-label="닫기">×</button></div><div id="equipmentFileStorageViewerBody" class="equipment-carnet-viewer-body equipment-file-storage-viewer-body"></div></div></div>`);
   modal=document.getElementById('equipmentFileStorageViewerModal');
   modal.addEventListener('keydown', event=>{
     if(event.key==='Escape') closeEquipmentFileStorageViewerModal();
