@@ -528,12 +528,14 @@ const NEWS_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideNewsEditor__';
 const NEWS_PROGRAMMING_STORAGE_KEY = 'worldcup-guide-news-programming-v1';
 const NEWS_PROGRAMMING_WINDOW_NAME_KEY = '__worldcupGuideNewsProgramming__';
 const PROGRAMMING_MEMOS_STORAGE_KEY = 'jtbc_worldcup_programming_memos_v1';
+const PROGRAMMING_MEMOS_COMPAT_STORAGE_KEY = 'programming_memos';
 const TICKER_STATE_STORAGE_KEY = 'tickerState';
 const SQUAD_INJURY_STORAGE_KEY = 'worldcup-guide-squad-injury-v1';
 const SQUAD_INJURY_WINDOW_NAME_KEY = '__worldcupGuideSquadInjury__';
 const MEXICO_STADIUM_EDITOR_STORAGE_KEY = 'worldcup-guide-mexico-stadium-editor-v1';
 const MEXICO_STADIUM_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideMexicoStadiumEditor__';
 const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
+const EQUIPMENT_EDITOR_COMPAT_STORAGE_KEY = 'equipmentState';
 const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 const EQUIPMENT_CARNET_STORAGE_KEY = 'worldcup-guide-equipment-carnet-v1';
 const EQUIPMENT_CARNET_WINDOW_NAME_KEY = '__worldcupGuideEquipmentCarnet__';
@@ -1573,6 +1575,8 @@ function readEquipmentEditorRaw(){
   for(const storage of storages){
     const raw=storage.getItem(EQUIPMENT_EDITOR_STORAGE_KEY);
     if(raw) return raw;
+    const compatRaw=storage.getItem(EQUIPMENT_EDITOR_COMPAT_STORAGE_KEY);
+    if(compatRaw) return compatRaw;
   }
   if(typeof window==='undefined'||!window.name) return '';
   try{
@@ -1584,7 +1588,10 @@ function readEquipmentEditorRaw(){
 }
 function writeEquipmentEditorRaw(raw){
   const storages=getTimelineStorageAreas();
-  storages.forEach(storage=>storage.setItem(EQUIPMENT_EDITOR_STORAGE_KEY, raw));
+  storages.forEach(storage=>{
+    storage.setItem(EQUIPMENT_EDITOR_STORAGE_KEY, raw);
+    storage.setItem(EQUIPMENT_EDITOR_COMPAT_STORAGE_KEY, raw);
+  });
   if(typeof window==='undefined') return;
   let payload={};
   if(window.name){
@@ -3664,7 +3671,8 @@ function saveNewsProgrammingState(){
 function loadProgrammingMemos(){
   if(typeof window==='undefined'||!window.localStorage) return {};
   try{
-    const raw=window.localStorage.getItem(PROGRAMMING_MEMOS_STORAGE_KEY);
+    const raw=window.localStorage.getItem(PROGRAMMING_MEMOS_STORAGE_KEY)
+      ||window.localStorage.getItem(PROGRAMMING_MEMOS_COMPAT_STORAGE_KEY);
     if(!raw) return {};
     const parsed=JSON.parse(raw);
     if(!parsed||typeof parsed!=='object') return {};
@@ -3686,6 +3694,7 @@ function loadProgrammingMemos(){
     }, {});
     cleanedStoragePayload.__savedDate=today;
     window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(cleanedStoragePayload));
+    window.localStorage.setItem(PROGRAMMING_MEMOS_COMPAT_STORAGE_KEY, JSON.stringify(cleanedStoragePayload));
     return loadedMemos;
   }catch(error){
     console.warn('[news-programming] programming memo load failed', error);
@@ -3694,7 +3703,9 @@ function loadProgrammingMemos(){
 }
 function saveProgrammingMemos(nextMemos=currentNewsProgrammingSavedMemos){
   if(typeof window==='undefined'||!window.localStorage) return;
-  window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, JSON.stringify(createDatedMemoStoragePayload(nextMemos)));
+  const payload=JSON.stringify(createDatedMemoStoragePayload(nextMemos));
+  window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, payload);
+  window.localStorage.setItem(PROGRAMMING_MEMOS_COMPAT_STORAGE_KEY, payload);
 }
 function ensureNewsProgrammingLocalPersistenceLoaded(){
   if(hasLoadedNewsProgrammingLocalPersistence) return;
@@ -6371,7 +6382,7 @@ function formatKoreaTimeLabel(dateKey='', localTime='', cityOrLocation=''){
 }
 function formatEquipmentLabel(detail={}){
   const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', detail?.TVU||'')||'').trim();
-  return tvuLabel||'무장비';
+  return tvuLabel ? formatExportEquipmentLabel(tvuLabel) : '';
 }
 function normalizeTvuNumberValue(value){
   const text=String(value||'').trim();
@@ -6404,18 +6415,10 @@ function formatScheduleTickerItem(schedule){
   const timeLabel=localTime ? `현지 ${localTime}${koreaTimeLabel?` / 한국 ${koreaTimeLabel}`:''}` : '';
   const taskLabel=String(getPersonalTimelineTaskReportLabel(detail.업무내용||'')||'').trim();
   const equipmentLabel=formatEquipmentLabel(detail);
-  const actionParts=[];
-  if(taskLabel&&placeLabel){
-    actionParts.push(`${taskLabel}를 ${placeLabel}에서`);
-  }else if(taskLabel){
-    actionParts.push(`${taskLabel} 진행`);
-  }else if(placeLabel){
-    actionParts.push(`${placeLabel}에서`);
-  }
-  if(equipmentLabel){
-    actionParts.push(equipmentLabel==='무장비' ? '무장비로 진행' : `${equipmentLabel}을 가지고 진행`);
-  }
-  const textParts=[reporterPairLabel, timeLabel, actionParts.join(' ')].filter(Boolean).join(' ');
+  const reporterLabel=reporterPairLabel ? `[${reporterPairLabel}]` : '';
+  const actionLabel=[taskLabel, placeLabel ? `@ ${placeLabel}` : ''].filter(Boolean).join(' ');
+  const equipmentText=equipmentLabel ? `(${equipmentLabel})` : '';
+  const textParts=[reporterLabel, timeLabel, actionLabel, equipmentText].filter(Boolean).join(' ');
   const safeText=escapeHtml(textParts);
   return `${primaryReporterTag}${safeText?` ${safeText}`:''}`.trim();
 }
@@ -6913,6 +6916,7 @@ const timelineRows = [...teamTimelineRows, ...personalTimelineRows];
 const timelineEditableRows = timelineRows.filter(row=>row.type!=='section');
 const timelineEditableLabels = timelineEditableRows.map(row=>row.label);
 const TIMELINE_STORAGE_KEY = 'worldcup-guide-timeline-assignments-v2';
+const TIMELINE_COMPAT_STORAGE_KEY = 'timelineData';
 const LEGACY_TIMELINE_STORAGE_KEYS = ['worldcup-guide-timeline-assignments-v1'];
 const TIMELINE_WINDOW_NAME_KEY = '__worldcupGuideTimelineAssignments__';
 const PERSONAL_TIMELINE_SHARED_STORAGE_KEY = 'worldcup-guide-personal-timeline-shared-v1';
@@ -7836,6 +7840,8 @@ function readTimelineAssignmentsRaw(){
   for(const storage of storages){
     const preferredRaw=storage.getItem(TIMELINE_STORAGE_KEY);
     if(preferredRaw) return preferredRaw;
+    const compatRaw=storage.getItem(TIMELINE_COMPAT_STORAGE_KEY);
+    if(compatRaw) return compatRaw;
     for(const legacyKey of LEGACY_TIMELINE_STORAGE_KEYS){
       const legacyRaw=storage.getItem(legacyKey);
       if(legacyRaw) return legacyRaw;
@@ -7853,6 +7859,7 @@ function writeTimelineAssignmentsRaw(raw){
   const storages=getTimelineStorageAreas();
   storages.forEach(storage=>{
     storage.setItem(TIMELINE_STORAGE_KEY, raw);
+    storage.setItem(TIMELINE_COMPAT_STORAGE_KEY, raw);
     LEGACY_TIMELINE_STORAGE_KEYS.forEach(legacyKey=>storage.removeItem(legacyKey));
   });
   if(typeof window==='undefined') return;
@@ -9930,7 +9937,7 @@ function renderTimelineGalleryMedia(entry={}, className='', alt='갤러리 미�
   if(getTimelineGalleryMediaType(entry)==='video'){
     return `<video${classAttr} src="${source}" controls playsinline preload="metadata"></video>`;
   }
-  return `<img${classAttr} src="${source}" alt="${safeAlt}">`;
+  return `<img${classAttr} src="${source}" alt="${safeAlt}" loading="lazy" decoding="async">`;
 }
 function getTimelineGalleryClient(){
   return getSharedStateSyncClient();
