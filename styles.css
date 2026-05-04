@@ -2405,6 +2405,59 @@ body.news-editor-modal-open{overflow:hidden}
   white-space:nowrap;
   text-overflow:ellipsis;
 }
+.document-storage-list{
+  width:100%;
+}
+.document-storage-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid #ddd;
+}
+.document-storage-info,
+.equipment-carnet-card-body{
+  min-width:0;
+}
+.document-storage-info{
+  flex:1;
+}
+.document-storage-info strong{
+  display:block;
+  font-size:14px;
+  word-break:break-word;
+}
+.document-storage-info span{
+  display:block;
+  color:#666;
+  font-size:12px;
+}
+.document-download-btn{
+  flex:0 0 auto;
+  align-self:flex-start;
+  margin-top:8px;
+  padding:6px 10px;
+  border:1px solid #ccd6e0;
+  border-radius:6px;
+  background:#fff;
+  color:#1f3b57;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:700;
+}
+.document-download-btn:hover,
+.document-download-btn:focus-visible{
+  border-color:#7ba4cf;
+  color:#0f4f8d;
+}
+.document-delete-checkbox{
+  flex:0 0 auto;
+}
+.document-storage-viewer-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:14px;
+}
 .equipment-carnet-viewer-modal{
   z-index:150;
 }
@@ -7672,6 +7725,11 @@ textarea.simple-form-input,
     align-items:stretch;
   }
 
+  .document-storage-item{
+    gap:8px;
+    padding:9px 0;
+  }
+
   .equipment-carnet-mobile-row.is-selected .equipment-carnet-mobile-link{
     border-color:#2b5f96;
     box-shadow:0 0 0 3px rgba(43,95,150,.14),0 6px 14px rgba(15,23,42,.08);
@@ -7731,6 +7789,14 @@ textarea.simple-form-input,
     overflow:hidden;
     white-space:nowrap;
     text-overflow:ellipsis;
+  }
+
+  .document-download-btn{
+    align-self:center;
+    margin-top:0;
+    padding:5px 8px;
+    font-size:12px;
+    white-space:nowrap;
   }
 
   .equipment-file-storage-mobile-row{

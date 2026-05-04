@@ -537,6 +537,8 @@ const EQUIPMENT_EDITOR_STORAGE_KEY = 'worldcup-guide-equipment-editor-v1';
 const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 const EQUIPMENT_CARNET_STORAGE_KEY = 'worldcup-guide-equipment-carnet-v1';
 const EQUIPMENT_CARNET_WINDOW_NAME_KEY = '__worldcupGuideEquipmentCarnet__';
+const DOCUMENT_STORAGE_BUCKET = 'document-storage';
+const DOCUMENTS_TABLE = 'documents';
 const EQUIPMENT_FILE_STORAGE_KEY = 'worldcup-file-storage-v1';
 const MAP_LOCATION_PIN_STORAGE_KEY = 'worldcup-guide-map-location-pins-v1';
 const MAP_LOCATION_PIN_WINDOW_NAME_KEY = '__worldcupGuideMapLocationPins__';
@@ -1970,10 +1972,69 @@ function getEquipmentCarnetFileType(fileName='', mimeType=''){
   const extension=getEquipmentCarnetFileExtension(fileName);
   if(['jpg','jpeg','png','webp'].includes(extension)||String(mimeType||'').startsWith('image/')) return 'image';
   if(['xlsx','xls','csv'].includes(extension)) return extension==='csv' ? 'csv' : 'excel';
-  return '';
+  if(extension==='pdf'||String(mimeType||'').toLowerCase()==='application/pdf') return 'pdf';
+  if(['doc','docx'].includes(extension)) return 'word';
+  if(['hwp','hwpx'].includes(extension)) return 'hwp';
+  if(['ppt','pptx'].includes(extension)) return 'ppt';
+  if(extension==='txt'||String(mimeType||'').toLowerCase().startsWith('text/')) return 'text';
+  if(extension==='zip') return 'zip';
+  if(extension==='mp4'||String(mimeType||'').toLowerCase().startsWith('video/')) return 'video';
+  return extension ? 'file' : '';
 }
 function isEquipmentCarnetFileAccepted(fileName='', mimeType=''){
-  return Boolean(getEquipmentCarnetFileType(fileName, mimeType));
+  const extension=getEquipmentCarnetFileExtension(fileName);
+  return ['pdf','doc','docx','hwp','hwpx','xls','xlsx','csv','ppt','pptx','txt','zip','jpg','jpeg','png','webp','mp4'].includes(extension)
+    || /^image\//i.test(String(mimeType||''))
+    || /^video\//i.test(String(mimeType||''))
+    || /^text\//i.test(String(mimeType||''));
+}
+function getDocumentStorageClient(){
+  return getSharedStateSyncClient?.()||window.supabaseClient||null;
+}
+function createDocumentStorageId(){
+  return typeof crypto!=='undefined'&&crypto.randomUUID ? crypto.randomUUID() : createEquipmentCarnetId();
+}
+function sanitizeDocumentStorageFileName(fileName=''){
+  return String(fileName||'document')
+    .trim()
+    .replace(/[^\w.\-가-힣]/g, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 140)||'document';
+}
+function createDocumentStoragePath(file={}){
+  const safeName=sanitizeDocumentStorageFileName(file?.name||'document');
+  const dateKey=getTodayTimelineKey?.()||new Date().toISOString().slice(0, 10);
+  const randomValue=typeof crypto!=='undefined'&&crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
+    : Math.random().toString(36).slice(2, 12);
+  return `${dateKey}/${Date.now()}-${randomValue}-${safeName}`;
+}
+function getDocumentStorageSupabaseUrl(){
+  return String(SHARED_STATE_SYNC_SUPABASE_URL||window.APP_CONFIG?.supabaseUrl||'').trim();
+}
+function logDocumentStorageError(error, context={}){
+  const source=error&&typeof error==='object' ? error : {};
+  console.error('[document-storage] failed', {
+    bucketName:DOCUMENT_STORAGE_BUCKET,
+    filePath:context.storagePath||'',
+    supabaseUrl:getDocumentStorageSupabaseUrl(),
+    message:source.message||String(error||''),
+    statusCode:source.statusCode||source.status||source.code||'',
+    error:source.error||source.name||'',
+    details:source.details||source.hint||source.cause||''
+  });
+}
+function formatDocumentFileSize(size){
+  const value=Number(size||0);
+  if(!value) return '';
+  const units=['B','KB','MB','GB'];
+  let nextValue=value;
+  let unitIndex=0;
+  while(nextValue>=1024&&unitIndex<units.length-1){
+    nextValue/=1024;
+    unitIndex+=1;
+  }
+  return `${nextValue.toFixed(unitIndex===0 ? 0 : 1)}${units[unitIndex]}`;
 }
 function normalizeEquipmentCarnetRows(rows=[], maxRows=12, maxCols=8){
   return sanitizeEquipmentCarnetRows(Array.isArray(rows)?rows:[])
@@ -2005,23 +2066,34 @@ function sanitizeEquipmentCarnetRows(rows=[]){
   return sanitizedRows;
 }
 function normalizeEquipmentCarnetEntry(entry={}, index=0){
-  const title=String(entry?.title||'').trim();
-  const fileName=String(entry?.fileName||'').trim();
-  const fileType=String(entry?.fileType||getEquipmentCarnetFileType(fileName)).trim();
+  const fileName=String(entry?.file_name||entry?.fileName||entry?.name||entry?.title||'').trim();
+  const title=String(entry?.title||entry?.memo||fileName||'').trim();
+  const rawFileType=String(entry?.file_type||entry?.fileType||'').trim();
+  const fileType=getEquipmentCarnetFileType(fileName, rawFileType)||rawFileType||getEquipmentCarnetFileType(fileName);
   const originalData=String(entry?.originalData||entry?.url||'').trim();
+  const publicUrl=String(entry?.public_url||entry?.publicUrl||entry?.downloadUrl||originalData||'').trim();
+  const storagePath=String(entry?.storage_path||entry?.storagePath||'').trim();
+  const uploadedAt=String(entry?.uploaded_at||entry?.uploadedAt||'').trim();
   const previewData=entry?.previewData&&typeof entry.previewData==='object' ? entry.previewData : {};
-  if(!title&&!fileName&&!originalData) return null;
+  if(!title&&!fileName&&!originalData&&!publicUrl&&!storagePath) return null;
+  const createdAt=Number(entry?.createdAt)||Date.parse(uploadedAt)||Date.now()+index;
   return {
     id:String(entry?.id||`equipment-carnet-restored-${Date.now()}-${index}`).trim(),
     title:title||fileName||'문서 파일',
     fileName,
     fileType:fileType||'file',
-    createdAt:Number(entry?.createdAt)||Date.now()+index,
-    originalData,
+    fileSize:Number(entry?.file_size||entry?.fileSize)||0,
+    storagePath,
+    publicUrl,
+    uploadedAt:uploadedAt||new Date(createdAt).toISOString(),
+    createdAt,
+    originalData:storagePath||publicUrl ? '' : originalData,
+    memo:String(entry?.memo||'').trim(),
+    uploader:String(entry?.uploader||'').trim(),
     previewData:{
       type:String(previewData.type||fileType||'file').trim(),
       rows:normalizeEquipmentCarnetRows(previewData.rows||[], 6, 5),
-      src:String(previewData.src||'').trim()
+      src:String(previewData.src||publicUrl||'').trim()
     }
   };
 }
@@ -2039,7 +2111,7 @@ function isEquipmentCarnetSampleEntry(entry={}){
 }
 function sortEquipmentCarnetEntries(entries=[]){
   return [...entries].sort((a,b)=>{
-    const dateCompare=Number(b.createdAt||0)-Number(a.createdAt||0);
+    const dateCompare=(Date.parse(b.uploadedAt||'')||Number(b.createdAt||0))-(Date.parse(a.uploadedAt||'')||Number(a.createdAt||0));
     if(dateCompare!==0) return dateCompare;
     return String(a.title||'').localeCompare(String(b.title||''));
   });
@@ -2062,6 +2134,7 @@ function loadEquipmentCarnetEntries(){
   const raw=readEquipmentCarnetRaw();
   if(!raw){
     console.log('[equipment-carnet] load', {itemCount:0, sampleInjected:false, sampleRemoved:0});
+    refreshEquipmentCarnetEntriesFromSupabase();
     return;
   }
   try{
@@ -2079,34 +2152,189 @@ function loadEquipmentCarnetEntries(){
     if(removedCount>0){
       saveEquipmentCarnetEntries();
     }
+    refreshEquipmentCarnetEntriesFromSupabase();
   }catch(error){
     console.warn('[equipment-carnet] load failed', error);
+    refreshEquipmentCarnetEntriesFromSupabase();
   }
 }
 function saveEquipmentCarnetEntries(){
-  loadEquipmentCarnetEntries();
   const payload={
-    version:1,
+    version:2,
     updatedAt:Date.now(),
     items:sortEquipmentCarnetEntries(equipmentCarnetEntries).map(entry=>({
       id:entry.id,
       title:entry.title,
       fileName:entry.fileName,
       fileType:entry.fileType,
+      fileSize:entry.fileSize||0,
+      storagePath:entry.storagePath||'',
+      publicUrl:entry.publicUrl||'',
+      uploadedAt:entry.uploadedAt||'',
+      memo:entry.memo||'',
+      uploader:entry.uploader||'',
       createdAt:entry.createdAt,
-      originalData:entry.originalData,
+      originalData:entry.storagePath||entry.publicUrl ? '' : entry.originalData,
       previewData:entry.previewData
     }))
   };
-  writeEquipmentCarnetRaw(JSON.stringify(payload));
+  try{
+    setSharedStateLocalRaw(EQUIPMENT_CARNET_STORAGE_KEY, JSON.stringify(payload));
+  }catch(error){
+    console.warn('[document-storage] local cache write failed.', error);
+  }
   renderCache.equipmentCarnetPanel='';
+}
+async function fetchEquipmentCarnetEntriesFromStorageList(client){
+  if(!client?.storage?.from) return [];
+  const {data, error}=await client.storage
+    .from(DOCUMENT_STORAGE_BUCKET)
+    .list('', {limit:100, sortBy:{column:'created_at', order:'desc'}});
+  if(error) throw error;
+  const rootItems=Array.isArray(data) ? data : [];
+  const folderNames=rootItems.filter(item=>!item?.metadata&&String(item?.name||'')).map(item=>String(item.name));
+  const fileItems=rootItems.filter(item=>item?.metadata);
+  for(const folderName of folderNames.slice(0, 30)){
+    const {data: nested, error:nestedError}=await client.storage
+      .from(DOCUMENT_STORAGE_BUCKET)
+      .list(folderName, {limit:100, sortBy:{column:'created_at', order:'desc'}});
+    if(nestedError){
+      console.warn('[document-storage] nested list failed', nestedError);
+      continue;
+    }
+    (nested||[]).filter(item=>item?.metadata).forEach(item=>fileItems.push({...item, name:`${folderName}/${item.name}`}));
+  }
+  return fileItems.map((item,index)=>{
+    const storagePath=String(item?.name||'').trim();
+    const fileName=storagePath.split('/').pop()?.replace(/^\d+-[a-z0-9]+-/i, '')||storagePath||'document';
+    const {data:urlData}=client.storage.from(DOCUMENT_STORAGE_BUCKET).getPublicUrl(storagePath);
+    return normalizeEquipmentCarnetEntry({
+      id:`storage-${storagePath}`,
+      file_name:fileName,
+      storage_path:storagePath,
+      public_url:urlData?.publicUrl||'',
+      file_type:item?.metadata?.mimetype||getEquipmentCarnetFileType(fileName),
+      file_size:item?.metadata?.size||0,
+      uploaded_at:item?.created_at||item?.updated_at||new Date(Date.now()-index).toISOString()
+    }, index);
+  }).filter(Boolean);
+}
+async function fetchEquipmentCarnetEntriesFromSupabase(){
+  const client=getDocumentStorageClient();
+  if(!client) return null;
+  const {data, error}=await client
+    .from(DOCUMENTS_TABLE)
+    .select('*')
+    .order('uploaded_at', {ascending:false});
+  if(error){
+    console.warn('[document-storage] documents table load failed; falling back to storage list.', error);
+    try{
+      return await fetchEquipmentCarnetEntriesFromStorageList(client);
+    }catch(listError){
+      console.warn('[document-storage] storage list fallback failed.', listError);
+      return null;
+    }
+  }
+  return (data||[]).map(normalizeEquipmentCarnetEntry).filter(Boolean);
+}
+async function refreshEquipmentCarnetEntriesFromSupabase(options={}){
+  const forceRender=Boolean(options.forceRender);
+  const entries=await fetchEquipmentCarnetEntriesFromSupabase();
+  if(!Array.isArray(entries)) return;
+  equipmentCarnetEntries=sortEquipmentCarnetEntries(entries);
+  hasLoadedEquipmentCarnetEntries=true;
+  saveEquipmentCarnetEntries();
+  if(forceRender||currentEquipmentMode==='carnet'){
+    renderEquipmentCarnetDetail();
+  }
+}
+async function loadDocuments(){
+  await refreshEquipmentCarnetEntriesFromSupabase({forceRender:currentEquipmentMode==='carnet'});
+  return equipmentCarnetEntries;
+}
+function renderDocuments(items=[]){
+  equipmentCarnetEntries=sortEquipmentCarnetEntries((items||[]).map(normalizeEquipmentCarnetEntry).filter(Boolean));
+  saveEquipmentCarnetEntries();
+  if(currentEquipmentMode==='carnet') renderEquipmentCarnetDetail();
+}
+async function uploadDocumentFile(file, memo=''){
+  if(!file) return null;
+  const client=getDocumentStorageClient();
+  if(!client?.storage?.from){
+    throw new Error('Supabase Storage 연결이 준비되지 않았습니다.');
+  }
+  const storagePath=createDocumentStoragePath(file);
+  const {error:uploadError}=await client.storage
+    .from(DOCUMENT_STORAGE_BUCKET)
+    .upload(storagePath, file, {
+      cacheControl:'3600',
+      contentType:file.type||undefined,
+      upsert:false
+    });
+  if(uploadError){
+    logDocumentStorageError(uploadError, {storagePath});
+    throw uploadError;
+  }
+  const {data:urlData}=client.storage.from(DOCUMENT_STORAGE_BUCKET).getPublicUrl(storagePath);
+  const publicUrl=String(urlData?.publicUrl||'').trim();
+  if(!publicUrl) throw new Error('업로드된 문서 URL을 만들 수 없습니다.');
+  const documentItem={
+    file_name:file.name,
+    storage_path:storagePath,
+    public_url:publicUrl,
+    file_type:file.type||getEquipmentCarnetFileType(file.name, file.type)||'',
+    file_size:file.size||0,
+    memo:String(memo||'').trim(),
+    uploader:String(currentUser?.name||currentEquipmentUser||'').trim()
+  };
+  const {data, error:insertError}=await client
+    .from(DOCUMENTS_TABLE)
+    .insert(documentItem)
+    .select()
+    .single();
+  if(insertError){
+    logDocumentStorageError(insertError, {storagePath});
+    if(insertError.code!=='42P01'){
+      throw insertError;
+    }
+    console.warn('[document-storage] documents table is missing; using storage list/local cache fallback.');
+  }
+  console.log('[document-storage] upload success', {
+    bucketName:DOCUMENT_STORAGE_BUCKET,
+    filePath:storagePath,
+    supabaseUrl:getDocumentStorageSupabaseUrl(),
+    publicUrl
+  });
+  return normalizeEquipmentCarnetEntry(data||{
+    id:createDocumentStorageId(),
+    ...documentItem,
+    uploaded_at:new Date().toISOString()
+  });
+}
+async function removeEquipmentCarnetDocuments(entries=[]){
+  const client=getDocumentStorageClient();
+  if(!client) throw new Error('Supabase 연결이 준비되지 않았습니다.');
+  const ids=(entries||[]).map(entry=>String(entry?.id||'').trim()).filter(id=>id&&!id.startsWith('storage-'));
+  const paths=Array.from(new Set((entries||[]).map(entry=>String(entry?.storagePath||'').trim()).filter(Boolean)));
+  if(paths.length&&client.storage?.from){
+    const {error:storageError}=await client.storage.from(DOCUMENT_STORAGE_BUCKET).remove(paths);
+    if(storageError) console.warn('[document-storage] storage delete failed.', storageError);
+  }
+  if(ids.length){
+    const {error:deleteError}=await client.from(DOCUMENTS_TABLE).delete().in('id', ids);
+    if(deleteError&&deleteError.code!=='42P01') throw deleteError;
+    if(deleteError) console.warn('[document-storage] documents table delete skipped.', deleteError);
+  }
+}
+async function deleteSelectedDocuments(){
+  return deleteSelectedEquipmentCarnetEntries();
 }
 function getEquipmentCarnetEntries(){
   loadEquipmentCarnetEntries();
   return sortEquipmentCarnetEntries(equipmentCarnetEntries);
 }
 function formatEquipmentCarnetDate(timestamp){
-  const value=Number(timestamp||0);
+  const value=typeof timestamp==='string' ? Date.parse(timestamp) : Number(timestamp||0);
   if(!Number.isFinite(value)||value<=0) return '';
   try{
     return new Date(value).toLocaleString('ko-KR', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
@@ -2227,15 +2455,15 @@ function renderEquipmentCarnetComposer(){
     <div class="carnet-list-composer-title">문서 파일 작성</div>
     <div class="carnet-list-form-grid">
       <label class="simple-form-field">
-        <span class="simple-form-label">제목</span>
-        <input id="equipmentCarnetTitleInput" class="simple-form-input" type="text" placeholder="예: 멕시코 입국 문서 목록">
+        <span class="simple-form-label">메모</span>
+        <input id="equipmentCarnetTitleInput" class="simple-form-input" type="text" placeholder="예: 멕시코 입국 문서">
       </label>
       <label class="simple-form-field">
         <span class="simple-form-label">파일 첨부</span>
-        <input id="equipmentCarnetFileInput" class="equipment-carnet-file-input" type="file" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.webp">
+        <input id="document-storage-upload" class="equipment-carnet-file-input" type="file" accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4">
       </label>
     </div>
-    <p class="carnet-list-composer-description">엑셀(.xlsx, .xls, .csv) 또는 이미지(.jpg, .jpeg, .png, .webp)를 등록할 수 있습니다.</p>
+    <p class="carnet-list-composer-description">문서, 이미지, 영상 파일을 Supabase 문서보관에 업로드합니다.</p>
     <div class="simple-info-actions carnet-list-form-actions">
       <button type="button" class="section-title-action-btn" onclick="saveEquipmentCarnetEntry(this)">저장</button>
       <button type="button" class="section-title-action-btn" onclick="closeEquipmentCarnetComposer()">취소</button>
@@ -2267,7 +2495,7 @@ function cancelEquipmentCarnetDeleteMode(){
   equipmentCarnetSelectedIds.clear();
   renderEquipmentCarnetDetail();
 }
-function deleteSelectedEquipmentCarnetEntries(){
+async function deleteSelectedEquipmentCarnetEntries(){
   loadEquipmentCarnetEntries();
   if(!isEquipmentCarnetDeleteMode){
     enterEquipmentCarnetDeleteMode();
@@ -2279,47 +2507,58 @@ function deleteSelectedEquipmentCarnetEntries(){
   }
   const confirmed=window.confirm(`선택한 문서 항목 ${equipmentCarnetSelectedIds.size}개를 삭제하시겠습니까?`);
   if(!confirmed) return;
-  equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>!equipmentCarnetSelectedIds.has(String(entry.id)));
-  equipmentCarnetSelectedIds.clear();
-  isEquipmentCarnetDeleteMode=false;
-  saveEquipmentCarnetEntries();
-  renderEquipmentCarnetDetail();
+  const selectedEntries=equipmentCarnetEntries.filter(entry=>equipmentCarnetSelectedIds.has(String(entry.id)));
+  try{
+    await removeEquipmentCarnetDocuments(selectedEntries);
+    equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>!equipmentCarnetSelectedIds.has(String(entry.id)));
+    equipmentCarnetSelectedIds.clear();
+    isEquipmentCarnetDeleteMode=false;
+    saveEquipmentCarnetEntries();
+    await refreshEquipmentCarnetEntriesFromSupabase({forceRender:true});
+  }catch(error){
+    logDocumentStorageError(error);
+    window.alert(`문서 삭제에 실패했습니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
+  }
 }
 function renderEquipmentCarnetCard(entry){
-  const isImage=entry.fileType==='image';
-  const createdAt=formatEquipmentCarnetDate(entry.createdAt);
+  const isImage=entry.fileType==='image'||String(entry.fileType||'').startsWith('image/');
+  const createdAt=formatEquipmentCarnetDate(entry.uploadedAt||entry.createdAt);
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
-  const thumbnail=isImage
-    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)} 미리보기">`
-    : renderEquipmentCarnetSpreadsheetPreview(entry.previewData?.rows||[]);
+  const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
+  const thumbnail=isImage&&publicUrl
+    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기">`
+    : `<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
     <div class="equipment-carnet-thumb">${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${thumbnail}</div>
     <div class="equipment-carnet-card-body">
-      <h4 class="equipment-carnet-card-title">${escapeHtml(entry.title)}</h4>
-      <div class="equipment-carnet-card-file">${escapeHtml(entry.fileName||'파일명 없음')}</div>
-      <div class="equipment-carnet-card-date">${escapeHtml(createdAt)}</div>
+      <h4 class="equipment-carnet-card-title">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</h4>
+      <div class="equipment-carnet-card-file">${escapeHtml([formatDocumentFileSize(entry.fileSize), entry.memo].filter(Boolean).join(' · ')||'문서 파일')}</div>
+      <div class="equipment-carnet-card-date">${escapeHtml([createdAt, entry.uploader].filter(Boolean).join(' · '))}</div>
+      <a class="document-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a>
     </div>
   </article>`;
 }
 function renderEquipmentCarnetMobileRow(entry){
-  const createdAt=formatEquipmentCarnetDate(entry.createdAt);
-  const meta=createdAt||entry.fileName||'등록 정보 없음';
+  const createdAt=formatEquipmentCarnetDate(entry.uploadedAt||entry.createdAt);
+  const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
+  const meta=[formatDocumentFileSize(entry.fileSize), createdAt, entry.uploader].filter(Boolean).join(' · ')||'등록 정보 없음';
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
-  return `<div class="equipment-carnet-mobile-row${isSelected?' is-selected':''}">
+  return `<div class="equipment-carnet-mobile-row document-storage-item${isSelected?' is-selected':''}">
     ${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}
     <button type="button" class="equipment-carnet-mobile-link" onclick="${openAction}">
-      <span class="equipment-carnet-mobile-title">${escapeHtml(entry.title)}</span>
+      <span class="equipment-carnet-mobile-title">${escapeHtml(entry.fileName||entry.title||'문서 파일')}</span>
       <span class="equipment-carnet-mobile-meta">${escapeHtml(meta)}</span>
     </button>
+    <a class="document-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer">다운로드</a>
   </div>`;
 }
 function renderEquipmentCarnetItems(entries=[]){
   if(!entries.length){
-    return '<div class="carnet-list-placeholder">등록된 문서 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div>';
+    return '<div id="document-storage-list" class="document-storage-list"><div class="carnet-list-placeholder">등록된 문서 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div></div>';
   }
-  return `<div class="equipment-carnet-desktop-grid">${entries.map(renderEquipmentCarnetCard).join('')}</div><div class="equipment-carnet-mobile-list">${entries.map(renderEquipmentCarnetMobileRow).join('')}</div>`;
+  return `<div id="document-storage-list" class="document-storage-list"><div class="equipment-carnet-desktop-grid">${entries.map(renderEquipmentCarnetCard).join('')}</div><div class="equipment-carnet-mobile-list">${entries.map(renderEquipmentCarnetMobileRow).join('')}</div></div>`;
 }
 function renderEquipmentCarnetPanelHtml(){
   const entries=getEquipmentCarnetEntries();
@@ -2328,14 +2567,9 @@ function renderEquipmentCarnetPanelHtml(){
 async function saveEquipmentCarnetEntry(saveButton=null){
   loadEquipmentCarnetEntries();
   const titleInput=document.getElementById('equipmentCarnetTitleInput');
-  const fileInput=document.getElementById('equipmentCarnetFileInput');
-  const title=String(titleInput?.value||'').trim();
+  const fileInput=document.getElementById('document-storage-upload')||document.getElementById('equipmentCarnetFileInput');
+  const memo=String(titleInput?.value||'').trim();
   const file=fileInput?.files?.[0]||null;
-  if(!title){
-    window.alert('제목을 입력해주세요.');
-    titleInput?.focus();
-    return;
-  }
   if(!file){
     window.alert('첨부할 파일을 선택해주세요.');
     fileInput?.focus();
@@ -2343,62 +2577,48 @@ async function saveEquipmentCarnetEntry(saveButton=null){
   }
   const fileType=getEquipmentCarnetFileType(file.name, file.type);
   if(!isEquipmentCarnetFileAccepted(file.name, file.type)){
-    window.alert('엑셀(.xlsx, .xls, .csv) 또는 이미지(.jpg, .jpeg, .png, .webp)만 등록할 수 있습니다.');
+    window.alert('지원하지 않는 파일 형식입니다.');
     fileInput.value='';
     fileInput.focus();
     return;
   }
-  if(fileType!=='image'&&!window.XLSX){
-    window.alert('엑셀 뷰어 라이브러리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
-    return;
-  }
   if(saveButton) saveButton.disabled=true;
   try{
-    const originalData=await readFileAsDataUrl(file);
-    if(!originalData) throw new Error('file-read-failed');
-    let previewData={type:fileType};
-    if(fileType==='image'){
-      previewData={type:'image', src:originalData};
-    }else if(fileType==='csv'){
-      const text=await readFileAsText(file);
-      previewData={type:'spreadsheet', rows:normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromText(text), 6, 5)};
-    }else{
-      const arrayBuffer=await readFileAsArrayBuffer(file);
-      previewData={type:'spreadsheet', rows:normalizeEquipmentCarnetRows(parseEquipmentCarnetSpreadsheetRowsFromArrayBuffer(arrayBuffer), 6, 5)};
-    }
-    const nextEntry=normalizeEquipmentCarnetEntry({
-      id:createEquipmentCarnetId(),
-      title,
-      fileName:file.name,
-      fileType,
-      createdAt:Date.now(),
-      originalData,
-      previewData
-    });
+    const nextEntry=await uploadDocumentFile(file, memo);
     if(!nextEntry) throw new Error('entry-normalize-failed');
-    equipmentCarnetEntries=sortEquipmentCarnetEntries([nextEntry, ...equipmentCarnetEntries]);
+    const latestEntries=await fetchEquipmentCarnetEntriesFromSupabase();
+    equipmentCarnetEntries=sortEquipmentCarnetEntries(Array.isArray(latestEntries) ? latestEntries : [nextEntry, ...equipmentCarnetEntries]);
     saveEquipmentCarnetEntries();
     isEquipmentCarnetComposerOpen=false;
     isEquipmentCarnetDeleteMode=false;
     equipmentCarnetSelectedIds.clear();
+    if(fileInput) fileInput.value='';
+    if(titleInput) titleInput.value='';
     renderEquipmentCarnetDetail();
+    window.alert('문서 업로드가 완료되었습니다.');
   }catch(error){
-    console.warn('[equipment-carnet] save failed', error);
-    window.alert('문서 파일 저장에 실패했습니다. 파일 형식과 용량을 확인해주세요.');
+    logDocumentStorageError(error);
+    window.alert(`문서 업로드에 실패했습니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
   }finally{
     if(saveButton) saveButton.disabled=false;
   }
 }
-function deleteEquipmentCarnetEntry(entryId=''){
+async function deleteEquipmentCarnetEntry(entryId=''){
   loadEquipmentCarnetEntries();
   const normalized=String(entryId||'').trim();
   const target=equipmentCarnetEntries.find(entry=>String(entry.id)===normalized);
   if(!target) return;
   const confirmed=window.confirm(`'${target.title}' 항목을 삭제하시겠습니까?`);
   if(!confirmed) return;
-  equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>String(entry.id)!==normalized);
-  saveEquipmentCarnetEntries();
-  renderEquipmentCarnetDetail();
+  try{
+    await removeEquipmentCarnetDocuments([target]);
+    equipmentCarnetEntries=equipmentCarnetEntries.filter(entry=>String(entry.id)!==normalized);
+    saveEquipmentCarnetEntries();
+    await refreshEquipmentCarnetEntriesFromSupabase({forceRender:true});
+  }catch(error){
+    logDocumentStorageError(error);
+    window.alert(`문서 삭제에 실패했습니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
+  }
 }
 function ensureEquipmentCarnetExportModal(){
   let modal=document.getElementById('equipmentCarnetExportModal');
@@ -2419,8 +2639,8 @@ function closeEquipmentCarnetExportModal(){
 async function buildEquipmentCarnetExportItemsHtml(entries=[]){
   const blocks=await Promise.all(entries.map(async entry=>{
     const createdAt=formatEquipmentCarnetDate(entry.createdAt);
-    if(entry.fileType==='image'){
-      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'문서 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-image"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title||entry.fileName||'문서 이미지')}"></div></article>`;
+    if(entry.fileType==='image'||String(entry.fileType||'').startsWith('image/')){
+      return `<article class="equipment-carnet-export-item"><header class="equipment-carnet-export-item-header"><h4>${escapeHtml(entry.title||entry.fileName||'문서 파일')}</h4><div class="equipment-carnet-export-item-meta">${escapeHtml([entry.fileName, createdAt].filter(Boolean).join(' · '))}</div></header><div class="equipment-carnet-export-image"><img src="${escapeHtml(entry.publicUrl||entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title||entry.fileName||'문서 이미지')}"></div></article>`;
     }
     try{
       const rows=await parseEquipmentCarnetEntryRows(entry, 240, 24);
@@ -2491,18 +2711,23 @@ async function openEquipmentCarnetViewer(entryId=''){
   loadEquipmentCarnetEntries();
   const entry=equipmentCarnetEntries.find(item=>String(item.id)===String(entryId));
   if(!entry) return;
+  const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
   const modal=ensureEquipmentCarnetViewerModal();
   const title=document.getElementById('equipmentCarnetViewerTitle');
   const meta=document.getElementById('equipmentCarnetViewerMeta');
   const body=document.getElementById('equipmentCarnetViewerBody');
-  title.textContent=entry.title;
-  meta.textContent=[entry.fileName, formatEquipmentCarnetDate(entry.createdAt)].filter(Boolean).join(' · ');
+  title.textContent=entry.fileName||entry.title;
+  meta.textContent=[formatDocumentFileSize(entry.fileSize), formatEquipmentCarnetDate(entry.uploadedAt||entry.createdAt), entry.uploader].filter(Boolean).join(' · ');
   body.innerHTML='<div class="equipment-carnet-viewer-loading">파일을 여는 중입니다.</div>';
   modal.classList.remove('hidden');
   syncEquipmentCarnetModalBodyState();
   modal.focus();
-  if(entry.fileType==='image'){
-    body.innerHTML=`<div class="equipment-carnet-image-viewer"><img src="${escapeHtml(entry.originalData||entry.previewData?.src||'')}" alt="${escapeHtml(entry.title)}"></div>`;
+  if(entry.fileType==='image'||String(entry.fileType||'').startsWith('image/')){
+    body.innerHTML=`<div class="equipment-carnet-image-viewer"><img src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)}"></div><div class="document-storage-viewer-actions"><a class="document-download-btn" href="${escapeHtml(publicUrl)}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
+    return;
+  }
+  if(publicUrl&&!entry.originalData){
+    body.innerHTML=`<div class="equipment-carnet-viewer-empty">이 문서는 Supabase Storage에 저장되어 있습니다.</div><div class="document-storage-viewer-actions"><a class="document-download-btn" href="${escapeHtml(publicUrl)}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
     return;
   }
   try{
