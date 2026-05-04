@@ -2461,6 +2461,10 @@ body.news-editor-modal-open{overflow:hidden}
 .file-storage-list{
   width:100%;
 }
+.file-storage-item,
+.file-storage-card{
+  overflow:hidden;
+}
 .file-storage-item{
   display:flex;
   align-items:center;
@@ -2470,7 +2474,9 @@ body.news-editor-modal-open{overflow:hidden}
 }
 .file-storage-info{
   flex:1;
+  width:100%;
   min-width:0;
+  text-align:center;
 }
 .file-storage-info strong{
   display:block;
@@ -2502,16 +2508,37 @@ body.news-editor-modal-open{overflow:hidden}
   flex:0 0 auto;
 }
 .file-storage-title{
+  display:block;
+  width:100%;
+  max-width:100%;
+  margin:8px auto 4px;
+  text-align:center !important;
   color:#111827 !important;
   opacity:1 !important;
   visibility:visible !important;
   font-weight:700;
+  line-height:1.35;
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+.file-storage-meta{
   display:block;
-  word-break:break-word;
+  width:100%;
+  text-align:center !important;
+  color:#475569 !important;
+  font-size:12px;
+  line-height:1.35;
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
 }
 .file-storage-item:hover .file-storage-title,
+.file-storage-card:hover .file-storage-title,
 .file-storage-item:active .file-storage-title,
-.file-storage-item:focus .file-storage-title{
+.file-storage-card:active .file-storage-title,
+.file-storage-item:focus .file-storage-title,
+.file-storage-card:focus .file-storage-title{
   color:#111827 !important;
   opacity:1 !important;
 }
@@ -2557,12 +2584,30 @@ body.news-editor-modal-open{overflow:hidden}
   display:block;
   margin:0 auto;
 }
-.file-preview-fallback{
+.file-preview-fallback,
+.file-preview-message{
   width:100%;
   height:100%;
   padding:24px;
   text-align:center;
   box-sizing:border-box;
+}
+.file-preview-message{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+.file-preview-message strong{
+  color:#111827;
+  font-size:18px;
+  line-height:1.4;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+.file-preview-message p{
+  margin:8px 0 0;
+  color:#475569;
 }
 .file-preview-actions{
   margin-top:12px;
@@ -7943,6 +7988,22 @@ textarea.simple-form-input,
     padding:5px 8px;
     font-size:12px;
     white-space:nowrap;
+  }
+
+  .equipment-carnet-mobile-link.file-storage-info{
+    align-items:center;
+    text-align:center;
+  }
+
+  .equipment-carnet-mobile-title.file-storage-title,
+  .equipment-carnet-mobile-meta.file-storage-meta{
+    width:100%;
+    text-align:center !important;
+    white-space:normal;
+    word-break:keep-all;
+    overflow-wrap:anywhere;
+    overflow:visible;
+    text-overflow:clip;
   }
 
   .equipment-file-storage-mobile-row{
