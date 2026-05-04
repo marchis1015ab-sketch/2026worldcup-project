@@ -2979,7 +2979,10 @@ async function fetchEquipmentFileStorageEntriesFromSupabase(){
 async function refreshEquipmentFileStorageEntriesFromSupabase(options={}){
   const forceRender=Boolean(options.forceRender);
   const entries=await fetchEquipmentFileStorageEntriesFromSupabase();
-  if(!Array.isArray(entries)) return;
+  if(!Array.isArray(entries)){
+    if(forceRender||currentEquipmentMode==='fileStorage') renderEquipmentFileStorageDetail();
+    return;
+  }
   equipmentFileStorageEntries=sortEquipmentFileStorageEntries(entries);
   hasLoadedEquipmentFileStorageEntries=true;
   saveEquipmentFileStorageEntries();
@@ -2988,7 +2991,20 @@ async function refreshEquipmentFileStorageEntriesFromSupabase(options={}){
   }
 }
 async function loadFileStorageItems(){
-  await refreshEquipmentFileStorageEntriesFromSupabase({forceRender:currentEquipmentMode==='fileStorage'});
+  const list=document.getElementById('file-storage-list');
+  const client=getFileStorageClient();
+  if(!client){
+    console.warn('Supabase client 없음: 파일보관 목록을 불러올 수 없음');
+    return equipmentFileStorageEntries;
+  }
+  const entries=await fetchEquipmentFileStorageEntriesFromSupabase();
+  if(!Array.isArray(entries)){
+    if(list&&!equipmentFileStorageEntries.length){
+      list.innerHTML='<p class="empty-message">파일 목록을 불러오지 못했습니다.</p>';
+    }
+    return equipmentFileStorageEntries;
+  }
+  renderFileStorageItems(entries);
   return equipmentFileStorageEntries;
 }
 function renderFileStorageItems(items=[]){
@@ -3023,7 +3039,8 @@ async function uploadFileStorageItem(file, title=''){
     public_url:publicUrl,
     file_type:file.type||getEquipmentFileStorageType(file.name, file.type)||'',
     file_size:file.size||0,
-    uploader:String(currentUser?.name||currentEquipmentUser||'').trim()
+    uploader:String(currentUser?.name||currentEquipmentUser||'').trim(),
+    uploaded_at:new Date().toISOString()
   };
   const {data, error:insertError}=await client
     .from(FILE_STORAGE_TABLE)
@@ -3041,12 +3058,13 @@ async function uploadFileStorageItem(file, title=''){
     supabaseUrl:getDocumentStorageSupabaseUrl(),
     publicUrl
   });
-  return normalizeEquipmentFileStorageEntry(data||{
+  const normalizedEntry=normalizeEquipmentFileStorageEntry(data||{
     id:createEquipmentFileStorageId(),
     title,
-    ...payload,
-    uploaded_at:new Date().toISOString()
+    ...payload
   });
+  await loadFileStorageItems();
+  return normalizedEntry;
 }
 async function removeEquipmentFileStorageFiles(entries=[]){
   const client=getFileStorageClient();
@@ -3177,21 +3195,20 @@ async function saveEquipmentFileStorageEntry(saveButton=null){
   }
   if(saveButton) saveButton.disabled=true;
   try{
-    const nextEntry=await uploadFileStorageItem(file, title);
-    if(!nextEntry) throw new Error('entry-normalize-failed');
-    const latestEntries=await fetchEquipmentFileStorageEntriesFromSupabase();
-    equipmentFileStorageEntries=sortEquipmentFileStorageEntries(Array.isArray(latestEntries) ? latestEntries : [nextEntry, ...equipmentFileStorageEntries]);
-    saveEquipmentFileStorageEntries();
+    await uploadFileStorageItem(file, title);
     isEquipmentFileStorageComposerOpen=false;
     isEquipmentFileStorageDeleteMode=false;
     equipmentFileStorageSelectedIds.clear();
     if(fileInput) fileInput.value='';
     if(titleInput) titleInput.value='';
+    await loadFileStorageItems();
     renderEquipmentFileStorageDetail();
     window.alert('파일 업로드가 완료되었습니다.');
   }catch(error){
     logFileStorageError(error);
-    window.alert(`파일 업로드에 실패했습니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
+    if(fileInput) fileInput.value='';
+    window.alert(`파일 업로드에 실패했습니다. 기존 목록은 유지됩니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
+    await loadFileStorageItems();
   }finally{
     if(saveButton) saveButton.disabled=false;
   }
