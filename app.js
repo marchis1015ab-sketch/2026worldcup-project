@@ -1877,12 +1877,59 @@ function deleteSelectedEquipmentSummaryRows(){
 function renderEquipmentSummaryInput(value='', rowIndex=0, colIndex=0, type='text'){
   return `<input type="${type}" class="equipment-table-input" data-equipment-row-index="${rowIndex}" data-equipment-col-index="${colIndex}" value="${escapeHtml(value)}" oninput="updateEquipmentSharedCell(${rowIndex}, ${colIndex}, this.value)">`;
 }
+function formatEquipmentQuantity(value=''){
+  const text=String(value||'').trim();
+  if(!text) return '';
+  return /^\d+$/.test(text) ? `${text}대` : text;
+}
+function renderEquipmentMobileValue(value='', className=''){
+  const normalized=String(value||'').trim();
+  const classAttr=className ? ` ${escapeHtml(className)}` : '';
+  return `<span class="equipment-mobile-value${classAttr}">${escapeHtml(normalized)||'-'}</span>`;
+}
+function renderEquipmentMobileInput(rowIndex=0, colIndex=0, value='', mode='shared', rowId=''){
+  const inputType=colIndex===4?'number':'text';
+  if(mode==='shared'){
+    if(colIndex===6){
+      return renderEquipmentUserSelect(value, `data-equipment-row-index="${rowIndex}" data-equipment-col-index="${colIndex}" onchange="updateEquipmentSharedUser(${rowIndex}, this.value)"`, 'equipment-user-select equipment-table-user-select equipment-mobile-input');
+    }
+    return `<input type="${inputType}" class="equipment-table-input equipment-mobile-input" data-equipment-row-index="${rowIndex}" data-equipment-col-index="${colIndex}" value="${escapeHtml(value)}" oninput="updateEquipmentSharedCell(${rowIndex}, ${colIndex}, this.value)">`;
+  }
+  return `<input type="${inputType}" class="equipment-table-input equipment-mobile-input" data-personal-row-id="${escapeHtml(rowId)}" data-personal-col-index="${colIndex}" value="${escapeHtml(value)}" oninput="updateEquipmentRow('${escapeHtml(rowId)}', ${colIndex}, this.value)">`;
+}
+function renderEquipmentMobileRow(row=[], options={}){
+  const {mode='shared', rowIndex=0, user='', isEditing=false}=options;
+  const normalized=normalizeEquipmentRowValues(row);
+  const rowId=String(normalized[normalized.length-1]||'').trim();
+  const isBlankRow=isEquipmentRowEmpty(normalized);
+  const checkClass=mode==='shared'?'equipment-summary-row-check':'personal-equipment-row-check';
+  const checkHtml=isEditing&&!isBlankRow ? `<label class="equipment-mobile-check"><input type="checkbox" class="${checkClass}" value="${escapeHtml(rowId)}"><span>선택</span></label>` : '';
+  const firstLine=isEditing
+    ? `${renderEquipmentMobileInput(rowIndex, 0, normalized[0], mode, rowId)}${renderEquipmentMobileInput(rowIndex, 1, normalized[1], mode, rowId)}`
+    : `${renderEquipmentMobileValue(normalized[0], 'equipment-mobile-name')}${renderEquipmentMobileValue(normalized[1], 'equipment-mobile-model')}`;
+  const secondValues=[
+    isEditing ? renderEquipmentMobileInput(rowIndex, 2, normalized[2], mode, rowId) : renderEquipmentMobileValue(normalized[2], 'equipment-mobile-maker'),
+    isEditing ? renderEquipmentMobileInput(rowIndex, 3, normalized[3], mode, rowId) : renderEquipmentMobileValue(normalized[3], 'equipment-mobile-serial'),
+    isEditing ? renderEquipmentMobileInput(rowIndex, 4, normalized[4], mode, rowId) : renderEquipmentMobileValue(formatEquipmentQuantity(normalized[4]), 'equipment-mobile-qty'),
+    isEditing ? renderEquipmentMobileInput(rowIndex, 5, normalized[5], mode, rowId) : renderEquipmentMobileValue(normalized[5], 'equipment-mobile-note'),
+    mode==='personal'
+      ? renderEquipmentMobileValue(user||normalized[6], 'equipment-mobile-user')
+      : (isEditing ? renderEquipmentMobileInput(rowIndex, 6, normalized[6], mode, rowId) : renderEquipmentMobileValue(normalized[6], 'equipment-mobile-user'))
+  ].join('');
+  return `<article class="equipment-mobile-row${isBlankRow?' is-empty':''}">${checkHtml}<div class="equipment-mobile-lines"><div class="equipment-mobile-line-1">${firstLine}</div><div class="equipment-mobile-line-2">${secondValues}</div></div></article>`;
+}
+function renderEquipmentMobileList(mode='shared', user='', rows=[], isEditing=false){
+  return `<div class="equipment-mobile-list" role="list">${rows.map((row, rowIndex)=>renderEquipmentMobileRow(row, {mode, user, rowIndex, isEditing})).join('')}</div>`;
+}
 function renderEquipmentTableHtml(mode, user=''){
   const headers=getEquipmentHeaders(mode);
   const isEditing=mode==='shared' ? isEquipmentSummaryEditMode() : isPersonalEquipmentEditMode(user);
   const rows=(mode==='shared'&&isEditing)
     ? getEquipmentRows(mode, user)
     : getEquipmentRows(mode, user).filter(row=>isEquipmentRowTouched(row));
+  if(isMobileViewport()){
+    return renderEquipmentMobileList(mode, user, rows, isEditing);
+  }
   if(mode==='shared'){
     return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map((row, rowIndex)=>{const rowId=String(row[row.length-1]||'').trim(); const isBlankRow=isEquipmentRowEmpty(row); return `<tr><td data-label="선택">${isEditing&&!isBlankRow?`<input type="checkbox" class="equipment-summary-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{const value=String(row[index]||''); if(index===headers.length-1){ if(isEditing){ return `<td data-label="${escapeHtml(label||'')}">${renderEquipmentUserSelect(value, `data-equipment-row-index="${rowIndex}" data-equipment-col-index="${index}" onchange="updateEquipmentSharedUser(${rowIndex}, this.value)"`, 'equipment-user-select equipment-table-user-select')}</td>`; } return `<td data-label="${escapeHtml(label||'')}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`; } if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label||'')}">${renderEquipmentSummaryInput(value, rowIndex, index, inputType)}</td>`; } return `<td data-label="${escapeHtml(label||'')}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
   }
@@ -1895,6 +1942,9 @@ function renderPersonalEquipmentTable(user=''){
   const headers=getEquipmentHeaders('personal');
   const isEditing=isPersonalEquipmentEditMode(user);
   const rows=getEquipmentRows('personal', user).filter(row=>isEquipmentRowTouched(row));
+  if(isMobileViewport()){
+    return renderEquipmentMobileList('personal', user, rows, isEditing);
+  }
   return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>{const rowId=String(row[row.length-1]||'').trim(); return `<tr><td data-label="선택">${isEditing?`<input type="checkbox" class="personal-equipment-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{if(index===headers.length-1){ return `<td data-label="${escapeHtml(label)}"><span class="equipment-personal-user-text">${escapeHtml(String(user||''))}</span></td>`; } const value=String(row[index]||''); if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label)}"><input type="${inputType}" class="equipment-table-input" data-personal-row-id="${escapeHtml(rowId)}" data-personal-col-index="${index}" value="${escapeHtml(value)}" oninput="updateEquipmentRow('${escapeHtml(rowId)}', ${index}, this.value)"></td>`; } return `<td data-label="${escapeHtml(label)}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
 }
 function renderEquipmentCarnetTitle(){
@@ -12709,10 +12759,14 @@ function renderEquipmentSharedDetail(){
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
   document.getElementById('detailSubtitle').innerHTML=isMobileViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
   detailTable.className='data-table equipment-table';
-  if(!renderCache.equipmentSharedTable){
+  if(isMobileViewport()){
+    detailTable.innerHTML=renderEquipmentSummaryTable();
+  }else if(!renderCache.equipmentSharedTable){
     renderCache.equipmentSharedTable=renderEquipmentSummaryTable();
+    detailTable.innerHTML=renderCache.equipmentSharedTable;
+  }else{
+    detailTable.innerHTML=renderCache.equipmentSharedTable;
   }
-  detailTable.innerHTML=renderCache.equipmentSharedTable;
   detailTable.parentElement.classList.add('equipment-table-wrapper');
   document.getElementById('detailCol').classList.remove('hidden');
   updateEquipmentSharedTvuIndicators();
@@ -12801,10 +12855,14 @@ function showEquipmentPersonal(user, el){
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('personal', user);
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table equipment-table';
-  if(!renderCache.equipmentPersonalTables[user]){
+  if(isMobileViewport()){
+    document.getElementById('detailTable').innerHTML=renderPersonalEquipmentTable(user);
+  }else if(!renderCache.equipmentPersonalTables[user]){
     renderCache.equipmentPersonalTables[user]=renderPersonalEquipmentTable(user);
+    document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
+  }else{
+    document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
   }
-  document.getElementById('detailTable').innerHTML=renderCache.equipmentPersonalTables[user];
   document.getElementById('detailTable').parentElement.classList.add('equipment-table-wrapper');
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
