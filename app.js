@@ -2905,12 +2905,11 @@ function getFileStorageClient(){
   return getSharedStateSyncClient?.()||window.supabaseClient||null;
 }
 function createFileStoragePath(file={}){
-  const safeName=sanitizeDocumentStorageFileName(file?.name||'file');
-  const dateKey=getTodayTimelineKey?.()||new Date().toISOString().slice(0, 10);
-  const randomValue=typeof crypto!=='undefined'&&crypto.randomUUID
-    ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
-    : Math.random().toString(36).slice(2, 12);
-  return `${dateKey}/${Date.now()}-${randomValue}-${safeName}`;
+  const originalName=file?.name||'file';
+  const safeName=String(originalName)
+    .replace(/\s+/g, '_')
+    .replace(/[^\w.\-가-힣]/g, '');
+  return `${Date.now()}_${safeName||'file'}`;
 }
 function logFileStorageError(error, context={}){
   const source=error&&typeof error==='object' ? error : {};
@@ -3019,6 +3018,7 @@ async function uploadFileStorageItem(file, title=''){
     throw new Error('Supabase Storage 연결이 준비되지 않았습니다.');
   }
   const storagePath=createFileStoragePath(file);
+  console.log('UPLOAD PATH:', storagePath);
   const {error:uploadError}=await client.storage
     .from(FILE_STORAGE_BUCKET)
     .upload(storagePath, file, {
