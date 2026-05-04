@@ -2274,7 +2274,7 @@ function deleteSelectedEquipmentCarnetEntries(){
     return;
   }
   if(!equipmentCarnetSelectedIds.size){
-    window.alert('삭제할 항목을 선택하세요.');
+    window.alert('삭제할 까르네 항목을 선택해주세요.');
     return;
   }
   const confirmed=window.confirm(`선택한 까르네 항목 ${equipmentCarnetSelectedIds.size}개를 삭제하시겠습니까?`);
