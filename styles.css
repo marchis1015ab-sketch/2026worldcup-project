@@ -7495,14 +7495,21 @@ textarea.simple-form-input,
   }
 
   .equipment-mobile-row{
-    display:grid;
-    grid-template-columns:auto minmax(0,1fr);
-    gap:8px;
+    display:flex;
+    flex-direction:column;
     width:100%;
     min-height:56px;
-    padding:7px 2px;
-    border-bottom:1px solid #d9e2ec;
+    padding:8px 10px;
+    border-bottom:1px solid #ddd;
+    background:#fff;
     box-sizing:border-box;
+  }
+
+  .equipment-card{
+    box-shadow:none;
+    border-radius:0;
+    padding:0;
+    margin:0;
   }
 
   .equipment-mobile-row.is-empty{
@@ -7513,7 +7520,8 @@ textarea.simple-form-input,
     display:flex;
     align-items:center;
     gap:4px;
-    min-height:32px;
+    min-height:24px;
+    margin-bottom:4px;
     color:#52677e;
     font-size:11px;
     font-weight:800;
@@ -7537,30 +7545,44 @@ textarea.simple-form-input,
   .equipment-mobile-line-2,
   .equipment-mobile-line-3{
     display:grid;
-    align-items:start;
+    grid-template-columns:1fr 1fr 1fr;
+    align-items:center;
     min-width:0;
-    column-gap:8px;
-  }
-
-  .equipment-mobile-line-1{
-    grid-template-columns:minmax(96px,1fr) minmax(104px,1.05fr);
-  }
-
-  .equipment-mobile-line-2{
-    grid-template-columns:minmax(88px,1fr) minmax(112px,1.2fr);
-  }
-
-  .equipment-mobile-line-3{
-    grid-template-columns:minmax(34px,.45fr) minmax(112px,1.5fr) minmax(52px,.72fr);
+    gap:4px;
+    font-size:13px;
   }
 
   .equipment-mobile-value{
     min-width:0;
     color:#334155;
-    font-size:11px;
+    font-size:13px;
     font-weight:700;
     line-height:1.35;
     overflow-wrap:anywhere;
+  }
+
+  .equipment-mobile-empty{
+    visibility:hidden;
+  }
+
+  .mobile-line span:nth-child(1),
+  .mobile-line input:nth-child(1),
+  .mobile-line select:nth-child(1){
+    text-align:left;
+  }
+
+  .mobile-line span:nth-child(2),
+  .mobile-line input:nth-child(2),
+  .mobile-line select:nth-child(2){
+    text-align:center;
+    text-align-last:center;
+  }
+
+  .mobile-line span:nth-child(3),
+  .mobile-line input:nth-child(3),
+  .mobile-line select:nth-child(3){
+    text-align:right;
+    text-align-last:right;
   }
 
   .equipment-mobile-name{
@@ -7575,18 +7597,13 @@ textarea.simple-form-input,
     font-weight:800;
   }
 
-  .equipment-mobile-user{
-    color:#0f172a;
-    font-weight:900;
-    text-align:right;
-  }
-
   .equipment-mobile-note{
     white-space:normal;
+    word-break:break-word;
   }
 
   .equipment-mobile-input,
-  .equipment-mobile-line-3 .equipment-user-select{
+  .mobile-line .equipment-user-select{
     width:100%;
     min-width:0;
     min-height:30px;
