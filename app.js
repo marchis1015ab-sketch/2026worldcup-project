@@ -7096,6 +7096,10 @@ let isTimelineGalleryDeleteMode = false;
 let timelineGalleryEditingGroupKey = '';
 let timelineGalleryPreviewState = null;
 let timelineGalleryHydrationPromise = null;
+let isGalleryUserScrolling = false;
+let galleryScrollTimer = null;
+let timelineGalleryPendingAutoRefresh = false;
+let lastTimelineGalleryScrollState = null;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
@@ -7335,7 +7339,7 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
   if(timelineChanged){
     if(isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('personalTimelineMenu')){
       if(document.getElementById('detailCol')?.classList.contains('personal-timeline-gallery-mode')){
-        openTimelineGalleryView();
+        hydrateTimelineGalleryEntries(true);
       }else{
         renderTimelineSchedule(currentTimelineView);
       }
@@ -9672,6 +9676,18 @@ function applyTimelineGalleryEntries(entries=[], source='unknown'){
     rawLength
   });
 }
+function isTimelineGalleryViewActive(){
+  return Boolean(document.querySelector('.timeline-gallery-view'))
+    && Boolean(document.getElementById('detailCol')?.classList.contains('personal-timeline-gallery-mode'));
+}
+function requestTimelineGalleryAutoRefresh(){
+  if(!isTimelineGalleryViewActive()) return;
+  if(isGalleryUserScrolling){
+    timelineGalleryPendingAutoRefresh=true;
+    return;
+  }
+  refreshTimelineGalleryView({preserveScroll:true});
+}
 async function fetchTimelineGallerySharedRaw(){
   const client=getSharedStateSyncClient();
   if(!client) return '';
@@ -9741,9 +9757,7 @@ async function hydrateTimelineGalleryEntries(force=false){
       return timelineGalleryEntries;
     }
     hasLoadedTimelineGalleryEntries=true;
-    if(document.querySelector('.timeline-gallery-view')){
-      refreshTimelineGalleryView();
-    }
+    requestTimelineGalleryAutoRefresh();
     return timelineGalleryEntries;
   })().catch(error=>{
     console.warn('Failed to hydrate timeline gallery.', error);
@@ -10357,6 +10371,12 @@ function getTimelineGalleryScrollState(){
     scrolledElements
   };
 }
+function saveGalleryScrollPosition(){
+  lastTimelineGalleryScrollState=getTimelineGalleryScrollState();
+}
+function restoreGalleryScrollPosition(){
+  restoreTimelineGalleryScrollState(lastTimelineGalleryScrollState);
+}
 function restoreTimelineGalleryScrollState(scrollState){
   if(!scrollState||typeof window==='undefined') return;
   const restore=()=>{
@@ -10384,7 +10404,7 @@ function restoreTimelineGalleryScrollState(scrollState){
 function refreshTimelineGalleryView(options={}){
   const root=document.querySelector('.timeline-gallery-view');
   if(!root) return;
-  const shouldPreserveScroll=Boolean(options.preserveScroll);
+  const shouldPreserveScroll=options.preserveScroll!==false;
   const scrollState=shouldPreserveScroll ? getTimelineGalleryScrollState() : null;
   root.outerHTML=renderGalleryView();
   bindTimelineGalleryViewEvents();
@@ -10394,6 +10414,7 @@ function openTimelineGalleryView(){
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
   if(!detailCol||!detailTable) return;
+  const shouldRestoreGalleryScroll=Boolean(lastTimelineGalleryScrollState);
   if(personalTimelineStickyMonthCleanup){
     personalTimelineStickyMonthCleanup();
     personalTimelineStickyMonthCleanup=null;
@@ -10419,9 +10440,14 @@ function openTimelineGalleryView(){
   hydrateTimelineGalleryEntries();
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
-  if(!isMobileViewport()) focusPanelStart('#detailCol');
+  if(shouldRestoreGalleryScroll){
+    restoreGalleryScrollPosition();
+  }else if(!isMobileViewport()){
+    focusPanelStart('#detailCol');
+  }
 }
 function closeTimelineGalleryView(){
+  saveGalleryScrollPosition();
   isTimelineGalleryComposerOpen=false;
   isTimelineGalleryDeleteMode=false;
   timelineGalleryEditingGroupKey='';
@@ -10549,9 +10575,36 @@ function updateTimelineGalleryComposerPreview(){
   const preview=document.getElementById('timelineGalleryComposerPreview');
   if(preview) preview.innerHTML=renderTimelineGalleryComposerPreview();
 }
+function handleTimelineGalleryScroll(){
+  if(!isTimelineGalleryViewActive()) return;
+  isGalleryUserScrolling=true;
+  saveGalleryScrollPosition();
+  if(galleryScrollTimer) window.clearTimeout(galleryScrollTimer);
+  galleryScrollTimer=window.setTimeout(()=>{
+    isGalleryUserScrolling=false;
+    if(timelineGalleryPendingAutoRefresh){
+      timelineGalleryPendingAutoRefresh=false;
+      refreshTimelineGalleryView({preserveScroll:true});
+    }
+  }, 1500);
+}
+function bindGalleryScrollGuard(){
+  const targets=[
+    window,
+    document.getElementById('detailCol'),
+    document.querySelector('.timeline-card'),
+    document.querySelector('.timeline-gallery-view')
+  ].filter(Boolean);
+  targets.forEach(target=>{
+    if(target.__timelineGalleryScrollGuardBound) return;
+    target.__timelineGalleryScrollGuardBound=true;
+    target.addEventListener('scroll', handleTimelineGalleryScroll, {passive:true});
+  });
+}
 function bindTimelineGalleryViewEvents(){
   const root=document.querySelector('.timeline-gallery-view');
   if(!root) return;
+  bindGalleryScrollGuard();
   root.onclick=event=>{
     const actionButton=event.target.closest('[data-gallery-action]');
     if(actionButton&&root.contains(actionButton)){

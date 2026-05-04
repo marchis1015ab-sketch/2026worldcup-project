@@ -5491,6 +5491,17 @@ input[type="file"]{
   object-fit:cover;
   background:#eef2f7;
 }
+.gallery-item img,
+.gallery-item video,
+.gallery-thumb img,
+.gallery-thumb video,
+.timeline-gallery-card img,
+.timeline-gallery-card video{
+  width:100%;
+  aspect-ratio:4/3;
+  object-fit:cover;
+  display:block;
+}
 .timeline-gallery-card-body{
   display:flex;
   flex-direction:column;
