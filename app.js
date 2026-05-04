@@ -6298,7 +6298,7 @@ const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_STORAGE_BUCKET = 'timeline-gallery';
 const TIMELINE_GALLERY_DRAFT_KEY = 'draft_timeline_gallery_composer';
-const LEGACY_TIMELINE_GALLERY_STORAGE_KEYS = ['worldcup-gallery-items-v1','worldcup_timeline_gallery_v1'];
+const LEGACY_TIMELINE_GALLERY_STORAGE_KEYS = ['galleryItems','worldcup-gallery-items-v1','worldcup_timeline_gallery_v1'];
 const TIMELINE_GALLERY_LEGACY_DB_NAME = 'worldcup-guide-gallery-db';
 const TIMELINE_GALLERY_LEGACY_DB_VERSION = 1;
 const TIMELINE_GALLERY_LEGACY_DB_STORE = 'gallery_state';
@@ -8897,22 +8897,27 @@ function normalizeTimelineGallerySavedAt(value){
 function normalizeTimelineGalleryItem(item){
   const publicUrl=String(item?.publicUrl||item?.url||'').trim();
   const storagePath=String(item?.storagePath||item?.path||'').trim();
-  const dataUrl=String(item?.dataUrl||item?.imageData||item?.src||publicUrl||'').trim();
+  const dataUrl=String(item?.dataUrl||item?.imageData||item?.src||item?.previewUrl||publicUrl||'').trim();
   if(!dataUrl&&!publicUrl) return null;
+  const rawMimeType=String(item?.mimeType||item?.contentType||item?.file?.type||'').trim();
+  const rawType=String(item?.type||item?.mediaType||'').trim().toLowerCase();
+  const mediaType=rawType==='video'||rawMimeType.toLowerCase().startsWith('video/') ? 'video' : 'image';
   const savedAt=normalizeTimelineGallerySavedAt(item?.savedAt??item?.createdAt);
   const rawCapturedDate=String(item?.capturedDate||item?.shootDate||item?.date||'').trim();
   const capturedDate=/^\d{4}-\d{2}-\d{2}$/.test(rawCapturedDate) ? rawCapturedDate : '';
   return {
     id:String(item?.id||createTimelineGalleryEntryId()),
     fileName:String(item?.fileName||item?.name||item?.title||'photo.jpg').trim()||'photo.jpg',
+    type:mediaType,
     dataUrl,
     publicUrl,
     storagePath,
-    mimeType:String(item?.mimeType||item?.contentType||'').trim(),
+    mimeType:rawMimeType,
     fileSize:Number(item?.fileSize)||0,
     capturedDate,
     memo:String(item?.memo||'').trim(),
-    savedAt
+    savedAt,
+    file:typeof File!=='undefined'&&item?.file instanceof File ? item.file : null
   };
 }
 function extractTimelineGalleryItems(entry){
@@ -8923,6 +8928,8 @@ function extractTimelineGalleryItems(entry){
         id:`${String(entry?.id||createTimelineGalleryEntryId())}_${String(image?.id||index)}`,
         dataUrl:image?.dataUrl||image?.src||'',
         fileName:image?.name||entry?.title||`photo-${index+1}.jpg`,
+        type:image?.type||image?.mediaType||'',
+        mimeType:image?.mimeType||image?.contentType||'',
         savedAt:entry?.savedAt||entry?.createdAt,
         capturedDate:entry?.capturedDate||entry?.shootDate||entry?.date||'',
         memo
@@ -8948,6 +8955,7 @@ function buildTimelineGalleryEntriesRaw(entries=[]){
   return JSON.stringify(normalizeTimelineGalleryEntries(entries).map(entry=>({
     id:entry.id,
     fileName:entry.fileName,
+    type:entry.type||'image',
     dataUrl:entry.storagePath||entry.publicUrl ? '' : entry.dataUrl,
     publicUrl:entry.publicUrl||'',
     storagePath:entry.storagePath||'',
@@ -9123,6 +9131,7 @@ function normalizeTimelineGalleryDraftState(value={}){
     ? source.images.map(image=>({
       id:String(image?.id||createTimelineGalleryImageId()),
       fileName:String(image?.fileName||'photo.jpg').trim()||'photo.jpg',
+      type:String(image?.type||image?.mediaType||'image').trim()==='video'?'video':'image',
       dataUrl:String(image?.dataUrl||'').trim(),
       mimeType:String(image?.mimeType||'image/jpeg').trim()||'image/jpeg',
       fileSize:Number(image?.fileSize)||0
@@ -9164,21 +9173,53 @@ function updateTimelineGalleryComposerStateFromForm(root=document){
   persistTimelineGalleryComposerDraft();
 }
 function readTimelineGalleryFiles(files){
-  return Promise.all(Array.from(files||[]).filter(file=>!file.type||String(file.type).startsWith('image/')).map(file=>new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=()=>resolve({
+  const supportedFiles=Array.from(files||[]).filter(file=>{
+    const type=String(file?.type||'').toLowerCase();
+    return !type||type.startsWith('image/')||type.startsWith('video/');
+  });
+  return Promise.all(supportedFiles.map(file=>new Promise(resolve=>{
+    const type=String(file.type||'').toLowerCase().startsWith('video/') ? 'video' : 'image';
+    const baseItem={
       id:createTimelineGalleryImageId(),
-      fileName:file.name||'photo.jpg',
-      dataUrl:String(reader.result||''),
-      mimeType:file.type||'image/jpeg',
+      fileName:file.name||`${type}.${type==='video'?'mp4':'jpg'}`,
+      type,
+      file,
+      dataUrl:'',
+      previewUrl:typeof URL!=='undefined'&&URL.createObjectURL ? URL.createObjectURL(file) : '',
+      mimeType:file.type||(type==='video'?'video/mp4':'image/jpeg'),
       fileSize:file.size||0
-    });
-    reader.onerror=()=>resolve(null);
+    };
+    if(type==='video'){
+      resolve(baseItem);
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=()=>resolve({...baseItem, dataUrl:String(reader.result||baseItem.previewUrl||'')});
+    reader.onerror=()=>resolve(baseItem.previewUrl ? baseItem : null);
     reader.readAsDataURL(file);
   }))).then(items=>items.filter(Boolean));
 }
 function getTimelineGalleryImageSrc(entry={}){
   return String(entry?.publicUrl||entry?.dataUrl||entry?.src||'').trim();
+}
+function getTimelineGalleryMediaSrc(entry={}){
+  return String(entry?.publicUrl||entry?.dataUrl||entry?.previewUrl||entry?.src||entry?.url||'').trim();
+}
+function getTimelineGalleryMediaType(entry={}){
+  const rawType=String(entry?.type||entry?.mediaType||'').trim().toLowerCase();
+  const mimeType=String(entry?.mimeType||entry?.contentType||'').trim().toLowerCase();
+  const source=getTimelineGalleryMediaSrc(entry).split('?')[0].toLowerCase();
+  if(rawType==='video'||mimeType.startsWith('video/')||/\.(mp4|mov|m4v|webm|ogg)$/i.test(source)) return 'video';
+  return 'image';
+}
+function renderTimelineGalleryMedia(entry={}, className='', alt='갤러리 미디어'){
+  const source=escapeHtml(getTimelineGalleryMediaSrc(entry));
+  const safeAlt=escapeHtml(alt||entry?.fileName||'갤러리 미디어');
+  const classAttr=className ? ` class="${escapeHtml(className)}"` : '';
+  if(getTimelineGalleryMediaType(entry)==='video'){
+    return `<video${classAttr} src="${source}" controls playsinline preload="metadata"></video>`;
+  }
+  return `<img${classAttr} src="${source}" alt="${safeAlt}">`;
 }
 function getTimelineGalleryClient(){
   return getSharedStateSyncClient();
@@ -9192,6 +9233,10 @@ function getTimelineGalleryFileExtension(fileName='', mimeType=''){
   const match=cleanName.match(/\.([a-z0-9]+)$/i);
   if(match) return match[1].toLowerCase();
   const normalizedMime=String(mimeType||'').toLowerCase();
+  if(normalizedMime.includes('mp4')) return 'mp4';
+  if(normalizedMime.includes('quicktime')) return 'mov';
+  if(normalizedMime.includes('webm')) return 'webm';
+  if(normalizedMime.includes('ogg')) return 'ogg';
   if(normalizedMime.includes('png')) return 'png';
   if(normalizedMime.includes('webp')) return 'webp';
   if(normalizedMime.includes('gif')) return 'gif';
@@ -9254,13 +9299,15 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
     throw new Error('Supabase Storage is not ready.');
   }
   const dataUrl=String(image?.dataUrl||'');
-  if(!dataUrl) throw new Error('Image data is empty.');
+  const file=typeof File!=='undefined'&&image?.file instanceof File ? image.file : null;
+  if(!file&&!dataUrl) throw new Error('Image data is empty.');
   const mimeType=String(image?.mimeType||getTimelineGalleryDataUrlMimeType(dataUrl)).trim()||'image/jpeg';
   const storagePath=createTimelineGalleryStoragePath(image, entryId);
-  const arrayBuffer=dataUrlToArrayBuffer(dataUrl);
+  const uploadBody=file||dataUrlToArrayBuffer(dataUrl);
   const {error}=await client.storage
     .from(TIMELINE_GALLERY_STORAGE_BUCKET)
-    .upload(storagePath, arrayBuffer, {
+    .upload(storagePath, uploadBody, {
+      cacheControl:'3600',
       contentType:mimeType,
       upsert:false
     });
@@ -9278,7 +9325,7 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
     storagePath,
     publicUrl,
     mimeType,
-    fileSize:Number(image?.fileSize)||arrayBuffer.byteLength||0
+    fileSize:Number(image?.fileSize)||file?.size||uploadBody.byteLength||0
   };
 }
 async function removeTimelineGalleryStorageFiles(entries=[]){
@@ -9378,12 +9425,12 @@ function getTimelineGalleryDateGroups(entries=[]){
 }
 function renderTimelineGalleryComposerPreview(){
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images : [];
-  if(!images.length) return '<div class="timeline-gallery-preview-empty">선택된 사진이 없습니다.</div>';
-  return images.map(image=>`<figure class="timeline-gallery-preview-item"><img src="${image.dataUrl}" alt="${escapeHtml(image.fileName)}"><figcaption>${escapeHtml(image.fileName)}</figcaption><button type="button" class="timeline-gallery-preview-remove" data-gallery-remove-image="${escapeHtml(image.id)}" aria-label="${escapeHtml(image.fileName)} 삭제">×</button></figure>`).join('');
+  if(!images.length) return '<div class="timeline-gallery-preview-empty">선택된 파일이 없습니다.</div>';
+  return images.map(image=>`<figure class="timeline-gallery-preview-item">${renderTimelineGalleryMedia(image, '', image.fileName)}<figcaption>${escapeHtml(image.fileName)}</figcaption><button type="button" class="timeline-gallery-preview-remove" data-gallery-remove-image="${escapeHtml(image.id)}" aria-label="${escapeHtml(image.fileName)} 삭제">×</button></figure>`).join('');
 }
 function renderGalleryForm(){
   const state=timelineGalleryComposerState;
-  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진첨부</span><input type="file" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
+  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진/영상 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진/영상 첨부</span><input type="file" id="gallery-upload" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*,video/*" capture="environment"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
 }
 function renderTimelineGalleryCard(group){
   if(!group?.representative) return '';
@@ -9398,7 +9445,7 @@ function renderTimelineGalleryCard(group){
   const countHtml=`<span class="timeline-gallery-card-count">${group.count}장</span>`;
   const checkHtml=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-card-check"><input type="checkbox" data-gallery-group-check="${escapeHtml(group.key)}"${isAllSelected?' checked':''}><span>${selectedCount?`선택 ${selectedCount}`:'선택'}</span></label>` : '';
   const deleteHintHtml=isTimelineGalleryDeleteMode?'<span class="timeline-gallery-card-delete-hint">체크한 사진만 삭제됩니다.</span>':'';
-  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<button type="button" class="timeline-gallery-main-image" data-gallery-group-preview="${escapeHtml(group.key)}"><img src="${escapeHtml(getTimelineGalleryImageSrc(representative))}" alt="${escapeHtml(group.memoLabel)} 대표 썸네일">${countHtml}</button><div class="timeline-gallery-card-body"><h4>${escapeHtml(group.memoLabel)}</h4>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}</div></article>`;
+  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<div class="timeline-gallery-main-image" data-gallery-group-preview="${escapeHtml(group.key)}">${renderTimelineGalleryMedia(representative, '', `${group.memoLabel} 대표 썸네일`)}${countHtml}</div><div class="timeline-gallery-card-body"><h4>${escapeHtml(group.memoLabel)}</h4>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}</div></article>`;
 }
 function renderTimelineGalleryList(){
   const items=sortTimelineGalleryEntries(timelineGalleryEntries);
@@ -9493,18 +9540,21 @@ function toggleTimelineGalleryDeleteMode(){
   refreshTimelineGalleryView();
   if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
-async function saveGalleryEntry(){
+async function saveGalleryEntry(options={}){
+  const notifySuccess=Boolean(options.notifySuccess);
   const root=document.querySelector('.timeline-gallery-view')||document;
   updateTimelineGalleryComposerStateFromForm(root);
   const capturedDate=formatTimelineGalleryCapturedDate(timelineGalleryComposerState.shootDate)||getTodayTimelineKey();
   const memo=String(timelineGalleryComposerState.memo||'').trim();
   const images=Array.isArray(timelineGalleryComposerState.images) ? timelineGalleryComposerState.images.map(normalizeTimelineGalleryItem).filter(Boolean) : [];
   if(!images.length){
-    window.alert('사진을 1장 이상 첨부해주세요.');
+    window.alert('사진 또는 영상을 1개 이상 첨부해주세요.');
     return;
   }
   const saveButton=root.querySelector('[data-gallery-action="save"]');
+  const uploadInput=root.querySelector('#gallery-upload');
   if(saveButton) saveButton.disabled=true;
+  if(uploadInput) uploadInput.disabled=true;
   try{
     const savedAt=Date.now();
     const nextItems=[];
@@ -9514,6 +9564,7 @@ async function saveGalleryEntry(){
       nextItems.push({
         id,
         fileName:image.fileName,
+        type:image.type||getTimelineGalleryMediaType(image),
         dataUrl:'',
         publicUrl:uploadInfo.publicUrl,
         storagePath:uploadInfo.storagePath,
@@ -9531,12 +9582,14 @@ async function saveGalleryEntry(){
     resetTimelineGalleryComposerState();
     clearDraft();
     refreshTimelineGalleryView();
+    if(notifySuccess) window.alert('업로드 완료');
   }catch(error){
     logTimelineGalleryStorageFailure(error);
     const details=getTimelineGalleryStorageErrorDetails(error);
-    window.alert(`사진 저장에 실패했습니다.\n원인: ${details.message||'알 수 없는 오류'}`);
+    window.alert(`업로드 실패\n원인: ${details.message||'알 수 없는 오류'}`);
   }finally{
     if(saveButton) saveButton.disabled=false;
+    if(uploadInput) uploadInput.disabled=false;
   }
 }
 async function deleteGalleryEntries(){
@@ -9615,6 +9668,9 @@ function bindTimelineGalleryViewEvents(){
       persistTimelineGalleryComposerDraft();
       updateTimelineGalleryComposerPreview();
       fileInput.value='';
+      if(nextImages.length){
+        await saveGalleryEntry({notifySuccess:true});
+      }
       return;
     }
     const groupCheck=event.target.closest('[data-gallery-group-check]');
@@ -9654,7 +9710,7 @@ function getTimelineGalleryModalItems(){
 function ensureTimelineGalleryModal(){
   if(document.getElementById('timelineGalleryModal')) return;
   const mount=document.getElementById('timelineGalleryModalMount')||document.body;
-  mount.insertAdjacentHTML('beforeend', `<div id="timelineGalleryModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-gallery-modal-close="true"></div><div class="timeline-gallery-modal-panel timeline-gallery-modal-panel-group" role="dialog" aria-modal="true" aria-labelledby="timelineGalleryModalTitle"><button type="button" class="timeline-gallery-modal-close" data-gallery-modal-close="true" aria-label="닫기">×</button><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-prev" data-gallery-modal-step="-1" aria-label="이전 사진">‹</button><div class="timeline-gallery-modal-content"><figure class="timeline-gallery-modal-figure"><img id="timelineGalleryModalImage" src="" alt=""><figcaption><h3 id="timelineGalleryModalTitle"></h3><p id="timelineGalleryModalMeta"></p></figcaption></figure><div class="timeline-gallery-modal-actions"><div id="timelineGalleryModalGroupMeta" class="timeline-gallery-modal-group-meta"></div><div id="timelineGalleryModalDeleteActions" class="timeline-gallery-modal-delete-actions"></div></div><div id="timelineGalleryModalThumbList" class="timeline-gallery-modal-thumb-list" aria-label="묶음 사진 목록"></div></div><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-next" data-gallery-modal-step="1" aria-label="다음 사진">›</button></div></div>`);
+  mount.insertAdjacentHTML('beforeend', `<div id="timelineGalleryModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-gallery-modal-close="true"></div><div class="timeline-gallery-modal-panel timeline-gallery-modal-panel-group" role="dialog" aria-modal="true" aria-labelledby="timelineGalleryModalTitle"><button type="button" class="timeline-gallery-modal-close" data-gallery-modal-close="true" aria-label="닫기">×</button><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-prev" data-gallery-modal-step="-1" aria-label="이전 사진">‹</button><div class="timeline-gallery-modal-content"><figure class="timeline-gallery-modal-figure"><div id="timelineGalleryModalMedia"></div><figcaption><h3 id="timelineGalleryModalTitle"></h3><p id="timelineGalleryModalMeta"></p></figcaption></figure><div class="timeline-gallery-modal-actions"><div id="timelineGalleryModalGroupMeta" class="timeline-gallery-modal-group-meta"></div><div id="timelineGalleryModalDeleteActions" class="timeline-gallery-modal-delete-actions"></div></div><div id="timelineGalleryModalThumbList" class="timeline-gallery-modal-thumb-list" aria-label="묶음 사진 목록"></div></div><button type="button" class="timeline-gallery-modal-nav timeline-gallery-modal-next" data-gallery-modal-step="1" aria-label="다음 사진">›</button></div></div>`);
   const modal=document.getElementById('timelineGalleryModal');
   modal.addEventListener('click', event=>{
     if(event.target.closest('[data-gallery-modal-close]')){
@@ -9711,7 +9767,7 @@ function renderTimelineGalleryModal(){
     timelineGalleryPreviewState.activeEntryId=items[0].id;
   }
   const entry=items.find(item=>item.id===timelineGalleryPreviewState.activeEntryId)||items[0];
-  const imageEl=document.getElementById('timelineGalleryModalImage');
+  const mediaEl=document.getElementById('timelineGalleryModalMedia');
   const titleEl=document.getElementById('timelineGalleryModalTitle');
   const metaEl=document.getElementById('timelineGalleryModalMeta');
   const groupMetaEl=document.getElementById('timelineGalleryModalGroupMeta');
@@ -9719,9 +9775,8 @@ function renderTimelineGalleryModal(){
   const thumbListEl=document.getElementById('timelineGalleryModalThumbList');
   const prevButton=modal.querySelector('.timeline-gallery-modal-prev');
   const nextButton=modal.querySelector('.timeline-gallery-modal-next');
-  if(imageEl){
-    imageEl.src=getTimelineGalleryImageSrc(entry);
-    imageEl.alt=entry.fileName||group.memoLabel||'갤러리 사진';
+  if(mediaEl){
+    mediaEl.innerHTML=renderTimelineGalleryMedia(entry, '', entry.fileName||group.memoLabel||'갤러리 미디어');
   }
   if(titleEl) titleEl.textContent=entry.fileName||group.memoLabel||'갤러리 사진';
   if(metaEl) metaEl.textContent=[`촬영일 ${getTimelineGalleryCapturedDateLabel(entry.capturedDate)}`, `저장 ${formatTimelineGallerySavedAt(entry.savedAt)}`, getTimelineGalleryMemoLabel(entry.memo)].filter(Boolean).join(' · ');
@@ -9737,7 +9792,7 @@ function renderTimelineGalleryModal(){
       const isActive=item.id===entry.id;
       const isChecked=timelineGallerySelectedIds.has(item.id);
       const checkboxHtml=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-modal-thumb-check"><input type="checkbox" data-gallery-modal-check="${escapeHtml(item.id)}"${isChecked?' checked':''}><span>선택</span></label>` : '';
-      return `<article class="timeline-gallery-modal-thumb${isActive?' is-active':''}"><button type="button" class="timeline-gallery-thumb-btn" data-gallery-modal-entry="${escapeHtml(item.id)}"><img src="${escapeHtml(getTimelineGalleryImageSrc(item))}" alt="${escapeHtml(item.fileName||'갤러리 사진')}"></button><div class="timeline-gallery-modal-thumb-meta"><strong class="timeline-gallery-modal-thumb-name">${escapeHtml(item.fileName||'사진')}</strong><span>${escapeHtml(formatTimelineGallerySavedAt(item.savedAt))}</span></div>${checkboxHtml}</article>`;
+      return `<article class="timeline-gallery-modal-thumb${isActive?' is-active':''}"><button type="button" class="timeline-gallery-thumb-btn" data-gallery-modal-entry="${escapeHtml(item.id)}">${renderTimelineGalleryMedia(item, '', item.fileName||'갤러리 미디어')}</button><div class="timeline-gallery-modal-thumb-meta"><strong class="timeline-gallery-modal-thumb-name">${escapeHtml(item.fileName||'사진')}</strong><span>${escapeHtml(formatTimelineGallerySavedAt(item.savedAt))}</span></div>${checkboxHtml}</article>`;
     }).join('');
   }
   const currentIndex=items.findIndex(item=>item.id===entry.id);

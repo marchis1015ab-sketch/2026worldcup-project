@@ -8,7 +8,7 @@ values (
   'timeline-gallery',
   true,
   52428800,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime', 'video/webm', 'video/ogg']
 )
 on conflict (id) do update
 set
