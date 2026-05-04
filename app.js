@@ -1907,16 +1907,18 @@ function renderEquipmentMobileRow(row=[], options={}){
   const firstLine=isEditing
     ? `${renderEquipmentMobileInput(rowIndex, 0, normalized[0], mode, rowId)}${renderEquipmentMobileInput(rowIndex, 1, normalized[1], mode, rowId)}`
     : `${renderEquipmentMobileValue(normalized[0], 'equipment-mobile-name')}${renderEquipmentMobileValue(normalized[1], 'equipment-mobile-model')}`;
-  const secondValues=[
+  const secondLine=[
     isEditing ? renderEquipmentMobileInput(rowIndex, 2, normalized[2], mode, rowId) : renderEquipmentMobileValue(normalized[2], 'equipment-mobile-maker'),
-    isEditing ? renderEquipmentMobileInput(rowIndex, 3, normalized[3], mode, rowId) : renderEquipmentMobileValue(normalized[3], 'equipment-mobile-serial'),
+    isEditing ? renderEquipmentMobileInput(rowIndex, 3, normalized[3], mode, rowId) : renderEquipmentMobileValue(normalized[3], 'equipment-mobile-serial')
+  ].join('');
+  const thirdLine=[
     isEditing ? renderEquipmentMobileInput(rowIndex, 4, normalized[4], mode, rowId) : renderEquipmentMobileValue(formatEquipmentQuantity(normalized[4]), 'equipment-mobile-qty'),
     isEditing ? renderEquipmentMobileInput(rowIndex, 5, normalized[5], mode, rowId) : renderEquipmentMobileValue(normalized[5], 'equipment-mobile-note'),
     mode==='personal'
       ? renderEquipmentMobileValue(user||normalized[6], 'equipment-mobile-user')
       : (isEditing ? renderEquipmentMobileInput(rowIndex, 6, normalized[6], mode, rowId) : renderEquipmentMobileValue(normalized[6], 'equipment-mobile-user'))
   ].join('');
-  return `<article class="equipment-mobile-row${isBlankRow?' is-empty':''}">${checkHtml}<div class="equipment-mobile-lines"><div class="equipment-mobile-line-1">${firstLine}</div><div class="equipment-mobile-line-2">${secondValues}</div></div></article>`;
+  return `<article class="equipment-mobile-row${isBlankRow?' is-empty':''}">${checkHtml}<div class="equipment-mobile-lines"><div class="equipment-mobile-line-1">${firstLine}</div><div class="equipment-mobile-line-2">${secondLine}</div><div class="equipment-mobile-line-3">${thirdLine}</div></div></article>`;
 }
 function renderEquipmentMobileList(mode='shared', user='', rows=[], isEditing=false){
   return `<div class="equipment-mobile-list" role="list">${rows.map((row, rowIndex)=>renderEquipmentMobileRow(row, {mode, user, rowIndex, isEditing})).join('')}</div>`;
