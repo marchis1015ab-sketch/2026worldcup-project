@@ -7754,6 +7754,61 @@ function scheduleSharedStateSyncWrite(storageKey, raw=''){
     schedulePendingSharedStateFlush(120);
   }
 }
+function parsePersonalTimelineDetailsState(raw=''){
+  const text=String(raw||'').trim();
+  if(!text) return {};
+  try{
+    const parsed=JSON.parse(text);
+    return parsed&&typeof parsed==='object' ? parsed : {};
+  }catch(error){
+    return {};
+  }
+}
+function getPersonalTimelineDetailEntryMergeScore(entry={}){
+  return [
+    ...personalTimelineDetailFields,
+    'memo',
+    'endDate',
+    'endTime',
+    'endTimeLabel'
+  ].reduce((score, key)=>score+(String(entry?.[key]||'').trim() ? 1 : 0), 0);
+}
+function pickLatestPersonalTimelineDetailEntry(localEntry=null, remoteEntry=null){
+  if(!localEntry) return remoteEntry||null;
+  if(!remoteEntry) return localEntry||null;
+  const localSavedAt=Number(localEntry?._savedAt||0);
+  const remoteSavedAt=Number(remoteEntry?._savedAt||0);
+  if(localSavedAt!==remoteSavedAt){
+    return localSavedAt>=remoteSavedAt ? localEntry : remoteEntry;
+  }
+  const localScore=getPersonalTimelineDetailEntryMergeScore(localEntry);
+  const remoteScore=getPersonalTimelineDetailEntryMergeScore(remoteEntry);
+  return localScore>=remoteScore ? localEntry : remoteEntry;
+}
+function mergePersonalTimelineDetailsRaw(localRaw='', remoteRaw=''){
+  const localState=parsePersonalTimelineDetailsState(localRaw);
+  const remoteState=parsePersonalTimelineDetailsState(remoteRaw);
+  const mergedState=Object.create(null);
+  const dateKeys=new Set([...Object.keys(localState), ...Object.keys(remoteState)]);
+  dateKeys.forEach(dateKey=>{
+    const localPeople=localState[dateKey]&&typeof localState[dateKey]==='object' ? localState[dateKey] : {};
+    const remotePeople=remoteState[dateKey]&&typeof remoteState[dateKey]==='object' ? remoteState[dateKey] : {};
+    const mergedPeople=Object.create(null);
+    const names=new Set([...Object.keys(localPeople), ...Object.keys(remotePeople)]);
+    names.forEach(name=>{
+      const localEntries=(Array.isArray(localPeople[name]) ? localPeople[name] : [localPeople[name]]).map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+      const remoteEntries=(Array.isArray(remotePeople[name]) ? remotePeople[name] : [remotePeople[name]]).map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+      const mergedEntry=pickLatestPersonalTimelineDetailEntry(localEntries[localEntries.length-1]||null, remoteEntries[remoteEntries.length-1]||null);
+      if(mergedEntry){
+        mergedPeople[name]=[mergedEntry];
+      }
+    });
+    if(Object.keys(mergedPeople).length){
+      mergedState[dateKey]=mergedPeople;
+    }
+  });
+  return Object.keys(mergedState).length ? JSON.stringify(mergedState) : '';
+}
 function applySharedStateSnapshot(rows=[]){
   const nextStateByKey=Object.create(null);
   const now=Date.now();
@@ -7768,7 +7823,14 @@ function applySharedStateSnapshot(rows=[]){
       return;
     }
     const currentRaw=getSharedStateLocalRaw(storageKey);
-    const nextRaw=nextStateByKey[storageKey];
+    let nextRaw=nextStateByKey[storageKey];
+    if(storageKey===PERSONAL_TIMELINE_DETAILS_STORAGE_KEY){
+      const mergedRaw=mergePersonalTimelineDetailsRaw(currentRaw, nextRaw);
+      if(mergedRaw&&mergedRaw!==nextRaw){
+        nextRaw=mergedRaw;
+        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
+      }
+    }
     const guardUntil=Number(sharedStateLocalWriteGuards.get(storageKey)||0);
     if(guardUntil>now&&currentRaw!==nextRaw){
       return;
@@ -9329,7 +9391,7 @@ function updatePersonalTimelineDetailMemo(dateKey='', name='', entryIndex=-1, me
   const nextEntry=sanitizePersonalTimelineDetailEntry({
     ...entries[entryIndex],
     memo:String(memo||'').trim(),
-    _savedAt:entries[entryIndex]?._savedAt||Date.now()
+    _savedAt:Date.now()
   });
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
@@ -9418,7 +9480,7 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
     endTime:normalizedTime,
     endTimeLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
     endLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
-    _savedAt:entries[entryIndex]?._savedAt||Date.now()
+    _savedAt:Date.now()
   });
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
