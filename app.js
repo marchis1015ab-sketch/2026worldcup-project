@@ -8960,8 +8960,6 @@ function getPersonalTimelineOptionOccupationMap(dateKey='', personName='', detai
   }, Object.create(null));
   getPersonalTimelineConflictingReports(dateKey, personName).forEach(item=>{
     const conflictingDetail=item?.detail||{};
-    const occupiedStartTime=getPersonalTimelineStartTime(conflictingDetail);
-    if(occupiedStartTime) occupationMap['시작시간'].add(occupiedStartTime);
     if(!hasDraftStart) return;
     const occupiedRange=getPersonalTimelineTimeRangeMinutes(conflictingDetail);
     if(!rangesOverlapByMinutes(draftRange.startMinutes, draftRange.endMinutes, occupiedRange.startMinutes, occupiedRange.endMinutes)) return;
@@ -8989,14 +8987,6 @@ function validatePersonalTimelineDetailAssignment(dateKey='', personName='', det
   const draftRange=getPersonalTimelineTimeRangeMinutes(normalizedValues);
   getPersonalTimelineConflictingReports(dateKey, personName).forEach(item=>{
     const conflictingDetail=item?.detail||{};
-    const conflictingStartTime=getPersonalTimelineStartTime(conflictingDetail);
-    if(normalizedValues['시작시간']&&conflictingStartTime&&normalizedValues['시작시간']===conflictingStartTime){
-      const label=getPersonalTimelineConflictLabel('시작시간', normalizedValues['시작시간']);
-      if(label&&!conflictSet.has(label)){
-        conflictSet.add(label);
-        conflicts.push(label);
-      }
-    }
     if(!draftRange.startTime) return;
     const occupiedRange=getPersonalTimelineTimeRangeMinutes(conflictingDetail);
     if(!rangesOverlapByMinutes(draftRange.startMinutes, draftRange.endMinutes, occupiedRange.startMinutes, occupiedRange.endMinutes)) return;
