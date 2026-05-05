@@ -8775,15 +8775,33 @@ function savePersonalTimelineDetailSelections(){
   if(!canEdit()) return;
   writePersonalTimelineDetailsRaw(JSON.stringify(personalTimelineDetailSelections));
 }
-function getPersonalTimelineDetailSelection(dateKey, name){
+function sanitizePersonalTimelineDetailEntriesForPerson(dateKey='', name=''){
   loadPersonalTimelineDetailSelections();
-  const entries=personalTimelineDetailSelections[dateKey]?.[name];
-  return Array.isArray(entries)&&entries.length ? entries[entries.length-1] : null;
+  const dateSelections=personalTimelineDetailSelections[dateKey];
+  const entries=Array.isArray(dateSelections?.[name]) ? dateSelections[name] : [];
+  if(!entries.length) return [];
+  const sanitizedEntries=entries.map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+  const beforeJson=JSON.stringify(entries);
+  const afterJson=JSON.stringify(sanitizedEntries);
+  if(beforeJson!==afterJson){
+    if(sanitizedEntries.length){
+      dateSelections[name]=sanitizedEntries;
+    }else if(dateSelections){
+      delete dateSelections[name];
+      if(!Object.keys(dateSelections).length){
+        delete personalTimelineDetailSelections[dateKey];
+      }
+    }
+    savePersonalTimelineDetailSelections();
+  }
+  return sanitizedEntries;
+}
+function getPersonalTimelineDetailSelection(dateKey, name){
+  const entries=sanitizePersonalTimelineDetailEntriesForPerson(dateKey, name);
+  return entries.length ? entries[entries.length-1] : null;
 }
 function getPersonalTimelineDetailEntries(dateKey, name){
-  loadPersonalTimelineDetailSelections();
-  const entries=personalTimelineDetailSelections[dateKey]?.[name];
-  return Array.isArray(entries) ? entries : [];
+  return sanitizePersonalTimelineDetailEntriesForPerson(dateKey, name);
 }
 function formatPersonalTimelineTimeLabel(localTime='', dateKey='', cityOrLocation=''){
   const raw=String(localTime||'').trim();
@@ -8854,9 +8872,11 @@ function buildPersonalTimelineParticipantLabel(name='', reporter=''){
 function buildPersonalTimelineMobileReportLines(item){
   const detail=item?.detail;
   if(!detail) return [String(item?.text||'').trim()].filter(Boolean);
+  const normalizedPlace=normalizePersonalTimelineDetailFieldValue('장소', detail.장소||'');
+  const normalizedTask=normalizePersonalTimelineDetailFieldValue('업무내용', detail.업무내용||'');
   const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', detail.취재기자||'');
-  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'', item?.dateKey||getTodayTimelineKey(), detail?.장소||'');
-  const taskPlaceLabel=`${String(detail.업무내용||'').trim()}를 ${String(detail.장소||'').trim()}에서`;
+  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'', item?.dateKey||getTodayTimelineKey(), normalizedPlace||detail?.장소||'');
+  const taskPlaceLabel=`${String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim()}를 ${String(normalizedPlace||'').trim()}에서`;
   const equipmentLabel=`${getPersonalTimelineOptionLabel('TVU', detail.TVU)}을 가지고 진행`;
   return [participantLabel, timeLabel, taskPlaceLabel, equipmentLabel];
 }
@@ -8865,9 +8885,11 @@ function buildPersonalTimelineReportText(name, detail, dateKey=''){
   const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
   if(values.some(value=>!value)) return '';
   const participantLabel=buildPersonalTimelineParticipantLabel(name, detail.취재기자);
-  const taskLabel=String(detail.업무내용||'').trim();
+  const normalizedPlace=normalizePersonalTimelineDetailFieldValue('장소', detail.장소||'');
+  const normalizedTask=normalizePersonalTimelineDetailFieldValue('업무내용', detail.업무내용||'');
+  const taskLabel=String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim();
   const tvuLabel=getPersonalTimelineOptionLabel('TVU', detail.TVU);
-  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간, dateKey, detail.장소)} ${taskLabel}를 ${detail.장소}에서 ${tvuLabel}을 가지고 진행`;
+  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간, dateKey, normalizedPlace||detail.장소)} ${taskLabel}를 ${normalizedPlace||detail.장소}에서 ${tvuLabel}을 가지고 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
