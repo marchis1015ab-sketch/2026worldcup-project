@@ -6425,10 +6425,8 @@ function formatScheduleTickerItem(schedule){
 function getAllUpcomingScheduleTickerEntries(){
   loadPersonalTimelineDetailSelections();
   const today=getTodayLocalDateString();
-  return Object.keys(personalTimelineDetailSelections)
-    .sort()
-    .filter(dateKey=>String(dateKey||'').trim()===today)
-    .flatMap(dateKey=>getPersonalTimelineGeneratedReportsForDate(dateKey).map(item=>{
+  return getPersonalTimelineVisibleReportsForDate(today)
+    .map(item=>{
       const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
       const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, item.detail?.시간||'');
       const nowSort=getTimeZoneNowSortValue(entryTimeZone);
@@ -6439,8 +6437,8 @@ function getAllUpcomingScheduleTickerEntries(){
         nowSort,
         isUpcoming:scheduleSort>=nowSort
       };
-    }))
-    .filter(item=>item.isUpcoming)
+    })
+    .filter(item=>item.isUpcoming||item.dateKey<today)
     .sort((a,b)=>{
       if(a.scheduleSort!==b.scheduleSort) return a.scheduleSort-b.scheduleSort;
       if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
@@ -7581,21 +7579,51 @@ function initUserSelect(){
 function normalizeScheduleData(data={}){
   const location=String(data?.location||'').trim();
   const resolvedCityContext=location ? resolveScheduleCityContext(location) : {city:''};
-  const normalizedDate=String(data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedDate=String(data?.startDate||data?.start_date||data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedEndDate=String(data?.endDate||data?.end_date||data?.finishDate||normalizedDate).trim()||normalizedDate;
   const normalizedTime=String(data?.time||data?.local_time||'').trim();
   const normalizedCity=resolveWorldCupCityName(String(data?.city||resolvedCityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY);
   return {
     title:String(data?.title||'').trim(),
     assignee:String(data?.assignee||'').trim(),
     date:normalizedDate,
+    startDate:normalizedDate,
+    endDate:normalizedEndDate,
+    start_date:normalizedDate,
+    end_date:normalizedEndDate,
     time:normalizedTime,
     city:normalizedCity,
     location,
     tvu:String(data?.tvu||'').trim()
   };
 }
+function normalizeSchedule(item){
+  const startDate=String(item?.startDate||item?.start_date||item?.date||'').trim();
+  const endDate=String(item?.endDate||item?.end_date||item?.finishDate||item?.date||startDate||'').trim();
+  return {
+    ...item,
+    startDate,
+    endDate,
+    date:String(item?.date||startDate||'').trim(),
+    start_date:String(item?.start_date||startDate||'').trim(),
+    end_date:String(item?.end_date||endDate||startDate||'').trim()
+  };
+}
+function expandSchedulesByDate(schedules, targetDate){
+  const target=new Date(`${targetDate}T00:00:00`);
+  if(Number.isNaN(target.getTime())) return [];
+  return (Array.isArray(schedules)?schedules:[])
+    .map(normalizeSchedule)
+    .filter(item=>{
+      const start=new Date(`${item.startDate||item.date}T00:00:00`);
+      const end=new Date(`${item.endDate||item.startDate||item.date}T00:00:00`);
+      if(Number.isNaN(start.getTime())) return false;
+      if(Number.isNaN(end.getTime())) return target.getTime()===start.getTime();
+      return target>=start&&target<=end;
+    });
+}
 function renderSchedules(data){
-  window.supabaseSchedules=Array.isArray(data) ? data : [];
+  window.supabaseSchedules=(Array.isArray(data) ? data : []).map(normalizeSchedule);
 }
 function buildMessage(schedule) {
   const timeLabel=buildWorldCupTimeLabel(schedule?.date||'', schedule?.time||'', schedule?.city||'');
@@ -7704,16 +7732,30 @@ async function saveSchedule(data) {
     return;
   }
   const scheduleData=normalizeScheduleData(data);
+  const schedulePayload={
+    title:scheduleData.title,
+    assignee:scheduleData.assignee,
+    date:scheduleData.date,
+    start_date:scheduleData.startDate,
+    end_date:scheduleData.endDate,
+    time:scheduleData.time,
+    city:scheduleData.city,
+    location:scheduleData.location,
+    tvu:scheduleData.tvu
+  };
   let insertError=null;
   const primaryResult=await supabaseClient
     .from(SCHEDULES_TABLE)
-    .insert([scheduleData]);
+    .insert([schedulePayload]);
   insertError=primaryResult.error||null;
 
   if(insertError&&/column|schema cache|date|time|city|tvu/i.test(String(insertError.message||''))){
     const legacyFallback={
       title:scheduleData.title,
       assignee:scheduleData.assignee,
+      date:scheduleData.date,
+      start_date:scheduleData.startDate,
+      end_date:scheduleData.endDate,
       local_time:scheduleData.time,
       location:scheduleData.location
     };
@@ -7721,6 +7763,18 @@ async function saveSchedule(data) {
       .from(SCHEDULES_TABLE)
       .insert([legacyFallback]);
     insertError=fallbackResult.error||null;
+    if(insertError&&/column|schema cache|date|time|city|tvu|start|end/i.test(String(insertError.message||''))){
+      const minimalFallback={
+        title:scheduleData.title,
+        assignee:scheduleData.assignee,
+        local_time:scheduleData.time,
+        location:scheduleData.location
+      };
+      const minimalFallbackResult=await supabaseClient
+        .from(SCHEDULES_TABLE)
+        .insert([minimalFallback]);
+      insertError=minimalFallbackResult.error||null;
+    }
   }
 
   if (insertError) {
@@ -8517,6 +8571,19 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     return a.entryIndex-b.entryIndex;
   });
 }
+function getPersonalTimelineVisibleReportsForDate(dateKey){
+  const normalizedDateKey=normalizePersonalTimelineViewDateKey(dateKey);
+  const exactReports=getPersonalTimelineGeneratedReportsForDate(normalizedDateKey);
+  const exactNames=new Set(exactReports.map(item=>item.name));
+  const carriedReports=getPersonalTimelineOngoingReportsForDate(normalizedDateKey)
+    .filter(item=>item.dateKey!==normalizedDateKey&&!exactNames.has(item.name));
+  return [...carriedReports, ...exactReports].sort((a,b)=>{
+    if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
+    if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
+    if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
+    return a.entryIndex-b.entryIndex;
+  });
+}
 function isPersonalTimelineEndActiveForDate(detail={}, viewDateKey=''){
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   if(!endDate) return true;
@@ -8612,7 +8679,7 @@ function renderEquipmentSharedTvuIndicatorHtml(){
 }
 function updateEquipmentSharedTvuIndicators(){
   if(typeof document==='undefined') return;
-  const reports=getAllPersonalTimelineGeneratedReports();
+  const reports=getPersonalTimelineVisibleReportsForDate(getTodayTimelineKey());
   const activeTvus=new Set(
     reports
       .map(item=>normalizeTvuNumberValue(item.detail?.TVU||''))
@@ -8649,7 +8716,7 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
   reloadPersonalTimelineDetailSelectionsFromStorage();
-  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const items=getPersonalTimelineVisibleReportsForDate(dateKey);
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
 }
@@ -8658,7 +8725,7 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
   reloadPersonalTimelineDetailSelectionsFromStorage();
-  const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const items=getPersonalTimelineVisibleReportsForDate(dateKey);
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
@@ -8676,7 +8743,7 @@ function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
   const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-  const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+  const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
   item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
   item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
 }
@@ -8713,22 +8780,22 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   const normalized=Object.create(null);
   let didAppendNew=false;
   let entryIndex=-1;
+  const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
+  const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
+  const lastEntry=entries[entries.length-1]||null;
   personalTimelineDetailFields.forEach(field=>{
     const text=field==='TVU' ? normalizeTvuNumberValue(detailValues?.[field]) : String(detailValues?.[field]||'').trim();
     if(text) normalized[field]=text;
   });
-  const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||'');
-  const endTime=normalizePersonalTimelineEndTime(detailValues?.endTime||'');
-  const endTimeLabel=String(detailValues?.endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
+  const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||lastEntry?.endDate||'');
+  const endTime=normalizePersonalTimelineEndTime(detailValues?.endTime||lastEntry?.endTime||'');
+  const endTimeLabel=String(detailValues?.endTimeLabel||lastEntry?.endTimeLabel||lastEntry?.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   if(endDate) normalized.endDate=endDate;
   if(endTime) normalized.endTime=endTime;
   if(endTimeLabel) normalized.endTimeLabel=endTimeLabel;
   if(endTimeLabel) normalized.endLabel=endTimeLabel;
   if(Object.keys(normalized).length){
     normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
-    const dateSelections=personalTimelineDetailSelections[dateKey]||(personalTimelineDetailSelections[dateKey]=Object.create(null));
-    const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
-    const lastEntry=entries[entries.length-1]||null;
     const isSameAsLast=lastEntry&&personalTimelineDetailFields.every(field=>String(lastEntry[field]||'').trim()===String(normalized[field]||'').trim());
     if(!isSameAsLast){
       dateSelections[name]=[...entries, normalized];
@@ -8831,7 +8898,7 @@ function savePersonalTimelinePersonRow(row){
   updatePersonalTimelineSummaryBoard(item, dateKey);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-    const hasGeneratedReport=getPersonalTimelineGeneratedReportsForDate(dateKey).length>0;
+    const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
     item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
     item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
   }
@@ -10848,7 +10915,7 @@ function renderPersonalTimelineItem(date, index, rows){
   const phase=getPersonalTimelinePhase(date);
   const dateLabel=`${date.getMonth()+1}월 ${date.getDate()}일`;
   const railDateLabel=formatPersonalTimelineRailDate(date);
-  const generatedReports=getPersonalTimelineGeneratedReportsForDate(dateKey);
+  const generatedReports=getPersonalTimelineVisibleReportsForDate(dateKey);
   const assignments=rows.map(row=>({
     label:row.label,
     value:getTimelineLabel(row.label, dateKey),
@@ -11144,7 +11211,7 @@ function renderPersonalTimelineDayCard(dateKey, view){
   const currentDate=dates.find(date=>formatTimelineKey(date)===normalizedDateKey)||dates[0]||new Date();
   const phase=getPersonalTimelinePhase(currentDate);
   const dateLabel=`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
-  const generatedReports=getPersonalTimelineGeneratedReportsForDate(normalizedDateKey);
+  const generatedReports=getPersonalTimelineVisibleReportsForDate(normalizedDateKey);
   const assignments=(view?.rows||[]).map(row=>({
     label:row.label,
     value:getTimelineLabel(row.label, normalizedDateKey),
