@@ -9590,6 +9590,43 @@ textarea.simple-form-input,
   }
 }
 
+@media (min-width:1201px){
+  .content-shell{
+    display:block;
+  }
+
+  .container{
+    display:flex;
+    flex:1;
+    gap:var(--space-section);
+    align-items:flex-start;
+    min-height:0;
+  }
+
+  .desktop-tab-pane{
+    display:contents;
+    max-width:100%;
+  }
+
+  .desktop-tab-pane>.sidebar{
+    display:block;
+  }
+
+  .desktop-tab-pane>.column,
+  .desktop-tab-pane .tab-stack > .column{
+    width:220px;
+    max-width:220px;
+    max-height:calc(100vh - 190px);
+    overflow:auto;
+  }
+
+  .desktop-tab-pane>#detailCol{
+    width:auto;
+    max-width:none;
+    flex:1 1 auto;
+  }
+}
+
 #deploy-version-badge{
   position: fixed;
   right: 8px;

@@ -14058,6 +14058,16 @@ function initializeNewsProgrammingPersistence(){
   renderAllBoards();
 }
 
+if(typeof window!=='undefined'){
+  window.addEventListener('error', event=>{
+    console.error('GLOBAL ERROR:', event.message, event.error||'');
+  });
+  window.addEventListener('unhandledrejection', event=>{
+    console.error('GLOBAL PROMISE ERROR:', event.reason||'');
+  });
+  console.log('APP INIT START');
+}
+
 resetLegacyWorldCupTimeStorage();
 initializeNewsProgrammingPersistence();
 updateHeaderCountdown();
