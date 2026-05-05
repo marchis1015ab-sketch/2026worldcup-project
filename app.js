@@ -8819,12 +8819,25 @@ function renderPersonalTimelineEndEditor(item){
   const selectedTime=normalizePersonalTimelineEndTime(personalTimelineEndEditorState.endTime||item?.detail?.endTime||'');
   return `<div class="personal-timeline-end-editor"><label class="personal-timeline-end-editor-field"><span>종료일</span><input type="date" class="simple-form-input personal-timeline-end-date-input" data-end-editor-date="${item.dateKey}" value="${escapeHtml(selectedDate)}"></label><label class="personal-timeline-end-editor-field"><span>종료시간</span><select class="personal-timeline-detail-select personal-timeline-end-time-select" data-end-editor-time="${item.dateKey}"><option value="">시간 선택</option>${PERSONAL_TIMELINE_END_TIME_OPTIONS.map(option=>`<option value="${escapeHtml(option)}"${option===selectedTime?' selected':''}>${escapeHtml(formatPersonalTimelineTimeLabel(option))}</option>`).join('')}</select></label><div class="personal-timeline-end-editor-actions"><button type="button" class="section-title-action-btn" data-end-editor-save="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="section-title-action-btn" data-end-editor-cancel="true">취소</button></div></div>`;
 }
+function splitPersonalTimelineSummaryText(text=''){
+  const raw=String(text||'').trim();
+  if(!raw) return {main:'', equipment:''};
+  const match=raw.match(/^(.*?)(\s*(TVU\s+\d+번(?:\s+TRS\s+\d+)?을\s+가지고\s+진행.*))$/i);
+  if(!match){
+    return {main:raw, equipment:''};
+  }
+  return {
+    main:String(match[1]||'').trim(),
+    equipment:String(match[2]||'').trim()
+  };
+}
 function renderPersonalTimelineSummaryLine(item){
-  const summaryText=escapeHtml(item.text);
+  const summaryParts=splitPersonalTimelineSummaryText(item.text);
+  const summaryTextHtml=`<span class="schedule-main-text">${escapeHtml(summaryParts.main||String(item.text||'').trim())}</span>${summaryParts.equipment?`<span class="schedule-equipment-text">${escapeHtml(summaryParts.equipment)}</span>`:''}`;
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
-  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-top"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text">${summaryText}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div></div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-top"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text">${summaryTextHtml}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div></div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;

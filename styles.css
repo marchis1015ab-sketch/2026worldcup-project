@@ -6103,6 +6103,13 @@ input[type="file"]{
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.personal-timeline-summary-text .schedule-main-text,
+.personal-timeline-summary-text .schedule-equipment-text{
+  display:inline;
+}
+.personal-timeline-summary-text .schedule-equipment-text{
+  margin-left:4px;
+}
 .personal-timeline-summary-text-mobile{
   display:none;
 }
@@ -6792,6 +6799,73 @@ textarea.simple-form-input,
   .table-column.personal-timeline-mode{--personal-timeline-sticky-offset:120px}
   .personal-timeline-item{--personal-rail-width:104px}
   .personal-timeline-content{left:calc(var(--personal-rail-width) + 16px);width:calc(100% - var(--personal-rail-width) - 16px)}
+}
+
+@media (min-width:769px) and (max-width:1200px){
+  .personal-timeline-summary-board{
+    padding:14px 16px;
+  }
+  .personal-timeline-summary-line{
+    gap:8px;
+    padding:10px 0;
+  }
+  .personal-timeline-summary-top{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+  .personal-timeline-summary-main{
+    flex:1 1 auto;
+    gap:8px;
+  }
+  .personal-timeline-summary-text{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    line-height:1.55;
+  }
+  .personal-timeline-summary-text .schedule-main-text{
+    display:block;
+  }
+  .personal-timeline-summary-text .schedule-equipment-text{
+    display:block;
+    margin-left:0;
+    margin-top:2px;
+  }
+  .personal-timeline-summary-actions{
+    width:100%;
+    justify-content:flex-start;
+    align-items:center;
+    gap:8px;
+    flex-wrap:nowrap;
+  }
+  .personal-timeline-summary-write,
+  .personal-timeline-summary-save,
+  .personal-timeline-summary-delete{
+    flex:0 0 auto;
+    min-width:52px;
+    white-space:nowrap;
+  }
+  .personal-timeline-summary-memo-row{
+    width:100%;
+  }
+  .personal-timeline-summary-memo-input{
+    min-height:34px;
+    height:34px;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .personal-timeline-end-editor{
+    flex-wrap:wrap;
+    align-items:flex-end;
+  }
+  .personal-timeline-end-editor-field{
+    flex:1 1 220px;
+    min-width:180px;
+  }
+  .personal-timeline-end-editor-actions{
+    flex-wrap:nowrap;
+  }
 }
 
 @media (max-width:720px){
