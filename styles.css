@@ -5999,7 +5999,7 @@ input[type="file"]{
 }
 .personal-timeline-person-controls{
   display:grid;
-  grid-template-columns:minmax(168px,1.15fr) minmax(168px,1.15fr) minmax(168px,1.2fr) minmax(126px,.94fr) minmax(228px,1.65fr) minmax(132px,.96fr) 76px;
+  grid-template-columns:minmax(0,.96fr) minmax(0,.98fr) minmax(0,.98fr) minmax(0,1.05fr) minmax(0,1.02fr) minmax(0,1.2fr) 76px;
   align-items:stretch;
   gap:8px;
   width:100%;
@@ -6011,13 +6011,21 @@ input[type="file"]{
   overflow:hidden;
 }
 .personal-timeline-column-personal .personal-timeline-person-controls{
-  grid-template-columns:minmax(168px,1.15fr) minmax(168px,1.15fr) minmax(168px,1.2fr) minmax(126px,.94fr) minmax(228px,1.65fr) minmax(132px,.96fr) 76px;
+  grid-template-columns:minmax(0,.96fr) minmax(0,.98fr) minmax(0,.98fr) minmax(0,1.05fr) minmax(0,1.02fr) minmax(0,1.2fr) 76px;
   gap:8px;
+}
+.personal-timeline-person-controls>*{
+  min-width:0;
 }
 .personal-timeline-save-btn{
   display:flex;
   align-items:center;
   justify-content:center;
+  width:76px;
+  min-width:76px;
+  max-width:76px;
+  justify-self:stretch;
+  flex:0 0 76px;
   min-height:42px;
   padding:0 10px;
   border:1px solid #1d4f86;
@@ -6221,7 +6229,7 @@ input[type="file"]{
 .personal-timeline-detail-row-end-time{min-width:168px}
 .personal-timeline-detail-row-location{min-width:168px}
 .personal-timeline-detail-row-reporter{min-width:126px}
-.personal-timeline-detail-row-tvu{min-width:228px}
+.personal-timeline-detail-row-tvu{min-width:0}
 .personal-timeline-detail-row-task{min-width:132px}
 .personal-timeline-detail-value{
   display:flex;
@@ -6291,13 +6299,15 @@ input[type="file"]{
   text-align-last:center;
 }
 .personal-timeline-detail-row-tvu .personal-timeline-detail-select{
-  min-width:228px;
+  min-width:0;
   width:100%;
   padding-left:12px;
   padding-right:12px;
   font-size:12px;
   text-align:center;
   text-align-last:center;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .personal-timeline-detail-row-task .personal-timeline-detail-select{
   min-width:132px;
@@ -6924,7 +6934,7 @@ textarea.simple-form-input,
   .personal-timeline-person-row{grid-template-columns:52px minmax(0,1fr)}
   .personal-timeline-person-name{justify-content:center;padding:8px 4px 8px 0}
   .personal-timeline-person-controls{
-    grid-template-columns:minmax(148px,1.05fr) minmax(148px,1.05fr) minmax(156px,1.12fr) minmax(118px,.88fr) minmax(196px,1.45fr) minmax(116px,.9fr) 70px;
+    grid-template-columns:minmax(0,.95fr) minmax(0,.95fr) minmax(0,.95fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.08fr) 70px;
     gap:6px;
     padding:0;
   }
@@ -6936,6 +6946,12 @@ textarea.simple-form-input,
     font-size:12px;
     text-align:center;
     text-align-last:center;
+  }
+  .personal-timeline-save-btn{
+    width:70px;
+    min-width:70px;
+    max-width:70px;
+    flex-basis:70px;
   }
   .stadium-caption{flex-direction:column;align-items:flex-start}
 }

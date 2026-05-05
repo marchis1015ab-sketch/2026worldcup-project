@@ -8050,17 +8050,17 @@ async function sendScheduleSMS(scheduleData){
   }
 }
 async function saveSchedule(data, options={}) {
-  if(!requireEditAccess()) return;
+  if(!requireEditAccess()) return false;
   if (currentUser?.role === 'REPORTER') {
     alert('수정 권한 없음');
-    return;
+    return false;
   }
 
   const supabaseClient=getScheduleSupabaseClient();
   if(!supabaseClient){
     console.error('저장 실패: Supabase client is not ready.');
     alert('저장 실패');
-    return;
+    return false;
   }
   const scheduleData=normalizeScheduleData(data);
   const showSuccessAlert=options?.showSuccessAlert!==false;
@@ -8119,10 +8119,12 @@ async function saveSchedule(data, options={}) {
   if (insertError) {
     console.error('저장 실패:', insertError);
     alert('저장 실패');
+    return false;
   } else {
     if(showSuccessAlert) alert('저장 완료');
     await sendScheduleSMS(scheduleData);
     loadSchedules();
+    return true;
   }
 }
 async function loadSchedules() {
@@ -9251,17 +9253,23 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
+function resetPersonalTimelinePersonRowInputs(row){
+  if(!row) return;
+  row.querySelectorAll('.personal-timeline-detail-select').forEach(select=>{
+    select.value='';
+  });
+  row.querySelectorAll('textarea, input[type="text"], input[type="search"], input[type="date"]').forEach(input=>{
+    if(input.classList.contains('personal-timeline-summary-memo-input')) return;
+    input.value='';
+  });
+  refreshPersonalTimelinePersonRowOptions(row);
+  setPersonalTimelineRowDirty(row, false);
+}
 function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
   if(!item||!dateKey||!name) return;
   const row=Array.from(item.querySelectorAll('.personal-timeline-person-row')).find(node=>node.querySelector('.personal-timeline-save-btn')?.dataset.person===name);
   if(!row) return;
-  const savedValues=getPersonalTimelineDetailSelection(dateKey, name)||{};
-  row.querySelectorAll('.personal-timeline-detail-select').forEach(select=>{
-    const field=select.dataset.field||'';
-    select.value=savedValues[field]||'';
-  });
-  refreshPersonalTimelinePersonRowOptions(row);
-  setPersonalTimelineRowDirty(row, false);
+  resetPersonalTimelinePersonRowInputs(row);
 }
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
@@ -9464,7 +9472,6 @@ async function savePersonalTimelinePersonRow(row){
   const saveResult=savePersonalTimelineDetailSelectionBatch(dateKey, personName, rowValues);
   const item=row.closest('.personal-timeline-item');
   updatePersonalTimelineSummaryBoard(item, dateKey);
-  refreshPersonalTimelinePersonRows(item);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
     const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
@@ -9475,14 +9482,20 @@ async function savePersonalTimelinePersonRow(row){
     markHeaderReportBoardRecentItem(buildPersonalTimelineGeneratedReportId(dateKey, personName, saveResult.entryIndex));
     updateHeaderReportBoard();
   }
-  setPersonalTimelineRowDirty(row, false);
-  updateHeaderTimes();
+  let didPersistSchedule=true;
   if(Object.values(rowValues).some(value=>String(value||'').trim())){
-    await saveSchedule(getPersonalTimelineSchedulePayload(dateKey, personName, {
+    didPersistSchedule=await saveSchedule(getPersonalTimelineSchedulePayload(dateKey, personName, {
       ...(getPersonalTimelineDetailSelection(dateKey, personName)||{}),
       ...rowValues
     }), {showSuccessAlert:false});
   }
+  if(didPersistSchedule){
+    resetPersonalTimelinePersonRowInputs(row);
+  }else{
+    refreshPersonalTimelinePersonRowOptions(row);
+  }
+  refreshPersonalTimelinePersonRows(item);
+  updateHeaderTimes();
 }
 function formatHeaderReportBoardDate(dateKey){
   const [year, month, day]=dateKey.split('-').map(Number);
@@ -11538,7 +11551,7 @@ function closeTimelineGalleryModal(){
 }
 function renderPersonalTimelinePersonRow(name, dateKey){
   const fieldClassMap={시작시간:'start-time',종료시간:'end-time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
-  const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
+  const selectedDetail={};
   const occupationMap=getPersonalTimelineOptionOccupationMap(dateKey, name, selectedDetail);
   const detailRows=personalTimelineDetailFieldRenderOrder.map(field=>{
     const options=personalTimelineDetailFieldOptions[field]||[];
