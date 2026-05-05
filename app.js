@@ -7293,6 +7293,7 @@ let personalTimelineEndEditorState = {
   endDate:'',
   endTime:''
 };
+const personalTimelineSummaryMemoEditState = new Set();
 const headerClockModes = {
   venue:'venue',
   device:'device'
@@ -8803,6 +8804,12 @@ function formatPersonalTimelineEndLabel(detail={}){
 function buildPersonalTimelineEndEditorId(dateKey='', name='', entryIndex=-1){
   return `${dateKey}::${name}::end::${entryIndex}`;
 }
+function buildPersonalTimelineSummaryMemoStateKey(dateKey='', name='', entryIndex=-1){
+  return `${dateKey}::${name}::memo::${entryIndex}`;
+}
+function isPersonalTimelineSummaryMemoEditing(item={}){
+  return personalTimelineSummaryMemoEditState.has(buildPersonalTimelineSummaryMemoStateKey(item.dateKey, item.name, item.entryIndex));
+}
 function isPersonalTimelineEndEditorOpen(item={}){
   return personalTimelineEndEditorState.itemId&&personalTimelineEndEditorState.itemId===buildPersonalTimelineEndEditorId(item.dateKey, item.name, item.entryIndex);
 }
@@ -8816,7 +8823,8 @@ function renderPersonalTimelineSummaryLine(item){
   const summaryText=escapeHtml(item.text);
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
-  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-top"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text">${summaryText}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div></div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모">${memoValue}</textarea></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
+  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-top"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text">${summaryText}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div></div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;
@@ -9030,6 +9038,8 @@ function sanitizePersonalTimelineDetailEntry(entry){
   if(endTimeLabel) sanitizedFields.endLabel=endTimeLabel;
   const memo=String(entry?.memo||'').trim();
   if(memo) sanitizedFields.memo=memo;
+  const createdAtValue=Number(entry?._createdAt||0);
+  if(Number.isFinite(createdAtValue)&&createdAtValue>0) sanitizedFields._createdAt=createdAtValue;
   const savedAtValue=Number(entry?._savedAt||0);
   if(Number.isFinite(savedAtValue)&&savedAtValue>0) sanitizedFields._savedAt=savedAtValue;
   return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
@@ -9113,6 +9123,11 @@ function getPersonalTimelineDetailSavedAt(detail, dateKey='', entryIndex=0){
   if(!dateMatch) return entryIndex;
   return Number(`${dateMatch[1]}${dateMatch[2]}${dateMatch[3]}${String(entryIndex).padStart(3,'0')}`);
 }
+function getPersonalTimelineDetailCreatedAt(detail, dateKey='', entryIndex=0){
+  const createdAtValue=Number(detail?._createdAt||0);
+  if(Number.isFinite(createdAtValue)&&createdAtValue>0) return createdAtValue;
+  return getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex);
+}
 function getPersonalTimelineEntryTimeZone(detail){
   const place=String(detail?.장소||'').trim();
   const cityContext=resolveScheduleCityContext(place);
@@ -9133,6 +9148,11 @@ function buildPersonalTimelineParticipantLabel(name='', reporter=''){
   const participantNames=[String(name||'').trim(), String(reporter||'').trim()].filter(Boolean);
   return `[${participantNames.join(' / ').replace(/\s*\/\s*/g, ' / ')}]`;
 }
+function formatPersonalTimelineSavedDateLabel(dateKey=''){
+  const match=String(dateKey||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return String(dateKey||'').trim();
+  return `${Number(match[2])}월${Number(match[3])}일`;
+}
 function buildPersonalTimelineMobileReportLines(item){
   const detail=item?.detail;
   if(!detail) return [String(item?.text||'').trim()].filter(Boolean);
@@ -9149,11 +9169,12 @@ function buildPersonalTimelineReportText(name, detail, dateKey=''){
   const values=personalTimelineRequiredDetailFields.map(field=>String(getPersonalTimelineDetailEntryFieldValue(detail, field)||'').trim());
   if(values.some(value=>!value)) return '';
   const participantLabel=buildPersonalTimelineParticipantLabel(name, getPersonalTimelineDetailEntryFieldValue(detail, '취재기자'));
+  const savedDateLabel=formatPersonalTimelineSavedDateLabel(dateKey);
   const normalizedPlace=getPersonalTimelineDetailEntryFieldValue(detail, '장소');
   const normalizedTask=getPersonalTimelineDetailEntryFieldValue(detail, '업무내용');
   const taskLabel=String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim();
   const tvuLabel=getPersonalTimelineOptionLabel('TVU', getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
-  return `${participantLabel} ${formatPersonalTimelineTimeRangeLabel(detail, dateKey, normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소'))} ${taskLabel}를 ${normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소')}에서 ${tvuLabel}을 가지고 진행`;
+  return `${participantLabel}${savedDateLabel?` ${savedDateLabel}`:''} ${formatPersonalTimelineTimeRangeLabel(detail, dateKey, normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소'))} ${taskLabel}를 ${normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소')}에서 ${tvuLabel}을 가지고 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
@@ -9182,6 +9203,23 @@ function getPersonalTimelineVisibleReportsForDate(dateKey){
     if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
     if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
     return a.entryIndex-b.entryIndex;
+  });
+}
+function getPersonalTimelineSummaryReportsForDate(viewDateKey=''){
+  loadPersonalTimelineDetailSelections();
+  const normalizedViewDate=normalizePersonalTimelineViewDateKey(viewDateKey);
+  return Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!normalizedViewDate||dateKey<=normalizedViewDate).flatMap(dateKey=>
+    getPersonalTimelineGeneratedReportsForDate(dateKey).map(item=>({
+      ...item,
+      createdAt:getPersonalTimelineDetailCreatedAt(item.detail, item.dateKey, item.entryIndex),
+      savedAt:getPersonalTimelineDetailSavedAt(item.detail, item.dateKey, item.entryIndex)
+    }))
+  ).sort((a,b)=>{
+    if(a.createdAt!==b.createdAt) return b.createdAt-a.createdAt;
+    if(a.dateKey!==b.dateKey) return String(b.dateKey).localeCompare(String(a.dateKey));
+    if(a.timeSort!==b.timeSort) return b.timeSort-a.timeSort;
+    if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
+    return b.entryIndex-a.entryIndex;
   });
 }
 function isPersonalTimelineEndActiveForDate(detail={}, viewDateKey=''){
@@ -9316,7 +9354,7 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
   loadPersonalTimelineDetailSelections();
-  const items=getPersonalTimelineVisibleReportsForDate(dateKey);
+  const items=getPersonalTimelineSummaryReportsForDate(dateKey);
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
 }
@@ -9325,7 +9363,7 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
   loadPersonalTimelineDetailSelections();
-  const items=getPersonalTimelineVisibleReportsForDate(dateKey);
+  const items=getPersonalTimelineSummaryReportsForDate(dateKey);
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
@@ -9363,7 +9401,7 @@ function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
   const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-  const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
+  const hasGeneratedReport=getPersonalTimelineSummaryReportsForDate(dateKey).length>0;
   item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
   item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
 }
@@ -9377,6 +9415,7 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
   if(!entries||!entries[entryIndex]) return false;
   const previousLength=entries.length;
   entries.splice(entryIndex, 1);
+  personalTimelineSummaryMemoEditState.delete(buildPersonalTimelineSummaryMemoStateKey(dateKey, name, entryIndex));
   delete headerReportBoardRecentMarks[buildPersonalTimelineGeneratedReportId(dateKey, name, entryIndex)];
   reindexHeaderReportBoardRecentMarks(dateKey, name, entryIndex, previousLength);
   if(entries.length){
@@ -9404,12 +9443,14 @@ function updatePersonalTimelineDetailMemo(dateKey='', name='', entryIndex=-1, me
   const nextEntry=sanitizePersonalTimelineDetailEntry({
     ...entries[entryIndex],
     memo:String(memo||'').trim(),
+    _createdAt:entries[entryIndex]?._createdAt||entries[entryIndex]?._savedAt||Date.now(),
     _savedAt:Date.now()
   });
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
   dateSelections[name]=entries;
   savePersonalTimelineDetailSelections();
+  personalTimelineSummaryMemoEditState.delete(buildPersonalTimelineSummaryMemoStateKey(dateKey, name, entryIndex));
   updateHeaderReportBoard();
   return true;
 }
@@ -9437,12 +9478,14 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   if(endTimeLabel) normalized.endLabel=endTimeLabel;
   if(memo) normalized.memo=memo;
   if(Object.keys(normalized).length){
+    normalized._createdAt=Number(detailValues?._createdAt)||Number(lastEntry?._createdAt)||Number(lastEntry?._savedAt)||Date.now();
     normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
     const isSameAsLast=lastEntry&&[...personalTimelineDetailFields,'memo','endDate','endTime','endTimeLabel'].every(field=>String(lastEntry[field]||'').trim()===String(normalized[field]||'').trim());
     dateSelections[name]=[normalized];
     didAppendNew=!lastEntry;
     entryIndex=0;
     if(isSameAsLast){
+      normalized._createdAt=Number(lastEntry?._createdAt)||Number(lastEntry?._savedAt)||normalized._createdAt;
       normalized._savedAt=Number(lastEntry?._savedAt)||normalized._savedAt;
       dateSelections[name]=[normalized];
     }
@@ -9493,6 +9536,7 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
     endTime:normalizedTime,
     endTimeLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
     endLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
+    _createdAt:entries[entryIndex]?._createdAt||entries[entryIndex]?._savedAt||Date.now(),
     _savedAt:Date.now()
   });
   if(!nextEntry) return false;
@@ -9563,7 +9607,7 @@ async function savePersonalTimelinePersonRow(row){
   updatePersonalTimelineSummaryBoard(item, dateKey);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
-    const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
+    const hasGeneratedReport=getPersonalTimelineSummaryReportsForDate(dateKey).length>0;
     item.classList.toggle('has-entry', hasTimelineAssignment||hasGeneratedReport);
     item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
   }
@@ -11958,7 +12002,7 @@ function renderPersonalTimelineDayCard(dateKey, view){
   const currentDate=dates.find(date=>formatTimelineKey(date)===normalizedDateKey)||dates[0]||new Date();
   const phase=getPersonalTimelinePhase(currentDate);
   const dateLabel=`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
-  const generatedReports=getPersonalTimelineVisibleReportsForDate(normalizedDateKey);
+  const generatedReports=getPersonalTimelineSummaryReportsForDate(normalizedDateKey);
   const assignments=(view?.rows||[]).map(row=>({
     label:row.label,
     value:getTimelineLabel(row.label, normalizedDateKey),
@@ -12007,6 +12051,7 @@ function renderPersonalTimelineSchedule(view){
     list.oninput=event=>{
       const memoInput=event.target.closest('.personal-timeline-summary-memo-input');
       if(!memoInput||!list.contains(memoInput)) return;
+      if(memoInput.disabled) return;
       memoInput.closest('.personal-timeline-summary-line')?.classList.add('is-dirty');
     };
     list.onclick=event=>{
@@ -12078,6 +12123,29 @@ function renderPersonalTimelineSchedule(view){
           syncPersonalTimelinePersonRowFromSavedState(item, item?.dataset.dateKey||dateKey, personName);
           updatePersonalTimelineItemEntryState(item, item?.dataset.dateKey||dateKey);
           updateHeaderTimes();
+        }
+        return;
+      }
+      const memoWriteButton=event.target.closest('[data-summary-memo-write="true"]');
+      if(memoWriteButton&&list.contains(memoWriteButton)){
+        const item=memoWriteButton.closest('.personal-timeline-item');
+        const dateKey=memoWriteButton.dataset.dateKey||'';
+        const personName=memoWriteButton.dataset.person||'';
+        const entryIndex=Number(memoWriteButton.dataset.entryIndex);
+        personalTimelineSummaryMemoEditState.add(buildPersonalTimelineSummaryMemoStateKey(dateKey, personName, entryIndex));
+        if(item){
+          updatePersonalTimelineSummaryBoard(item, item.dataset.dateKey||dateKey);
+          const memoInput=Array.from(item.querySelectorAll('.personal-timeline-summary-memo-input')).find(node=>
+            String(node.dataset.summaryMemoDate||'')===dateKey
+            && String(node.dataset.summaryMemoPerson||'')===personName
+            && Number(node.dataset.summaryMemoEntryIndex)===entryIndex
+          );
+          if(memoInput){
+            memoInput.disabled=false;
+            memoInput.focus();
+            const currentLength=String(memoInput.value||'').length;
+            memoInput.setSelectionRange?.(currentLength, currentLength);
+          }
         }
         return;
       }
