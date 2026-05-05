@@ -7764,8 +7764,11 @@ function applySharedStateSnapshot(rows=[]){
   });
   const changedKeys=[];
   SHARED_STATE_SYNC_KEYS.forEach(storageKey=>{
+    if(!Object.prototype.hasOwnProperty.call(nextStateByKey, storageKey)){
+      return;
+    }
     const currentRaw=getSharedStateLocalRaw(storageKey);
-    const nextRaw=Object.prototype.hasOwnProperty.call(nextStateByKey, storageKey) ? nextStateByKey[storageKey] : '';
+    const nextRaw=nextStateByKey[storageKey];
     const guardUntil=Number(sharedStateLocalWriteGuards.get(storageKey)||0);
     if(guardUntil>now&&currentRaw!==nextRaw){
       return;
