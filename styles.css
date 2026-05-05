@@ -4807,15 +4807,17 @@ video{width:100%;height:auto;border-radius:8px}
 .personal-timeline-day-nav-main{
   display:flex;
   flex:1 1 420px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   align-items:center;
   gap:12px;
+  min-width:0;
 }
 .personal-timeline-day-nav-btn{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-width:112px;
+  flex:0 0 auto;
+  min-width:96px;
   min-height:42px;
   padding:0 16px;
   border:1px solid #cfdae6;
@@ -4840,26 +4842,38 @@ video{width:100%;height:auto;border-radius:8px}
   display:none;
 }
 .personal-timeline-day-picker{
+  position:relative;
   display:flex;
-  flex:1 1 240px;
-  flex-direction:column;
-  gap:6px;
-  min-width:220px;
-  color:#35516d;
-  font-size:13px;
-  font-weight:800;
+  flex:0 0 46px;
+  align-items:center;
+  justify-content:center;
+  width:46px;
+  min-width:46px;
+  height:46px;
+  border:1px solid #c7d5e3;
+  border-radius:14px;
+  background:linear-gradient(180deg,#ffffff 0%,#f4f8fc 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+  overflow:hidden;
 }
-.personal-timeline-day-picker span{
-  padding-left:4px;
-  color:#17314c;
-  font-size:13px;
-  font-weight:900;
-  letter-spacing:-.02em;
+.personal-timeline-day-picker:focus-within{
+  box-shadow:0 0 0 3px rgba(29,79,134,.12), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.personal-timeline-day-picker-trigger{
+  display:block;
+  width:18px;
+  height:18px;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect x='3' y='5' width='18' height='16' rx='3' fill='%23ffffff' stroke='%2317314c' stroke-width='1.8'/%3E%3Cpath d='M3 9.5H21' stroke='%2317314c' stroke-width='1.8'/%3E%3Cpath d='M8 3V7' stroke='%2317314c' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M16 3V7' stroke='%2317314c' stroke-width='1.8' stroke-linecap='round'/%3E%3Crect x='7' y='12' width='3' height='3' rx='0.6' fill='%2317314c'/%3E%3Crect x='12' y='12' width='3' height='3' rx='0.6' fill='%2317314c'/%3E%3C/svg%3E");
 }
 .personal-timeline-day-current{
   display:flex;
+  flex:1 1 auto;
   align-items:center;
   justify-content:center;
+  min-width:0;
   min-height:42px;
   padding:0 14px;
   border:1px solid #d7e0ea;
@@ -4870,20 +4884,20 @@ video{width:100%;height:auto;border-radius:8px}
   font-weight:900;
   line-height:1.25;
   text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .personal-timeline-day-picker-input{
-  min-height:46px;
-  padding:0 14px;
-  border:1px solid #c7d5e3;
-  border-radius:14px;
-  background:linear-gradient(180deg,#ffffff 0%,#f4f8fc 100%);
-  color:#17314c;
-  font:inherit;
-  font-size:15px;
-  font-weight:800;
-  letter-spacing:-.01em;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
-  appearance:none;
+  position:absolute;
+  inset:0;
+  width:100%;
+  min-height:100%;
+  padding:0;
+  margin:0;
+  border:none;
+  opacity:0;
+  cursor:pointer;
 }
 .personal-timeline-day-actions{
   display:flex;
@@ -5232,6 +5246,13 @@ video{width:100%;height:auto;border-radius:8px}
   display:flex;
   flex-direction:column;
   gap:6px;
+}
+.personal-timeline-shared-image-btn{
+  display:block;
+  padding:0;
+  border:none;
+  background:transparent;
+  cursor:pointer;
 }
 .personal-timeline-shared-image{
   display:block;
@@ -5680,6 +5701,11 @@ input[type="file"]{
   background:#0f172a;
   box-shadow:0 30px 80px rgba(0,0,0,.34);
 }
+.timeline-image-preview-modal-panel{
+  width:min(960px,calc(100vw - 24px));
+  min-height:auto;
+  padding:56px 16px 24px;
+}
 .timeline-gallery-modal-close{
   position:absolute;
   top:14px;
@@ -5716,6 +5742,10 @@ input[type="file"]{
   object-fit:contain;
   border-radius:8px;
   background:#020617;
+}
+.timeline-image-preview-figure img{
+  max-width:95vw;
+  max-height:85vh;
 }
 .timeline-gallery-modal-figure figcaption{
   width:100%;
@@ -6755,7 +6785,7 @@ textarea.simple-form-input,
   .personal-timeline-day-nav-main{
     display:grid;
     flex:0 0 100%;
-    grid-template-columns:44px minmax(0,1fr) 44px;
+    grid-template-columns:40px minmax(0,1fr) 40px 40px;
     align-items:center;
     gap:8px;
     width:100%;
@@ -6763,8 +6793,8 @@ textarea.simple-form-input,
   }
   .personal-timeline-day-nav-prev{grid-column:1;grid-row:1}
   .personal-timeline-day-current{grid-column:2;grid-row:1}
-  .personal-timeline-day-nav-next{grid-column:3;grid-row:1}
-  .personal-timeline-day-picker{grid-column:1 / -1;grid-row:2}
+  .personal-timeline-day-picker{grid-column:3;grid-row:1}
+  .personal-timeline-day-nav-next{grid-column:4;grid-row:1}
   .personal-timeline-day-nav-text{
     display:none;
   }
@@ -6774,7 +6804,7 @@ textarea.simple-form-input,
     line-height:1;
   }
   .personal-timeline-day-nav-btn{
-    width:44px;
+    width:40px;
     min-width:0;
     height:40px;
     min-height:40px;
@@ -6788,16 +6818,20 @@ textarea.simple-form-input,
     padding:8px 10px;
     font-size:14px;
     box-sizing:border-box;
-    white-space:normal;
-    word-break:keep-all;
-    overflow-wrap:anywhere;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .personal-timeline-day-picker{
     flex:0 0 auto;
-    width:100%;
-    min-width:0;
-    gap:0;
+    width:40px;
+    min-width:40px;
+    height:40px;
     box-sizing:border-box;
+  }
+  .personal-timeline-day-picker-trigger{
+    width:16px;
+    height:16px;
   }
   .personal-timeline-day-picker-input{
     width:100%;

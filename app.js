@@ -197,96 +197,115 @@ function getWorldCupTimeOffset(city=''){
   const resolvedCity=resolveWorldCupCityName(city);
   return WC_TIMEZONE_OFFSET[resolvedCity] ?? 14;
 }
-function formatWorldCupDateKey(date){
-  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+function padWorldCupNumber(value){
+  return String(value).padStart(2, '0');
 }
-function convertToKoreaTime(localDateTime, city) {
-  const offset = getWorldCupTimeOffset(city);
-  const date = new Date(localDateTime);
-  if(Number.isNaN(date.getTime())) return null;
-  date.setHours(date.getHours() + offset);
-  return date;
+function parseWorldCupDateText(value=''){
+  const match=String(value||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match) return null;
+  return {
+    year:Number(match[1]),
+    month:Number(match[2]),
+    day:Number(match[3])
+  };
 }
-function formatKoreaTime(date) {
-  if(!(date instanceof Date)||Number.isNaN(date.getTime())) return '';
-  const h = String(date.getHours()).padStart(2, '0');
-  const m = String(date.getMinutes()).padStart(2, '0');
-  return `${h}:${m}`;
+function parseWorldCupTimeText(value=''){
+  const normalized=String(value||'').replace(/\s*KST$/i, '').trim();
+  const match=normalized.match(/^(\d{2}):(\d{2})$/);
+  if(!match) return null;
+  return {
+    hour:Number(match[1]),
+    minute:Number(match[2]),
+    text:`${padWorldCupNumber(match[1])}:${padWorldCupNumber(match[2])}`
+  };
 }
-function getDayDiff(localDate, koreaDate) {
-  if(!(localDate instanceof Date)||Number.isNaN(localDate.getTime())||!(koreaDate instanceof Date)||Number.isNaN(koreaDate.getTime())) return '';
-  const localMidnight=Date.UTC(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
-  const koreaMidnight=Date.UTC(koreaDate.getFullYear(), koreaDate.getMonth(), koreaDate.getDate());
-  const diff=Math.round((koreaMidnight-localMidnight)/86400000);
-  if (diff === 1) return '(+1일)';
-  if (diff === 2) return '(+2일)';
-  return '';
+function formatWorldCupDateParts(parts){
+  if(!parts) return '';
+  return `${parts.year}-${padWorldCupNumber(parts.month)}-${padWorldCupNumber(parts.day)}`;
+}
+function shiftFixedWorldCupDateTime(dateText='', timeText='', hourOffset=0){
+  const dateParts=parseWorldCupDateText(dateText);
+  const timeParts=parseWorldCupTimeText(timeText);
+  if(!dateParts||!timeParts) return null;
+  const shiftedUtc=Date.UTC(
+    dateParts.year,
+    dateParts.month-1,
+    dateParts.day,
+    timeParts.hour,
+    timeParts.minute
+  )+(Number(hourOffset)||0)*3600000;
+  const shiftedDate=new Date(shiftedUtc);
+  const shiftedDateText=`${shiftedDate.getUTCFullYear()}-${padWorldCupNumber(shiftedDate.getUTCMonth()+1)}-${padWorldCupNumber(shiftedDate.getUTCDate())}`;
+  const shiftedTimeText=`${padWorldCupNumber(shiftedDate.getUTCHours())}:${padWorldCupNumber(shiftedDate.getUTCMinutes())}`;
+  const sourceMidnight=Date.UTC(dateParts.year, dateParts.month-1, dateParts.day);
+  const shiftedMidnight=Date.UTC(shiftedDate.getUTCFullYear(), shiftedDate.getUTCMonth(), shiftedDate.getUTCDate());
+  const dayDiffValue=Math.round((shiftedMidnight-sourceMidnight)/86400000);
+  const dayDiff=dayDiffValue>0 ? `(+${dayDiffValue}일)` : '';
+  return {
+    dateText:shiftedDateText,
+    timeText:shiftedTimeText,
+    dayDiff
+  };
 }
 function buildWorldCupTimeInfo(localDateText='', localTimeText='', city=''){
-  const normalizedDate=String(localDateText||'').trim();
-  const normalizedTime=String(localTimeText||'').trim();
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)||!/^\d{2}:\d{2}$/.test(normalizedTime)) return null;
-  const localDateTime=`${normalizedDate}T${normalizedTime}:00`;
-  const localDate=new Date(localDateTime);
-  const koreaDate=convertToKoreaTime(localDateTime, city);
-  if(Number.isNaN(localDate.getTime())||!(koreaDate instanceof Date)||Number.isNaN(koreaDate.getTime())) return null;
-  const dayDiff=getDayDiff(localDate, koreaDate);
+  const normalizedDate=formatWorldCupDateParts(parseWorldCupDateText(localDateText));
+  const normalizedTime=parseWorldCupTimeText(localTimeText)?.text||'';
+  if(!normalizedDate||!normalizedTime) return null;
+  const shifted=shiftFixedWorldCupDateTime(normalizedDate, normalizedTime, getWorldCupTimeOffset(city));
+  if(!shifted) return null;
   return {
-    localDate,
-    koreaDate,
-    koreaTime:formatKoreaTime(koreaDate),
-    dayDiff,
-    koreaDateText:formatWorldCupDateKey(koreaDate)
+    localDateText:normalizedDate,
+    localTimeText:normalizedTime,
+    koreaDateText:shifted.dateText,
+    koreaTime:shifted.timeText,
+    dayDiff:shifted.dayDiff
   };
 }
 function buildWorldCupTimeLabel(localDateText='', localTimeText='', city=''){
   const info=buildWorldCupTimeInfo(localDateText, localTimeText, city);
   if(!info) return '';
-  return `현지 ${localTimeText} / 한국 ${info.koreaTime}${info.dayDiff}`;
+  return `현지 ${info.localTimeText} / 한국 ${info.koreaTime}${info.dayDiff}`;
 }
-function convertLegacyKstScheduleEntryToLocal(entry={}){
+function buildWorldCupFixedScheduleEntry(entry={}){
   const rawDate=String(entry?.date||'').trim();
-  const rawTime=String(entry?.time||'').replace(' KST','').trim();
+  const rawTime=String(entry?.time||'').trim();
   const resolvedCity=resolveWorldCupScheduleCity(entry?.city||entry?.stadium||'');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)||!/^\d{2}:\d{2}$/.test(rawTime)){
-    return {
-      ...entry,
-      time:rawTime||String(entry?.time||'').trim(),
-      city:resolvedCity
-    };
-  }
-  if(!String(entry?.time||'').includes('KST')){
+  const normalizedTime=parseWorldCupTimeText(rawTime)?.text||'';
+  if(!parseWorldCupDateText(rawDate)||!normalizedTime){
     return {
       ...entry,
       date:rawDate,
-      time:rawTime,
-      city:resolvedCity
+      time:normalizedTime||rawTime,
+      city:resolvedCity,
+      localDate:rawDate,
+      localTime:normalizedTime||rawTime,
+      koreaDate:String(entry?.koreaDate||'').trim(),
+      koreaTime:String(entry?.koreaTime||'').trim()
     };
   }
-  const offset=getWorldCupTimeOffset(resolvedCity);
-  const kstDate=new Date(`${rawDate}T${rawTime}:00+09:00`);
-  if(Number.isNaN(kstDate.getTime())){
-    return {
-      ...entry,
-      date:rawDate,
-      time:rawTime,
-      city:resolvedCity
-    };
-  }
-  kstDate.setHours(kstDate.getHours()-offset);
+  const isLegacyKst=String(rawTime).toUpperCase().includes('KST');
+  const localDateTime=isLegacyKst
+    ? shiftFixedWorldCupDateTime(rawDate, normalizedTime, -getWorldCupTimeOffset(resolvedCity))
+    : {dateText:rawDate, timeText:normalizedTime, dayDiff:''};
+  const timeInfo=buildWorldCupTimeInfo(localDateTime?.dateText||rawDate, localDateTime?.timeText||normalizedTime, resolvedCity);
   return {
     ...entry,
-    date:formatWorldCupDateKey(kstDate),
-    time:`${String(kstDate.getHours()).padStart(2,'0')}:${String(kstDate.getMinutes()).padStart(2,'0')}`,
-    city:resolvedCity
+    date:localDateTime?.dateText||rawDate,
+    time:localDateTime?.timeText||normalizedTime,
+    city:resolvedCity,
+    localDate:localDateTime?.dateText||rawDate,
+    localTime:localDateTime?.timeText||normalizedTime,
+    koreaDate:timeInfo?.koreaDateText||String(entry?.koreaDate||'').trim(),
+    koreaTime:timeInfo?.koreaTime||String(entry?.koreaTime||'').trim(),
+    dayDiff:timeInfo?.dayDiff||''
   };
 }
 function normalizeWorldCupScheduleCollections(){
   Object.keys(groupMatches).forEach(groupKey=>{
-    groupMatches[groupKey]=(groupMatches[groupKey]||[]).map(match=>convertLegacyKstScheduleEntryToLocal(match));
+    groupMatches[groupKey]=(groupMatches[groupKey]||[]).map(match=>buildWorldCupFixedScheduleEntry(match));
   });
   Object.keys(knockoutSchedule).forEach(matchId=>{
-    knockoutSchedule[matchId]=convertLegacyKstScheduleEntryToLocal(knockoutSchedule[matchId]);
+    knockoutSchedule[matchId]=buildWorldCupFixedScheduleEntry(knockoutSchedule[matchId]);
   });
 }
 normalizeWorldCupScheduleCollections();
@@ -7414,6 +7433,16 @@ function setSharedStateLocalRaw(storageKey, raw=''){
   }
   writeSharedStateWindowPayload(payload);
 }
+function enforceImageFileInputOptions(input){
+  if(!(input instanceof HTMLInputElement)||input.type!=='file') return;
+  if(!String(input.getAttribute('accept')||'').trim()){
+    input.setAttribute('accept', 'image/*');
+  }
+  input.removeAttribute('capture');
+}
+function enforceIosFriendlyImageInputs(root=document){
+  root?.querySelectorAll?.('input[type="file"][data-ios-photo-choice="true"]').forEach(enforceImageFileInputOptions);
+}
 function resetNewsEditorSyncState(){
   hasLoadedNewsEditorEntries=false;
   currentNewsEditingKey='';
@@ -8273,6 +8302,7 @@ function writePersonalTimelineSharedRaw(raw){
     window.name='';
   }
   scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
+  if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
 function createTimelineModalMediaId(){
   timelineModalMediaSeq+=1;
@@ -8479,6 +8509,7 @@ function writePersonalTimelineDetailsRaw(raw){
     window.name='';
   }
   scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw);
+  if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
 function readHeaderReportBoardRecentRaw(){
   const storages=getTimelineStorageAreas();
@@ -9716,7 +9747,7 @@ function renderPersonalTimelineSharedColumn(dateKey){
     const editButtonHtml=isEditMode ? `<button type="button" class="personal-timeline-shared-entry-edit-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 수정">수정</button>` : '';
     const deleteButtonHtml=isDeleteMode ? `<button type="button" class="personal-timeline-shared-entry-delete-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 삭제">삭제</button>` : '';
     const textHtml=sharedText ? `<div class="personal-timeline-entry-text personal-timeline-entry-text-shared-item"><span class="personal-timeline-entry-text-shared-bullet">•</span><span class="personal-timeline-entry-text-shared-body">${escapeHtml(sharedText)}</span></div>` : '';
-    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
+    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><button type="button" class="personal-timeline-shared-image-btn" data-shared-image-src="${escapeHtml(image.src)}" data-shared-image-name="${escapeHtml(image.name)}" aria-label="${escapeHtml(image.name)} 크게 보기"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"></button><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
     return `<div class="personal-timeline-entry personal-timeline-entry-shared"><div class="personal-timeline-entry-head">${deleteButtonHtml}${editButtonHtml}<span class="personal-timeline-entry-name personal-timeline-entry-name-shared">영상취재팀 공동</span></div>${textHtml}${mediaHtml}</div>`;
   }).join('');
 }
@@ -9781,6 +9812,47 @@ function deletePersonalTimelineSharedEntryAt(item, dateKey, entryIndex){
   updatePersonalTimelineItemEntryState(item, dateKey);
   if(item) item.classList.add('is-open');
   updateHeaderTimes();
+}
+function ensureTimelineImagePreviewModal(){
+  if(document.getElementById('timelineImagePreviewModal')) return;
+  const mount=document.getElementById('timelineGalleryModalMount')||document.body;
+  mount.insertAdjacentHTML('beforeend', `<div id="timelineImagePreviewModal" class="timeline-gallery-modal hidden" tabindex="-1"><div class="timeline-gallery-modal-backdrop" data-timeline-image-close="true"></div><div class="timeline-gallery-modal-panel timeline-image-preview-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineImagePreviewTitle"><button type="button" class="timeline-gallery-modal-close" data-timeline-image-close="true" aria-label="닫기">×</button><div class="timeline-gallery-modal-content"><figure class="timeline-gallery-modal-figure timeline-image-preview-figure"><img id="timelineImagePreviewImage" src="" alt=""><figcaption><h3 id="timelineImagePreviewTitle"></h3><p id="timelineImagePreviewMeta"></p></figcaption></figure></div></div></div>`);
+  const modal=document.getElementById('timelineImagePreviewModal');
+  modal.addEventListener('click', event=>{
+    if(event.target.closest('[data-timeline-image-close]')){
+      closeTimelineImagePreviewModal();
+    }
+  });
+  modal.addEventListener('keydown', event=>{
+    if(event.key==='Escape'){
+      closeTimelineImagePreviewModal();
+    }
+  });
+}
+function openTimelineImagePreviewModal(src='', name=''){
+  const normalizedSrc=String(src||'').trim();
+  if(!normalizedSrc) return;
+  ensureTimelineImagePreviewModal();
+  const modal=document.getElementById('timelineImagePreviewModal');
+  const image=document.getElementById('timelineImagePreviewImage');
+  const title=document.getElementById('timelineImagePreviewTitle');
+  const meta=document.getElementById('timelineImagePreviewMeta');
+  if(image){
+    image.src=normalizedSrc;
+    image.alt=name||'첨부 이미지';
+  }
+  if(title) title.textContent=name||'첨부 이미지';
+  if(meta) meta.textContent='썸네일을 눌러 확대된 첨부 이미지를 보고 있습니다.';
+  document.body.classList.add('timeline-modal-open');
+  modal?.classList.remove('hidden');
+  modal?.focus();
+}
+function closeTimelineImagePreviewModal(){
+  const modal=document.getElementById('timelineImagePreviewModal');
+  if(modal) modal.classList.add('hidden');
+  if(!document.querySelector('.timeline-modal:not(.hidden)')&&!document.querySelector('.timeline-gallery-modal:not(.hidden)')){
+    document.body.classList.remove('timeline-modal-open');
+  }
 }
 function renderTimelineModalMediaList(){
   const mediaWrap=document.getElementById('timelineModalMedia');
@@ -9851,6 +9923,7 @@ function writeTimelineGalleryRaw(raw){
   }
   setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, normalized);
   scheduleSharedStateSyncWrite(TIMELINE_GALLERY_STORAGE_KEY, normalized);
+  if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
 function supportsTimelineGalleryLegacyIndexedDb(){
   return typeof window!=='undefined'&&typeof window.indexedDB!=='undefined';
@@ -10001,9 +10074,9 @@ function requestTimelineGalleryAutoRefresh(){
   }
   refreshTimelineGalleryView({preserveScroll:true});
 }
-async function fetchTimelineGallerySharedRaw(){
+async function fetchTimelineGallerySharedStateResult(){
   const client=getSharedStateSyncClient();
-  if(!client) return '';
+  if(!client) return {succeeded:false, raw:''};
   try{
     const {data, error}=await client
       .from(SHARED_STATE_SYNC_TABLE)
@@ -10012,33 +10085,47 @@ async function fetchTimelineGallerySharedRaw(){
       .limit(1);
     if(error){
       console.warn('Failed to fetch shared timeline gallery.', error);
-      return '';
+      return {succeeded:false, raw:''};
     }
-    return String(data?.[0]?.state_value??'');
+    return {
+      succeeded:true,
+      raw:String(data?.[0]?.state_value??'')
+    };
   }catch(error){
     console.warn('Failed to fetch shared timeline gallery.', error);
-    return '';
+    return {succeeded:false, raw:''};
   }
 }
+async function fetchTimelineGallerySharedRaw(){
+  const result=await fetchTimelineGallerySharedStateResult();
+  return result.raw;
+}
 async function getTimelineGalleryEntriesForSave(){
-  const sources=[
-    timelineGalleryEntries,
-    parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw())
-  ];
-  const sharedRaw=await fetchTimelineGallerySharedRaw();
-  if(sharedRaw){
-    setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, sharedRaw);
-    sources.push(parseTimelineGalleryEntriesRaw(sharedRaw));
+  const sharedResult=await fetchTimelineGallerySharedStateResult();
+  if(sharedResult.succeeded){
+    setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, sharedResult.raw);
+    return parseTimelineGalleryEntriesRaw(sharedResult.raw);
   }
-  return normalizeTimelineGalleryEntries(sources.flat());
+  return parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw());
 }
 async function hydrateTimelineGalleryEntries(force=false){
   if(!force&&timelineGalleryHydrationPromise) return timelineGalleryHydrationPromise;
   timelineGalleryHydrationPromise=(async ()=>{
     const storage=getTimelineGalleryStorage();
-    let raw=readTimelineGalleryRaw();
-    let source=raw ? 'shared-local' : 'localStorage';
-    if(!raw&&storage){
+    const sharedResult=await fetchTimelineGallerySharedStateResult();
+    let raw=sharedResult.raw;
+    let source=sharedResult.succeeded ? 'shared-state' : '';
+    if(sharedResult.succeeded){
+      setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, raw);
+    }
+    if(!raw&&storage&&sharedResult.succeeded){
+      LEGACY_TIMELINE_GALLERY_STORAGE_KEYS.forEach(key=>storage.removeItem(key));
+    }
+    if(!raw&&!sharedResult.succeeded){
+      raw=readTimelineGalleryRaw();
+      source=raw ? 'localStorage' : 'fallback';
+    }
+    if(!raw&&storage&&!sharedResult.succeeded){
       for(const legacyKey of LEGACY_TIMELINE_GALLERY_STORAGE_KEYS){
         const legacyRaw=String(storage.getItem(legacyKey)||'');
         if(legacyRaw){
@@ -10048,14 +10135,7 @@ async function hydrateTimelineGalleryEntries(force=false){
         }
       }
     }
-    if(!raw){
-      const sharedRaw=await fetchTimelineGallerySharedRaw();
-      if(sharedRaw){
-        raw=sharedRaw;
-        source='shared-state';
-      }
-    }
-    if(!raw){
+    if(!raw&&!sharedResult.succeeded){
       const legacyIndexedDbRaw=await readTimelineGalleryLegacyIndexedDbRaw();
       if(legacyIndexedDbRaw){
         raw=legacyIndexedDbRaw;
@@ -10101,13 +10181,7 @@ function normalizeTimelineGalleryEntries(entries=[]){
 }
 function loadTimelineGalleryEntries(){
   if(hasLoadedTimelineGalleryEntries||timelineGalleryHydrationPromise) return;
-  const raw=readTimelineGalleryRaw();
-  if(!raw){
-    hydrateTimelineGalleryEntries();
-    return;
-  }
-  applyTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(raw), 'localStorage');
-  hasLoadedTimelineGalleryEntries=true;
+  hydrateTimelineGalleryEntries();
 }
 function saveTimelineGalleryEntries(){
   if(!canEdit()) return;
@@ -10627,7 +10701,7 @@ function renderTimelineGalleryComposerPreview(){
 }
 function renderGalleryForm(){
   const state=timelineGalleryComposerState;
-  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진/영상 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진/영상 첨부</span><input type="file" id="gallery-upload" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" accept="image/*,video/*" capture="environment"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
+  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진/영상 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진/영상 첨부</span><input type="file" id="gallery-upload" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" data-ios-photo-choice="true" accept="image/*,video/*"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
 }
 function renderTimelineGalleryCard(group){
   if(!group?.representative) return '';
@@ -10923,6 +10997,7 @@ function bindTimelineGalleryViewEvents(){
   const root=document.querySelector('.timeline-gallery-view');
   if(!root) return;
   bindGalleryScrollGuard();
+  enforceIosFriendlyImageInputs(root);
   root.onclick=event=>{
     const actionButton=event.target.closest('[data-gallery-action]');
     if(actionButton&&root.contains(actionButton)){
@@ -11144,9 +11219,8 @@ function closeTimelineGalleryModal(){
 function renderPersonalTimelinePersonRow(name, dateKey){
   const fieldClassMap={시간:'time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
   const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
-  const disabledAttr=isPastTimelineDateKey(dateKey)?' disabled aria-disabled="true"':'';
-  const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}"${disabledAttr}>${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
-  return `<div class="personal-timeline-person-row" data-person-name="${escapeHtml(name)}"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}"${disabledAttr}>저장</button></div></div>`;
+  const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}">${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
+  return `<div class="personal-timeline-person-row" data-person-name="${escapeHtml(name)}"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}">저장</button></div></div>`;
 }
 function renderPersonalTimelinePersonalColumn(dateKey){
   const activeName=personalTimelineMemberNames[0]||'';
@@ -11447,7 +11521,7 @@ function renderPersonalTimelineDayNavigator(dateKey){
   const currentIndex=Math.max(0, dates.findIndex(date=>formatTimelineKey(date)===normalizedDateKey));
   const currentDate=dates[currentIndex]||dates[0]||new Date();
   const title=formatPersonalTimelineNavigatorLabel(normalizedDateKey)||`${currentDate.getMonth()+1}월 ${currentDate.getDate()}일`;
-  return `<div class="personal-timeline-day-nav"><div class="personal-timeline-day-nav-main"><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-prev" data-timeline-day-move="-1" aria-label="이전 날짜"${currentIndex<=0?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">이전 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">‹</span></button><div class="personal-timeline-day-current">${escapeHtml(title)}</div><label class="personal-timeline-day-picker"><span class="sr-only">날짜 선택</span><input type="date" class="personal-timeline-day-picker-input" data-timeline-day-picker="true" value="${escapeHtml(normalizedDateKey)}" min="${escapeHtml(formatTimelineKey(dates[0]||currentDate))}" max="${escapeHtml(formatTimelineKey(dates[dates.length-1]||currentDate))}"></label><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-next" data-timeline-day-move="1" aria-label="다음 날짜"${currentIndex>=dates.length-1?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">다음 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">›</span></button></div><div class="personal-timeline-day-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div>`;
+  return `<div class="personal-timeline-day-nav"><div class="personal-timeline-day-nav-main"><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-prev" data-timeline-day-move="-1" aria-label="이전 날짜"${currentIndex<=0?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">이전 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">‹</span></button><div class="personal-timeline-day-current">${escapeHtml(title)}</div><label class="personal-timeline-day-picker" aria-label="날짜 선택"><span class="sr-only">날짜 선택</span><span class="personal-timeline-day-picker-trigger" aria-hidden="true"></span><input type="date" class="personal-timeline-day-picker-input" data-timeline-day-picker="true" value="${escapeHtml(normalizedDateKey)}" min="${escapeHtml(formatTimelineKey(dates[0]||currentDate))}" max="${escapeHtml(formatTimelineKey(dates[dates.length-1]||currentDate))}"></label><button type="button" class="personal-timeline-day-nav-btn personal-timeline-day-nav-next" data-timeline-day-move="1" aria-label="다음 날짜"${currentIndex>=dates.length-1?' disabled aria-disabled="true"':''}><span class="personal-timeline-day-nav-text">다음 날짜</span><span class="personal-timeline-day-nav-arrow-text" aria-hidden="true">›</span></button></div><div class="personal-timeline-day-actions"><button type="button" class="personal-timeline-quick-btn timeline-gallery-open-btn" data-timeline-action="gallery">갤러리</button><button type="button" class="personal-timeline-quick-btn" data-timeline-action="today">오늘로</button></div></div>`;
 }
 function renderPersonalTimelineDayCard(dateKey, view){
   const normalizedDateKey=setPersonalTimelineViewDateKey(dateKey);
@@ -11550,6 +11624,11 @@ function renderPersonalTimelineSchedule(view){
       const sharedEntryDeleteButton=event.target.closest('.personal-timeline-shared-entry-delete-btn');
       if(sharedEntryDeleteButton&&list.contains(sharedEntryDeleteButton)){
         deletePersonalTimelineSharedEntryAt(sharedEntryDeleteButton.closest('.personal-timeline-item'), sharedEntryDeleteButton.dataset.dateKey||'', Number(sharedEntryDeleteButton.dataset.entryIndex));
+        return;
+      }
+      const sharedImageButton=event.target.closest('.personal-timeline-shared-image-btn');
+      if(sharedImageButton&&list.contains(sharedImageButton)){
+        openTimelineImagePreviewModal(sharedImageButton.dataset.sharedImageSrc||'', sharedImageButton.dataset.sharedImageName||'');
         return;
       }
       const deleteButton=event.target.closest('.personal-timeline-summary-delete');
@@ -11670,10 +11749,11 @@ function updateTimelineSelection(targetCell){
 }
 function ensureTimelineModal(){
   if(document.getElementById('timelineModal')) return;
-  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">일정 입력</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="선택한 날짜 구간의 일정을 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>사진 첨부</span><input id="timelineModalFile" type="file" accept="image/*" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="clearTimelineSelectionEntries()">지우기</button><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">일정 입력</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="선택한 날짜 구간의 일정을 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>사진 첨부</span><input id="timelineModalFile" type="file" data-ios-photo-choice="true" accept="image/*" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="clearTimelineSelectionEntries()">지우기</button><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button></div></div></div>`);
   const modal=document.getElementById('timelineModal');
   const input=document.getElementById('timelineModalInput');
   const fileInput=document.getElementById('timelineModalFile');
+  enforceImageFileInputOptions(fileInput);
   modal.addEventListener('keydown', event=>{
     if(event.key==='Escape'){
       closeTimelineModal();
@@ -13178,7 +13258,7 @@ function buildGroupTableView(groupKey=''){
     const selectedRank=getGroupTeamRank(groupKey, team.name);
     return `<tr class="group-team-row${selectedRank==='4'?' is-eliminated':''}"><td class="group-team-cell"><div class="flag-cell">${flagHtml}<span class="group-team-name">${team.name}</span></div></td><td class="group-coach-cell">${team.coach}</td><td class="group-rank-cell">${team.rank}</td><td class="group-placement-cell">${buildGroupRankControls(groupKey, team.name)}</td></tr>`;
   }).join('')}</tbody>`;
-  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>{const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return renderScheduleMatchRow(match.number, `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`, match.date, match.time, match.stadium);}).join('')}</tbody></table></div></div>`:'';
+  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>{const homeFlag=getFlag(match.homeCode);const awayFlag=getFlag(match.awayCode);const homeFlagHtml=homeFlag?`<img class="flag-icon" src="${homeFlag}" alt="${match.home} flag" loading="lazy">`:'';const awayFlagHtml=awayFlag?`<img class="flag-icon" src="${awayFlag}" alt="${match.away} flag" loading="lazy">`:'';return renderScheduleMatchRow(match.number, `<div class="vs-cell"><span class="team-side">${homeFlagHtml}<span>${match.home}</span></span><span>vs</span><span class="team-side"><span>${match.away}</span>${awayFlagHtml}</span></div>`, match);}).join('')}</tbody></table></div></div>`:'';
   return {tableHtml:header+body,matchSection};
 }
 function formatSignedNumber(value){
@@ -13295,14 +13375,26 @@ function showBracketStage(stage, el){
   renderKnockoutTable(stage);
   updateMobileHeaderReportBoardVisibility();
 }
-function renderScheduleMatchRow(number, mainHtml, date, time, stadium, rowClass=''){
-  const resolvedCity=resolveWorldCupScheduleCity(stadium);
-  const timeInfo=buildWorldCupTimeInfo(date, time, resolvedCity);
-  const koreaDate=timeInfo?.koreaDateText||'-';
-  const koreaTimeLabel=timeInfo ? `${timeInfo.koreaTime}${timeInfo.dayDiff}` : '-';
+function getWorldCupScheduleDisplayInfo(match={}){
+  const resolvedCity=resolveWorldCupScheduleCity(match?.city||match?.stadium||'');
+  const localDate=String(match?.localDate||match?.date||'').trim()||'-';
+  const localTime=parseWorldCupTimeText(match?.localTime||match?.time||'')?.text||String(match?.localTime||match?.time||'').replace(/\s*KST$/i, '').trim()||'-';
+  const timeInfo=buildWorldCupTimeInfo(localDate, localTime, resolvedCity);
+  return {
+    stadium:String(match?.stadium||'-').trim()||'-',
+    city:resolvedCity||'-',
+    localDate,
+    localTime,
+    koreaDate:String(match?.koreaDate||timeInfo?.koreaDateText||'-').trim()||'-',
+    koreaTime:String(match?.koreaTime||timeInfo?.koreaTime||'-').trim()||'-',
+    dayDiff:String(match?.dayDiff||timeInfo?.dayDiff||'').trim()
+  };
+}
+function renderScheduleMatchRow(number, mainHtml, match={}, rowClass=''){
+  const displayInfo=getWorldCupScheduleDisplayInfo(match);
   const normalizedRowClass=String(rowClass||'').trim();
   const rowClassName=normalizedRowClass ? `schedule-match-row ${normalizedRowClass}` : 'schedule-match-row';
-  return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${date} / 한국 ${koreaDate}</div><div class="match-meta">시간: 현지 ${time} / 한국 ${koreaTimeLabel}</div><div class="match-meta">도시: ${resolvedCity||'-'}</div><div class="match-meta">경기장: ${stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(stadium)}</td></tr>`;
+  return `<tr class="${rowClassName}"><td class="schedule-match-number-cell"><span class="group-match-number">${number}</span></td><td class="schedule-match-main-cell">${mainHtml}<div class="match-meta">날짜: 현지 ${displayInfo.localDate} / 한국 ${displayInfo.koreaDate}</div><div class="match-meta">시간: 현지 ${displayInfo.localTime} / 한국 ${displayInfo.koreaTime}${displayInfo.dayDiff}</div><div class="match-meta">도시: ${displayInfo.city}</div><div class="match-meta">경기장: ${displayInfo.stadium}</div></td><td class="schedule-stadium-cell">${renderScheduleStadiumMedia(displayInfo.stadium)}</td></tr>`;
 }
 function findTournamentTeamMetaByName(teamName=''){
   const normalizedName=String(teamName||'').trim();
@@ -13643,7 +13735,7 @@ function buildGroupTableView(groupKey=''){
     const placementStateClass=getGroupPlacementStateClass(team);
     return `<tr class="group-team-row ${placementStateClass}${team.rankInGroup===4?' is-eliminated':''}"><td class="group-team-cell"><div class="flag-cell">${flagHtml}<span class="group-team-name">${team.name}</span></div></td><td class="group-stat-cell">${team.played}</td><td class="group-stat-cell">${team.won}</td><td class="group-stat-cell">${team.drawn}</td><td class="group-stat-cell">${team.lost}</td><td class="group-stat-cell">${team.goalsFor}</td><td class="group-stat-cell">${team.goalsAgainst}</td><td class="group-stat-cell">${formatSignedNumber(team.goalDifference)}</td><td class="group-stat-cell group-points-cell">${team.points}</td><td class="group-placement-cell ${placementStateClass}">${buildGroupStandingCell(team)}</td></tr>`;
   }).join('')}</tbody>`;
-  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>renderScheduleMatchRow(match.number, renderGroupMatchMainHtml(match), match.date, match.time, match.stadium)).join('')}</tbody></table></div></div>`:'';
+  const matchSection=matches.length?`<div class="group-match-wrap"><h3 class="group-match-title">조별리그 경기</h3><div class="table-card"><table class="data-table schedule-match-table group-schedule-match-table"><tbody>${matches.map(match=>renderScheduleMatchRow(match.number, renderGroupMatchMainHtml(match), match)).join('')}</tbody></table></div></div>`:'';
   return {tableHtml:header+body,matchSection};
 }
 function renderThirdPlaceStatusBadge(team){
@@ -13833,7 +13925,7 @@ function renderKnockoutTable(stage){
   document.getElementById('detailSubtitle').textContent='';
   document.getElementById('detailTable').className='data-table schedule-match-table knockout-match-table';
   const rows=knockoutTemplates[stage]||[];
-  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const {matchNum, matchText}=parseKnockoutTemplateMatch(match);const info=knockoutSchedule[matchNum]||DEFAULT_SCHEDULE_MATCH_INFO;const rowClass=stage==='final'?(matchNum==='M104'?'knockout-final-row':matchNum==='M103'?'knockout-third-place-row':''):'';return renderScheduleMatchRow(matchNum, buildKnockoutMatchLabel(matchNum, matchText), info.date, info.time, info.stadium, rowClass);}).join('')}</tbody>`;
+  document.getElementById('detailTable').innerHTML=`<tbody>${rows.map(([match])=>{const {matchNum, matchText}=parseKnockoutTemplateMatch(match);const info=knockoutSchedule[matchNum]||DEFAULT_SCHEDULE_MATCH_INFO;const rowClass=stage==='final'?(matchNum==='M104'?'knockout-final-row':matchNum==='M103'?'knockout-third-place-row':''):'';return renderScheduleMatchRow(matchNum, buildKnockoutMatchLabel(matchNum, matchText), info, rowClass);}).join('')}</tbody>`;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
 }
@@ -14346,6 +14438,7 @@ if(typeof window!=='undefined'){
   document.addEventListener('DOMContentLoaded', loadSchedules);
   document.addEventListener('DOMContentLoaded', subscribeRealtime);
   document.addEventListener('DOMContentLoaded', applyMobileTimelineAStructure);
+  document.addEventListener('DOMContentLoaded', ()=>enforceIosFriendlyImageInputs(document));
   window.addEventListener('load', initSharedStateSync);
   window.addEventListener('focus', fetchSharedStateSnapshot);
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
@@ -14361,6 +14454,7 @@ if(typeof window!=='undefined'){
       fetchSharedStateSnapshot();
     }
   });
+  initSharedStateSync();
 }
 updateMobileHeaderReportBoardVisibility();
 if(typeof document!=='undefined'&&document.readyState!=='loading'){
