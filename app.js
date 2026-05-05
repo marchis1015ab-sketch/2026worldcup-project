@@ -7162,6 +7162,26 @@ const personalTimelineDetailFieldOptions = {
   TVU:TVU_NUMBER_OPTIONS,
   업무내용:['대표팀 취재','남아공 취재','멕시코 취재','체코 취재','일본 취재','외곽 취재','라이브 연결','밀착 카메라','인터뷰']
 };
+const personalTimelineLegacyDetailValueMap = {
+  장소:{
+    '에스타디오 과달라하라':'과달라하라',
+    'Estadio Guadalajara':'과달라하라',
+    '에스타디오 몬테레이':'몬테레이',
+    'Estadio Monterrey':'몬테레이',
+    '멕시코 시티':'멕시코시티',
+    '애틀랜타':'애틀란타',
+    '로스앤젤레스':'LA',
+    'Los Angeles':'LA',
+    '달라스':'달라스'
+  },
+  업무내용:{
+    '경기취재':'대표팀 취재',
+    '경기 취재':'대표팀 취재',
+    '외곽취재':'외곽 취재',
+    '라이브연결':'라이브 연결',
+    '밀착카메라':'밀착 카메라'
+  }
+};
 const timelineViews = {
   personal:{title:'일정타임라인', rows:personalTimelineRows}
 };
@@ -8724,12 +8744,19 @@ function reloadPersonalTimelineDetailSelectionsFromStorage(){
   populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:false});
   hasLoadedPersonalTimelineDetailSelections=true;
 }
+function normalizePersonalTimelineDetailFieldValue(field='', value=''){
+  const text=String(value||'').trim();
+  if(!text) return '';
+  if(field==='TVU') return normalizeTvuNumberValue(text);
+  const legacyMap=personalTimelineLegacyDetailValueMap[field];
+  return String(legacyMap?.[text]||text).trim();
+}
 function sanitizePersonalTimelineDetailEntry(entry){
   if(!entry||typeof entry!=='object') return null;
   const sanitizedFields=Object.create(null);
   personalTimelineDetailFields.forEach(field=>{
     if(typeof entry[field]!=='string') return;
-    const text=field==='TVU' ? normalizeTvuNumberValue(entry[field]) : entry[field].trim();
+    const text=normalizePersonalTimelineDetailFieldValue(field, entry[field]);
     if(text) sanitizedFields[field]=text;
   });
   const legacyEndAt=parseLegacyPersonalTimelineEndAt(entry.endAt||'');
@@ -8993,7 +9020,7 @@ function updateEquipmentSharedTvuIndicators(){
 function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   if(!dateKey||!name||!personalTimelineDetailFields.includes(field)) return;
   const nextValues={...(getPersonalTimelineDetailSelection(dateKey, name)||{})};
-  const text=field==='TVU' ? normalizeTvuNumberValue(value) : String(value||'').trim();
+  const text=normalizePersonalTimelineDetailFieldValue(field, value);
   if(text){
     nextValues[field]=text;
   }else{
@@ -9073,7 +9100,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   const entries=Array.isArray(dateSelections[name]) ? dateSelections[name] : [];
   const lastEntry=entries[entries.length-1]||null;
   personalTimelineDetailFields.forEach(field=>{
-    const text=field==='TVU' ? normalizeTvuNumberValue(detailValues?.[field]) : String(detailValues?.[field]||'').trim();
+    const text=normalizePersonalTimelineDetailFieldValue(field, detailValues?.[field]);
     if(text) normalized[field]=text;
   });
   const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||lastEntry?.endDate||'');
@@ -9752,7 +9779,7 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
   return `<div class="personal-timeline-column-header personal-timeline-column-header-shared"><span class="personal-timeline-column-title">공용 일정</span><span class="personal-timeline-column-header-actions"><button type="button" class="personal-timeline-shared-write-btn" data-date-key="${dateKey}" aria-label="공용 일정 작성">✎</button><button type="button" class="personal-timeline-shared-edit-toggle-btn${isEditMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 수정"${hasEntry?'':' disabled aria-disabled="true"'}>수정</button><button type="button" class="personal-timeline-shared-delete-btn${isDeleteMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 삭제"${hasEntry?'':' disabled aria-disabled="true"'}>🗑</button><span class="personal-timeline-column-date">${dateLabel}</span></span></div>`;
 }
 function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
-  const normalizedSelectedValue=field==='TVU' ? normalizeTvuNumberValue(selectedValue) : selectedValue;
+  const normalizedSelectedValue=normalizePersonalTimelineDetailFieldValue(field, selectedValue);
   const placeholderSelected=!normalizedSelectedValue ? ' selected' : '';
   const normalizedOptions=(Array.isArray(options)?options:[]).map(option=>String(option||''));
   const hasLegacySelectedValue=Boolean(normalizedSelectedValue)&&!normalizedOptions.includes(normalizedSelectedValue);
