@@ -9590,9 +9590,24 @@ textarea.simple-form-input,
   }
 }
 
-@media (min-width:1201px){
+@media (min-width:769px){
+  html,
+  body{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+    zoom:1;
+  }
+
   .content-shell{
     display:block;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    transform:none !important;
+    zoom:1 !important;
+    margin-left:0 !important;
+    left:auto !important;
   }
 
   .container{
@@ -9600,30 +9615,83 @@ textarea.simple-form-input,
     flex:1;
     gap:var(--space-section);
     align-items:flex-start;
+    width:100%;
+    max-width:100%;
     min-height:0;
+    min-width:0;
+    transform:none !important;
+    zoom:1 !important;
+    margin-left:0 !important;
+    left:auto !important;
   }
 
   .desktop-tab-pane{
-    display:contents;
+    display:flex;
+    align-items:flex-start;
+    gap:var(--space-section);
+    width:100%;
     max-width:100%;
+    min-width:0;
+    transform:none !important;
+    zoom:1 !important;
+    margin-left:0 !important;
+    left:auto !important;
   }
 
   .desktop-tab-pane>.sidebar{
     display:block;
+    flex:0 0 220px;
+    width:220px;
+    max-width:220px;
+    min-width:220px;
+  }
+
+  .tab-stack{
+    display:contents;
   }
 
   .desktop-tab-pane>.column,
   .desktop-tab-pane .tab-stack > .column{
+    flex:0 0 220px;
     width:220px;
     max-width:220px;
+    min-width:220px;
     max-height:calc(100vh - 190px);
     overflow:auto;
   }
 
   .desktop-tab-pane>#detailCol{
     width:auto;
-    max-width:none;
+    max-width:calc(100% - 240px);
+    min-width:0;
     flex:1 1 auto;
+    transform:none !important;
+    zoom:1 !important;
+    margin-left:0 !important;
+    left:auto !important;
+  }
+
+  #detailCol .table-card,
+  .equipment-table-wrapper,
+  .equipment-table-container{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+  }
+
+  .equipment-table,
+  table.equipment-table{
+    width:100%;
+    min-width:900px;
+    max-width:none;
+    table-layout:fixed;
+    font-size:14px;
+  }
+
+  .equipment-table th,
+  .equipment-table td{
+    white-space:normal;
+    word-break:keep-all;
   }
 }
 
