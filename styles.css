@@ -6158,16 +6158,17 @@ input[type="file"]{
 }
 .personal-timeline-summary-memo-input{
   width:100%;
-  min-height:42px;
-  padding:10px 12px;
+  min-height:32px;
+  height:32px;
+  padding:6px 8px;
   border:1px solid #d9e2ec;
   border-radius:10px;
   background:#fff;
   color:#17314c;
   font:inherit;
   font-size:13px;
-  line-height:1.5;
-  resize:vertical;
+  line-height:20px;
+  resize:none;
   box-sizing:border-box;
 }
 .personal-timeline-summary-memo-input:focus{
@@ -9016,7 +9017,8 @@ textarea.simple-form-input,
   }
 
   .personal-timeline-summary-memo-input{
-    min-height:56px;
+    min-height:32px;
+    height:32px;
     font-size:12px;
   }
 
