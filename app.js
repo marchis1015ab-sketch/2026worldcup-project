@@ -300,10 +300,10 @@ function parseKnockoutTemplateMatch(match=''){
 }
 
 const squads = {
-  korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
-  mexico:[{position:'GK',number:'-',name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'MF',number:'-',name:'Gilberto Mora',club:'Club Tijuana',age:'-',injury:'-'},{position:'GK',number:'-',name:'Carlos Moreno',club:'Pachuca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Rodrigo Huescas',club:'Copenhagen',age:'-',injury:'-'},{position:'DF',number:'-',name:'Johan Vásquez',club:'Genoa',age:'-',injury:'-'},{position:'DF',number:'-',name:'César Montes',club:'Lokomotiv Moskva',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Angulo',club:'Tigres UANL',age:'-',injury:'-'},{position:'DF',number:'-',name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Orozco',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Marcel Ruiz',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:'-',name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'FW',number:'-',name:'Guillermo Martínez',club:'Pumas UNAM',age:'-',injury:'-'},{position:'FW',number:'-',name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Seattle Sounders',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chicago Fire',age:'-',injury:'-'},{position:'DF',number:'-',name:'Alonso Aceves',club:'Monterrey',age:'-',injury:'-'},{position:'FW',number:'-',name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:'-',name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'DF',number:'-',name:'Alexis Peña',club:'Necaxa',age:'-',injury:'-'},{position:'FW',number:'-',name:'Germán Berterame',club:'Monterrey',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:'-',name:'Mateo Chávez',club:'AZ',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham',age:'-',injury:'-'}],
-  southAfrica:[{position:'DF',number:'-',name:'Aubrey Modiba',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Bongokuhle Hlongwane',club:'Minnesota United',age:'-',injury:'-'},{position:'FW',number:'-',name:'Evidence Makgopa',club:'Orlando Pirates',age:'-',injury:'-'},{position:'DF',number:'-',name:'Ime Okon',club:'SuperSport United',age:'-',injury:'-'},{position:'MF',number:'-',name:'Jayden Adams',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Khulumani Ndamane',club:'TS Galaxy',age:'-',injury:'-'},{position:'FW',number:'-',name:'Lyle Foster',club:'Burnley',age:'-',injury:'-'},{position:'DF',number:'-',name:'Mbekezeli Mbokazi',club:'Orlando Pirates',age:'-',injury:'-'},{position:'DF',number:'-',name:'Nkosinathi Sibisi',club:'Orlando Pirates',age:'-',injury:'-'},{position:'FW',number:'-',name:'Oswin Appollis',club:'Polokwane City',age:'-',injury:'-'},{position:'FW',number:'-',name:'Relebohile Mofokeng',club:'Orlando Pirates',age:'-',injury:'-'},{position:'GK',number:'-',name:'Renaldo Leaner',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'GK',number:'-',name:'Ronwen Williams',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Samukelo Kabini',club:'TS Galaxy',age:'-',injury:'-'},{position:'MF',number:'-',name:'Sphephelo Sithole',club:'Tondela',age:'-',injury:'-'},{position:'GK',number:'-',name:'Ricardo Goss',club:'SuperSport United',age:'-',injury:'-'},{position:'MF',number:'-',name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Thabang Matuludi',club:'Polokwane City',age:'-',injury:'-'},{position:'MF',number:'-',name:'Thalente Mbatha',club:'Orlando Pirates',age:'-',injury:'-'},{position:'FW',number:'-',name:'Tshepang Moremi',club:'AmaZulu',age:'-',injury:'-'},{position:'DF',number:'-',name:'Thapelo Morena',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Themba Zwane',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Thapelo Maseko',club:'Mamelodi Sundowns',age:'-',injury:'-'}],
-  czech:[{position:'GK',number:'-',name:'마테이 코바르',club:'PSV',age:'-',injury:'-'},{position:'GK',number:'-',name:'마틴 예들리츠카',club:'바닉 오스트라바',age:'-',injury:'-'},{position:'GK',number:'-',name:'루카스 호르니첵',club:'브라가',age:'-',injury:'-'},{position:'DF',number:'-',name:'블라디미르 쿠팔',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'토마스 홀스',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'라디슬라브 크레이치',club:'울버햄튼 원더러스',age:'-',injury:'-'},{position:'DF',number:'-',name:'야로슬라프 젤레니',club:'스파르타 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'데이비드 주라섹',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'로빈 흐라낙',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'마틴 비틱',club:'볼로냐',age:'-',injury:'-'},{position:'DF',number:'-',name:'스테판 찰루펙',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 수첵',club:'웨스트햄 유나이티드',age:'-',injury:'-'},{position:'MF',number:'-',name:'블라디미르 다리다',club:'흐라데츠 크라로베',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 프로보드',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'마이클 사딜렉',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 술츠',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 체르브',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'아담 카라벡',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 라드라',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'데니스 비신스키',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 부차',club:'신시내티',age:'-',injury:'-'},{position:'FW',number:'-',name:'파트릭 쉬크',club:'바이엘 레버쿠젠',age:'-',injury:'-'},{position:'FW',number:'-',name:'모이미르 치틸',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'토마스 초리',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'얀 클리멘트',club:'시그마 올로모우츠',age:'-',injury:'-'}]
+  korea:[],
+  mexico:[],
+  southAfrica:[],
+  czech:[]
 };
 
 const squadState = {
@@ -313,11 +313,7 @@ const squadState = {
   czech:{filter:'ALL',page:1,title:'체코 대표팀 선수단'}
 };
 
-const squadReferenceImages = {
-  korea:{src:'images/korea-squad.png',alt:'대한민국 대표팀 선수단 참고 이미지',caption:'업로드한 대한민국 선수단 이미지 기준'},
-  mexico:{src:'images/mexico-squad.png',alt:'멕시코 대표팀 선수단 참고 이미지',caption:'업로드한 멕시코 선수단 이미지 기준'},
-  southAfrica:{src:'images/southafrica-squad.png',alt:'남아공 대표팀 선수단 참고 이미지',caption:'업로드한 남아공 선수단 이미지 기준'}
-};
+const squadReferenceImages = {};
 
 function renderSquadReferenceImage(key=''){
   const imageMeta=squadReferenceImages[key];
@@ -572,7 +568,6 @@ const tickerState = {
   memo: '',
   memoDate: ''
 };
-const EDIT_ACCESS_KEY = 'crew2026';
 const VIEW_ONLY_ALERT_MESSAGE = '보기 전용 권한입니다.';
 const ACCESS_VIEWER_ALLOWED_LABELS = ['닫기','취소','이전','다음','오늘로','갤러리','인쇄','내보내기','열기','보기','검색','전체'];
 const ACCESS_EDIT_ACTION_LABELS = ['저장','삭제','작성','업로드','추가','종료','지우기','수정'];
@@ -580,11 +575,11 @@ let accessModeObserver = null;
 let accessModeRefreshHandle = 0;
 let hasInitializedAccessMode = false;
 function getAccessMode(){
-  if(typeof window==='undefined') return 'view';
+  if(typeof window==='undefined') return 'edit';
   const params=new URLSearchParams(window.location.search||'');
   const mode=String(params.get('mode')||'').trim().toLowerCase();
-  const key=String(params.get('key')||'').trim();
-  return mode==='edit'&&key===EDIT_ACCESS_KEY ? 'edit' : 'view';
+  if(mode==='view') return 'view';
+  return 'edit';
 }
 function canEdit(){
   return getAccessMode()==='edit';
@@ -13997,9 +13992,19 @@ function renderSquad(key){
   ensureSquadInjuryEntries();
   currentSquadKey=key;
   const state=squadState[key];
-  const squad=squads[key];
+  const squad=Array.isArray(squads[key]) ? squads[key] : [];
+  const detailTable=document.getElementById('detailTable');
   const filtered=state.filter==='ALL'?squad:squad.filter(p=>p.position===state.filter);
   const isMobile=isMobileViewport();
+  document.getElementById('detailTitle').textContent=state.title;
+  document.getElementById('detailSubtitle').innerHTML=renderSquadReferenceImage(key);
+  detailTable.className='data-table squad-table';
+  if(!filtered.length){
+    detailTable.innerHTML='<tbody><tr><td colspan="6"><div class="empty-squad">선수 명단 없음</div></td></tr></tbody>';
+    document.getElementById('detailCol').classList.remove('hidden');
+    updateMobileHeaderReportBoardVisibility();
+    return;
+  }
   const pageSize=Math.max(filtered.length,1);
   const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));
   if(isMobile){
@@ -14008,9 +14013,6 @@ function renderSquad(key){
   state.page=Math.min(totalPages,Math.max(1,state.page));
   const rows=filtered.slice((state.page-1)*pageSize,state.page*pageSize);
   const cacheKey=`${key}:${state.filter}:${state.page}:${pageSize}`;
-  document.getElementById('detailTitle').textContent=state.title;
-  document.getElementById('detailSubtitle').innerHTML=renderSquadReferenceImage(key);
-  document.getElementById('detailTable').className='data-table squad-table';
   if(!renderCache.squadViews[cacheKey]){
     renderCache.squadViews[cacheKey]={
       tableHtml:`<colgroup><col class="squad-col-position"><col class="squad-col-number"><col class="squad-col-player"><col class="squad-col-club"><col class="squad-col-age"><col class="squad-col-injury"></colgroup><thead><tr><th>포지션</th><th>등번호</th><th>선수</th><th>소속팀</th><th>나이</th><th>최근 부상이력</th></tr></thead><tbody>${rows.map(p=>`<tr><td>${p.position}</td><td>${p.number}</td><td>${renderSquadPlayerCell(p)}</td><td>${p.club}</td><td>${p.age}</td><td>${renderSquadInjuryCell(key, p)}</td></tr>`).join('')}</tbody>`,
@@ -14018,8 +14020,8 @@ function renderSquad(key){
       paginationHtml:`<div class="pagination"><button class="page-btn" onclick="changeSquadPage('${key}',-1)" ${state.page===1?'disabled':''}>이전</button><span>${state.page} / ${totalPages}</span><button class="page-btn" onclick="changeSquadPage('${key}',1)" ${state.page===totalPages?'disabled':''}>다음</button></div>`
     };
   }
-  document.getElementById('detailTable').innerHTML=renderCache.squadViews[cacheKey].tableHtml;
-  document.getElementById('detailTable').insertAdjacentHTML('beforebegin',renderCache.squadViews[cacheKey].toolbarHtml);
+  detailTable.innerHTML=renderCache.squadViews[cacheKey].tableHtml;
+  detailTable.insertAdjacentHTML('beforebegin',renderCache.squadViews[cacheKey].toolbarHtml);
   document.getElementById('detailCol').classList.remove('hidden');
   scheduleSquadPhotoHydration();
   updateMobileHeaderReportBoardVisibility();

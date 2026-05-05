@@ -2109,6 +2109,7 @@ body.news-editor-modal-open{overflow:hidden}
 .squad-reference{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
 .squad-reference-image{display:block;width:100%;max-width:840px;border-radius:16px;border:1px solid #dbe2ea;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.08)}
 .squad-reference-caption{margin:0;color:#52647a;font-size:13px;font-weight:700;line-height:1.5}
+.empty-squad{padding:60px 20px;text-align:center;color:#9aaec3;font-size:14px;border:1px dashed #d8e2ef;border-radius:10px;background:#fbfdff}
   .squad-col-position{width:64px}
   .squad-col-number{width:68px}
   .squad-col-player{width:236px}
