@@ -6228,6 +6228,9 @@ input[type="file"]{
   white-space:nowrap;
 }
 .personal-timeline-detail-select::-ms-expand{display:none}
+.personal-timeline-detail-select option:disabled{
+  color:#94a3b8;
+}
 .personal-timeline-detail-row-time .personal-timeline-detail-select{
   min-width:188px;
   padding-left:10px;
