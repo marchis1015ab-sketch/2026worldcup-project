@@ -7160,8 +7160,8 @@ const TVU_NUMBER_LEGACY_MAP = {
   '5번':'18번',
   '6번':'19번'
 };
-const PERSONAL_TIMELINE_TIME_OPTIONS = Array.from({length:16},(_,index)=>{
-  const hour=String(index+9).padStart(2,'0');
+const PERSONAL_TIMELINE_TIME_OPTIONS = Array.from({length:24},(_,index)=>{
+  const hour=String(index).padStart(2,'0');
   return `${hour}:00`;
 });
 const personalTimelineDetailFieldOptions = {
