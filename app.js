@@ -8790,6 +8790,7 @@ function reloadPersonalTimelineDetailSelectionsFromStorage(){
 function normalizePersonalTimelineDetailFieldValue(field='', value=''){
   const text=String(value||'').trim();
   if(!text) return '';
+  if(field==='종료시간'&&text==='종료시간 미정') return '';
   if(field==='TVU') return normalizeTvuNumberValue(text);
   if(field==='시작시간'||field==='종료시간') return normalizePersonalTimelineEndTime(text);
   const legacyMap=personalTimelineLegacyDetailValueMap[field];
@@ -10055,6 +10056,9 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
 }
 function renderPersonalTimelineDetailOptions(field, options, selectedValue='', occupiedOptions=new Set()){
   const normalizedSelectedValue=normalizePersonalTimelineDetailFieldValue(field, selectedValue);
+  const isPendingEndTimeField=field==='종료시간';
+  const placeholderLabel=isPendingEndTimeField ? '종료시간 미정' : field;
+  const placeholderAttributes=isPendingEndTimeField ? '' : ' disabled hidden';
   const placeholderSelected=!normalizedSelectedValue ? ' selected' : '';
   const normalizedOptions=(Array.isArray(options)?options:[]).map(option=>String(option||''));
   const hasLegacySelectedValue=Boolean(normalizedSelectedValue)&&!normalizedOptions.includes(normalizedSelectedValue);
@@ -10066,7 +10070,7 @@ function renderPersonalTimelineDetailOptions(field, options, selectedValue='', o
     const optionLabel=getPersonalTimelineOptionLabel(field, option);
     return `<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}${isOccupied?' disabled data-occupied="true"':''}>${escapeHtml(isOccupied?`${optionLabel} (배정됨)`:optionLabel)}</option>`;
   }).join('');
-  return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${legacySelectedOption}${optionHtml}`;
+  return `<option value=""${placeholderAttributes}${placeholderSelected}>${placeholderLabel}</option>${legacySelectedOption}${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
   const sharedEntries=getPersonalTimelineSharedEntries(dateKey);
