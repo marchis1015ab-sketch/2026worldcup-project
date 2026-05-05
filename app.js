@@ -6402,8 +6402,11 @@ function formatPrimaryReporterTag(name='', reporter=''){
   const singleName=primaryName||secondaryName;
   return singleName ? `<span class="board-label-tag main">${escapeHtml(singleName)}</span>` : '';
 }
+function cleanBracketedAssigneeLabel(text=''){
+  return String(text||'').trim().replace(/^\[\s*|\s*\]$/g, '');
+}
 function formatReporterPairLabel(name='', reporter=''){
-  return buildPersonalTimelineParticipantLabel(name, reporter);
+  return cleanBracketedAssigneeLabel(buildPersonalTimelineParticipantLabel(name, reporter));
 }
 function formatScheduleTickerItem(schedule){
   const detail=schedule?.detail||{};
@@ -6415,7 +6418,7 @@ function formatScheduleTickerItem(schedule){
   const timeLabel=localTime ? `현지 ${localTime}${koreaTimeLabel?` / 한국 ${koreaTimeLabel}`:''}` : '';
   const taskLabel=String(getPersonalTimelineTaskReportLabel(detail.업무내용||'')||'').trim();
   const equipmentLabel=formatEquipmentLabel(detail);
-  const reporterLabel=reporterPairLabel ? `[${reporterPairLabel}]` : '';
+  const reporterLabel=reporterPairLabel ? `[${cleanBracketedAssigneeLabel(reporterPairLabel)}]` : '';
   const actionLabel=[taskLabel, placeLabel ? `@ ${placeLabel}` : ''].filter(Boolean).join(' ');
   const equipmentText=equipmentLabel ? `(${equipmentLabel})` : '';
   const textParts=[reporterLabel, timeLabel, actionLabel, equipmentText].filter(Boolean).join(' ');
