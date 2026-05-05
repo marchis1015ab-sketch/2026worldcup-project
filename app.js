@@ -6311,7 +6311,7 @@ function getTimelineDetailExportRows(){
         const reporterNames=[name, detail?.취재기자].map(value=>String(value||'').trim()).filter(Boolean).join(' / ');
         return {
           날짜:dateKey,
-          시간:detail?.시간||'',
+          시간:formatPersonalTimelineTimeRangeLabel(detail, dateKey, detail?.장소||''),
           장소:detail?.장소||'',
           취재기자:reporterNames,
           장비:detail?.TVU ? getPersonalTimelineOptionLabel('TVU', detail.TVU) : '',
@@ -6365,8 +6365,8 @@ function getTimelineAssignmentExportRows(){
 function compareTimelineExportRows(a, b){
   const dateCompare=String(a.날짜||'').localeCompare(String(b.날짜||''));
   if(dateCompare) return dateCompare;
-  const aTime=String(a.시간||'99:99');
-  const bTime=String(b.시간||'99:99');
+  const aTime=String(a.시간||'99:99').replace(/^현지\s*/,'');
+  const bTime=String(b.시간||'99:99').replace(/^현지\s*/,'');
   const timeCompare=aTime.localeCompare(bTime);
   if(timeCompare) return timeCompare;
   return String(a.취재기자||'').localeCompare(String(b.취재기자||''), 'ko');
@@ -6659,10 +6659,11 @@ function formatScheduleTickerItem(schedule){
   const detail=schedule?.detail||{};
   const primaryReporterTag=formatPrimaryReporterTag(schedule?.name||'', detail.취재기자||'');
   const reporterPairLabel=formatReporterPairLabel(schedule?.name||'', detail.취재기자||'');
-  const localTime=String(detail.시간||'').trim();
+  const localTime=getPersonalTimelineStartTime(detail);
+  const rangeLabel=formatPersonalTimelineTimeRangeLabel(detail, schedule?.dateKey||getTodayTimelineKey(), detail?.장소||'');
   const placeLabel=String(detail.장소||'').trim();
   const koreaTimeLabel=formatKoreaTimeLabel(schedule?.dateKey||getTodayTimelineKey(), localTime, placeLabel);
-  const timeLabel=localTime ? `현지 ${localTime}${koreaTimeLabel?` / 한국 ${koreaTimeLabel}`:''}` : '';
+  const timeLabel=rangeLabel || (localTime ? `현지 ${localTime}${koreaTimeLabel?` / 한국 ${koreaTimeLabel}`:''}` : '');
   const taskLabel=String(getPersonalTimelineTaskReportLabel(detail.업무내용||'')||'').trim();
   const equipmentLabel=formatEquipmentLabel(detail);
   const reporterLabel=reporterPairLabel ? `[${cleanBracketedAssigneeLabel(reporterPairLabel)}]` : '';
@@ -6678,7 +6679,7 @@ function getAllUpcomingScheduleTickerEntries(){
   return getPersonalTimelineVisibleReportsForDate(today)
     .map(item=>{
       const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
-      const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, item.detail?.시간||'');
+      const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, getPersonalTimelineStartTime(item.detail));
       const nowSort=getTimeZoneNowSortValue(entryTimeZone);
       return {
         ...item,
@@ -7152,15 +7153,25 @@ const TVU_NUMBER_LEGACY_MAP = {
   '5번':'18번',
   '6번':'19번'
 };
+const PERSONAL_TIMELINE_TIME_OPTIONS = Array.from({length:16},(_,index)=>{
+  const hour=String(index+9).padStart(2,'0');
+  return `${hour}:00`;
+});
 const personalTimelineDetailFieldOptions = {
-  시간:Array.from({length:16},(_,index)=>{
-    const hour=String(index+9).padStart(2,'0');
-    return `${hour}:00`;
-  }),
+  시작시간:PERSONAL_TIMELINE_TIME_OPTIONS,
+  종료시간:PERSONAL_TIMELINE_TIME_OPTIONS,
   장소:['과달라하라','달라스','멕시코시티','몬테레이','솔트레이크','애틀란타','LA'],
   취재기자:['전영희','온누리','홍지용','오선민','이예원','이은진'],
   TVU:TVU_NUMBER_OPTIONS,
   업무내용:['대표팀 취재','남아공 취재','멕시코 취재','체코 취재','일본 취재','외곽 취재','라이브 연결','밀착 카메라','인터뷰']
+};
+const personalTimelineDetailFieldLegacyKeys = {
+  시작시간:['시작시간','startTime','시간','time','local_time'],
+  종료시간:['종료시간','endTimeRange','rangeEndTime','end_time'],
+  장소:['장소','location'],
+  취재기자:['취재기자','reporter'],
+  TVU:['TVU','tvu'],
+  업무내용:['업무내용','task','title']
 };
 const personalTimelineLegacyDetailValueMap = {
   장소:{
@@ -7241,8 +7252,9 @@ const sharedStateLocalWriteGuards = new Map();
 const SHARED_STATE_LOCAL_WRITE_GUARD_MS = 5000;
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
-const personalTimelineDetailFields = ['시간','장소','취재기자','TVU','업무내용'];
-const PERSONAL_TIMELINE_END_TIME_OPTIONS = [...personalTimelineDetailFieldOptions.시간];
+const personalTimelineDetailFields = ['시작시간','종료시간','장소','취재기자','TVU','업무내용'];
+const personalTimelineRequiredDetailFields = ['시작시간','장소','취재기자','TVU','업무내용'];
+const PERSONAL_TIMELINE_END_TIME_OPTIONS = [...PERSONAL_TIMELINE_TIME_OPTIONS];
 const personalTimelineTaskReportLabels = {
   경기취재:'경기 취재',
   외곽취재:'외곽 취재',
@@ -7881,7 +7893,8 @@ function normalizeScheduleData(data={}){
   const resolvedCityContext=location ? resolveScheduleCityContext(location) : {city:''};
   const normalizedDate=String(data?.startDate||data?.start_date||data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
   const normalizedEndDate=String(data?.endDate||data?.end_date||data?.finishDate||normalizedDate).trim()||normalizedDate;
-  const normalizedTime=String(data?.time||data?.local_time||'').trim();
+  const normalizedStartTime=normalizePersonalTimelineEndTime(data?.startTime||data?.start_time||data?.time||data?.local_time||'');
+  const normalizedEndTime=normalizePersonalTimelineEndTime(data?.endTime||data?.end_time||'');
   const normalizedCity=resolveWorldCupCityName(String(data?.city||resolvedCityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY);
   return {
     title:String(data?.title||'').trim(),
@@ -7891,7 +7904,9 @@ function normalizeScheduleData(data={}){
     endDate:normalizedEndDate,
     start_date:normalizedDate,
     end_date:normalizedEndDate,
-    time:normalizedTime,
+    time:normalizedStartTime,
+    startTime:normalizedStartTime,
+    endTime:normalizedEndTime,
     city:normalizedCity,
     location,
     tvu:String(data?.tvu||'').trim()
@@ -7900,13 +7915,18 @@ function normalizeScheduleData(data={}){
 function normalizeSchedule(item){
   const startDate=String(item?.startDate||item?.start_date||item?.date||'').trim();
   const endDate=String(item?.endDate||item?.end_date||item?.finishDate||item?.date||startDate||'').trim();
+  const startTime=normalizePersonalTimelineEndTime(item?.startTime||item?.start_time||item?.time||item?.local_time||'');
+  const endTime=normalizePersonalTimelineEndTime(item?.endTime||item?.end_time||'');
   return {
     ...item,
     startDate,
     endDate,
     date:String(item?.date||startDate||'').trim(),
     start_date:String(item?.start_date||startDate||'').trim(),
-    end_date:String(item?.end_date||endDate||startDate||'').trim()
+    end_date:String(item?.end_date||endDate||startDate||'').trim(),
+    time:startTime,
+    startTime,
+    endTime
   };
 }
 function expandSchedulesByDate(schedules, targetDate){
@@ -8040,6 +8060,8 @@ async function saveSchedule(data) {
     start_date:scheduleData.startDate,
     end_date:scheduleData.endDate,
     time:scheduleData.time,
+    start_time:scheduleData.startTime,
+    end_time:scheduleData.endTime,
     city:scheduleData.city,
     location:scheduleData.location,
     tvu:scheduleData.tvu
@@ -8058,6 +8080,8 @@ async function saveSchedule(data) {
       start_date:scheduleData.startDate,
       end_date:scheduleData.endDate,
       local_time:scheduleData.time,
+      start_time:scheduleData.startTime,
+      end_time:scheduleData.endTime,
       location:scheduleData.location
     };
     const fallbackResult=await supabaseClient
@@ -8122,7 +8146,8 @@ function subscribeRealtime() {
     .subscribe();
 }
 function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailValues={}){
-  const localTime=String(detailValues?.시간||'').trim();
+  const localTime=getPersonalTimelineStartTime(detailValues);
+  const endTime=getPersonalTimelineEndTimeRange(detailValues);
   const task=String(detailValues?.업무내용||'').trim();
   const taskLabel=String(getPersonalTimelineTaskReportLabel(task)||task).trim();
   const location=String(detailValues?.장소||'').trim();
@@ -8132,6 +8157,8 @@ function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailVal
     assignee:personName,
     date:String(dateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey(),
     time:localTime,
+    startTime:localTime,
+    endTime,
     city:resolveWorldCupCityName(cityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY),
     location,
     tvu:normalizeTvuNumberValue(detailValues?.TVU||'')
@@ -8748,15 +8775,157 @@ function normalizePersonalTimelineDetailFieldValue(field='', value=''){
   const text=String(value||'').trim();
   if(!text) return '';
   if(field==='TVU') return normalizeTvuNumberValue(text);
+  if(field==='시작시간'||field==='종료시간') return normalizePersonalTimelineEndTime(text);
   const legacyMap=personalTimelineLegacyDetailValueMap[field];
   return String(legacyMap?.[text]||text).trim();
+}
+function getPersonalTimelineDetailEntryFieldValue(entry={}, field=''){
+  const keys=personalTimelineDetailFieldLegacyKeys[field]||[field];
+  for(const key of keys){
+    if(typeof entry?.[key]==='string'&&String(entry[key]).trim()){
+      return normalizePersonalTimelineDetailFieldValue(field, entry[key]);
+    }
+  }
+  return '';
+}
+function getPersonalTimelineStartTime(detail={}){
+  return getPersonalTimelineDetailEntryFieldValue(detail, '시작시간');
+}
+function getPersonalTimelineEndTimeRange(detail={}){
+  return getPersonalTimelineDetailEntryFieldValue(detail, '종료시간');
+}
+function getPersonalTimelineTimeRangeMinutes(detail={}){
+  const startTime=getPersonalTimelineStartTime(detail);
+  const endTime=getPersonalTimelineEndTimeRange(detail);
+  const startMinutes=getPersonalTimelineTimeSortValue(startTime);
+  const endMinutes=endTime ? getPersonalTimelineTimeSortValue(endTime) : startMinutes;
+  return {
+    startTime,
+    endTime,
+    startMinutes,
+    endMinutes
+  };
+}
+function formatPersonalTimelineTimeRangeLabel(detail={}, dateKey='', cityOrLocation=''){
+  const {startTime, endTime}=getPersonalTimelineTimeRangeMinutes(detail);
+  if(!startTime) return '';
+  const startLabel=formatPersonalTimelineTimeLabel(startTime, dateKey, cityOrLocation);
+  if(!endTime) return startLabel;
+  const endLabel=formatPersonalTimelineTimeLabel(endTime, dateKey, cityOrLocation);
+  const startLocal=String(startLabel||'').split(' / ')[0].replace(/^현지\s*/, '').trim();
+  const endLocal=String(endLabel||'').split(' / ')[0].replace(/^현지\s*/, '').trim();
+  return endLocal ? `현지 ${startLocal}~${endLocal}` : startLabel;
+}
+function rangesOverlapByMinutes(startA=Number.MAX_SAFE_INTEGER, endA=Number.MAX_SAFE_INTEGER, startB=Number.MAX_SAFE_INTEGER, endB=Number.MAX_SAFE_INTEGER){
+  if(!Number.isFinite(startA)||!Number.isFinite(startB)) return false;
+  const normalizedEndA=Number.isFinite(endA) ? endA : startA;
+  const normalizedEndB=Number.isFinite(endB) ? endB : startB;
+  return startA<=normalizedEndB&&startB<=normalizedEndA;
+}
+function normalizePersonalTimelineDetailValues(detailValues={}){
+  const normalized=Object.create(null);
+  personalTimelineDetailFields.forEach(field=>{
+    const text=getPersonalTimelineDetailEntryFieldValue(detailValues, field);
+    if(text) normalized[field]=text;
+  });
+  return normalized;
+}
+function validatePersonalTimelineTimeRange(detailValues={}){
+  const startTime=getPersonalTimelineStartTime(detailValues);
+  const endTime=getPersonalTimelineEndTimeRange(detailValues);
+  if(startTime&&endTime){
+    const startMinutes=getPersonalTimelineTimeSortValue(startTime);
+    const endMinutes=getPersonalTimelineTimeSortValue(endTime);
+    if(Number.isFinite(startMinutes)&&Number.isFinite(endMinutes)&&endMinutes<=startMinutes){
+      return {
+        isValid:false,
+        message:'종료시간은 시작시간보다 늦어야 합니다.'
+      };
+    }
+  }
+  return {isValid:true, message:''};
+}
+function getPersonalTimelineConflictingReports(dateKey='', personName=''){
+  const normalizedDateKey=normalizePersonalTimelineViewDateKey(dateKey);
+  if(!normalizedDateKey) return [];
+  return getPersonalTimelineVisibleReportsForDate(normalizedDateKey).filter(item=>item.name!==personName);
+}
+function getPersonalTimelineOptionOccupationMap(dateKey='', personName='', detailValues={}){
+  const normalizedValues=normalizePersonalTimelineDetailValues(detailValues);
+  const draftRange=getPersonalTimelineTimeRangeMinutes(normalizedValues);
+  const hasDraftStart=Boolean(draftRange.startTime);
+  const occupationMap=personalTimelineDetailFields.reduce((acc, field)=>{
+    acc[field]=new Set();
+    return acc;
+  }, Object.create(null));
+  getPersonalTimelineConflictingReports(dateKey, personName).forEach(item=>{
+    const conflictingDetail=item?.detail||{};
+    const occupiedStartTime=getPersonalTimelineStartTime(conflictingDetail);
+    if(occupiedStartTime) occupationMap['시작시간'].add(occupiedStartTime);
+    if(!hasDraftStart) return;
+    const occupiedRange=getPersonalTimelineTimeRangeMinutes(conflictingDetail);
+    if(!rangesOverlapByMinutes(draftRange.startMinutes, draftRange.endMinutes, occupiedRange.startMinutes, occupiedRange.endMinutes)) return;
+    ['장소','취재기자','TVU','업무내용'].forEach(field=>{
+      const value=getPersonalTimelineDetailEntryFieldValue(conflictingDetail, field);
+      if(value) occupationMap[field].add(value);
+    });
+  });
+  return occupationMap;
+}
+function getPersonalTimelineConflictLabel(field='', value=''){
+  const normalizedValue=normalizePersonalTimelineDetailFieldValue(field, value);
+  if(!normalizedValue) return '';
+  if(field==='시작시간') return `현지 ${normalizedValue}`;
+  if(field==='TVU') return getPersonalTimelineOptionLabel(field, normalizedValue);
+  if(field==='업무내용') return getPersonalTimelineTaskReportLabel(normalizedValue);
+  return normalizedValue;
+}
+function validatePersonalTimelineDetailAssignment(dateKey='', personName='', detailValues={}){
+  const normalizedValues=normalizePersonalTimelineDetailValues(detailValues);
+  const timeValidation=validatePersonalTimelineTimeRange(normalizedValues);
+  if(!timeValidation.isValid) return {isValid:false, message:timeValidation.message, conflicts:[]};
+  const conflicts=[];
+  const conflictSet=new Set();
+  const draftRange=getPersonalTimelineTimeRangeMinutes(normalizedValues);
+  getPersonalTimelineConflictingReports(dateKey, personName).forEach(item=>{
+    const conflictingDetail=item?.detail||{};
+    const conflictingStartTime=getPersonalTimelineStartTime(conflictingDetail);
+    if(normalizedValues['시작시간']&&conflictingStartTime&&normalizedValues['시작시간']===conflictingStartTime){
+      const label=getPersonalTimelineConflictLabel('시작시간', normalizedValues['시작시간']);
+      if(label&&!conflictSet.has(label)){
+        conflictSet.add(label);
+        conflicts.push(label);
+      }
+    }
+    if(!draftRange.startTime) return;
+    const occupiedRange=getPersonalTimelineTimeRangeMinutes(conflictingDetail);
+    if(!rangesOverlapByMinutes(draftRange.startMinutes, draftRange.endMinutes, occupiedRange.startMinutes, occupiedRange.endMinutes)) return;
+    ['장소','취재기자','TVU','업무내용'].forEach(field=>{
+      const normalizedValue=normalizedValues[field];
+      if(!normalizedValue) return;
+      const occupiedValue=getPersonalTimelineDetailEntryFieldValue(conflictingDetail, field);
+      if(!occupiedValue||occupiedValue!==normalizedValue) return;
+      const label=getPersonalTimelineConflictLabel(field, normalizedValue);
+      if(label&&!conflictSet.has(label)){
+        conflictSet.add(label);
+        conflicts.push(label);
+      }
+    });
+  });
+  if(conflicts.length){
+    return {
+      isValid:false,
+      message:`해당 기간에 이미 배정된 항목입니다. 다른 값으로 선택해 주세요.\n중복 항목: ${conflicts.join(', ')}`,
+      conflicts
+    };
+  }
+  return {isValid:true, message:'', conflicts:[]};
 }
 function sanitizePersonalTimelineDetailEntry(entry){
   if(!entry||typeof entry!=='object') return null;
   const sanitizedFields=Object.create(null);
   personalTimelineDetailFields.forEach(field=>{
-    if(typeof entry[field]!=='string') return;
-    const text=normalizePersonalTimelineDetailFieldValue(field, entry[field]);
+    const text=getPersonalTimelineDetailEntryFieldValue(entry, field);
     if(text) sanitizedFields[field]=text;
   });
   const legacyEndAt=parseLegacyPersonalTimelineEndAt(entry.endAt||'');
@@ -8855,7 +9024,7 @@ function getPersonalTimelineEntryTimeZone(detail){
   return cityContext.timeZone||headerLocalClockState.fallbackTimeZone;
 }
 function getPersonalTimelineOptionLabel(field, option){
-  if(field==='시간') return formatPersonalTimelineTimeLabel(option, getTodayTimelineKey(), NEWS_PROGRAMMING_DEFAULT_CITY);
+  if(field==='시작시간'||field==='종료시간') return formatPersonalTimelineTimeLabel(option, getTodayTimelineKey(), NEWS_PROGRAMMING_DEFAULT_CITY);
   if(field==='TVU'){
     const normalized=normalizeTvuNumberValue(option);
     return personalTimelineTvuLabelMap[normalized]||normalized;
@@ -8875,21 +9044,21 @@ function buildPersonalTimelineMobileReportLines(item){
   const normalizedPlace=normalizePersonalTimelineDetailFieldValue('장소', detail.장소||'');
   const normalizedTask=normalizePersonalTimelineDetailFieldValue('업무내용', detail.업무내용||'');
   const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', detail.취재기자||'');
-  const timeLabel=formatPersonalTimelineTimeLabel(detail.시간||'', item?.dateKey||getTodayTimelineKey(), normalizedPlace||detail?.장소||'');
+  const timeLabel=formatPersonalTimelineTimeRangeLabel(detail, item?.dateKey||getTodayTimelineKey(), normalizedPlace||detail?.장소||'');
   const taskPlaceLabel=`${String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim()}를 ${String(normalizedPlace||'').trim()}에서`;
   const equipmentLabel=`${getPersonalTimelineOptionLabel('TVU', detail.TVU)}을 가지고 진행`;
   return [participantLabel, timeLabel, taskPlaceLabel, equipmentLabel];
 }
 function buildPersonalTimelineReportText(name, detail, dateKey=''){
   if(!detail) return '';
-  const values=personalTimelineDetailFields.map(field=>String(detail[field]||'').trim());
+  const values=personalTimelineRequiredDetailFields.map(field=>String(getPersonalTimelineDetailEntryFieldValue(detail, field)||'').trim());
   if(values.some(value=>!value)) return '';
-  const participantLabel=buildPersonalTimelineParticipantLabel(name, detail.취재기자);
-  const normalizedPlace=normalizePersonalTimelineDetailFieldValue('장소', detail.장소||'');
-  const normalizedTask=normalizePersonalTimelineDetailFieldValue('업무내용', detail.업무내용||'');
+  const participantLabel=buildPersonalTimelineParticipantLabel(name, getPersonalTimelineDetailEntryFieldValue(detail, '취재기자'));
+  const normalizedPlace=getPersonalTimelineDetailEntryFieldValue(detail, '장소');
+  const normalizedTask=getPersonalTimelineDetailEntryFieldValue(detail, '업무내용');
   const taskLabel=String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim();
-  const tvuLabel=getPersonalTimelineOptionLabel('TVU', detail.TVU);
-  return `${participantLabel} ${formatPersonalTimelineTimeLabel(detail.시간, dateKey, normalizedPlace||detail.장소)} ${taskLabel}를 ${normalizedPlace||detail.장소}에서 ${tvuLabel}을 가지고 진행`;
+  const tvuLabel=getPersonalTimelineOptionLabel('TVU', getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
+  return `${participantLabel} ${formatPersonalTimelineTimeRangeLabel(detail, dateKey, normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소'))} ${taskLabel}를 ${normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소')}에서 ${tvuLabel}을 가지고 진행`;
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
@@ -8899,7 +9068,7 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     detail,
     entryIndex,
     savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
-    timeSort:getPersonalTimelineTimeSortValue(detail.시간),
+    timeSort:getPersonalTimelineTimeSortValue(getPersonalTimelineStartTime(detail)),
     text:buildPersonalTimelineReportText(name, detail, dateKey)
   }))).filter(item=>item.text).sort((a,b)=>{
     if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
@@ -8940,7 +9109,7 @@ function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
           detail,
           entryIndex,
           savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
-          timeSort:getPersonalTimelineTimeSortValue(detail.시간),
+          timeSort:getPersonalTimelineTimeSortValue(getPersonalTimelineStartTime(detail)),
           text:buildPersonalTimelineReportText(name, detail, dateKey)
         };
         if(!item.text) return;
@@ -8972,7 +9141,7 @@ function getAllPersonalTimelineGeneratedReports(){
     const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
     return items.map((item, index)=>{
       const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
-      const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, item.detail?.시간||'');
+      const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, getPersonalTimelineStartTime(item.detail));
       const nowSort=getTimeZoneNowSortValue(entryTimeZone);
       const isUpcoming=scheduleSort>=nowSort;
       const urgencyDelta=isUpcoming ? scheduleSort-nowSort : Number.MAX_SAFE_INTEGER;
@@ -9074,6 +9243,7 @@ function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
     const field=select.dataset.field||'';
     select.value=savedValues[field]||'';
   });
+  refreshPersonalTimelinePersonRowOptions(row);
   setPersonalTimelineRowDirty(row, false);
 }
 function updatePersonalTimelineItemEntryState(item, dateKey){
@@ -9209,6 +9379,29 @@ function collectPersonalTimelineRowValues(row){
   });
   return values;
 }
+function refreshPersonalTimelinePersonRowOptions(row){
+  if(!row) return;
+  const button=row.querySelector('.personal-timeline-save-btn');
+  const dateKey=button?.dataset.dateKey||'';
+  const personName=button?.dataset.person||'';
+  if(!dateKey||!personName) return;
+  const rowValues=collectPersonalTimelineRowValues(row);
+  const occupationMap=getPersonalTimelineOptionOccupationMap(dateKey, personName, rowValues);
+  row.querySelectorAll('.personal-timeline-detail-select').forEach(select=>{
+    const field=select.dataset.field||'';
+    const options=personalTimelineDetailFieldOptions[field];
+    if(!field||!Array.isArray(options)) return;
+    const selectedValue=select.value||rowValues[field]||'';
+    select.innerHTML=renderPersonalTimelineDetailOptions(field, options, selectedValue, occupationMap[field]);
+    if(selectedValue){
+      select.value=normalizePersonalTimelineDetailFieldValue(field, selectedValue);
+    }
+  });
+}
+function refreshPersonalTimelinePersonRows(item){
+  if(!item) return;
+  item.querySelectorAll('.personal-timeline-person-row').forEach(refreshPersonalTimelinePersonRowOptions);
+}
 function setPersonalTimelineRowDirty(row, isDirty){
   if(!row) return;
   row.classList.toggle('is-dirty', Boolean(isDirty));
@@ -9225,6 +9418,12 @@ function savePersonalTimelinePersonRow(row){
   const personName=button?.dataset.person||'';
   if(!dateKey||!personName) return;
   const rowValues=collectPersonalTimelineRowValues(row);
+  const assignmentValidation=validatePersonalTimelineDetailAssignment(dateKey, personName, rowValues);
+  if(!assignmentValidation.isValid){
+    window.alert(assignmentValidation.message);
+    refreshPersonalTimelinePersonRowOptions(row);
+    return;
+  }
   const saveResult=savePersonalTimelineDetailSelectionBatch(dateKey, personName, rowValues);
   if(Object.values(rowValues).some(value=>String(value||'').trim())){
     saveSchedule(getPersonalTimelineSchedulePayload(dateKey, personName, rowValues));
@@ -9236,6 +9435,7 @@ function savePersonalTimelinePersonRow(row){
   setPersonalTimelineRowDirty(row, false);
   const item=row.closest('.personal-timeline-item');
   updatePersonalTimelineSummaryBoard(item, dateKey);
+  refreshPersonalTimelinePersonRows(item);
   if(item){
     const hasTimelineAssignment=timelineViews.personal.rows.some(timelineRow=>Boolean(getTimelineLabel(timelineRow.label, dateKey)));
     const hasGeneratedReport=getPersonalTimelineVisibleReportsForDate(dateKey).length>0;
@@ -9800,7 +10000,7 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
   const isDeleteMode=personalTimelineSharedDeletingDateKey===dateKey;
   return `<div class="personal-timeline-column-header personal-timeline-column-header-shared"><span class="personal-timeline-column-title">공용 일정</span><span class="personal-timeline-column-header-actions"><button type="button" class="personal-timeline-shared-write-btn" data-date-key="${dateKey}" aria-label="공용 일정 작성">✎</button><button type="button" class="personal-timeline-shared-edit-toggle-btn${isEditMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 수정"${hasEntry?'':' disabled aria-disabled="true"'}>수정</button><button type="button" class="personal-timeline-shared-delete-btn${isDeleteMode?' is-active':''}" data-date-key="${dateKey}" aria-label="공용 일정 삭제"${hasEntry?'':' disabled aria-disabled="true"'}>🗑</button><span class="personal-timeline-column-date">${dateLabel}</span></span></div>`;
 }
-function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
+function renderPersonalTimelineDetailOptions(field, options, selectedValue='', occupiedOptions=new Set()){
   const normalizedSelectedValue=normalizePersonalTimelineDetailFieldValue(field, selectedValue);
   const placeholderSelected=!normalizedSelectedValue ? ' selected' : '';
   const normalizedOptions=(Array.isArray(options)?options:[]).map(option=>String(option||''));
@@ -9808,7 +10008,11 @@ function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
   const legacySelectedOption=hasLegacySelectedValue
     ? `<option value="${escapeHtml(normalizedSelectedValue)}" selected>${escapeHtml(getPersonalTimelineOptionLabel(field, normalizedSelectedValue))}</option>`
     : '';
-  const optionHtml=normalizedOptions.map(option=>`<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
+  const optionHtml=normalizedOptions.map(option=>{
+    const isOccupied=occupiedOptions instanceof Set&&occupiedOptions.has(option)&&option!==normalizedSelectedValue;
+    const optionLabel=getPersonalTimelineOptionLabel(field, option);
+    return `<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}${isOccupied?' disabled data-occupied="true"':''}>${escapeHtml(isOccupied?`${optionLabel} (배정됨)`:optionLabel)}</option>`;
+  }).join('');
   return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${legacySelectedOption}${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
@@ -11293,9 +11497,10 @@ function closeTimelineGalleryModal(){
   if(!document.querySelector('.timeline-modal:not(.hidden)')) document.body.classList.remove('timeline-modal-open');
 }
 function renderPersonalTimelinePersonRow(name, dateKey){
-  const fieldClassMap={시간:'time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
+  const fieldClassMap={시작시간:'start-time',종료시간:'end-time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
   const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
-  const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}">${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'')}</select></span></div>`).join('');
+  const occupationMap=getPersonalTimelineOptionOccupationMap(dateKey, name, selectedDetail);
+  const detailRows=Object.entries(personalTimelineDetailFieldOptions).map(([field, options])=>`<div class="personal-timeline-detail-row personal-timeline-detail-row-${fieldClassMap[field]||'default'}"><span class="personal-timeline-detail-value"><select class="personal-timeline-detail-select" data-date-key="${dateKey}" data-person="${escapeHtml(name)}" data-field="${field}" aria-label="${name} ${field}">${renderPersonalTimelineDetailOptions(field, options, selectedDetail[field]||'', occupationMap[field])}</select></span></div>`).join('');
   return `<div class="personal-timeline-person-row" data-person-name="${escapeHtml(name)}"><span class="personal-timeline-person-name">${escapeHtml(name)}</span><div class="personal-timeline-person-controls">${detailRows}<button type="button" class="personal-timeline-save-btn" data-date-key="${dateKey}" data-person="${escapeHtml(name)}">저장</button></div></div>`;
 }
 function renderPersonalTimelinePersonalColumn(dateKey){
@@ -11644,7 +11849,9 @@ function renderPersonalTimelineSchedule(view){
       }
       const select=event.target.closest('.personal-timeline-detail-select');
       if(!select||!list.contains(select)) return;
-      setPersonalTimelineRowDirty(select.closest('.personal-timeline-person-row'), true);
+      const row=select.closest('.personal-timeline-person-row');
+      setPersonalTimelineRowDirty(row, true);
+      refreshPersonalTimelinePersonRowOptions(row);
       if(select.dataset.field==='장소'){
         updateHeaderTimes();
       }
