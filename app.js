@@ -9331,21 +9331,34 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
 }
 function resetPersonalTimelinePersonRowInputs(row){
   if(!row) return;
+  applyPersonalTimelinePersonRowValues(row, {});
+}
+function applyPersonalTimelinePersonRowValues(row, detailValues={}){
+  if(!row) return;
+  const button=row.querySelector('.personal-timeline-save-btn');
+  const dateKey=button?.dataset.dateKey||'';
+  const personName=button?.dataset.person||'';
+  const normalizedValues=normalizePersonalTimelineDetailValues(detailValues);
+  const occupationMap=getPersonalTimelineOptionOccupationMap(dateKey, personName, normalizedValues);
   row.querySelectorAll('.personal-timeline-detail-select').forEach(select=>{
-    select.value='';
+    const field=select.dataset.field||'';
+    const options=personalTimelineDetailFieldOptions[field]||[];
+    const selectedValue=normalizedValues[field]||'';
+    select.innerHTML=renderPersonalTimelineDetailOptions(field, options, selectedValue, occupationMap[field]);
+    select.value=selectedValue;
   });
   row.querySelectorAll('textarea, input[type="text"], input[type="search"], input[type="date"]').forEach(input=>{
     if(input.classList.contains('personal-timeline-summary-memo-input')) return;
-    input.value='';
+    const field=input.dataset.field||'';
+    input.value=field ? String(detailValues?.[field]||'').trim() : '';
   });
-  refreshPersonalTimelinePersonRowOptions(row);
   setPersonalTimelineRowDirty(row, false);
 }
 function syncPersonalTimelinePersonRowFromSavedState(item, dateKey, name){
   if(!item||!dateKey||!name) return;
   const row=Array.from(item.querySelectorAll('.personal-timeline-person-row')).find(node=>node.querySelector('.personal-timeline-save-btn')?.dataset.person===name);
   if(!row) return;
-  resetPersonalTimelinePersonRowInputs(row);
+  applyPersonalTimelinePersonRowValues(row, getPersonalTimelineDetailSelection(dateKey, name)||{});
 }
 function updatePersonalTimelineItemEntryState(item, dateKey){
   if(!item||!dateKey) return;
@@ -9566,7 +9579,7 @@ async function savePersonalTimelinePersonRow(row){
     }), {showSuccessAlert:false});
   }
   if(didPersistSchedule){
-    resetPersonalTimelinePersonRowInputs(row);
+    syncPersonalTimelinePersonRowFromSavedState(item, dateKey, personName);
   }else{
     refreshPersonalTimelinePersonRowOptions(row);
   }
@@ -11630,7 +11643,7 @@ function closeTimelineGalleryModal(){
 }
 function renderPersonalTimelinePersonRow(name, dateKey){
   const fieldClassMap={시작시간:'start-time',종료시간:'end-time',장소:'location',취재기자:'reporter',TVU:'tvu',업무내용:'task'};
-  const selectedDetail={};
+  const selectedDetail=getPersonalTimelineDetailSelection(dateKey, name)||{};
   const occupationMap=getPersonalTimelineOptionOccupationMap(dateKey, name, selectedDetail);
   const detailRows=personalTimelineDetailFieldRenderOrder.map(field=>{
     const options=personalTimelineDetailFieldOptions[field]||[];
