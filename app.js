@@ -6451,7 +6451,7 @@ function getScheduleBoardItems(){
   return normalizeDatedTickerTextItems(getAllUpcomingScheduleTickerEntries()
     .map(item=>({
       text:formatScheduleTickerItem(item),
-      date:item.dateKey,
+      date:today,
       allowHtml:true
     })))
     .filter(item=>item.date===today)
