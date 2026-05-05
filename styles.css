@@ -84,6 +84,36 @@
   pointer-events:none;
   opacity:.6;
 }
+body.is-view-mode .edit-only,
+body.is-view-mode .write-button,
+body.is-view-mode .save-button,
+body.is-view-mode .delete-button,
+body.is-view-mode .upload-button,
+body.is-view-mode .add-button,
+body.is-view-mode button[data-edit-only="true"],
+body.is-view-mode input[type="file"][data-edit-only="true"],
+body.is-view-mode [data-edit-only="true"].news-editor-modal-btn.primary,
+body.is-view-mode [data-edit-only="true"].section-title-action-btn{
+  display:none !important;
+}
+body.is-view-mode input[data-edit-only="true"]:not([type="file"]),
+body.is-view-mode textarea[data-edit-only="true"],
+body.is-view-mode select[data-edit-only="true"]{
+  pointer-events:none;
+  background:#f4f7fb !important;
+  color:#64748b !important;
+  border-color:#d6e0eb !important;
+}
+body.is-view-mode [data-map-allow="true"] input,
+body.is-view-mode [data-map-allow="true"] textarea,
+body.is-view-mode [data-map-allow="true"] select,
+body.is-view-mode [data-map-allow="true"] button{
+  pointer-events:auto;
+  opacity:1;
+}
+body.is-view-mode [data-edit-only="true"][aria-disabled="true"]{
+  opacity:.7;
+}
 .header-report-board-window{
   max-width:100%;
   min-width:0;
@@ -2076,6 +2106,9 @@ body.news-editor-modal-open{overflow:hidden}
 .squad-table td{text-align:center;vertical-align:middle}
 .squad-table td:nth-child(4),.squad-table th:nth-child(4){white-space:normal}
 .squad-table td:nth-child(6),.squad-table th:nth-child(6){white-space:normal}
+.squad-reference{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.squad-reference-image{display:block;width:100%;max-width:840px;border-radius:16px;border:1px solid #dbe2ea;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.08)}
+.squad-reference-caption{margin:0;color:#52647a;font-size:13px;font-weight:700;line-height:1.5}
   .squad-col-position{width:64px}
   .squad-col-number{width:68px}
   .squad-col-player{width:236px}
@@ -9059,6 +9092,20 @@ textarea.simple-form-input,
   .squad-table{
     width:100% !important;
     table-layout:auto !important;
+  }
+
+  .squad-reference{
+    margin-bottom:14px;
+  }
+
+  .squad-reference-image{
+    max-width:100%;
+    border-radius:14px;
+  }
+
+  .squad-reference-caption{
+    font-size:12px;
+    line-height:1.45;
   }
 
   .squad-table colgroup,

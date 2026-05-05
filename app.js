@@ -301,8 +301,8 @@ function parseKnockoutTemplateMatch(match=''){
 
 const squads = {
   korea:[{position:'GK',number:1,name:'김승규',club:'알샤밥',age:34,injury:'-'},{position:'GK',number:21,name:'조현우',club:'울산 HD',age:33,injury:'-'},{position:'GK',number:23,name:'송범근',club:'쇼난 벨마레',age:28,injury:'-'},{position:'DF',number:4,name:'김민재',club:'바이에른 뮌헨',age:29,injury:'-'},{position:'DF',number:19,name:'김영권',club:'울산 HD',age:36,injury:'-'},{position:'DF',number:3,name:'김진수',club:'전북 현대',age:33,injury:'-'},{position:'DF',number:2,name:'이기제',club:'수원 삼성',age:32,injury:'-'},{position:'DF',number:15,name:'김문환',club:'전북 현대',age:30,injury:'-'},{position:'MF',number:7,name:'손흥민',club:'토트넘',age:33,injury:'경미한 부상'},{position:'MF',number:10,name:'이강인',club:'파리 생제르맹',age:25,injury:'-'},{position:'MF',number:6,name:'황인범',club:'즈베즈다',age:30,injury:'-'},{position:'FW',number:9,name:'황희찬',club:'울버햄튼',age:30,injury:'햄스트링'},{position:'FW',number:18,name:'조규성',club:'미트윌란',age:28,injury:'-'}],
-  mexico:[{position:'GK',number:23,name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'GK',number:'-',name:'Guillermo Ochoa',club:'AEL Limassol',age:'-',injury:'-'},{position:'GK',number:12,name:'Carlos Acevedo',club:'Santos Laguna',age:'-',injury:'-'},{position:'DF',number:2,name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Richard Ledezma',club:'Chivas',age:'-',injury:'-'},{position:'DF',number:5,name:'Johan Vásquez',club:'Genoa FC',age:'-',injury:'-'},{position:'DF',number:3,name:'César Montes',club:'Lokomotiv Moscú',age:'-',injury:'-'},{position:'DF',number:4,name:'Jesús Angulo',club:'Tigres',age:'-',injury:'-'},{position:'DF',number:19,name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Gallardo',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:6,name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Denzell García',club:'FC Juárez',age:'-',injury:'-'},{position:'MF',number:8,name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:17,name:'Orbelín Pineda',club:'AEK Athens',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Atlético de Madrid',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chivas',age:'-',injury:'-'},{position:'MF',number:14,name:'Erick Sánchez',club:'América',age:'-',injury:'-'},{position:'MF',number:'-',name:'Álvaro Fidalgo',club:'Real Betis',age:'-',injury:'-'},{position:'MF',number:25,name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:9,name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'FW',number:10,name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'FW',number:7,name:'Germán Berterame',club:'Inter Miami',age:'-',injury:'-'},{position:'FW',number:22,name:'Guillermo Martínez',club:'Club Universidad Nacional',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Chivas',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham FC',age:'-',injury:'-'}],
-  southAfrica:[{position:'GK',number:1,name:'Ronwen Williams',club:'Mamelodi Sundowns',age:34,injury:'-'},{position:'GK',number:16,name:'Ricardo Goss',club:'SuperSport United',age:31,injury:'-'},{position:'GK',number:23,name:'Veli Mothwa',club:'AmaZulu',age:34,injury:'-'},{position:'DF',number:20,name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:14,name:'Grant Kekana',club:'Mamelodi Sundowns',age:32,injury:'-'},{position:'DF',number:3,name:'Mothobi Mvala',club:'Mamelodi Sundowns',age:30,injury:'-'},{position:'DF',number:5,name:'Siyanda Xulu',club:'Richards Bay',age:33,injury:'-'},{position:'DF',number:2,name:'Nyiko Mobbie',club:'Sekhukhune United',age:30,injury:'-'},{position:'MF',number:4,name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:29,injury:'-'},{position:'MF',number:8,name:'Sphephelo Sithole',club:'Tondela',age:27,injury:'-'},{position:'MF',number:10,name:'Themba Zwane',club:'Mamelodi Sundowns',age:36,injury:'-'},{position:'MF',number:15,name:'Bathusi Aubaas',club:'TS Galaxy',age:30,injury:'-'},{position:'FW',number:11,name:'Percy Tau',club:'Qatar SC',age:32,injury:'-'},{position:'FW',number:9,name:'Evidence Makgopa',club:'Orlando Pirates',age:25,injury:'-'},{position:'FW',number:17,name:'Lyle Foster',club:'Burnley',age:25,injury:'-'}],
+  mexico:[{position:'GK',number:'-',name:'Raúl Rangel',club:'Guadalajara',age:'-',injury:'-'},{position:'MF',number:'-',name:'Gilberto Mora',club:'Club Tijuana',age:'-',injury:'-'},{position:'GK',number:'-',name:'Carlos Moreno',club:'Pachuca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jorge Sánchez',club:'PAOK',age:'-',injury:'-'},{position:'DF',number:'-',name:'Rodrigo Huescas',club:'Copenhagen',age:'-',injury:'-'},{position:'DF',number:'-',name:'Johan Vásquez',club:'Genoa',age:'-',injury:'-'},{position:'DF',number:'-',name:'César Montes',club:'Lokomotiv Moskva',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Angulo',club:'Tigres UANL',age:'-',injury:'-'},{position:'DF',number:'-',name:'Israel Reyes',club:'América',age:'-',injury:'-'},{position:'DF',number:'-',name:'Everardo López',club:'Toluca',age:'-',injury:'-'},{position:'DF',number:'-',name:'Jesús Orozco',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Erik Lira',club:'Cruz Azul',age:'-',injury:'-'},{position:'MF',number:'-',name:'Marcel Ruiz',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:'-',name:'Carlos Rodríguez',club:'Cruz Azul',age:'-',injury:'-'},{position:'FW',number:'-',name:'Guillermo Martínez',club:'Pumas UNAM',age:'-',injury:'-'},{position:'FW',number:'-',name:'Alexis Vega',club:'Toluca',age:'-',injury:'-'},{position:'MF',number:'-',name:'Obed Vargas',club:'Seattle Sounders',age:'-',injury:'-'},{position:'MF',number:'-',name:'Brian Gutiérrez',club:'Chicago Fire',age:'-',injury:'-'},{position:'DF',number:'-',name:'Alonso Aceves',club:'Monterrey',age:'-',injury:'-'},{position:'FW',number:'-',name:'Roberto Alvarado',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:'-',name:'Julián Quiñones',club:'Al-Qadsiah',age:'-',injury:'-'},{position:'DF',number:'-',name:'Alexis Peña',club:'Necaxa',age:'-',injury:'-'},{position:'FW',number:'-',name:'Germán Berterame',club:'Monterrey',age:'-',injury:'-'},{position:'FW',number:'-',name:'Armando González',club:'Guadalajara',age:'-',injury:'-'},{position:'FW',number:'-',name:'Mateo Chávez',club:'AZ',age:'-',injury:'-'},{position:'FW',number:'-',name:'Raúl Jiménez',club:'Fulham',age:'-',injury:'-'}],
+  southAfrica:[{position:'DF',number:'-',name:'Aubrey Modiba',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Bongokuhle Hlongwane',club:'Minnesota United',age:'-',injury:'-'},{position:'FW',number:'-',name:'Evidence Makgopa',club:'Orlando Pirates',age:'-',injury:'-'},{position:'DF',number:'-',name:'Ime Okon',club:'SuperSport United',age:'-',injury:'-'},{position:'MF',number:'-',name:'Jayden Adams',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Khuliso Mudau',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Khulumani Ndamane',club:'TS Galaxy',age:'-',injury:'-'},{position:'FW',number:'-',name:'Lyle Foster',club:'Burnley',age:'-',injury:'-'},{position:'DF',number:'-',name:'Mbekezeli Mbokazi',club:'Orlando Pirates',age:'-',injury:'-'},{position:'DF',number:'-',name:'Nkosinathi Sibisi',club:'Orlando Pirates',age:'-',injury:'-'},{position:'FW',number:'-',name:'Oswin Appollis',club:'Polokwane City',age:'-',injury:'-'},{position:'FW',number:'-',name:'Relebohile Mofokeng',club:'Orlando Pirates',age:'-',injury:'-'},{position:'GK',number:'-',name:'Renaldo Leaner',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'GK',number:'-',name:'Ronwen Williams',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Samukelo Kabini',club:'TS Galaxy',age:'-',injury:'-'},{position:'MF',number:'-',name:'Sphephelo Sithole',club:'Tondela',age:'-',injury:'-'},{position:'GK',number:'-',name:'Ricardo Goss',club:'SuperSport United',age:'-',injury:'-'},{position:'MF',number:'-',name:'Teboho Mokoena',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'DF',number:'-',name:'Thabang Matuludi',club:'Polokwane City',age:'-',injury:'-'},{position:'MF',number:'-',name:'Thalente Mbatha',club:'Orlando Pirates',age:'-',injury:'-'},{position:'FW',number:'-',name:'Tshepang Moremi',club:'AmaZulu',age:'-',injury:'-'},{position:'DF',number:'-',name:'Thapelo Morena',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Themba Zwane',club:'Mamelodi Sundowns',age:'-',injury:'-'},{position:'FW',number:'-',name:'Thapelo Maseko',club:'Mamelodi Sundowns',age:'-',injury:'-'}],
   czech:[{position:'GK',number:'-',name:'마테이 코바르',club:'PSV',age:'-',injury:'-'},{position:'GK',number:'-',name:'마틴 예들리츠카',club:'바닉 오스트라바',age:'-',injury:'-'},{position:'GK',number:'-',name:'루카스 호르니첵',club:'브라가',age:'-',injury:'-'},{position:'DF',number:'-',name:'블라디미르 쿠팔',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'토마스 홀스',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'라디슬라브 크레이치',club:'울버햄튼 원더러스',age:'-',injury:'-'},{position:'DF',number:'-',name:'야로슬라프 젤레니',club:'스파르타 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'데이비드 주라섹',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'DF',number:'-',name:'로빈 흐라낙',club:'호펜하임',age:'-',injury:'-'},{position:'DF',number:'-',name:'마틴 비틱',club:'볼로냐',age:'-',injury:'-'},{position:'DF',number:'-',name:'스테판 찰루펙',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 수첵',club:'웨스트햄 유나이티드',age:'-',injury:'-'},{position:'MF',number:'-',name:'블라디미르 다리다',club:'흐라데츠 크라로베',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 프로보드',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'마이클 사딜렉',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 술츠',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'루카스 체르브',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'아담 카라벡',club:'리옹',age:'-',injury:'-'},{position:'MF',number:'-',name:'토마스 라드라',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'데니스 비신스키',club:'빅토리아 플젠',age:'-',injury:'-'},{position:'MF',number:'-',name:'파벨 부차',club:'신시내티',age:'-',injury:'-'},{position:'FW',number:'-',name:'파트릭 쉬크',club:'바이엘 레버쿠젠',age:'-',injury:'-'},{position:'FW',number:'-',name:'모이미르 치틸',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'토마스 초리',club:'슬라비아 프라하',age:'-',injury:'-'},{position:'FW',number:'-',name:'얀 클리멘트',club:'시그마 올로모우츠',age:'-',injury:'-'}]
 };
 
@@ -312,6 +312,18 @@ const squadState = {
   southAfrica:{filter:'ALL',page:1,title:'남아프리카 공화국 대표팀 선수단'},
   czech:{filter:'ALL',page:1,title:'체코 대표팀 선수단'}
 };
+
+const squadReferenceImages = {
+  korea:{src:'images/korea-squad.png',alt:'대한민국 대표팀 선수단 참고 이미지',caption:'업로드한 대한민국 선수단 이미지 기준'},
+  mexico:{src:'images/mexico-squad.png',alt:'멕시코 대표팀 선수단 참고 이미지',caption:'업로드한 멕시코 선수단 이미지 기준'},
+  southAfrica:{src:'images/southafrica-squad.png',alt:'남아공 대표팀 선수단 참고 이미지',caption:'업로드한 남아공 선수단 이미지 기준'}
+};
+
+function renderSquadReferenceImage(key=''){
+  const imageMeta=squadReferenceImages[key];
+  if(!imageMeta) return '';
+  return `<div class="squad-reference"><img class="squad-reference-image" src="${escapeHtml(imageMeta.src)}" alt="${escapeHtml(imageMeta.alt)}" loading="lazy"><p class="squad-reference-caption">${escapeHtml(imageMeta.caption)}</p></div>`;
+}
 
 let playerPhotoSources = null;
 function getPlayerPhotoSources(){
@@ -560,6 +572,190 @@ const tickerState = {
   memo: '',
   memoDate: ''
 };
+const EDIT_ACCESS_KEY = 'crew2026';
+const VIEW_ONLY_ALERT_MESSAGE = '보기 전용 권한입니다.';
+const ACCESS_VIEWER_ALLOWED_LABELS = ['닫기','취소','이전','다음','오늘로','갤러리','인쇄','내보내기','열기','보기','검색','전체'];
+const ACCESS_EDIT_ACTION_LABELS = ['저장','삭제','작성','업로드','추가','종료','지우기','수정'];
+let accessModeObserver = null;
+let accessModeRefreshHandle = 0;
+let hasInitializedAccessMode = false;
+function getAccessMode(){
+  if(typeof window==='undefined') return 'view';
+  const params=new URLSearchParams(window.location.search||'');
+  const mode=String(params.get('mode')||'').trim().toLowerCase();
+  const key=String(params.get('key')||'').trim();
+  return mode==='edit'&&key===EDIT_ACCESS_KEY ? 'edit' : 'view';
+}
+function canEdit(){
+  return getAccessMode()==='edit';
+}
+function getAccessSourceElement(el=null){
+  if(el?.target instanceof Element) return el.target;
+  if(el instanceof Element) return el;
+  if(typeof document!=='undefined'&&document.activeElement instanceof Element) return document.activeElement;
+  return null;
+}
+function isMapAction(el){
+  return Boolean(el&&typeof el.closest==='function'&&el.closest('[data-map-allow="true"]'));
+}
+function isRestrictedMapControl(el){
+  const target=getAccessSourceElement(el);
+  if(!target||!isMapAction(target)) return false;
+  const text=getAccessControlText(target);
+  if(target.matches('.delete, .place-delete-btn, .map-location-pin-upload-remove')) return true;
+  return /삭제|초기화/.test(text);
+}
+function showViewOnlyAlert(){
+  if(typeof window==='undefined'||typeof window.alert!=='function') return;
+  window.alert(VIEW_ONLY_ALERT_MESSAGE);
+}
+function guardEdit(actionName='edit', allowMap=false, el=null){
+  if(canEdit()) return true;
+  const sourceElement=getAccessSourceElement(el);
+  if(allowMap&&sourceElement&&isMapAction(sourceElement)&&!isRestrictedMapControl(sourceElement)) return true;
+  if(typeof console!=='undefined'&&typeof console.warn==='function'){
+    console.warn(`BLOCKED: ${actionName||'edit'}`);
+  }
+  showViewOnlyAlert();
+  return false;
+}
+function requireEditAccess(options={}){
+  if(typeof options==='string'){
+    return guardEdit(options, false, null);
+  }
+  const {
+    actionName='edit',
+    allowMap=false,
+    el=null
+  }=options||{};
+  return guardEdit(actionName, allowMap, el);
+}
+function secureExec(fn){
+  if(!canEdit()){
+    if(typeof console!=='undefined'&&typeof console.warn==='function'){
+      console.warn('BLOCKED: view mode');
+    }
+    showViewOnlyAlert();
+    return;
+  }
+  return typeof fn==='function' ? fn() : undefined;
+}
+function getAccessControlText(el){
+  return String(el?.textContent||el?.value||el?.getAttribute?.('aria-label')||'').replace(/\s+/g, ' ').trim();
+}
+function isViewerAllowedControl(el){
+  if(!el||!(el instanceof Element)) return false;
+  if(isMapAction(el)&&!isRestrictedMapControl(el)) return true;
+  if(el.dataset.viewerAllowed==='true') return true;
+  if(el.matches('.item, .page-btn, .news-editor-modal-close, .timeline-modal-close, [data-timeline-day-move], [data-timeline-day-picker], .personal-timeline-quick-btn[data-timeline-action], .personal-timeline-person-tab, .timeline-gallery-group-card, .timeline-gallery-group-thumb, .timeline-gallery-card, .timeline-gallery-modal-close, .carnet-viewer-modal-close, .equipment-file-storage-viewer-close, .header-report-board-page-btn, #userSelect')) return true;
+  if(el.matches('a[href], summary')) return true;
+  const text=getAccessControlText(el);
+  return Boolean(text)&&ACCESS_VIEWER_ALLOWED_LABELS.some(label=>text===label||text.includes(label));
+}
+function isEditOnlyControl(el){
+  if(!el||!(el instanceof Element)) return false;
+  if(isMapAction(el)&&!isRestrictedMapControl(el)) return false;
+  if(el.dataset.editOnly==='true') return true;
+  if(el.matches('input[type="file"], .news-programming-memo-input, .personal-timeline-detail-select, .personal-timeline-end-date-input, .personal-timeline-end-time-select, #scheduleInput, #memoInput, #timelineModalInput, #timelineModalFile, #gallery-upload, #gallery-memo, #gallery-date')) return true;
+  if(el.matches('textarea')) return true;
+  const text=getAccessControlText(el);
+  if(el.matches('button, [role="button"]')&&ACCESS_EDIT_ACTION_LABELS.some(label=>text.includes(label))) return true;
+  const inlineHandler=String(el.getAttribute?.('onclick')||'').trim();
+  return /save|delete|upload|open.*(Editor|Composer|Modal)|clearNewsProgrammingMemo|removeMapLocationPinImage|cancelMapLocationPinComposer/i.test(inlineHandler);
+}
+function markAccessControlledElements(root=document){
+  if(typeof document==='undefined'||!root) return;
+  const controls=(root instanceof Element ? [root, ...root.querySelectorAll('button,input,textarea,select,a,[onclick],[role="button"]')] : [...document.querySelectorAll('button,input,textarea,select,a,[onclick],[role="button"]')]);
+  controls.forEach(el=>{
+    if(!(el instanceof Element)) return;
+    if(isViewerAllowedControl(el)){
+      el.dataset.viewerAllowed='true';
+      delete el.dataset.editOnly;
+      return;
+    }
+    if(isEditOnlyControl(el)){
+      el.dataset.editOnly='true';
+    }
+  });
+}
+function applyAccessMode(){
+  if(typeof document==='undefined'||!document.body) return;
+  const editable=canEdit();
+  document.body.classList.toggle('is-edit-mode', editable);
+  document.body.classList.toggle('is-view-mode', !editable);
+  markAccessControlledElements(document);
+  document.querySelectorAll('[data-access-locked="true"]').forEach(el=>{
+    if(!(el instanceof HTMLElement)) return;
+    el.disabled=false;
+    el.removeAttribute('readonly');
+    el.removeAttribute('aria-disabled');
+    delete el.dataset.accessLocked;
+  });
+  if(editable) return;
+  document.querySelectorAll('input, textarea, select, button').forEach(el=>{
+    if(!(el instanceof HTMLElement)) return;
+    if(el.dataset.viewerAllowed==='true'||isMapAction(el)){
+      return;
+    }
+    if(el.matches('input, textarea, select')){
+      el.setAttribute('readonly', 'true');
+      el.disabled=true;
+      el.setAttribute('aria-disabled', 'true');
+      el.dataset.accessLocked='true';
+      return;
+    }
+    if(el.dataset.editOnly==='true'){
+      el.disabled=true;
+      el.setAttribute('aria-disabled', 'true');
+      el.dataset.accessLocked='true';
+    }
+  });
+}
+function scheduleAccessModeApply(){
+  if(typeof window==='undefined') return;
+  if(accessModeRefreshHandle){
+    window.cancelAnimationFrame(accessModeRefreshHandle);
+  }
+  accessModeRefreshHandle=window.requestAnimationFrame(()=>{
+    accessModeRefreshHandle=0;
+    applyAccessMode();
+  });
+}
+function initAccessMode(){
+  if(typeof document==='undefined'||typeof window==='undefined') return;
+  window.secureExec=secureExec;
+  applyAccessMode();
+  if(hasInitializedAccessMode) return;
+  hasInitializedAccessMode=true;
+  if(!accessModeObserver&&document.body){
+    accessModeObserver=new MutationObserver(()=>scheduleAccessModeApply());
+    accessModeObserver.observe(document.body, {childList:true, subtree:true});
+  }
+  document.addEventListener('click', event=>{
+    if(canEdit()) return;
+    if(isMapAction(event.target)&&!isRestrictedMapControl(event.target)) return;
+    const target=event.target?.closest?.('button,input[type="file"],[data-edit-only="true"],[onclick]');
+    if(!target||isViewerAllowedControl(target)) return;
+    if(isEditOnlyControl(target)){
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation?.();
+      showViewOnlyAlert();
+    }
+  }, true);
+  document.addEventListener('change', event=>{
+    if(canEdit()) return;
+    const target=event.target;
+    if(isMapAction(target)&&!isRestrictedMapControl(target)) return;
+    if(!(target instanceof Element)||isViewerAllowedControl(target)) return;
+    if(target.dataset.editOnly==='true'||isEditOnlyControl(target)){
+      event.preventDefault();
+      event.stopPropagation();
+      if(target instanceof HTMLInputElement&&target.type==='file') target.value='';
+      showViewOnlyAlert();
+    }
+  }, true);
+}
 let currentNewsBroadcaster = '';
 let currentSquadKey = '';
 let currentGroupKey = '';
@@ -1033,6 +1229,7 @@ function loadNewsEditorEntries(){
   }
 }
 function saveNewsEditorEntries(){
+  if(!canEdit()) return;
   writeNewsEditorRaw(JSON.stringify(newsEditorEntries));
 }
 function buildNewsEditorEntryFromBase(entry, year, broadcaster){
@@ -1373,6 +1570,7 @@ function ensureMexicoStadiumEditorEntries(){
   }catch(error){}
 }
 function saveMexicoStadiumEditorEntries(){
+  if(!canEdit()) return;
   writeMexicoStadiumEditorRaw(JSON.stringify(mexicoStadiumEditorEntries));
 }
 function invalidateMexicoStadiumDetails(){
@@ -1457,6 +1655,7 @@ function renderMexicoStadiumEditorMediaList(){
     : '<div class="timeline-modal-media-empty">첨부된 사진 없음</div>';
 }
 function openMexicoStadiumEditorModal(stadiumKey, sectionKey, mode='write'){
+  if(!requireEditAccess()) return;
   if(!sectionKey) return;
   ensureMexicoStadiumEditorEntries();
   ensureMexicoStadiumEditorModal();
@@ -1481,6 +1680,7 @@ function closeMexicoStadiumEditorModal(){
   syncMobileHistoryState();
 }
 function saveMexicoStadiumEditorModal(){
+  if(!requireEditAccess()) return;
   if(!pendingMexicoStadiumEditorContext) return;
   const {stadiumKey, sectionKey}=pendingMexicoStadiumEditorContext;
   const defaultRows=getMexicoStadiumDefaultRows(stadiumKey, sectionKey);
@@ -1490,6 +1690,7 @@ function saveMexicoStadiumEditorModal(){
   renderMexicoStadiumDetail(stadiumKey, sectionKey);
 }
 function deleteMexicoStadiumEditorAndRender(stadiumKey, sectionKey){
+  if(!requireEditAccess()) return;
   deleteMexicoStadiumEditorEntry(stadiumKey, sectionKey);
   renderMexicoStadiumDetail(stadiumKey, sectionKey);
 }
@@ -1625,6 +1826,7 @@ function ensureEquipmentEditorEntries(){
   }catch(error){}
 }
 function saveEquipmentEditorEntries(){
+  if(!canEdit()) return;
   writeEquipmentEditorRaw(JSON.stringify(equipmentEditorEntries));
 }
 function loadEquipmentState(){
@@ -1637,6 +1839,7 @@ function loadEquipmentState(){
   return cloneEquipmentRows(equipmentState);
 }
 function saveEquipmentState(rows=equipmentState){
+  if(!requireEditAccess()) return cloneEquipmentRows(equipmentState);
   equipmentState=ensureEquipmentRowIds(rows);
   equipmentEditorEntries[getEquipmentEditorKey('shared', '')]=cloneEquipmentRows(equipmentState);
   renderCache.equipmentSharedTable='';
@@ -1848,6 +2051,7 @@ function addPersonalEquipmentRow(userName=''){
   focusPersonalEquipmentField(newRow[7], 0);
 }
 function deletePersonalEquipmentRows(userName=''){
+  if(!requireEditAccess()) return false;
   const normalizedUser=String(userName||'').trim();
   if(!isPersonalEquipmentEditMode(normalizedUser)) return;
   const checkedRowIds=Array.from(document.querySelectorAll('.personal-equipment-row-check:checked'))
@@ -1867,6 +2071,7 @@ function deletePersonalEquipmentRows(userName=''){
   showEquipmentPersonal(normalizedUser);
 }
 function deleteSelectedEquipmentSummaryRows(){
+  if(!requireEditAccess()) return false;
   if(!isEquipmentSummaryEditMode()) return;
   const checkedRowIds=Array.from(document.querySelectorAll('.equipment-summary-row-check:checked'))
     .map(input=>String(input.value||'').trim())
@@ -2168,6 +2373,7 @@ function loadEquipmentCarnetEntries(){
   }
 }
 function saveEquipmentCarnetEntries(){
+  if(!canEdit()) return;
   const payload={
     version:2,
     updatedAt:Date.now(),
@@ -2505,6 +2711,7 @@ function cancelEquipmentCarnetDeleteMode(){
   renderEquipmentCarnetDetail();
 }
 async function deleteSelectedEquipmentCarnetEntries(){
+  if(!requireEditAccess()) return;
   loadEquipmentCarnetEntries();
   if(!isEquipmentCarnetDeleteMode){
     enterEquipmentCarnetDeleteMode();
@@ -2574,6 +2781,7 @@ function renderEquipmentCarnetPanelHtml(){
   return `<tbody><tr><td class="carnet-list-cell"><section class="carnet-list-panel" aria-label="문서보관"><header class="carnet-list-header"><h3 class="carnet-list-title">문서보관</h3></header>${renderEquipmentCarnetComposer()}<div class="carnet-list-body">${renderEquipmentCarnetItems(entries)}</div></section></td></tr></tbody>`;
 }
 async function saveEquipmentCarnetEntry(saveButton=null){
+  if(!requireEditAccess()) return;
   loadEquipmentCarnetEntries();
   const titleInput=document.getElementById('equipmentCarnetTitleInput');
   const fileInput=document.getElementById('document-storage-upload')||document.getElementById('equipmentCarnetFileInput');
@@ -2613,6 +2821,7 @@ async function saveEquipmentCarnetEntry(saveButton=null){
   }
 }
 async function deleteEquipmentCarnetEntry(entryId=''){
+  if(!requireEditAccess()) return;
   loadEquipmentCarnetEntries();
   const normalized=String(entryId||'').trim();
   const target=equipmentCarnetEntries.find(entry=>String(entry.id)===normalized);
@@ -2886,6 +3095,7 @@ function loadEquipmentFileStorageEntries(){
   }
 }
 function saveEquipmentFileStorageEntries(){
+  if(!canEdit()) return;
   const payload={
     version:2,
     updatedAt:Date.now(),
@@ -3094,6 +3304,7 @@ async function removeEquipmentFileStorageFiles(entries=[]){
   }
 }
 async function deleteSelectedFileStorageItems(){
+  if(!requireEditAccess()) return;
   return deleteSelectedEquipmentFileStorageEntries();
 }
 function getEquipmentFileStorageEntries(){
@@ -3130,6 +3341,7 @@ function cancelEquipmentFileStorageDeleteMode(){
   renderEquipmentFileStorageDetail();
 }
 async function deleteSelectedEquipmentFileStorageEntries(){
+  if(!requireEditAccess()) return;
   loadEquipmentFileStorageEntries();
   if(!isEquipmentFileStorageDeleteMode){
     enterEquipmentFileStorageDeleteMode();
@@ -3197,6 +3409,7 @@ async function buildEquipmentFileStoragePreviewData(file, fileType, originalData
   return previewData;
 }
 async function saveEquipmentFileStorageEntry(saveButton=null){
+  if(!requireEditAccess()) return;
   loadEquipmentFileStorageEntries();
   const titleInput=document.getElementById('equipmentFileStorageTitleInput');
   const fileInput=document.getElementById('file-storage-upload')||document.getElementById('equipmentFileStorageInput');
@@ -3437,6 +3650,7 @@ function renderEquipmentFileStorageDetail(){
   }
 }
 function openEquipmentFileStorageComposer(){
+  if(!requireEditAccess()) return;
   isEquipmentFileStorageDeleteMode=false;
   equipmentFileStorageSelectedIds.clear();
   isEquipmentFileStorageComposerOpen=true;
@@ -3647,6 +3861,7 @@ function ensureNewsProgrammingDateIsToday(){
   }
 }
 function saveNewsProgrammingState(){
+  if(!canEdit()) return;
   loadNewsProgrammingState();
   const payload={
     savedMemos:createDatedMemoStoragePayload(currentNewsProgrammingSavedMemos),
@@ -3702,6 +3917,7 @@ function loadProgrammingMemos(){
   }
 }
 function saveProgrammingMemos(nextMemos=currentNewsProgrammingSavedMemos){
+  if(!canEdit()) return;
   if(typeof window==='undefined'||!window.localStorage) return;
   const payload=JSON.stringify(createDatedMemoStoragePayload(nextMemos));
   window.localStorage.setItem(PROGRAMMING_MEMOS_STORAGE_KEY, payload);
@@ -3773,7 +3989,7 @@ function renderMapLocationPinComposer(sectionKey='region'){
   const composerMode=editingEntry?'수정':'작성';
   const selectedCategory=MAP_LOCATION_PIN_CATEGORIES.some(item=>item.value===editingEntry?.category) ? editingEntry.category : '';
   const categoryOptions=`<option value="" disabled hidden${selectedCategory?'':' selected'}>분류 선택</option>${MAP_LOCATION_PIN_CATEGORIES.map(item=>`<option value="${escapeHtml(item.value)}"${selectedCategory===item.value?' selected':''}>${escapeHtml(item.label)}</option>`).join('')}`;
-  return `<section class="simple-form-card map-location-pin-form-card"><div class="map-location-pin-form-header"><div class="simple-form-title">${escapeHtml(sectionMeta.formTitle)} ${composerMode}</div><p class="map-location-pin-form-description">${escapeHtml(sectionMeta.formDescription)}</p></div><div class="simple-form-grid map-location-pin-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="mapLocationPinName-${normalized}" value="${escapeHtml(editingEntry?.name||'')}" placeholder="${escapeHtml(sectionMeta.placeholderName)}"></label><label class="simple-form-field"><span class="simple-form-label">분류</span><select class="simple-form-input map-location-pin-select" id="mapLocationPinCategory-${normalized}">${categoryOptions}</select></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">주소 또는 위치 설명</span><input type="text" class="simple-form-input" id="mapLocationPinLocationText-${normalized}" value="${escapeHtml(editingEntry?.locationText||'')}" placeholder="${escapeHtml(sectionMeta.placeholderLocation)}"></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="mapLocationPinMemo-${normalized}" placeholder="${escapeHtml(sectionMeta.placeholderMemo)}">${escapeHtml(editingEntry?.memo||'')}</textarea></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">지도 링크 (선택)</span><input type="text" class="simple-form-input" id="mapLocationPinMapLink-${normalized}" value="${escapeHtml(editingEntry?.mapLink||'')}" placeholder="추후 Google Maps / Naver Map / Kakao Map 링크 연결"></label><div class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">현장 사진</span><div class="simple-upload-dropzone map-location-pin-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가하면 핀 카드와 함께 미리보기로 표시됩니다.</div><input id="mapLocationPinImages-${normalized}" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleMapLocationPinImageChange(this, '${normalized}')"></div><div id="mapLocationPinImagePreview-${normalized}" class="map-location-pin-upload-preview">${renderMapLocationPinImagePreviewHtml(mapLocationPinComposerImages[normalized], normalized)}</div></div><div class="map-location-pin-form-field-full map-location-pin-future"><div class="map-location-pin-future-title">지도 확장 준비</div><div class="map-location-pin-future-note">좌표(lat/lng)와 실제 지도 링크 버튼을 나중에 바로 붙일 수 있도록 구조를 분리해 두었습니다.</div><input type="hidden" id="mapLocationPinLatitude-${normalized}" value="${escapeHtml(editingEntry?.lat||'')}"><input type="hidden" id="mapLocationPinLongitude-${normalized}" value="${escapeHtml(editingEntry?.lng||'')}"></div></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="saveMapLocationPinEntry('${normalized}')">저장</button><button type="button" class="section-title-action-btn" onclick="cancelMapLocationPinComposer('${normalized}')">취소</button></div></section>`;
+  return `<section class="simple-form-card map-location-pin-form-card" data-map-allow="true"><div class="map-location-pin-form-header"><div class="simple-form-title">${escapeHtml(sectionMeta.formTitle)} ${composerMode}</div><p class="map-location-pin-form-description">${escapeHtml(sectionMeta.formDescription)}</p></div><div class="simple-form-grid map-location-pin-form-grid"><label class="simple-form-field"><span class="simple-form-label">장소명</span><input type="text" class="simple-form-input" id="mapLocationPinName-${normalized}" value="${escapeHtml(editingEntry?.name||'')}" placeholder="${escapeHtml(sectionMeta.placeholderName)}"></label><label class="simple-form-field"><span class="simple-form-label">분류</span><select class="simple-form-input map-location-pin-select" id="mapLocationPinCategory-${normalized}">${categoryOptions}</select></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">주소 또는 위치 설명</span><input type="text" class="simple-form-input" id="mapLocationPinLocationText-${normalized}" value="${escapeHtml(editingEntry?.locationText||'')}" placeholder="${escapeHtml(sectionMeta.placeholderLocation)}"></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea" id="mapLocationPinMemo-${normalized}" placeholder="${escapeHtml(sectionMeta.placeholderMemo)}">${escapeHtml(editingEntry?.memo||'')}</textarea></label><label class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">지도 링크 (선택)</span><input type="text" class="simple-form-input" id="mapLocationPinMapLink-${normalized}" value="${escapeHtml(editingEntry?.mapLink||'')}" placeholder="추후 Google Maps / Naver Map / Kakao Map 링크 연결"></label><div class="simple-form-field map-location-pin-form-field-full"><span class="simple-form-label">현장 사진</span><div class="simple-upload-dropzone map-location-pin-upload-dropzone"><div class="simple-upload-placeholder">사진을 추가하면 핀 카드와 함께 미리보기로 표시됩니다.</div><input id="mapLocationPinImages-${normalized}" class="simple-upload-input" type="file" accept="image/*" multiple onchange="handleMapLocationPinImageChange(this, '${normalized}')"></div><div id="mapLocationPinImagePreview-${normalized}" class="map-location-pin-upload-preview">${renderMapLocationPinImagePreviewHtml(mapLocationPinComposerImages[normalized], normalized)}</div></div><div class="map-location-pin-form-field-full map-location-pin-future"><div class="map-location-pin-future-title">지도 확장 준비</div><div class="map-location-pin-future-note">좌표(lat/lng)와 실제 지도 링크 버튼을 나중에 바로 붙일 수 있도록 구조를 분리해 두었습니다.</div><input type="hidden" id="mapLocationPinLatitude-${normalized}" value="${escapeHtml(editingEntry?.lat||'')}"><input type="hidden" id="mapLocationPinLongitude-${normalized}" value="${escapeHtml(editingEntry?.lng||'')}"></div></div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="saveMapLocationPinEntry('${normalized}', this)">저장</button><button type="button" class="section-title-action-btn" onclick="cancelMapLocationPinComposer('${normalized}')">취소</button></div></section>`;
 }
 function renderMapLocationPinPreview(entries=[], sectionKey='region'){
   const sectionMeta=getMapLocationPinSectionMeta(sectionKey);
@@ -3789,17 +4005,17 @@ function renderMapLocationPinList(entries=[], sectionKey='region'){
   if(!entries.length){
     return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta"></p></div></header><div class="map-location-pin-list-empty">저장된 핀이 없습니다. 먼저 핀 추가를 눌러 장소를 등록하세요.</div></section>`;
   }
-  return `<section class="map-location-pin-list-shell"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">${entries.length}개 장소가 핀 카드로 정리되어 있습니다.</p></div></header><div class="map-location-pin-list">${entries.map((entry,index)=>{const categoryMeta=getMapLocationPinCategoryMeta(entry.category); const savedAt=formatMapLocationPinSavedAt(entry.updatedAt||entry.createdAt); return `<article class="map-location-pin-card is-${escapeHtml(categoryMeta.tone)}"><div class="map-location-pin-card-badge-wrap"><span class="map-location-pin-card-badge">${index+1}</span></div><div class="map-location-pin-card-body"><header class="map-location-pin-card-header"><div><div class="map-location-pin-card-category is-${escapeHtml(categoryMeta.tone)}">${escapeHtml(categoryMeta.label)}</div><h6 class="map-location-pin-card-title">${escapeHtml(entry.name||'현장 장소')}</h6></div>${savedAt?`<div class="map-location-pin-card-time">${escapeHtml(savedAt)}</div>`:''}</header><div class="map-location-pin-card-location">${escapeHtml(entry.locationText||'위치 설명 없음')}</div>${entry.memo?`<p class="map-location-pin-card-memo">${escapeHtml(entry.memo)}</p>`:''}<div class="map-location-pin-card-meta">${entry.mapLink?`<a class="map-location-pin-card-link" href="${escapeHtml(entry.mapLink)}" target="_blank" rel="noreferrer">지도 링크 열기</a>`:'<span class="map-location-pin-card-link-placeholder">지도 링크 연결 자리</span>'}<span class="map-location-pin-card-coordinates">${entry.lat||entry.lng?escapeHtml(`lat ${entry.lat||'-'} / lng ${entry.lng||'-'}`):'좌표 필드 확장 예정'}</span></div>${Array.isArray(entry.images)&&entry.images.length?`<div class="map-location-pin-card-media">${entry.images.map((src,mediaIndex)=>`<img class="map-location-pin-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(entry.name||'현장 장소')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}<div class="simple-info-actions map-location-pin-card-actions"><button type="button" class="section-title-action-btn" onclick="openMapLocationPinComposer('${normalized}', '${escapeHtml(entry.id)}')">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMapLocationPin('${normalized}', '${escapeHtml(entry.id)}')">삭제</button></div></div></article>`;}).join('')}</div></section>`;
+  return `<section class="map-location-pin-list-shell" data-map-allow="true"><header class="map-location-pin-list-header"><div><h5 class="map-location-pin-list-title">저장된 핀 목록</h5><p class="map-location-pin-list-meta">${entries.length}개 장소가 핀 카드로 정리되어 있습니다.</p></div></header><div class="map-location-pin-list">${entries.map((entry,index)=>{const categoryMeta=getMapLocationPinCategoryMeta(entry.category); const savedAt=formatMapLocationPinSavedAt(entry.updatedAt||entry.createdAt); return `<article class="map-location-pin-card is-${escapeHtml(categoryMeta.tone)}"><div class="map-location-pin-card-badge-wrap"><span class="map-location-pin-card-badge">${index+1}</span></div><div class="map-location-pin-card-body"><header class="map-location-pin-card-header"><div><div class="map-location-pin-card-category is-${escapeHtml(categoryMeta.tone)}">${escapeHtml(categoryMeta.label)}</div><h6 class="map-location-pin-card-title">${escapeHtml(entry.name||'현장 장소')}</h6></div>${savedAt?`<div class="map-location-pin-card-time">${escapeHtml(savedAt)}</div>`:''}</header><div class="map-location-pin-card-location">${escapeHtml(entry.locationText||'위치 설명 없음')}</div>${entry.memo?`<p class="map-location-pin-card-memo">${escapeHtml(entry.memo)}</p>`:''}<div class="map-location-pin-card-meta">${entry.mapLink?`<a class="map-location-pin-card-link" href="${escapeHtml(entry.mapLink)}" target="_blank" rel="noreferrer">지도 링크 열기</a>`:'<span class="map-location-pin-card-link-placeholder">지도 링크 연결 자리</span>'}<span class="map-location-pin-card-coordinates">${entry.lat||entry.lng?escapeHtml(`lat ${entry.lat||'-'} / lng ${entry.lng||'-'}`):'좌표 필드 확장 예정'}</span></div>${Array.isArray(entry.images)&&entry.images.length?`<div class="map-location-pin-card-media">${entry.images.map((src,mediaIndex)=>`<img class="map-location-pin-card-photo" src="${escapeHtml(src)}" alt="${escapeHtml(entry.name||'현장 장소')} 사진 ${mediaIndex+1}">`).join('')}</div>`:''}<div class="simple-info-actions map-location-pin-card-actions"><button type="button" class="section-title-action-btn" onclick="openMapLocationPinComposer('${normalized}', '${escapeHtml(entry.id)}', this)">수정</button><button type="button" class="section-title-action-btn delete" onclick="deleteMapLocationPin('${normalized}', '${escapeHtml(entry.id)}')">삭제</button></div></div></article>`;}).join('')}</div></section>`;
 }
 function renderMapLocationPinSection(sectionKey='region'){
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
   const sectionMeta=getMapLocationPinSectionMeta(normalized);
   const entries=sortMapLocationPinEntries(getMapLocationPinEntries(normalized));
   const actions=renderSimpleActionRow([
-    {label:'핀 추가', onclick:`openMapLocationPinComposer('${normalized}')`},
+    {label:'핀 추가', onclick:`openMapLocationPinComposer('${normalized}', '', this)`},
     {label:'초기화', onclick:`clearAllMapLocationPins('${normalized}')`, variant:'delete'}
   ]);
-  return `<section class="map-location-pin-shell" aria-label="${escapeHtml(sectionMeta.title)}"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">${escapeHtml(sectionMeta.title)}</h4><p class="map-location-pin-description">${escapeHtml(sectionMeta.description)}</p></div>${actions}</header>${renderMapLocationPinComposer(normalized)}${renderMapLocationPinPreview(entries, normalized)}${renderMapLocationPinList(entries, normalized)}</section>`;
+  return `<section class="map-location-pin-shell" aria-label="${escapeHtml(sectionMeta.title)}" data-map-allow="true"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">${escapeHtml(sectionMeta.title)}</h4><p class="map-location-pin-description">${escapeHtml(sectionMeta.description)}</p></div>${actions}</header>${renderMapLocationPinComposer(normalized)}${renderMapLocationPinPreview(entries, normalized)}${renderMapLocationPinList(entries, normalized)}</section>`;
 }
 async function handleMapLocationPinImageChange(input, sectionKey='region'){
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
@@ -3826,7 +4042,8 @@ function removeMapLocationPinImage(index, sectionKey='region'){
   mapLocationPinComposerImages[normalized]=mapLocationPinComposerImages[normalized].filter((_, imageIndex)=>imageIndex!==Number(index));
   renderMapLocationPinImagePreview(normalized);
 }
-function openMapLocationPinComposer(sectionKey='region', pinId=''){
+function openMapLocationPinComposer(sectionKey='region', pinId='', triggerEl=null){
+  if(!requireEditAccess({actionName:'openMapLocationPinComposer', allowMap:true, el:triggerEl})) return;
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
   currentMapSubTab=normalized;
   currentMapLocationPinEditId[normalized]=String(pinId||'').trim();
@@ -3851,7 +4068,8 @@ function cancelMapLocationPinComposer(sectionKey='region'){
     focusPanelStart('#detailCol');
   }
 }
-function saveMapLocationPinEntry(sectionKey='region'){
+function saveMapLocationPinEntry(sectionKey='region', triggerEl=null){
+  if(!requireEditAccess({actionName:'saveMapLocationPinEntry', allowMap:true, el:triggerEl})) return;
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
   const nameInput=document.getElementById(`mapLocationPinName-${normalized}`);
   const categorySelect=document.getElementById(`mapLocationPinCategory-${normalized}`);
@@ -3912,6 +4130,7 @@ function saveMapLocationPinEntry(sectionKey='region'){
   }
 }
 function deleteMapLocationPin(sectionKey='region', pinId=''){
+  if(!requireEditAccess({actionName:'deleteMapLocationPin'})) return;
   const normalizedSection=normalizeMapLocationPinSectionKey(sectionKey);
   const normalized=String(pinId||'').trim();
   mapLocationPinEntries[normalizedSection]=getMapLocationPinEntries(normalizedSection).filter(entry=>String(entry.id)!==normalized);
@@ -3928,6 +4147,7 @@ function deleteMapLocationPin(sectionKey='region', pinId=''){
   }
 }
 function clearAllMapLocationPins(sectionKey='region'){
+  if(!requireEditAccess({actionName:'clearAllMapLocationPins'})) return;
   const normalized=normalizeMapLocationPinSectionKey(sectionKey);
   mapLocationPinEntries[normalized]=[];
   saveMapLocationPinEntries();
@@ -4917,6 +5137,7 @@ function parseGoogleMapsText(rawText=''){
   };
 }
 async function savePlaceFromPaste(){
+  if(!requireEditAccess({actionName:'savePlaceFromPaste', allowMap:true})) return;
   const pasteInput=document.getElementById('mapPasteInput');
   const categorySelect=document.getElementById('mapCategorySelect');
   const usageTypeSelect=document.getElementById('mapUsageTypeSelect');
@@ -5107,7 +5328,8 @@ async function runPlaceLookupSearch(query=''){
     }
   }
 }
-async function savePlace(){
+async function savePlace(triggerEl=null){
+  if(!requireEditAccess({actionName:'savePlace', allowMap:true, el:triggerEl})) return;
   const values=getPlaceFormValues();
   const nameInput=document.getElementById('placeNameInput');
   const categorySelect=document.getElementById('placeCategorySelect');
@@ -5184,13 +5406,13 @@ function renderPlaceSearchAssist(mode='not-found', candidates=[]){
     return;
   }
   if(mode==='candidates'){
-    panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">검색 결과를 선택해 저장하세요.</div><div class="place-list place-search-results" style="margin-top:8px;">${candidates.map((candidate,index)=>{const typeLabel=formatPlaceSourceTypeLabel(candidate.sourceType||detectPlaceSourceType(candidate)); const sourceLabel=candidate.source==='geo'?'지명/주소':'상호/장소'; return `<article class="place-card place-search-result-card" data-candidate-index="${index}" onclick="previewPlaceCandidate(${index}, true)" onmouseenter="previewPlaceCandidate(${index})"><div class="place-card-top"><span class="place-usage-badge">${escapeHtml(typeLabel)}</span><span class="place-usage-badge">${escapeHtml(sourceLabel)}</span></div><h6 class="map-location-pin-card-title">${escapeHtml(candidate.displayName||candidate.name)}</h6>${candidate.address?`<div class="map-location-pin-card-location">${escapeHtml(candidate.address)}</div>`:''}<div class="place-card-actions"><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); selectPlaceCandidate(${index})">저장</button></div></article>`;}).join('')}</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates()">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
+    panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">검색 결과를 선택해 저장하세요.</div><div class="place-list place-search-results" style="margin-top:8px;">${candidates.map((candidate,index)=>{const typeLabel=formatPlaceSourceTypeLabel(candidate.sourceType||detectPlaceSourceType(candidate)); const sourceLabel=candidate.source==='geo'?'지명/주소':'상호/장소'; return `<article class="place-card place-search-result-card" data-candidate-index="${index}" onclick="previewPlaceCandidate(${index}, true)" onmouseenter="previewPlaceCandidate(${index})"><div class="place-card-top"><span class="place-usage-badge">${escapeHtml(typeLabel)}</span><span class="place-usage-badge">${escapeHtml(sourceLabel)}</span></div><h6 class="map-location-pin-card-title">${escapeHtml(candidate.displayName||candidate.name)}</h6>${candidate.address?`<div class="map-location-pin-card-location">${escapeHtml(candidate.address)}</div>`:''}<div class="place-card-actions"><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); selectPlaceCandidate(${index})">저장</button></div></article>`;}).join('')}</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates(this)">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
     if(candidates.length===1){
       window.setTimeout(()=>setPlacePreviewCandidate(candidates[0]), 0);
     }
     return;
   }
-  panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">${draftName ? `${draftName}: ` : ''}정확한 위치를 찾지 못했습니다. 그래도 이름만 저장하거나 지도에서 직접 위치를 지정할 수 있습니다.</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates()">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="retryPlaceSearchFromDraft()">다시 검색</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
+  panel.innerHTML=`<div class="map-location-pin-card-memo" style="margin-top:10px;">${draftName ? `${draftName}: ` : ''}정확한 위치를 찾지 못했습니다. 그래도 이름만 저장하거나 지도에서 직접 위치를 지정할 수 있습니다.</div><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePendingPlaceWithoutCoordinates(this)">이 이름으로 그냥 저장</button><button type="button" class="section-title-action-btn" onclick="retryPlaceSearchFromDraft()">다시 검색</button><button type="button" class="section-title-action-btn" onclick="beginManualPinPlacementFromDraft()">지도에서 직접 위치 지정</button></div>`;
   clearPlacePreview();
 }
 function previewPlaceCandidate(index=0, immediate=false){
@@ -5251,7 +5473,8 @@ async function selectPlaceCandidate(index=0){
     clearPlacePreview();
   }
 }
-async function savePendingPlaceWithoutCoordinates(){
+async function savePendingPlaceWithoutCoordinates(triggerEl=null){
+  if(!requireEditAccess({actionName:'savePendingPlaceWithoutCoordinates', allowMap:true, el:triggerEl})) return;
   const draft=pendingPlaceDraft||getPlaceFormValues();
   if(!draft?.name||!draft?.category){
     window.alert('장소명과 카테고리를 먼저 입력해주세요.');
@@ -5293,6 +5516,7 @@ function beginManualPinPlacementFromDraft(){
   beginManualPinPlacement({...draft, pendingGeocode:false, searchKeyword:draft.searchKeyword||draft.name});
 }
 function openPlaceComposer(category=''){
+  if(!requireEditAccess({actionName:'openPlaceComposer', allowMap:true})) return;
   placeComposerCategory=getValidPlaceCategoryValue(category);
   selectedPlaceCategories=placeComposerCategory?[placeComposerCategory]:[];
   renderPlaceResults();
@@ -5359,6 +5583,7 @@ function openPlaceMapUrl(placeId=''){
   window.open(mapUrl, '_blank');
 }
 async function deletePlace(placeId=''){
+  if(!requireEditAccess({actionName:'deletePlace'})) return;
   loadPlaces();
   const normalizedId=String(placeId||'').trim();
   if(!normalizedId) return;
@@ -5479,7 +5704,7 @@ function setPlaceCategoryFilter(category='all', checked=true){
 }
 function renderPlaceEntryPanel(){
   const categoryOptions=renderPlaceCategoryOptions(placeComposerCategory);
-  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터"><div class="place-entry-lookup-layout"><div class="place-entry-form-pane"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 검색 / 저장</div><p class="map-location-pin-description">장소명, 도시, 거리, 주소, 건물명, 상호명을 검색해 저장합니다.</p></div></div><label class="simple-form-field place-search-main-field"><span class="simple-form-label">검색어</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: Mexico City / Paseo de la Reforma / 서울시청 / Starbucks Tokyo" oninput="schedulePlaceLookupSearch(this.value)" onkeydown="if(event.key==='Enter'){savePlace();}"></label><div id="placeSearchAssistPanel"></div><div class="simple-form-grid place-form-grid place-save-grid"><label class="simple-form-field"><span class="simple-form-label">저장 카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">추가 메모</span><textarea id="placeMemoInput" class="simple-form-input simple-form-textarea" rows="2" placeholder="예: 단체 식사 가능, 주차 확인 필요"></textarea></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace()">저장</button></div></div></div>${renderPlacePreviewPanel()}</div></section>`;
+  return `<section class="simple-form-card place-entry-panel" aria-label="장소 등록과 필터" data-map-allow="true"><div class="place-entry-lookup-layout"><div class="place-entry-form-pane"><div class="map-location-pin-form-header"><div><div class="simple-form-title">장소 검색 / 저장</div><p class="map-location-pin-description">장소명, 도시, 거리, 주소, 건물명, 상호명을 검색해 저장합니다.</p></div></div><label class="simple-form-field place-search-main-field"><span class="simple-form-label">검색어</span><input type="text" class="simple-form-input" id="placeNameInput" placeholder="예: Mexico City / Paseo de la Reforma / 서울시청 / Starbucks Tokyo" oninput="schedulePlaceLookupSearch(this.value)" onkeydown="if(event.key==='Enter'){savePlace(this);}"></label><div id="placeSearchAssistPanel"></div><div class="simple-form-grid place-form-grid place-save-grid"><label class="simple-form-field"><span class="simple-form-label">저장 카테고리</span><select class="simple-form-input" id="placeCategorySelect">${categoryOptions}</select></label><label class="simple-form-field place-form-field-wide"><span class="simple-form-label">추가 메모</span><textarea id="placeMemoInput" class="simple-form-input simple-form-textarea" rows="2" placeholder="예: 단체 식사 가능, 주차 확인 필요"></textarea></label><div class="simple-info-actions map-location-pin-form-actions"><button type="button" class="section-title-action-btn" onclick="savePlace(this)">저장</button></div></div></div>${renderPlacePreviewPanel()}</div></section>`;
 }
 function renderPlaceComposer(){
   return renderPlaceEntryPanel();
@@ -5670,7 +5895,7 @@ function renderPlaceList(){
   const places=getFilteredPlaces();
   const headerHtml=`<header class="map-location-pin-list-header place-list-header-row"><div class="place-list-heading"><h5 class="map-location-pin-list-title">카테고리별 장소 목록</h5><p class="map-location-pin-list-meta">${places.length}개 장소가 저장되어 있습니다.</p></div>${renderPlaceFilters()}</header>`;
   if(!places.length){
-    return `<section class="place-list-shell" style="margin-top:18px;">${headerHtml}<div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>`;
+    return `<section class="place-list-shell" style="margin-top:18px;" data-map-allow="true">${headerHtml}<div class="map-location-pin-list-empty">조건에 맞는 장소가 없습니다.</div></section>`;
   }
   const groupedPlaces=new Map(PLACE_CATEGORIES.map(category=>[category.value, []]));
   places.forEach(place=>{
@@ -5684,7 +5909,7 @@ function renderPlaceList(){
     meta:category,
     places:groupedPlaces.get(category.value)||[]
   })).filter(group=>group.places.length);
-  return `<section class="place-list-shell" style="margin-top:18px;">${headerHtml}<div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const hasCoordinates=hasPlaceCoordinates(place); const statusBadge=hasCoordinates ? '' : '<span class="place-usage-badge">위치 미확정</span>'; const sourceBadge=`<span class="place-usage-badge">${escapeHtml(formatPlaceSourceTypeLabel(place.sourceType||'general'))}</span>`; const mapButton=hasCoordinates ? `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button>` : `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); retryGeocodeForPlace('${escapeHtml(place.id)}')">재검색</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); beginManualPinPlacementForPlace('${escapeHtml(place.id)}')">지도지정</button>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${sourceBadge}${statusBadge}${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.displayName||place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:'<div class="map-location-pin-card-location">위치 미확정</div>'}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
+  return `<section class="place-list-shell" style="margin-top:18px;" data-map-allow="true">${headerHtml}<div class="place-list">${groups.map(group=>`<section class="place-category-group"><h6 class="map-location-pin-card-title">[${escapeHtml(group.meta.label)}]</h6>${group.places.map(place=>{const meta=getPlaceCategoryMeta(place.category); const hasCoordinates=hasPlaceCoordinates(place); const statusBadge=hasCoordinates ? '' : '<span class="place-usage-badge">위치 미확정</span>'; const sourceBadge=`<span class="place-usage-badge">${escapeHtml(formatPlaceSourceTypeLabel(place.sourceType||'general'))}</span>`; const mapButton=hasCoordinates ? `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); focusPlace('${escapeHtml(place.id)}')">지도에서 보기</button>` : `<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); retryGeocodeForPlace('${escapeHtml(place.id)}')">재검색</button><button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); beginManualPinPlacementForPlace('${escapeHtml(place.id)}')">지도지정</button>`; return `<article class="place-card is-${escapeHtml(meta.tone)}${activePlaceId===place.id?' is-active':''}" onclick="focusPlace('${escapeHtml(place.id)}')"><div class="place-card-top"><span class="map-location-pin-card-category is-${escapeHtml(meta.tone)}">${escapeHtml(meta.label)}</span>${sourceBadge}${statusBadge}${place.createdAt?`<span class="place-usage-badge">${escapeHtml(place.createdAt)}</span>`:''}</div><h6 class="map-location-pin-card-title">${escapeHtml(place.displayName||place.name)}</h6>${place.address?`<div class="map-location-pin-card-location">${escapeHtml(place.address)}</div>`:'<div class="map-location-pin-card-location">위치 미확정</div>'}${place.memo?`<p class="map-location-pin-card-memo">${escapeHtml(place.memo)}</p>`:''}<div class="place-card-actions">${mapButton}<button type="button" class="section-title-action-btn place-map-open-btn" onclick="event.stopPropagation(); openPlaceMapUrl('${escapeHtml(place.id)}')">외부 지도 열기</button><button type="button" class="section-title-action-btn delete place-delete-btn" onclick="event.stopPropagation(); deletePlace('${escapeHtml(place.id)}')">삭제</button></div></article>`;}).join('')}</section>`).join('')}</div></section>`;
 }
 function renderPlaceListOnly(){
   const listPanel=document.getElementById('placeListPanel');
@@ -5716,7 +5941,7 @@ function renderPlaceFilters(){
 }
 function renderPlaceManagementPanel(){
   loadPlaces();
-  return `<section class="map-location-pin-shell place-system-shell" aria-label="MAP"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">MAP</h4><p class="map-location-pin-description">등록된 장소를 지도에서 보고, 아래 목록에서 바로 선택할 수 있습니다.</p></div></header>${renderPlaceEntryPanel()}<div id="placeSystemGrid" class="place-system-grid" style="display:block;width:100%;">${renderMapPins()}<div id="placeListPanel">${renderPlaceList()}</div></div></section>`;
+  return `<section class="map-location-pin-shell place-system-shell" aria-label="MAP" data-map-allow="true"><header class="map-location-pin-header"><div><h4 class="map-location-pin-title">MAP</h4><p class="map-location-pin-description">등록된 장소를 지도에서 보고, 아래 목록에서 바로 선택할 수 있습니다.</p></div></header>${renderPlaceEntryPanel()}<div id="placeSystemGrid" class="place-system-grid" style="display:block;width:100%;">${renderMapPins()}<div id="placeListPanel">${renderPlaceList()}</div></div></section>`;
 }
 function renderMapSectionPanel(sectionKey){
   return `<section class="simple-info-subpanel is-active" data-map-section="${escapeHtml(sectionKey||'places')}">${renderPlaceManagementPanel()}</section>`;
@@ -6294,6 +6519,7 @@ function loadTicker(){
   }
 }
 function saveTicker(){
+  if(!requireEditAccess()) return;
   if(typeof window==='undefined'||!window.localStorage) return;
   const today=getTodayLocalDateString();
   const scheduleInput=document.querySelector('#scheduleInput');
@@ -6603,6 +6829,7 @@ function setNewsProgrammingMemoDraft(itemId='', value=''){
   currentNewsProgrammingMemoDrafts[normalizedId]=String(value||'');
 }
 function persistNewsProgrammingMemo(itemId='', rerenderPanel=true){
+  if(!requireEditAccess()) return;
   loadNewsProgrammingState();
   ensureNewsProgrammingLocalPersistenceLoaded();
   const normalizedId=getNewsProgrammingProgramKey(itemId);
@@ -6617,6 +6844,7 @@ function persistNewsProgrammingMemo(itemId='', rerenderPanel=true){
   }
 }
 function saveNewsProgrammingMemo(itemId=''){
+  if(!requireEditAccess()) return;
   loadNewsProgrammingState();
   ensureNewsProgrammingLocalPersistenceLoaded();
   const normalizedId=getNewsProgrammingProgramKey(itemId);
@@ -6627,6 +6855,7 @@ function saveNewsProgrammingMemo(itemId=''){
   persistNewsProgrammingMemo(normalizedId, true);
 }
 function clearNewsProgrammingMemo(itemId=''){
+  if(!requireEditAccess()) return;
   loadNewsProgrammingState();
   ensureNewsProgrammingLocalPersistenceLoaded();
   const normalizedId=getNewsProgrammingProgramKey(itemId);
@@ -6674,6 +6903,7 @@ function ensureEquipmentEditorModal(){
   });
 }
 function openEquipmentEditorModal(mode, user=''){
+  if(!requireEditAccess()) return;
   ensureEquipmentEditorEntries();
   ensureEquipmentEditorModal();
   pendingEquipmentEditorContext={mode, user};
@@ -6698,6 +6928,7 @@ function closeEquipmentEditorModal(){
   syncMobileHistoryState();
 }
 function saveEquipmentEditorModal(){
+  if(!requireEditAccess()) return;
   if(!pendingEquipmentEditorContext) return;
   const {mode, user}=pendingEquipmentEditorContext;
   const rowCount=document.querySelectorAll('#equipmentEditorTableWrap tbody tr').length;
@@ -7723,6 +7954,7 @@ async function sendScheduleSMS(scheduleData){
   }
 }
 async function saveSchedule(data) {
+  if(!requireEditAccess()) return;
   if (currentUser?.role === 'REPORTER') {
     alert('수정 권한 없음');
     return;
@@ -8009,6 +8241,7 @@ function loadSavedTimelineAssignments(){
   }
 }
 function saveTimelineAssignments(){
+  if(!canEdit()) return;
   const payload=Object.fromEntries(timelineEditableLabels.map(label=>[label, Object.fromEntries(timelineAssignments[label].entries())]));
   writeTimelineAssignmentsRaw(JSON.stringify(payload));
 }
@@ -8121,6 +8354,7 @@ function loadPersonalTimelineSharedEntries(){
   }
 }
 function savePersonalTimelineSharedEntries(){
+  if(!requireEditAccess()) return;
   writePersonalTimelineSharedRaw(JSON.stringify(personalTimelineSharedEntries));
 }
 function getPersonalTimelineSharedEntries(dateKey){
@@ -8166,6 +8400,7 @@ function setScheduleSavingState(isSaving){
   if(input) input.disabled=Boolean(isSaving);
 }
 async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryIndex=-1, text='', selection=null}={}){
+  if(!requireEditAccess()) return;
   const scheduleId=String(selection?.scheduleId||selection?.entryId||'').trim()
     || String(selection?.initialEntry?.id||'').trim()
     || (typeof crypto!=='undefined'&&crypto.randomUUID ? crypto.randomUUID() : `schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`);
@@ -8462,6 +8697,7 @@ function sanitizePersonalTimelineDetailEntry(entry){
   return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
 }
 function savePersonalTimelineDetailSelections(){
+  if(!canEdit()) return;
   writePersonalTimelineDetailsRaw(JSON.stringify(personalTimelineDetailSelections));
 }
 function getPersonalTimelineDetailSelection(dateKey, name){
@@ -8751,6 +8987,7 @@ function updatePersonalTimelineItemEntryState(item, dateKey){
   item.classList.toggle('is-empty', !(hasTimelineAssignment||hasGeneratedReport));
 }
 function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
+  if(!requireEditAccess()) return false;
   if(!dateKey||!name||!Number.isInteger(entryIndex)||entryIndex<0) return false;
   loadPersonalTimelineDetailSelections();
   loadHeaderReportBoardRecentMarks();
@@ -8778,6 +9015,7 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
   return true;
 }
 function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
+  if(!requireEditAccess()) return {didAppendNew:false, entryIndex:-1};
   if(!dateKey||!name) return {didAppendNew:false, entryIndex:-1};
   loadPersonalTimelineDetailSelections();
   const normalized=Object.create(null);
@@ -8833,6 +9071,7 @@ function openPersonalTimelineEndEditor(dateKey='', name='', entryIndex=-1){
   };
 }
 function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate='', endTime=''){
+  if(!requireEditAccess()) return false;
   const normalizedDate=normalizePersonalTimelineEndDate(endDate||'');
   const normalizedTime=normalizePersonalTimelineEndTime(endTime||'');
   if(!normalizedDate){
@@ -8882,6 +9121,7 @@ function setPersonalTimelineRowDirty(row, isDirty){
   }
 }
 function savePersonalTimelinePersonRow(row){
+  if(!requireEditAccess()) return;
   if(!row) return;
   const button=row.querySelector('.personal-timeline-save-btn');
   const dateKey=button?.dataset.dateKey||'';
@@ -9532,6 +9772,7 @@ function togglePersonalTimelineSharedDeleteMode(item, dateKey){
   if(item) item.classList.add('is-open');
 }
 function deletePersonalTimelineSharedEntryAt(item, dateKey, entryIndex){
+  if(!requireEditAccess()) return;
   if(!dateKey||!Number.isInteger(entryIndex)||entryIndex<0) return;
   const nextEntries=[...getPersonalTimelineSharedEntries(dateKey)];
   if(!nextEntries[entryIndex]) return;
@@ -9874,6 +10115,7 @@ function loadTimelineGalleryEntries(){
   hasLoadedTimelineGalleryEntries=true;
 }
 function saveTimelineGalleryEntries(){
+  if(!canEdit()) return;
   const normalizedEntries=normalizeTimelineGalleryEntries(timelineGalleryEntries);
   timelineGalleryEntries.length=0;
   timelineGalleryEntries.push(...normalizedEntries);
@@ -10300,6 +10542,7 @@ function closeTimelineGalleryInlineEdit(groupKey=''){
   timelineGalleryEditingGroupKey='';
 }
 function openTimelineGalleryInlineEdit(groupKey=''){
+  if(!requireEditAccess()) return;
   if(timelineGalleryEditingGroupKey&&timelineGalleryEditingGroupKey!==groupKey){
     setTimelineGalleryCardEditState(timelineGalleryEditingGroupKey, false);
   }
@@ -10318,6 +10561,7 @@ function toggleTimelineGalleryInlineEdit(groupKey=''){
   openTimelineGalleryInlineEdit(groupKey);
 }
 function saveTimelineGalleryGroupEdit(groupKey='', form=null, options={}){
+  if(!requireEditAccess()) return;
   const signature=parseTimelineGalleryGroupKey(groupKey);
   const nextDate=formatTimelineGalleryCapturedDate(form?.querySelector('[data-gallery-edit-date]')?.value||'');
   const nextMemo=String(form?.querySelector('[data-gallery-edit-memo]')?.value||'').trim();
@@ -10565,6 +10809,7 @@ function toggleTimelineGalleryDeleteMode(){
   if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
 async function saveGalleryEntry(options={}){
+  if(!requireEditAccess()) return;
   const notifySuccess=Boolean(options.notifySuccess);
   const root=document.querySelector('.timeline-gallery-view')||document;
   updateTimelineGalleryComposerStateFromForm(root);
@@ -10617,6 +10862,7 @@ async function saveGalleryEntry(options={}){
   }
 }
 async function deleteGalleryEntries(){
+  if(!requireEditAccess()) return;
   if(!timelineGallerySelectedIds.size){
     window.alert('삭제할 사진을 선택해주세요.');
     return;
@@ -11467,6 +11713,7 @@ function getTimelineRangeLabel(dates){
   return dates.length===1?formatTimelineDate(first):`${formatTimelineDate(first)} - ${formatTimelineDate(last)}`;
 }
 function openTimelineModal(){
+  if(!requireEditAccess()) return;
   if(!pendingTimelineSelection) return;
   ensureTimelineModal();
   const modal=document.getElementById('timelineModal');
@@ -11544,6 +11791,7 @@ function closeTimelineModal(){
   syncMobileHistoryState();
 }
 async function writeTimelineSelection(value){
+  if(!requireEditAccess()) return;
   if(!pendingTimelineSelection) return;
   const text=value.trim();
   const selection=pendingTimelineSelection;
@@ -11584,10 +11832,12 @@ async function writeTimelineSelection(value){
   restoreTimelineScrollState(scrollState);
 }
 function saveTimelineSelection(){
+  if(!requireEditAccess()) return;
   const input=document.getElementById('timelineModalInput');
   writeTimelineSelection(input?input.value:'');
 }
 function clearTimelineSelectionEntries(){
+  if(!requireEditAccess()) return;
   if(pendingTimelineSelection?.mode==='shared'){
     pendingTimelineSelection.mediaItems=[];
   }
@@ -12213,6 +12463,7 @@ function clearMapActionMode(){
   }
 }
 function openMapSectionComposer(sectionKey){
+  if(!requireEditAccess({actionName:'openMapSectionComposer', allowMap:true})) return;
   const normalized=sectionKey==='lodging'?'lodging':'region';
   currentMapSubTab=normalized;
   mapSectionComposerState[normalized]=true;
@@ -12395,6 +12646,7 @@ function ensureNewsEditorModal(){
   });
 }
 function openNewsEditorModal(year, broadcaster, entryIndex=-1){
+  if(!requireEditAccess()) return;
   ensureNewsEditorModal();
   const entries=getNewsEntries(year, broadcaster);
   const currentEntry=entryIndex>=0 ? entries[entryIndex]||null : null;
@@ -12418,6 +12670,7 @@ function closeNewsEditorModal(){
   syncMobileHistoryState();
 }
 function saveNewsEditorModal(){
+  if(!requireEditAccess()) return;
   if(!pendingNewsEditorContext) return;
   const {year, broadcaster, entryIndex}=pendingNewsEditorContext;
   const entries=[...getNewsEntries(year, broadcaster)];
@@ -12452,6 +12705,7 @@ function toggleNewsDeleteMode(year, broadcaster){
   renderNewsTable(year, broadcaster);
 }
 function deleteNewsEntryAt(year, broadcaster, entryIndex){
+  if(!requireEditAccess()) return;
   const entries=[...getNewsEntries(year, broadcaster)];
   if(!entries[entryIndex]) return;
   entries.splice(entryIndex,1);
@@ -12612,6 +12866,7 @@ function ensureSquadInjuryEntries(){
   applySquadInjuryEntries();
 }
 function saveSquadInjuryEntries(){
+  if(!canEdit()) return;
   writeSquadInjuryRaw(JSON.stringify(squadInjuryEntries));
 }
 function invalidateSquadViews(){
@@ -12709,6 +12964,7 @@ function renderSquadPlayerPhotoPreview(photoUrl=''){
   }
 }
 function openSquadInjuryModal(squadKey, playerBaseKey){
+  if(!requireEditAccess()) return;
   ensureSquadInjuryEntries();
   ensureSquadInjuryModal();
   const player=findSquadPlayer(squadKey, playerBaseKey);
@@ -12740,6 +12996,7 @@ function closeSquadInjuryModal(){
   syncMobileHistoryState();
 }
 function saveSquadInjuryModal(){
+  if(!requireEditAccess()) return;
   if(!pendingSquadInjuryContext) return;
   const {squadKey, playerBaseKey}=pendingSquadInjuryContext;
   setSquadPlayerEntry(squadKey, playerBaseKey, {
@@ -12755,6 +13012,7 @@ function saveSquadInjuryModal(){
   renderSquad(squadKey);
 }
 function deleteSquadInjury(squadKey, playerBaseKey){
+  if(!requireEditAccess()) return;
   resetSquadPlayerEntry(squadKey, playerBaseKey);
   renderSquad(squadKey);
 }
@@ -13751,7 +14009,7 @@ function renderSquad(key){
   const rows=filtered.slice((state.page-1)*pageSize,state.page*pageSize);
   const cacheKey=`${key}:${state.filter}:${state.page}:${pageSize}`;
   document.getElementById('detailTitle').textContent=state.title;
-  document.getElementById('detailSubtitle').textContent='';
+  document.getElementById('detailSubtitle').innerHTML=renderSquadReferenceImage(key);
   document.getElementById('detailTable').className='data-table squad-table';
   if(!renderCache.squadViews[cacheKey]){
     renderCache.squadViews[cacheKey]={
@@ -13821,6 +14079,7 @@ function renderEquipmentCarnetDetail(){
   }
 }
 function openEquipmentCarnetComposer(){
+  if(!requireEditAccess()) return;
   isEquipmentCarnetDeleteMode=false;
   equipmentCarnetSelectedIds.clear();
   isEquipmentCarnetComposerOpen=true;
@@ -14079,6 +14338,7 @@ startHeaderTimeTicker();
 ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
   window.initMap=initMap;
+  document.addEventListener('DOMContentLoaded', initAccessMode);
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
   document.addEventListener('DOMContentLoaded', initUserSelect);
   document.addEventListener('DOMContentLoaded', loadSchedules);
@@ -14101,6 +14361,9 @@ if(typeof window!=='undefined'){
   });
 }
 updateMobileHeaderReportBoardVisibility();
+if(typeof document!=='undefined'&&document.readyState!=='loading'){
+  initAccessMode();
+}
 
 
 
