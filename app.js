@@ -113,6 +113,7 @@ const WC_TIMEZONE_OFFSET = {
   'Mexico City': 14,
   'Guadalajara': 14,
   'Monterrey': 14,
+  'Salt Lake City': 15,
   'New York': 13,
   'Miami': 13,
   'Boston': 13,
@@ -137,15 +138,21 @@ const WC_TIMEZONE_CITY_ALIAS = {
   '마이애미': 'Miami',
   '보스턴': 'Boston',
   '로스앤젤레스': 'Los Angeles',
+  'la': 'Los Angeles',
   '시애틀': 'Seattle',
   '밴쿠버': 'Vancouver',
   '애틀랜타': 'Atlanta',
+  '애틀란타': 'Atlanta',
   '필라델피아': 'Philadelphia',
   '토론토': 'Toronto',
   '댈러스': 'Dallas',
+  '달라스': 'Dallas',
   '휴스턴': 'Houston',
   '캔자스시티': 'Kansas City',
-  '샌프란시스코': 'San Francisco'
+  '샌프란시스코': 'San Francisco',
+  '솔트레이크': 'Salt Lake City',
+  'salt lake': 'Salt Lake City',
+  'salt lake city': 'Salt Lake City'
 };
 const WC_STADIUM_CITY_MAP = {
   'Mexico City Stadium': 'Mexico City',
@@ -7150,10 +7157,10 @@ const personalTimelineDetailFieldOptions = {
     const hour=String(index+9).padStart(2,'0');
     return `${hour}:00`;
   }),
-  장소:['에스타디오 과달라하라','에스타디오 몬테레이'],
+  장소:['솔트레이크','과달라하라','몬테레이','LA','멕시코시티','애틀란타','달라스'],
   취재기자:['전영희','온누리','홍지용','오선민','이예원','이은진'],
   TVU:TVU_NUMBER_OPTIONS,
-  업무내용:['경기취재','외곽취재','밀착카메라','라이브연결','인터뷰']
+  업무내용:['대표팀 취재','남아공 취재','멕시코 취재','체코 취재','일본 취재','외곽 취재','라이브 연결','밀착 카메라','인터뷰']
 };
 const timelineViews = {
   personal:{title:'일정타임라인', rows:personalTimelineRows}
@@ -7219,7 +7226,16 @@ const PERSONAL_TIMELINE_END_TIME_OPTIONS = [...personalTimelineDetailFieldOption
 const personalTimelineTaskReportLabels = {
   경기취재:'경기 취재',
   외곽취재:'외곽 취재',
-  라이브연결:'라이브 연결'
+  '외곽 취재':'외곽 취재',
+  라이브연결:'라이브 연결',
+  '라이브 연결':'라이브 연결',
+  밀착카메라:'밀착 카메라',
+  '밀착 카메라':'밀착 카메라',
+  '대표팀 취재':'대표팀 취재',
+  '남아공 취재':'남아공 취재',
+  '멕시코 취재':'멕시코 취재',
+  '체코 취재':'체코 취재',
+  '일본 취재':'일본 취재'
 };
 const personalTimelineTvuLabelMap = {
   '1번':'TVU 1번 TRS 0001',
@@ -7303,15 +7319,21 @@ const scheduleCityAliases = [
   ['필라델피아',{city:'필라델피아',timeZone:'America/New_York'}],
   ['philadelphia',{city:'필라델피아',timeZone:'America/New_York'}],
   ['로스앤젤레스',{city:'로스앤젤레스',timeZone:'America/Los_Angeles'}],
+  ['la',{city:'로스앤젤레스',timeZone:'America/Los_Angeles'}],
   ['los angeles',{city:'로스앤젤레스',timeZone:'America/Los_Angeles'}],
   ['댈러스',{city:'댈러스',timeZone:'America/Chicago'}],
+  ['달라스',{city:'댈러스',timeZone:'America/Chicago'}],
   ['dallas',{city:'댈러스',timeZone:'America/Chicago'}],
   ['휴스턴',{city:'휴스턴',timeZone:'America/Chicago'}],
   ['houston',{city:'휴스턴',timeZone:'America/Chicago'}],
   ['시애틀',{city:'시애틀',timeZone:'America/Los_Angeles'}],
   ['seattle',{city:'시애틀',timeZone:'America/Los_Angeles'}],
+  ['애틀란타',{city:'애틀랜타',timeZone:'America/New_York'}],
   ['캔자스시티',{city:'캔자스시티',timeZone:'America/Chicago'}],
-  ['kansas city',{city:'캔자스시티',timeZone:'America/Chicago'}]
+  ['kansas city',{city:'캔자스시티',timeZone:'America/Chicago'}],
+  ['솔트레이크',{city:'솔트레이크',timeZone:'America/Denver'}],
+  ['salt lake',{city:'솔트레이크',timeZone:'America/Denver'}],
+  ['salt lake city',{city:'솔트레이크',timeZone:'America/Denver'}]
 ];
 const headerLocalClockState = {
   mode:headerClockModes.venue,
@@ -9732,8 +9754,13 @@ function renderPersonalTimelineSharedColumnHeader(dateKey, dateLabel){
 function renderPersonalTimelineDetailOptions(field, options, selectedValue=''){
   const normalizedSelectedValue=field==='TVU' ? normalizeTvuNumberValue(selectedValue) : selectedValue;
   const placeholderSelected=!normalizedSelectedValue ? ' selected' : '';
-  const optionHtml=options.map(option=>`<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
-  return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${optionHtml}`;
+  const normalizedOptions=(Array.isArray(options)?options:[]).map(option=>String(option||''));
+  const hasLegacySelectedValue=Boolean(normalizedSelectedValue)&&!normalizedOptions.includes(normalizedSelectedValue);
+  const legacySelectedOption=hasLegacySelectedValue
+    ? `<option value="${escapeHtml(normalizedSelectedValue)}" selected>${escapeHtml(getPersonalTimelineOptionLabel(field, normalizedSelectedValue))}</option>`
+    : '';
+  const optionHtml=normalizedOptions.map(option=>`<option value="${escapeHtml(option)}"${normalizedSelectedValue===option?' selected':''}>${escapeHtml(getPersonalTimelineOptionLabel(field, option))}</option>`).join('');
+  return `<option value="" disabled hidden${placeholderSelected}>${field}</option>${legacySelectedOption}${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
   const sharedEntries=getPersonalTimelineSharedEntries(dateKey);
