@@ -8065,7 +8065,7 @@ async function saveSchedule(data, options={}) {
   }
   const scheduleData=normalizeScheduleData(data);
   const showSuccessAlert=options?.showSuccessAlert!==false;
-  const schedulePayload={
+  const primaryPayload={
     title:scheduleData.title,
     assignee:scheduleData.assignee,
     date:scheduleData.date,
@@ -8079,47 +8079,51 @@ async function saveSchedule(data, options={}) {
     tvu:scheduleData.tvu,
     memo:scheduleData.memo
   };
-  if(!scheduleData.endTime){
-    delete schedulePayload.end_time;
-  }
-  let insertError=null;
-  const primaryResult=await supabaseClient
-    .from(SCHEDULES_TABLE)
-    .insert([schedulePayload]);
-  insertError=primaryResult.error||null;
+  if(!scheduleData.endTime) delete primaryPayload.end_time;
+  if(!scheduleData.memo) delete primaryPayload.memo;
+  if(!scheduleData.tvu) delete primaryPayload.tvu;
 
-  if(insertError&&/column|schema cache|date|time|city|tvu/i.test(String(insertError.message||''))){
-    const legacyFallback={
-      title:scheduleData.title,
-      assignee:scheduleData.assignee,
-      date:scheduleData.date,
-      start_date:scheduleData.startDate,
-      end_date:scheduleData.endDate,
-      local_time:scheduleData.time,
-      start_time:scheduleData.startTime,
-      location:scheduleData.location,
-      memo:scheduleData.memo
-    };
-    if(scheduleData.endTime){
-      legacyFallback.end_time=scheduleData.endTime;
-    }
-    const fallbackResult=await supabaseClient
+  const legacyFallback={
+    title:scheduleData.title,
+    assignee:scheduleData.assignee,
+    date:scheduleData.date,
+    start_date:scheduleData.startDate,
+    end_date:scheduleData.endDate,
+    local_time:scheduleData.time,
+    start_time:scheduleData.startTime,
+    location:scheduleData.location,
+    memo:scheduleData.memo
+  };
+  if(scheduleData.endTime) legacyFallback.end_time=scheduleData.endTime;
+  if(!scheduleData.memo) delete legacyFallback.memo;
+
+  const minimalFallback={
+    title:scheduleData.title,
+    assignee:scheduleData.assignee,
+    local_time:scheduleData.time,
+    location:scheduleData.location,
+    memo:scheduleData.memo
+  };
+  if(!scheduleData.memo) delete minimalFallback.memo;
+
+  const payloadVariants=[
+    primaryPayload,
+    {...primaryPayload, memo:undefined},
+    legacyFallback,
+    {...legacyFallback, memo:undefined},
+    minimalFallback,
+    {...minimalFallback, memo:undefined}
+  ].map(payload=>Object.fromEntries(
+    Object.entries(payload).filter(([, value])=>typeof value!=='undefined'&&String(value??'').trim()!=='')
+  ));
+
+  let insertError=null;
+  for(const payload of payloadVariants){
+    const result=await supabaseClient
       .from(SCHEDULES_TABLE)
-      .insert([legacyFallback]);
-    insertError=fallbackResult.error||null;
-    if(insertError&&/column|schema cache|date|time|city|tvu|start|end/i.test(String(insertError.message||''))){
-      const minimalFallback={
-        title:scheduleData.title,
-        assignee:scheduleData.assignee,
-        local_time:scheduleData.time,
-        location:scheduleData.location,
-        memo:scheduleData.memo
-      };
-      const minimalFallbackResult=await supabaseClient
-        .from(SCHEDULES_TABLE)
-        .insert([minimalFallback]);
-      insertError=minimalFallbackResult.error||null;
-    }
+      .insert([payload]);
+    insertError=result.error||null;
+    if(!insertError) break;
   }
 
   if (insertError) {
