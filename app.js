@@ -7902,7 +7902,8 @@ function normalizeScheduleData(data={}){
   const normalizedDate=String(data?.startDate||data?.start_date||data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
   const normalizedEndDate=String(data?.endDate||data?.end_date||data?.finishDate||normalizedDate).trim()||normalizedDate;
   const normalizedStartTime=normalizePersonalTimelineEndTime(data?.startTime||data?.start_time||data?.time||data?.local_time||'');
-  const normalizedEndTime=normalizePersonalTimelineEndTime(data?.endTime||data?.end_time||'');
+  const rawEndTime=String(data?.endTime??data?.end_time??'').trim();
+  const normalizedEndTime=rawEndTime==='종료시간 미정' ? '' : normalizePersonalTimelineEndTime(rawEndTime);
   const normalizedCity=resolveWorldCupCityName(String(data?.city||resolvedCityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY);
   return {
     title:String(data?.title||'').trim(),
@@ -8078,6 +8079,9 @@ async function saveSchedule(data, options={}) {
     tvu:scheduleData.tvu,
     memo:scheduleData.memo
   };
+  if(!scheduleData.endTime){
+    delete schedulePayload.end_time;
+  }
   let insertError=null;
   const primaryResult=await supabaseClient
     .from(SCHEDULES_TABLE)
@@ -8093,10 +8097,12 @@ async function saveSchedule(data, options={}) {
       end_date:scheduleData.endDate,
       local_time:scheduleData.time,
       start_time:scheduleData.startTime,
-      end_time:scheduleData.endTime,
       location:scheduleData.location,
       memo:scheduleData.memo
     };
+    if(scheduleData.endTime){
+      legacyFallback.end_time=scheduleData.endTime;
+    }
     const fallbackResult=await supabaseClient
       .from(SCHEDULES_TABLE)
       .insert([legacyFallback]);
