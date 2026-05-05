@@ -8936,10 +8936,10 @@ function validatePersonalTimelineTimeRange(detailValues={}){
   if(startTime&&endTime){
     const startMinutes=getPersonalTimelineTimeSortValue(startTime);
     const endMinutes=getPersonalTimelineTimeSortValue(endTime);
-    if(Number.isFinite(startMinutes)&&Number.isFinite(endMinutes)&&endMinutes<=startMinutes){
+    if(Number.isFinite(startMinutes)&&Number.isFinite(endMinutes)&&endMinutes<startMinutes){
       return {
         isValid:false,
-        message:'종료시간은 시작시간보다 늦어야 합니다.'
+        message:'종료시간은 시작시간보다 빠를 수 없습니다.'
       };
     }
   }
