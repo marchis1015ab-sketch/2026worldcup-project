@@ -574,6 +574,7 @@ const EQUIPMENT_EDITOR_WINDOW_NAME_KEY = '__worldcupGuideEquipmentEditor__';
 const EQUIPMENT_CARNET_STORAGE_KEY = 'worldcup-guide-equipment-carnet-v1';
 const EQUIPMENT_CARNET_WINDOW_NAME_KEY = '__worldcupGuideEquipmentCarnet__';
 const DOCUMENT_STORAGE_BUCKET = 'document-storage';
+const DOCUMENT_STORAGE_LEGACY_CACHE_KEYS = ['carnetFiles','documentFiles','storageFiles','fileArchive','deletedFiles','cachedDocuments','legacyDocumentCache'];
 const DOCUMENTS_TABLE = 'documents';
 const EQUIPMENT_FILE_STORAGE_KEY = 'worldcup-file-storage-v1';
 const FILE_STORAGE_BUCKET = 'file-storage';
@@ -587,6 +588,9 @@ let hasLoadedSquadInjuryEntries = false;
 let hasLoadedMexicoStadiumEditorEntries = false;
 let hasLoadedEquipmentEditorEntries = false;
 let hasLoadedEquipmentCarnetEntries = false;
+let equipmentCarnetHydrationPromise = null;
+let isEquipmentCarnetHydrating = false;
+let hasResolvedEquipmentCarnetEntries = false;
 let hasLoadedMapLocationPinEntries = false;
 const tickerState = {
   schedule: '',
@@ -2354,6 +2358,44 @@ function sortEquipmentCarnetEntries(entries=[]){
 function readEquipmentCarnetRaw(){
   return getSharedStateLocalRaw(EQUIPMENT_CARNET_STORAGE_KEY);
 }
+function clearLegacyDocumentStorageCaches(){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>{
+    DOCUMENT_STORAGE_LEGACY_CACHE_KEYS.forEach(key=>{
+      try{
+        storage.removeItem(key);
+      }catch(error){}
+    });
+  });
+}
+function isDocumentStorageDeletedLikeFlag(value){
+  if(value===true) return true;
+  const text=String(value??'').trim().toLowerCase();
+  return text==='true'||text==='1'||text==='deleted'||text==='removed'||text==='hidden';
+}
+function isRenderableEquipmentCarnetSourceEntry(entry={}){
+  if(!entry||typeof entry!=='object') return false;
+  if(isDocumentStorageDeletedLikeFlag(entry.deleted)
+    || isDocumentStorageDeletedLikeFlag(entry.removed)
+    || isDocumentStorageDeletedLikeFlag(entry.hidden)
+    || isDocumentStorageDeletedLikeFlag(entry.is_deleted)
+    || String(entry.deleted_at||entry.removed_at||entry.hidden_at||'').trim()){
+    return false;
+  }
+  const originalData=String(entry?.originalData||entry?.dataUrl||entry?.url||'').trim();
+  const publicUrl=String(entry?.public_url||entry?.publicUrl||entry?.downloadUrl||'').trim();
+  const storagePath=String(entry?.storage_path||entry?.storagePath||'').trim();
+  const fileName=String(entry?.file_name||entry?.fileName||entry?.title||'').trim();
+  if(!originalData&&!publicUrl&&!storagePath&&!fileName) return false;
+  return true;
+}
+function sanitizeEquipmentCarnetEntries(entries=[]){
+  return sortEquipmentCarnetEntries((Array.isArray(entries)?entries:[])
+    .filter(isRenderableEquipmentCarnetSourceEntry)
+    .map(normalizeEquipmentCarnetEntry)
+    .filter(Boolean)
+    .filter(entry=>!isEquipmentCarnetSampleEntry(entry)));
+}
 function writeEquipmentCarnetRaw(raw=''){
   try{
     setSharedStateLocalRaw(EQUIPMENT_CARNET_STORAGE_KEY, raw);
@@ -2363,35 +2405,13 @@ function writeEquipmentCarnetRaw(raw=''){
   scheduleSharedStateSyncWrite(EQUIPMENT_CARNET_STORAGE_KEY, raw);
 }
 function loadEquipmentCarnetEntries(){
-  if(hasLoadedEquipmentCarnetEntries) return;
+  if(hasLoadedEquipmentCarnetEntries||equipmentCarnetHydrationPromise) return;
   hasLoadedEquipmentCarnetEntries=true;
   equipmentCarnetEntries=[];
-  const raw=readEquipmentCarnetRaw();
-  if(!raw){
-    console.log('[equipment-carnet] load', {itemCount:0, sampleInjected:false, sampleRemoved:0});
-    refreshEquipmentCarnetEntriesFromSupabase();
-    return;
-  }
-  try{
-    const parsed=JSON.parse(raw);
-    const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
-    const normalizedEntries=source.map(normalizeEquipmentCarnetEntry).filter(Boolean);
-    const actualEntries=normalizedEntries.filter(entry=>!isEquipmentCarnetSampleEntry(entry));
-    const removedCount=normalizedEntries.length-actualEntries.length;
-    equipmentCarnetEntries=sortEquipmentCarnetEntries(actualEntries);
-    console.log('[equipment-carnet] load', {
-      itemCount:equipmentCarnetEntries.length,
-      sampleInjected:false,
-      sampleRemoved:removedCount
-    });
-    if(removedCount>0){
-      saveEquipmentCarnetEntries();
-    }
-    refreshEquipmentCarnetEntriesFromSupabase();
-  }catch(error){
-    console.warn('[equipment-carnet] load failed', error);
-    refreshEquipmentCarnetEntriesFromSupabase();
-  }
+  hasResolvedEquipmentCarnetEntries=false;
+  clearLegacyDocumentStorageCaches();
+  console.log('[equipment-carnet] load', {itemCount:0, sampleInjected:false, sampleRemoved:0, source:'deferred-remote'});
+  hydrateEquipmentCarnetEntries();
 }
 function saveEquipmentCarnetEntries(){
   if(!canEdit()) return;
@@ -2471,18 +2491,62 @@ async function fetchEquipmentCarnetEntriesFromSupabase(){
       return null;
     }
   }
-  return (data||[]).map(normalizeEquipmentCarnetEntry).filter(Boolean);
+  return sanitizeEquipmentCarnetEntries(data||[]);
 }
 async function refreshEquipmentCarnetEntriesFromSupabase(options={}){
   const forceRender=Boolean(options.forceRender);
   const entries=await fetchEquipmentCarnetEntriesFromSupabase();
-  if(!Array.isArray(entries)) return;
-  equipmentCarnetEntries=sortEquipmentCarnetEntries(entries);
+  if(!Array.isArray(entries)) return [];
+  equipmentCarnetEntries=sanitizeEquipmentCarnetEntries(entries);
   hasLoadedEquipmentCarnetEntries=true;
-  saveEquipmentCarnetEntries();
+  hasResolvedEquipmentCarnetEntries=true;
+  writeEquipmentCarnetRaw(JSON.stringify({
+    version:2,
+    updatedAt:Date.now(),
+    items:equipmentCarnetEntries.map(entry=>({
+      id:entry.id,
+      title:entry.title,
+      fileName:entry.fileName,
+      fileType:entry.fileType,
+      fileSize:entry.fileSize||0,
+      storagePath:entry.storagePath||'',
+      publicUrl:entry.publicUrl||'',
+      uploadedAt:entry.uploadedAt||'',
+      memo:entry.memo||'',
+      uploader:entry.uploader||'',
+      createdAt:entry.createdAt,
+      originalData:entry.storagePath||entry.publicUrl ? '' : entry.originalData,
+      previewData:entry.previewData
+    }))
+  }));
   if(forceRender||currentEquipmentMode==='carnet'){
     renderEquipmentCarnetDetail();
   }
+  return equipmentCarnetEntries;
+}
+async function hydrateEquipmentCarnetEntries(force=false){
+  if(!force&&equipmentCarnetHydrationPromise) return equipmentCarnetHydrationPromise;
+  isEquipmentCarnetHydrating=true;
+  equipmentCarnetHydrationPromise=(async ()=>{
+    try{
+      const entries=await refreshEquipmentCarnetEntriesFromSupabase({forceRender:currentEquipmentMode==='carnet'});
+      console.log('[document-storage] hydrate complete', {
+        itemCount:Array.isArray(entries)?entries.length:0,
+        mode:currentEquipmentMode
+      });
+      return Array.isArray(entries) ? entries : equipmentCarnetEntries;
+    }catch(error){
+      console.warn('[document-storage] hydrate failed', error);
+      equipmentCarnetEntries=[];
+      hasResolvedEquipmentCarnetEntries=true;
+      if(currentEquipmentMode==='carnet') renderEquipmentCarnetDetail();
+      return equipmentCarnetEntries;
+    }finally{
+      isEquipmentCarnetHydrating=false;
+      equipmentCarnetHydrationPromise=null;
+    }
+  })();
+  return equipmentCarnetHydrationPromise;
 }
 async function loadDocuments(){
   await refreshEquipmentCarnetEntriesFromSupabase({forceRender:currentEquipmentMode==='carnet'});
@@ -2792,8 +2856,11 @@ function renderEquipmentCarnetMobileRow(entry){
   </div>`;
 }
 function renderEquipmentCarnetItems(entries=[]){
+  if(isEquipmentCarnetHydrating&&!hasResolvedEquipmentCarnetEntries){
+    return '<div id="document-storage-list" class="document-storage-list"><div class="carnet-list-placeholder">문서 보관자료를 불러오는 중입니다.</div></div>';
+  }
   if(!entries.length){
-    return '<div id="document-storage-list" class="document-storage-list"><div class="carnet-list-placeholder">등록된 문서 파일이 없습니다. 작성 버튼으로 파일을 추가하세요.</div></div>';
+    return '<div id="document-storage-list" class="document-storage-list"><div class="carnet-list-placeholder">보관자료 없음</div></div>';
   }
   return `<div id="document-storage-list" class="document-storage-list"><div class="equipment-carnet-desktop-grid">${entries.map(renderEquipmentCarnetCard).join('')}</div><div class="equipment-carnet-mobile-list">${entries.map(renderEquipmentCarnetMobileRow).join('')}</div></div>`;
 }
@@ -7250,6 +7317,7 @@ const SHARED_STATE_SYNC_KEYS = Object.keys(SHARED_STATE_SYNC_REGISTRY);
 let sharedStateSyncClient = null;
 let sharedStateSyncChannel = null;
 let sharedStateSyncReady = false;
+let sharedStateInitialSnapshotLoaded = false;
 let sharedStateSyncDisabled = false;
 let sharedStateSyncFetchInProgress = false;
 let sharedStateSyncNeedsRefetch = false;
@@ -7952,12 +8020,16 @@ function applySharedStateSnapshot(rows=[]){
 }
 async function fetchSharedStateSnapshot(){
   const client=getSharedStateSyncClient();
-  if(!client) return;
+  if(!client){
+    sharedStateInitialSnapshotLoaded=true;
+    return;
+  }
   if(sharedStateSyncFetchInProgress){
     sharedStateSyncNeedsRefetch=true;
     return;
   }
   sharedStateSyncFetchInProgress=true;
+  const wasInitialSnapshotLoaded=sharedStateInitialSnapshotLoaded;
   try{
     const {data, error}=await client
       .from(SHARED_STATE_SYNC_TABLE)
@@ -7975,7 +8047,11 @@ async function fetchSharedStateSnapshot(){
   }catch(error){
     console.warn('Shared state fetch failed.', error);
   }finally{
+    sharedStateInitialSnapshotLoaded=true;
     sharedStateSyncFetchInProgress=false;
+    if(!wasInitialSnapshotLoaded){
+      rerenderVisibleSharedStateViews([PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, EQUIPMENT_CARNET_STORAGE_KEY]);
+    }
     if(sharedStateSyncNeedsRefetch){
       sharedStateSyncNeedsRefetch=false;
       fetchSharedStateSnapshot();
@@ -9177,6 +9253,9 @@ function reloadPersonalTimelineDetailSelectionsFromStorage(){
   populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:false});
   hasLoadedPersonalTimelineDetailSelections=true;
 }
+function isPersonalTimelineSummaryHydrating(){
+  return Boolean(getSharedStateSyncClient())&&!sharedStateInitialSnapshotLoaded;
+}
 function normalizePersonalTimelineDetailFieldValue(field='', value=''){
   const text=String(value||'').trim();
   if(!text) return '';
@@ -9743,6 +9822,9 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
   savePersonalTimelineDetailSelectionBatch(dateKey, name, nextValues);
 }
 function renderPersonalTimelineSummaryBoard(dateKey){
+  if(isPersonalTimelineSummaryHydrating()){
+    return `<div class="personal-timeline-summary-board is-empty" data-summary-board-date="${dateKey}"><div class="carnet-list-placeholder">누적일정을 불러오는 중입니다.</div></div>`;
+  }
   loadPersonalTimelineDetailSelections();
   const items=getPersonalTimelineSummaryReportsForDate(dateKey);
   if(typeof console!=='undefined'&&typeof console.log==='function'){
@@ -9755,6 +9837,11 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   if(!item||!dateKey) return;
   const board=item.querySelector('.personal-timeline-summary-board');
   if(!board) return;
+  if(isPersonalTimelineSummaryHydrating()){
+    board.innerHTML='<div class="carnet-list-placeholder">누적일정을 불러오는 중입니다.</div>';
+    board.classList.add('is-empty');
+    return;
+  }
   loadPersonalTimelineDetailSelections();
   const items=getPersonalTimelineSummaryReportsForDate(dateKey);
   if(typeof console!=='undefined'&&typeof console.log==='function'){
@@ -15375,7 +15462,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-  console.log('APP VERSION: 2026-05-06-base-url-latest-check-01');
+  console.log('APP VERSION: 2026-05-06-document-cache-fix-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
