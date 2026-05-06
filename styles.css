@@ -6120,6 +6120,23 @@ input[type="file"]{
   word-break:keep-all;
   overflow-wrap:break-word;
 }
+.personal-timeline-summary-text-line{
+  display:block;
+  width:100%;
+  font-family:inherit;
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:break-word;
+}
+.personal-timeline-summary-text-line+.personal-timeline-summary-text-line{
+  margin-top:2px;
+}
+.personal-timeline-summary-text-line-head{
+  font-weight:700;
+}
+.personal-timeline-summary-text-line-body{
+  font-weight:700;
+}
 .personal-timeline-summary-text .schedule-person,
 .personal-timeline-summary-text .schedule-date,
 .personal-timeline-summary-text .schedule-time-local,
@@ -6146,8 +6163,18 @@ input[type="file"]{
   word-break:keep-all;
   overflow-wrap:break-word;
 }
+.personal-timeline-summary-text .schedule-main-text{
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:break-word;
+}
 .personal-timeline-summary-text .schedule-equipment-trs{
   margin-left:4px;
+  white-space:nowrap;
+}
+.personal-timeline-summary-text .schedule-equipment-tvu,
+.personal-timeline-summary-text .schedule-time-korea{
+  white-space:nowrap;
 }
 .personal-timeline-summary-text-mobile{
   display:none;

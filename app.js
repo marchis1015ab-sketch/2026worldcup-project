@@ -7922,6 +7922,18 @@ function applySharedStateSnapshot(rows=[]){
         nextRaw=mergedRaw;
         scheduleSharedStateSyncWrite(storageKey, mergedRaw);
       }
+    }else if(storageKey===PERSONAL_TIMELINE_SHARED_STORAGE_KEY){
+      const mergedRaw=mergePersonalTimelineSharedRaw(currentRaw, nextRaw);
+      if(mergedRaw!==nextRaw){
+        nextRaw=mergedRaw;
+        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
+      }
+    }else if(storageKey===TIMELINE_GALLERY_STORAGE_KEY){
+      const mergedRaw=mergeTimelineGalleryRaw(currentRaw, nextRaw);
+      if(mergedRaw!==nextRaw){
+        nextRaw=mergedRaw;
+        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
+      }
     }
     const guardUntil=Number(sharedStateLocalWriteGuards.get(storageKey)||0);
     if(guardUntil>now&&currentRaw!==nextRaw){
@@ -8563,6 +8575,8 @@ function saveTimelineAssignments(){
   writeTimelineAssignmentsRaw(JSON.stringify(payload));
 }
 function readPersonalTimelineSharedRaw(){
+  const sharedRaw=getSharedStateLocalRaw(PERSONAL_TIMELINE_SHARED_STORAGE_KEY);
+  if(sharedRaw) return sharedRaw;
   const storages=getTimelineStorageAreas();
   for(const storage of storages){
     const raw=storage.getItem(PERSONAL_TIMELINE_SHARED_STORAGE_KEY);
@@ -8594,6 +8608,7 @@ function writePersonalTimelineSharedRaw(raw){
   }catch(error){
     window.name='';
   }
+  setSharedStateLocalRaw(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
   scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
   if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
@@ -8639,6 +8654,89 @@ function normalizePersonalTimelineSharedEntries(entries){
   }
   const normalized=normalizePersonalTimelineSharedEntry(entries);
   return normalized ? [normalized] : [];
+}
+function parsePersonalTimelineSharedState(raw=''){
+  const text=String(raw||'').trim();
+  if(!text) return {};
+  try{
+    const parsed=JSON.parse(text);
+    return parsed&&typeof parsed==='object' ? parsed : {};
+  }catch(error){
+    console.warn('Failed to parse personal timeline shared state.', error);
+    return {};
+  }
+}
+function getPersonalTimelineSharedImageIdentity(item={}){
+  return String(item?.storagePath||item?.path||'').trim()
+    || String(item?.publicUrl||item?.url||item?.src||'').trim()
+    || String(item?.id||'').trim()
+    || String(item?.fileName||item?.name||'').trim();
+}
+function mergePersonalTimelineSharedMediaItems(localItems=[], remoteItems=[]){
+  const merged=new Map();
+  [...remoteItems, ...localItems].map(normalizePersonalTimelineSharedMediaItem).filter(Boolean).forEach(item=>{
+    const key=getPersonalTimelineSharedImageIdentity(item);
+    if(!key) return;
+    const current=merged.get(key);
+    merged.set(key, current ? {
+      ...current,
+      ...item,
+      src:String(item?.src||current?.src||'').trim(),
+      publicUrl:String(item?.publicUrl||current?.publicUrl||item?.src||current?.src||'').trim(),
+      storagePath:String(item?.storagePath||current?.storagePath||'').trim()
+    } : item);
+  });
+  return Array.from(merged.values());
+}
+function mergePersonalTimelineSharedEntry(localEntry=null, remoteEntry=null){
+  const normalizedLocal=normalizePersonalTimelineSharedEntry(localEntry);
+  const normalizedRemote=normalizePersonalTimelineSharedEntry(remoteEntry);
+  if(!normalizedLocal) return normalizedRemote;
+  if(!normalizedRemote) return normalizedLocal;
+  const localUpdatedAt=Date.parse(String(normalizedLocal.updatedAt||'').trim())||0;
+  const remoteUpdatedAt=Date.parse(String(normalizedRemote.updatedAt||'').trim())||0;
+  const preferred=localUpdatedAt>=remoteUpdatedAt ? normalizedLocal : normalizedRemote;
+  const fallback=preferred===normalizedLocal ? normalizedRemote : normalizedLocal;
+  return normalizePersonalTimelineSharedEntry({
+    id:String(preferred.id||fallback.id||'').trim(),
+    text:String(preferred.text||fallback.text||'').trim(),
+    images:mergePersonalTimelineSharedMediaItems(normalizedLocal.images, normalizedRemote.images),
+    updatedAt:preferred.updatedAt||fallback.updatedAt||new Date().toISOString()
+  });
+}
+function buildPersonalTimelineSharedStateRaw(state={}){
+  const payload=Object.create(null);
+  Object.entries(state||{}).forEach(([dateKey, entries])=>{
+    const normalized=normalizePersonalTimelineSharedEntries(entries);
+    if(normalized.length){
+      payload[dateKey]=normalized;
+    }
+  });
+  return Object.keys(payload).length ? JSON.stringify(payload) : '';
+}
+function mergePersonalTimelineSharedRaw(localRaw='', remoteRaw=''){
+  const localState=parsePersonalTimelineSharedState(localRaw);
+  const remoteState=parsePersonalTimelineSharedState(remoteRaw);
+  const mergedState=Object.create(null);
+  const dateKeys=new Set([...Object.keys(localState), ...Object.keys(remoteState)]);
+  dateKeys.forEach(dateKey=>{
+    const entryMap=new Map();
+    [...normalizePersonalTimelineSharedEntries(remoteState[dateKey]), ...normalizePersonalTimelineSharedEntries(localState[dateKey])].forEach(entry=>{
+      const key=String(entry?.id||'').trim()||`${String(entry?.text||'').trim()}__${String(entry?.updatedAt||'').trim()}`;
+      if(!key) return;
+      const current=entryMap.get(key);
+      entryMap.set(key, mergePersonalTimelineSharedEntry(current, entry));
+    });
+    const nextEntries=Array.from(entryMap.values()).map(normalizePersonalTimelineSharedEntry).filter(Boolean).sort((a,b)=>{
+      const left=Date.parse(String(a?.updatedAt||'').trim())||0;
+      const right=Date.parse(String(b?.updatedAt||'').trim())||0;
+      return right-left;
+    });
+    if(nextEntries.length){
+      mergedState[dateKey]=nextEntries;
+    }
+  });
+  return buildPersonalTimelineSharedStateRaw(mergedState);
 }
 function buildPersonalTimelineSharedLabel(entries){
   const normalized=normalizePersonalTimelineSharedEntries(entries);
@@ -8760,10 +8858,17 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
     nextEntries.push(nextEntry);
   }
   setPersonalTimelineSharedEntries(dateKey, nextEntries);
+  if(sharedStateSyncReady) await flushPendingSharedStateWrites();
   updatePersonalTimelineSharedColumn(item, dateKey);
   updatePersonalTimelineItemEntryState(item, dateKey);
   if(item) item.classList.add('is-open');
   updateHeaderTimes();
+  console.log('[shared-schedule] save', {
+    dateKey,
+    scheduleId,
+    imageCount:nextEntry?.images?.length||0,
+    entryCount:nextEntries.length
+  });
   if(document.querySelector('.timeline-gallery-view')){
     await hydrateTimelineGalleryEntries(true);
     refreshTimelineGalleryView();
@@ -8973,7 +9078,9 @@ function renderPersonalTimelineSummaryLine(item){
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
-  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text">${summaryMarkup.mainHtml}${summaryMarkup.equipmentHtml?` <span class="schedule-equipment-text cumulative-equipment-text">${summaryMarkup.equipmentHtml}</span>`:''}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  const headHtml=summaryMarkup.headHtml||summaryMarkup.mainHtml||'';
+  const bodyHtml=summaryMarkup.bodyHtml||summaryMarkup.equipmentHtml||'';
+  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><div class="personal-timeline-summary-text cumulative-main-text"><div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-head">${headHtml}</div>${bodyHtml?`<div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-body cumulative-equipment-text">${bodyHtml}</div>`:''}</div>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function buildPersonalTimelineSummaryMarkup(item={}){
   const detail=item?.detail||{};
@@ -8991,15 +9098,15 @@ function buildPersonalTimelineSummaryMarkup(item={}){
     const localTimePart=String(timeParts[0]||'').trim();
     const koreaTimePart=String(timeParts.slice(1).join(' / ')||'').trim();
     return {
-      mainHtml:[
+      headHtml:[
         `<span class="schedule-person">${escapeHtml(participantLabel)}</span>`,
         savedDateLabel ? `<span class="schedule-date">${escapeHtml(savedDateLabel)}</span>` : '',
         localTimePart ? `<span class="schedule-time-local">${escapeHtml(localTimePart)}</span>` : '',
-        koreaTimePart ? `<span class="schedule-time-divider">/</span><span class="schedule-time-korea">${escapeHtml(koreaTimePart)}</span>` : '',
-        normalizedTask ? `<span class="schedule-task">${escapeHtml(normalizedTask)}</span><span class="schedule-connector">를</span>` : '',
-        normalizedPlace ? `<span class="schedule-place">${escapeHtml(normalizedPlace)}</span><span class="schedule-connector">에서</span>` : ''
+        koreaTimePart ? `<span class="schedule-time-divider">/</span><span class="schedule-time-korea">${escapeHtml(koreaTimePart)}</span>` : ''
       ].join(' '),
-      equipmentHtml:[
+      bodyHtml:[
+        normalizedTask ? `<span class="schedule-task">${escapeHtml(normalizedTask)}</span><span class="schedule-connector">를</span>` : '',
+        normalizedPlace ? `<span class="schedule-place">${escapeHtml(normalizedPlace)}</span><span class="schedule-connector">에서</span>` : '',
         equipmentTvu ? `<span class="schedule-equipment-tvu">${escapeHtml(equipmentTvu)}</span>` : '',
         equipmentTrs ? `<span class="schedule-equipment-trs">${escapeHtml(equipmentTrs)}</span>` : '',
         `<span class="schedule-equipment-rest">을 가지고 진행</span>`
@@ -9008,8 +9115,8 @@ function buildPersonalTimelineSummaryMarkup(item={}){
   }
   const summaryParts=splitPersonalTimelineSummaryText(item.text);
   return {
-    mainHtml:`<span class="schedule-main-text">${escapeHtml(summaryParts.main||String(item.text||'').trim())}</span>`,
-    equipmentHtml:summaryParts.equipment ? `<span class="schedule-equipment-fallback">${escapeHtml(summaryParts.equipment)}</span>` : ''
+    headHtml:`<span class="schedule-main-text">${escapeHtml(summaryParts.main||String(item.text||'').trim())}</span>`,
+    bodyHtml:summaryParts.equipment ? `<span class="schedule-equipment-fallback">${escapeHtml(summaryParts.equipment)}</span>` : ''
   };
 }
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
@@ -10864,8 +10971,10 @@ async function fetchTimelineGallerySharedRaw(){
 async function getTimelineGalleryEntriesForSave(){
   const sharedResult=await fetchTimelineGallerySharedStateResult();
   if(sharedResult.succeeded){
-    setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, sharedResult.raw);
-    return parseTimelineGalleryEntriesRaw(sharedResult.raw);
+    const localRaw=readTimelineGalleryRaw();
+    const mergedRaw=mergeTimelineGalleryRaw(localRaw, sharedResult.raw);
+    setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, mergedRaw);
+    return parseTimelineGalleryEntriesRaw(mergedRaw);
   }
   return parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw());
 }
@@ -10874,16 +10983,19 @@ async function hydrateTimelineGalleryEntries(force=false){
   timelineGalleryHydrationPromise=(async ()=>{
     const storage=getTimelineGalleryStorage();
     const sharedResult=await fetchTimelineGallerySharedStateResult();
+    const localRaw=readTimelineGalleryRaw();
     let raw=sharedResult.raw;
     let source=sharedResult.succeeded ? 'shared-state' : '';
     if(sharedResult.succeeded){
+      raw=mergeTimelineGalleryRaw(localRaw, sharedResult.raw);
       setSharedStateLocalRaw(TIMELINE_GALLERY_STORAGE_KEY, raw);
+      source=localRaw&&sharedResult.raw ? 'shared+local-merged' : (sharedResult.raw ? 'shared-state' : 'localStorage');
     }
     if(!raw&&storage&&sharedResult.succeeded){
       LEGACY_TIMELINE_GALLERY_STORAGE_KEYS.forEach(key=>storage.removeItem(key));
     }
     if(!raw&&!sharedResult.succeeded){
-      raw=readTimelineGalleryRaw();
+      raw=localRaw;
       source=raw ? 'localStorage' : 'fallback';
     }
     if(!raw&&storage&&!sharedResult.succeeded){
@@ -10939,6 +11051,39 @@ function normalizeTimelineGalleryEntries(entries=[]){
     map.set(String(entry.id||createTimelineGalleryEntryId()), entry);
   });
   return sortTimelineGalleryEntries(Array.from(map.values()));
+}
+function getTimelineGalleryEntryIdentity(entry={}){
+  const normalized=normalizeTimelineGalleryItem(entry);
+  if(!normalized) return '';
+  return String(normalized.id||'').trim()
+    || String(normalized.storagePath||'').trim()
+    || String(normalized.publicUrl||'').trim()
+    || `${normalized.fileName}__${normalized.capturedDate}__${normalized.memo}__${normalized.savedAt}`;
+}
+function mergeTimelineGalleryRaw(localRaw='', remoteRaw=''){
+  const merged=new Map();
+  [...parseTimelineGalleryEntriesRaw(remoteRaw), ...parseTimelineGalleryEntriesRaw(localRaw)].forEach(entry=>{
+    const normalized=normalizeTimelineGalleryItem(entry);
+    if(!normalized) return;
+    const key=getTimelineGalleryEntryIdentity(normalized);
+    if(!key) return;
+    const current=merged.get(key);
+    if(!current){
+      merged.set(key, normalized);
+      return;
+    }
+    const keepCurrent=normalizeTimelineGallerySavedAt(current?.savedAt)>=normalizeTimelineGallerySavedAt(normalized?.savedAt);
+    const preferred=keepCurrent ? current : normalized;
+    const fallback=keepCurrent ? normalized : current;
+    merged.set(key, normalizeTimelineGalleryItem({
+      ...fallback,
+      ...preferred,
+      dataUrl:String(preferred?.dataUrl||fallback?.dataUrl||'').trim(),
+      publicUrl:String(preferred?.publicUrl||fallback?.publicUrl||'').trim(),
+      storagePath:String(preferred?.storagePath||fallback?.storagePath||'').trim()
+    }));
+  });
+  return buildTimelineGalleryEntriesRaw(Array.from(merged.values()));
 }
 function loadTimelineGalleryEntries(){
   if(hasLoadedTimelineGalleryEntries||timelineGalleryHydrationPromise) return;
@@ -11677,6 +11822,7 @@ async function saveGalleryEntry(options={}){
     const latestStoredEntries=await getTimelineGalleryEntriesForSave();
     timelineGalleryEntries=sortTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, ...nextItems]);
     saveTimelineGalleryEntries();
+    if(sharedStateSyncReady) await flushPendingSharedStateWrites();
     isTimelineGalleryComposerOpen=false;
     resetTimelineGalleryComposerState();
     clearDraft();
