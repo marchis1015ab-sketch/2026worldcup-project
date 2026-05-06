@@ -6067,8 +6067,13 @@ input[type="file"]{
   min-height:58px;
 }
 .personal-timeline-summary-line{
-  display:flex;
-  flex-direction:column;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:
+    "main actions"
+    "memo memo"
+    "editor editor";
+  align-items:start;
   gap:10px;
   margin:0;
   padding:12px 0;
@@ -6080,6 +6085,7 @@ input[type="file"]{
   width:100%;
 }
 .personal-timeline-summary-main{
+  grid-area:main;
   flex:1 1 280px;
   min-width:0;
   display:flex;
@@ -6087,10 +6093,18 @@ input[type="file"]{
   gap:6px;
 }
 .personal-timeline-summary-actions{
+  grid-area:actions;
   display:flex;
   flex:0 0 auto;
   align-items:flex-start;
   gap:8px;
+}
+.cumulative-item,
+.cumulative-main-text,
+.cumulative-equipment-text,
+.cumulative-memo,
+.cumulative-actions{
+  width:100%;
 }
 .personal-timeline-summary-text{
   flex:1;
@@ -6175,6 +6189,7 @@ input[type="file"]{
   color:#fff;
 }
 .personal-timeline-summary-memo-row{
+  grid-area:memo;
   width:100%;
 }
 .personal-timeline-summary-memo-input{
@@ -6204,6 +6219,7 @@ input[type="file"]{
   opacity:1;
 }
 .personal-timeline-end-editor{
+  grid-area:editor;
   display:flex;
   flex-wrap:wrap;
   align-items:flex-end;
@@ -6806,23 +6822,26 @@ textarea.simple-form-input,
     padding:14px 16px;
   }
   .personal-timeline-summary-line{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:
+      "main"
+      "memo"
+      "actions"
+      "editor";
     gap:8px;
     padding:10px 0;
-  }
-  .personal-timeline-summary-top{
-    flex-direction:column;
-    align-items:stretch;
-    gap:10px;
   }
   .personal-timeline-summary-main{
     flex:1 1 auto;
     gap:8px;
+    width:100%;
   }
   .personal-timeline-summary-text{
     white-space:normal;
     overflow:visible;
     text-overflow:clip;
     line-height:1.55;
+    width:100%;
   }
   .personal-timeline-summary-text .schedule-main-text{
     display:block;
@@ -6832,9 +6851,12 @@ textarea.simple-form-input,
     margin-left:0;
     margin-top:2px;
   }
+  .cumulative-equipment-text{
+    padding-top:2px;
+  }
   .personal-timeline-summary-actions{
     width:100%;
-    justify-content:flex-start;
+    justify-content:flex-end;
     align-items:center;
     gap:8px;
     flex-wrap:nowrap;
@@ -9918,6 +9940,39 @@ textarea.simple-form-input,
   .equipment-table td{
     white-space:normal;
     word-break:keep-all;
+  }
+}
+
+@media (min-width:768px) and (max-width:1200px){
+  .personal-timeline-summary-line{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:
+      "main"
+      "memo"
+      "actions"
+      "editor";
+  }
+
+  .personal-timeline-summary-main,
+  .personal-timeline-summary-memo-row,
+  .personal-timeline-summary-actions,
+  .personal-timeline-end-editor{
+    width:100%;
+  }
+
+  .personal-timeline-summary-actions{
+    justify-content:flex-end;
+    flex-wrap:nowrap;
+  }
+
+  .personal-timeline-summary-text .schedule-main-text,
+  .personal-timeline-summary-text .schedule-equipment-text{
+    display:block;
+  }
+
+  .personal-timeline-summary-text .schedule-equipment-text{
+    margin-left:0;
+    margin-top:2px;
   }
 }
 

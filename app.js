@@ -8833,11 +8833,12 @@ function splitPersonalTimelineSummaryText(text=''){
 }
 function renderPersonalTimelineSummaryLine(item){
   const summaryParts=splitPersonalTimelineSummaryText(item.text);
-  const summaryTextHtml=`<span class="schedule-main-text">${escapeHtml(summaryParts.main||String(item.text||'').trim())}</span>${summaryParts.equipment?`<span class="schedule-equipment-text">${escapeHtml(summaryParts.equipment)}</span>`:''}`;
+  const summaryMainText=escapeHtml(summaryParts.main||String(item.text||'').trim());
+  const summaryEquipmentText=summaryParts.equipment ? escapeHtml(summaryParts.equipment) : '';
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
-  return `<div class="personal-timeline-summary-line"><div class="personal-timeline-summary-top"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text">${summaryTextHtml}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div></div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text"><span class="schedule-main-text">${summaryMainText}</span>${summaryEquipmentText?`<span class="schedule-equipment-text cumulative-equipment-text">${summaryEquipmentText}</span>`:''}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;
@@ -9318,17 +9319,110 @@ function renderEquipmentSharedTvuIndicatorHtml(){
     </span>
   </div>`;
 }
+function getKstDateTimeParts(date=new Date()){
+  const formatter=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Asia/Seoul',
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit',
+    hour12:false
+  });
+  const parts=formatter.formatToParts(date);
+  return {
+    dateKey:`${parts.find(part=>part.type==='year')?.value||'0000'}-${parts.find(part=>part.type==='month')?.value||'00'}-${parts.find(part=>part.type==='day')?.value||'00'}`,
+    time:`${parts.find(part=>part.type==='hour')?.value||'00'}:${parts.find(part=>part.type==='minute')?.value||'00'}`
+  };
+}
+function getPersonalTimelineEntryEndKstInfo(detail={}, dateKey=''){
+  const normalizedEndTime=normalizePersonalTimelineEndTime(detail?.endTime||detail?.종료시간||'');
+  return getPersonalTimelineEntryKstInfo(detail, normalizePersonalTimelineEndDate(detail?.endDate||dateKey||''), normalizedEndTime);
+}
+function getPersonalTimelineEntryStartKstInfo(detail={}, dateKey=''){
+  const normalizedStartTime=normalizePersonalTimelineEndTime(detail?.시작시간||'')||'00:00';
+  return getPersonalTimelineEntryKstInfo(detail, normalizePersonalTimelineEndDate(dateKey||''), normalizedStartTime);
+}
+function getPersonalTimelineEntryKstInfo(detail={}, normalizedDate='', normalizedTime=''){
+  const nextTime=normalizePersonalTimelineEndTime(normalizedTime||'');
+  if(!nextTime) return null;
+  const nextDate=normalizePersonalTimelineEndDate(normalizedDate||'');
+  if(!nextDate) return null;
+  const place=String(detail?.장소||'').trim();
+  const resolvedCityContext=resolveScheduleCityContext(place);
+  const resolvedCity=resolveWorldCupCityName(resolvedCityContext.city||place||NEWS_PROGRAMMING_DEFAULT_CITY);
+  const worldCupInfo=buildWorldCupTimeInfo(nextDate, nextTime, resolvedCity);
+  if(worldCupInfo){
+    return {
+      dateKey:worldCupInfo.koreaDateText,
+      time:worldCupInfo.koreaTime
+    };
+  }
+  return {
+    dateKey:nextDate,
+    time:nextTime
+  };
+}
+function compareKstDateTimePair(leftDateKey='', leftTime='', rightDateKey='', rightTime=''){
+  if(leftDateKey!==rightDateKey) return String(leftDateKey).localeCompare(String(rightDateKey));
+  return String(leftTime).localeCompare(String(rightTime));
+}
+function isPersonalTimelineEntryStarted(detail={}, dateKey=''){
+  const startInfo=getPersonalTimelineEntryStartKstInfo(detail, dateKey);
+  if(!startInfo?.dateKey||!startInfo?.time) return true;
+  const nowKst=getKstDateTimeParts();
+  return compareKstDateTimePair(nowKst.dateKey, nowKst.time, startInfo.dateKey, startInfo.time)>=0;
+}
+function isPersonalTimelineTvuEntryActive(detail={}, dateKey=''){
+  const tvu=normalizeTvuNumberValue(detail?.TVU||'');
+  if(!tvu) return false;
+  if(!isPersonalTimelineEntryStarted(detail, dateKey)) return false;
+  const normalizedEndTime=normalizePersonalTimelineEndTime(detail?.endTime||detail?.종료시간||'');
+  if(!normalizedEndTime||normalizedEndTime==='종료시간 미정') return true;
+  const endInfo=getPersonalTimelineEntryEndKstInfo(detail, dateKey);
+  if(!endInfo?.dateKey||!endInfo?.time) return true;
+  const nowKst=getKstDateTimeParts();
+  return compareKstDateTimePair(nowKst.dateKey, nowKst.time, endInfo.dateKey, endInfo.time)<0;
+}
+function getPersonalTimelineActiveTvuUsage(){
+  loadPersonalTimelineDetailSelections();
+  const activeEntries=[];
+  Object.keys(personalTimelineDetailSelections).sort().forEach(dateKey=>{
+    const people=personalTimelineDetailSelections[dateKey];
+    if(!people||typeof people!=='object') return;
+    Object.keys(people).forEach(name=>{
+      getPersonalTimelineDetailEntries(dateKey, name).forEach((detail, entryIndex)=>{
+        const tvu=normalizeTvuNumberValue(detail?.TVU||'');
+        if(!tvu||!isPersonalTimelineTvuEntryActive(detail, dateKey)) return;
+        activeEntries.push({
+          name,
+          tvu,
+          dateKey,
+          entryIndex,
+          savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
+          createdAt:getPersonalTimelineDetailCreatedAt(detail, dateKey, entryIndex)
+        });
+      });
+    });
+  });
+  activeEntries.sort((a,b)=>{
+    if(a.savedAt!==b.savedAt) return b.savedAt-a.savedAt;
+    if(a.createdAt!==b.createdAt) return b.createdAt-a.createdAt;
+    if(a.dateKey!==b.dateKey) return String(b.dateKey).localeCompare(String(a.dateKey));
+    return Number(b.entryIndex||0)-Number(a.entryIndex||0);
+  });
+  const activeTvus=new Set(activeEntries.map(item=>item.tvu));
+  const activeTvuByName=new Map();
+  activeEntries.forEach(item=>{
+    if(!activeTvuByName.has(item.name)){
+      activeTvuByName.set(item.name, item.tvu);
+    }
+  });
+  return {activeTvus, activeTvuByName};
+}
 function updateEquipmentSharedTvuIndicators(){
   if(typeof document==='undefined') return;
-  const reports=getPersonalTimelineVisibleReportsForDate(getTodayTimelineKey());
-  const activeTvus=new Set(
-    reports
-      .map(item=>normalizeTvuNumberValue(item.detail?.TVU||''))
-      .filter(Boolean)
-  );
-  const activeTvuByName=new Map(
-    reports.map(item=>[item.name, normalizeTvuNumberValue(item.detail?.TVU||'')])
-  );
+  const {activeTvus, activeTvuByName}=getPersonalTimelineActiveTvuUsage();
   document.querySelectorAll('#equipmentUserCol .equipment-user-tvu, .equipment-user-note-shared-inline .equipment-user-tvu').forEach(node=>{
     const tvu=String(node.dataset.tvu||'').trim();
     node.classList.toggle('is-active', activeTvus.has(tvu));
@@ -9435,6 +9529,7 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
     resetPersonalTimelineEndEditorState();
   }
   updateHeaderReportBoard();
+  updateEquipmentSharedTvuIndicators();
   return true;
 }
 function updatePersonalTimelineDetailMemo(dateKey='', name='', entryIndex=-1, memo=''){
@@ -9500,6 +9595,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   }
   savePersonalTimelineDetailSelections();
   updateHeaderReportBoard();
+  updateEquipmentSharedTvuIndicators();
   return {didAppendNew, entryIndex};
 }
 function resetPersonalTimelineEndEditorState(){
@@ -9548,6 +9644,7 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
   savePersonalTimelineDetailSelections();
   reloadPersonalTimelineDetailSelectionsFromStorage();
   updateHeaderReportBoard();
+  updateEquipmentSharedTvuIndicators();
   resetPersonalTimelineEndEditorState();
   return true;
 }
