@@ -7419,6 +7419,7 @@ let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
 let hasLoadedPersonalTimelineSharedEntries = false;
 let hasLoadedPersonalTimelineDetailSelections = false;
+let lastPersonalTimelineDetailsSource = 'empty';
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
@@ -7792,10 +7793,16 @@ function isOfficialPersonalTimelineKeepEntry(dateKey='', name='', detail={}){
   const normalizedName=String(name||'').trim();
   const reporter=String(getPersonalTimelineDetailEntryFieldValue(detail, '취재기자')||'').trim();
   const tvu=normalizeTvuNumberValue(getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
+  const startTime=normalizePersonalTimelineEndTime(getPersonalTimelineDetailEntryFieldValue(detail, '시작시간'));
+  const place=String(getPersonalTimelineDetailEntryFieldValue(detail, '장소')||'').trim();
+  const task=String(getPersonalTimelineDetailEntryFieldValue(detail, '업무내용')||'').trim();
   return normalizedDate==='2026-05-02'
     && normalizedName==='박재현'
     && reporter==='전영희'
-    && tvu==='19번';
+    && tvu==='19번'
+    && startTime==='19:00'
+    && place==='과달라하라'
+    && task==='외곽 취재';
 }
 function getPersonalTimelineDetailExplicitTimestamp(detail={}){
   const savedAt=Number(detail?._savedAt||0);
@@ -7808,6 +7815,7 @@ function isLegacyDisposablePersonalTimelineEntry(dateKey='', name='', detail={},
   const cutoff=Number(cleanupCutoff||0);
   if(cutoff<=0) return false;
   const compareValue=getPersonalTimelineDetailExplicitTimestamp(detail);
+  if(compareValue<=0) return true;
   return Number.isFinite(compareValue)&&compareValue>0&&compareValue<=cutoff;
 }
 function keepOnlyOfficialPersonalTimelineState(state={}){
@@ -7819,10 +7827,12 @@ function keepOnlyOfficialPersonalTimelineState(state={}){
     Object.entries(people).forEach(([name, fields])=>{
       const entries=(Array.isArray(fields) ? fields : [fields]).map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
       const keptEntries=entries.filter(detail=>isOfficialPersonalTimelineKeepEntry(dateKey, name, detail));
-      if(keptEntries.length){
-        nextPeople[name]=keptEntries;
+      const officialEntry=keptEntries.reduce((latest, detail)=>pickLatestPersonalTimelineDetailEntry(latest, detail), null);
+      const stableEntries=officialEntry ? [officialEntry] : [];
+      if(stableEntries.length){
+        nextPeople[name]=stableEntries;
       }
-      if(keptEntries.length!==entries.length){
+      if(stableEntries.length!==entries.length){
         changed=true;
       }
     });
@@ -7880,8 +7890,15 @@ function mergePersonalTimelineDetailsRaw(localRaw='', remoteRaw=''){
       mergedState[dateKey]=mergedPeople;
     }
   });
-  const cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
-  const filteredState=cleanupCutoff>0 ? filterLegacyDisposablePersonalTimelineState(mergedState, cleanupCutoff).state : mergedState;
+  let cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
+  let filteredState;
+  if(cleanupCutoff>0){
+    filteredState=filterLegacyDisposablePersonalTimelineState(mergedState, cleanupCutoff).state;
+  }else{
+    filteredState=keepOnlyOfficialPersonalTimelineState(mergedState).state;
+    cleanupCutoff=Date.now();
+    writeTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY, cleanupCutoff);
+  }
   return Object.keys(filteredState).length ? JSON.stringify(filteredState) : '';
 }
 function applySharedStateSnapshot(rows=[]){
@@ -8756,13 +8773,19 @@ function readPersonalTimelineDetailsRaw(){
   const storages=getTimelineStorageAreas();
   for(const storage of storages){
     const raw=storage.getItem(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY);
-    if(raw) return raw;
+    if(raw){
+      lastPersonalTimelineDetailsSource=storage===window.localStorage ? 'localStorage' : storage===window.sessionStorage ? 'sessionStorage' : 'storage';
+      return raw;
+    }
   }
   if(typeof window==='undefined'||!window.name) return '';
   try{
     const payload=JSON.parse(window.name);
-    return typeof payload?.[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]==='string' ? payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY] : '';
+    const raw=typeof payload?.[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]==='string' ? payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY] : '';
+    lastPersonalTimelineDetailsSource=raw ? 'window.name' : 'empty';
+    return raw;
   }catch(error){
+    lastPersonalTimelineDetailsSource='empty';
     return '';
   }
 }
@@ -8950,7 +8973,7 @@ function renderPersonalTimelineSummaryLine(item){
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
-  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text">${summaryMarkup.mainHtml}</span>${summaryMarkup.equipmentHtml?`<span class="schedule-equipment-text cumulative-equipment-text">${summaryMarkup.equipmentHtml}</span>`:''}${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text">${summaryMarkup.mainHtml}${summaryMarkup.equipmentHtml?` <span class="schedule-equipment-text cumulative-equipment-text">${summaryMarkup.equipmentHtml}</span>`:''}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function buildPersonalTimelineSummaryMarkup(item={}){
   const detail=item?.detail||{};
@@ -8992,18 +9015,18 @@ function buildPersonalTimelineSummaryMarkup(item={}){
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;
   clearObjectEntries(personalTimelineDetailSelections);
+  let cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
+  if(cleanupCutoff<=0){
+    cleanupCutoff=Date.now();
+    writeTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY, cleanupCutoff);
+  }
   if(!raw) return false;
   let didSanitize=false;
   try{
-    let cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
     const savedSelections=JSON.parse(raw);
     const filteredSavedSelections=cleanupCutoff>0
       ? filterLegacyDisposablePersonalTimelineState(savedSelections, cleanupCutoff)
       : keepOnlyOfficialPersonalTimelineState(savedSelections);
-    if(cleanupCutoff<=0){
-      cleanupCutoff=Date.now();
-      writeTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY, cleanupCutoff);
-    }
     if(filteredSavedSelections.changed){
       didSanitize=true;
     }
@@ -9038,6 +9061,9 @@ function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
   hasLoadedPersonalTimelineDetailSelections = true;
   populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:true});
+  if(typeof console!=='undefined'&&typeof console.log==='function'){
+    console.log('[cumulative] data source', lastPersonalTimelineDetailsSource);
+  }
 }
 function reloadPersonalTimelineDetailSelectionsFromStorage(){
   hasLoadedPersonalTimelineDetailSelections=false;
@@ -9612,6 +9638,9 @@ function setPersonalTimelineDetailSelection(dateKey, name, field, value){
 function renderPersonalTimelineSummaryBoard(dateKey){
   loadPersonalTimelineDetailSelections();
   const items=getPersonalTimelineSummaryReportsForDate(dateKey);
+  if(typeof console!=='undefined'&&typeof console.log==='function'){
+    console.log('[cumulative] rendered item count', items.length);
+  }
   const lines=items.map(renderPersonalTimelineSummaryLine).join('');
   return `<div class="personal-timeline-summary-board${items.length?'':' is-empty'}" data-summary-board-date="${dateKey}">${lines}</div>`;
 }
@@ -9621,6 +9650,9 @@ function updatePersonalTimelineSummaryBoard(item, dateKey){
   if(!board) return;
   loadPersonalTimelineDetailSelections();
   const items=getPersonalTimelineSummaryReportsForDate(dateKey);
+  if(typeof console!=='undefined'&&typeof console.log==='function'){
+    console.log('[cumulative] rendered item count', items.length);
+  }
   board.innerHTML=items.map(renderPersonalTimelineSummaryLine).join('');
   board.classList.toggle('is-empty', items.length===0);
 }
@@ -15197,6 +15229,10 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
+  const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
+  const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
+  console.log('[deploy] current deploy check', deployCheckText);
+  console.log('[deploy] current app.js version', appScriptVersion);
 }
 
 resetLegacyWorldCupTimeStorage();
