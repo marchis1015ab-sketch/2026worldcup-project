@@ -7214,6 +7214,7 @@ const PERSONAL_TIMELINE_SHARED_STORAGE_KEY = 'worldcup-guide-personal-timeline-s
 const PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineShared__';
 const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-v1';
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
+const PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY = '__worldcupGuidePersonalTimelineDetailsCleanupAt_20260506__';
 const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_STORAGE_BUCKET = 'timeline-gallery';
@@ -7786,6 +7787,77 @@ function pickLatestPersonalTimelineDetailEntry(localEntry=null, remoteEntry=null
   const remoteScore=getPersonalTimelineDetailEntryMergeScore(remoteEntry);
   return localScore>=remoteScore ? localEntry : remoteEntry;
 }
+function isOfficialPersonalTimelineKeepEntry(dateKey='', name='', detail={}){
+  const normalizedDate=normalizePersonalTimelineEndDate(dateKey||'');
+  const normalizedName=String(name||'').trim();
+  const reporter=String(getPersonalTimelineDetailEntryFieldValue(detail, '취재기자')||'').trim();
+  const tvu=normalizeTvuNumberValue(getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
+  return normalizedDate==='2026-05-02'
+    && normalizedName==='박재현'
+    && reporter==='전영희'
+    && tvu==='19번';
+}
+function getPersonalTimelineDetailExplicitTimestamp(detail={}){
+  const savedAt=Number(detail?._savedAt||0);
+  const createdAt=Number(detail?._createdAt||0);
+  const candidates=[savedAt, createdAt].filter(value=>Number.isFinite(value)&&value>=1000000000000);
+  return candidates.length ? Math.max(...candidates) : 0;
+}
+function isLegacyDisposablePersonalTimelineEntry(dateKey='', name='', detail={}, cleanupCutoff=0){
+  if(isOfficialPersonalTimelineKeepEntry(dateKey, name, detail)) return false;
+  const cutoff=Number(cleanupCutoff||0);
+  if(cutoff<=0) return false;
+  const compareValue=getPersonalTimelineDetailExplicitTimestamp(detail);
+  return Number.isFinite(compareValue)&&compareValue>0&&compareValue<=cutoff;
+}
+function keepOnlyOfficialPersonalTimelineState(state={}){
+  const nextState=Object.create(null);
+  let changed=false;
+  Object.entries(state||{}).forEach(([dateKey, people])=>{
+    if(!people||typeof people!=='object') return;
+    const nextPeople=Object.create(null);
+    Object.entries(people).forEach(([name, fields])=>{
+      const entries=(Array.isArray(fields) ? fields : [fields]).map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+      const keptEntries=entries.filter(detail=>isOfficialPersonalTimelineKeepEntry(dateKey, name, detail));
+      if(keptEntries.length){
+        nextPeople[name]=keptEntries;
+      }
+      if(keptEntries.length!==entries.length){
+        changed=true;
+      }
+    });
+    if(Object.keys(nextPeople).length){
+      nextState[dateKey]=nextPeople;
+    }else if(Object.keys(people||{}).length){
+      changed=true;
+    }
+  });
+  return {state:nextState, changed};
+}
+function filterLegacyDisposablePersonalTimelineState(state={}, cleanupCutoff=0){
+  const nextState=Object.create(null);
+  let changed=false;
+  Object.entries(state||{}).forEach(([dateKey, people])=>{
+    if(!people||typeof people!=='object') return;
+    const nextPeople=Object.create(null);
+    Object.entries(people).forEach(([name, fields])=>{
+      const entries=(Array.isArray(fields) ? fields : [fields]).map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
+      const keptEntries=entries.filter(detail=>!isLegacyDisposablePersonalTimelineEntry(dateKey, name, detail, cleanupCutoff));
+      if(keptEntries.length){
+        nextPeople[name]=keptEntries;
+      }
+      if(keptEntries.length!==entries.length){
+        changed=true;
+      }
+    });
+    if(Object.keys(nextPeople).length){
+      nextState[dateKey]=nextPeople;
+    }else if(Object.keys(people||{}).length){
+      changed=true;
+    }
+  });
+  return {state:nextState, changed};
+}
 function mergePersonalTimelineDetailsRaw(localRaw='', remoteRaw=''){
   const localState=parsePersonalTimelineDetailsState(localRaw);
   const remoteState=parsePersonalTimelineDetailsState(remoteRaw);
@@ -7808,7 +7880,9 @@ function mergePersonalTimelineDetailsRaw(localRaw='', remoteRaw=''){
       mergedState[dateKey]=mergedPeople;
     }
   });
-  return Object.keys(mergedState).length ? JSON.stringify(mergedState) : '';
+  const cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
+  const filteredState=cleanupCutoff>0 ? filterLegacyDisposablePersonalTimelineState(mergedState, cleanupCutoff).state : mergedState;
+  return Object.keys(filteredState).length ? JSON.stringify(filteredState) : '';
 }
 function applySharedStateSnapshot(rows=[]){
   const nextStateByKey=Object.create(null);
@@ -8386,6 +8460,46 @@ function writeTimelineCleanupFlag(flagKey){
     window.name='';
   }
 }
+function readTimelineCleanupMarkerValue(markerKey=''){
+  if(!markerKey) return 0;
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=String(storage.getItem(markerKey)||'').trim();
+    const value=Number(raw||0);
+    if(Number.isFinite(value)&&value>0) return value;
+  }
+  if(typeof window==='undefined'||!window.name) return 0;
+  try{
+    const payload=JSON.parse(window.name);
+    const value=Number(payload?.[markerKey]||0);
+    return Number.isFinite(value)&&value>0 ? value : 0;
+  }catch(error){
+    return 0;
+  }
+}
+function writeTimelineCleanupMarkerValue(markerKey='', value=0){
+  if(!markerKey) return;
+  const numericValue=Number(value||0);
+  if(!Number.isFinite(numericValue)||numericValue<=0) return;
+  const serialized=String(Math.floor(numericValue));
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(markerKey, serialized));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[markerKey]=serialized;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+}
 function removeKimJingwangGuidelineSchedule(){
   if(hasTimelineCleanupFlag(TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY)) return;
   const rowAssignments=timelineAssignments['김진광'];
@@ -8832,13 +8946,48 @@ function splitPersonalTimelineSummaryText(text=''){
   };
 }
 function renderPersonalTimelineSummaryLine(item){
-  const summaryParts=splitPersonalTimelineSummaryText(item.text);
-  const summaryMainText=escapeHtml(summaryParts.main||String(item.text||'').trim());
-  const summaryEquipmentText=summaryParts.equipment ? escapeHtml(summaryParts.equipment) : '';
+  const summaryMarkup=buildPersonalTimelineSummaryMarkup(item);
   const endLabel=formatPersonalTimelineEndLabel(item.detail);
   const memoValue=escapeHtml(String(item?.detail?.memo||'').trim());
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
-  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text"><span class="schedule-main-text">${summaryMainText}</span>${summaryEquipmentText?`<span class="schedule-equipment-text cumulative-equipment-text">${summaryEquipmentText}</span>`:''}</span>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><span class="personal-timeline-summary-text cumulative-main-text">${summaryMarkup.mainHtml}</span>${summaryMarkup.equipmentHtml?`<span class="schedule-equipment-text cumulative-equipment-text">${summaryMarkup.equipmentHtml}</span>`:''}${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+}
+function buildPersonalTimelineSummaryMarkup(item={}){
+  const detail=item?.detail||{};
+  const normalizedPlace=String(getPersonalTimelineDetailEntryFieldValue(detail, '장소')||'').trim();
+  const normalizedTask=String(getPersonalTimelineTaskReportLabel(getPersonalTimelineDetailEntryFieldValue(detail, '업무내용'))||getPersonalTimelineDetailEntryFieldValue(detail, '업무내용')||'').trim();
+  const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', getPersonalTimelineDetailEntryFieldValue(detail, '취재기자'));
+  const savedDateLabel=formatPersonalTimelineSavedDateLabel(item?.dateKey||'');
+  const timeLabel=formatPersonalTimelineTimeRangeLabel(detail, item?.dateKey||'', normalizedPlace||detail?.장소||'');
+  const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'))||'').trim();
+  if(participantLabel&&savedDateLabel&&timeLabel&&normalizedTask&&normalizedPlace&&tvuLabel){
+    const equipmentMatch=tvuLabel.match(/^(TVU\s*\d+번)(?:\s+(TRS\s*\d+))?$/i);
+    const equipmentTvu=String(equipmentMatch?.[1]||tvuLabel).trim();
+    const equipmentTrs=String(equipmentMatch?.[2]||'').trim();
+    const timeParts=String(timeLabel).split(' / ');
+    const localTimePart=String(timeParts[0]||'').trim();
+    const koreaTimePart=String(timeParts.slice(1).join(' / ')||'').trim();
+    return {
+      mainHtml:[
+        `<span class="schedule-person">${escapeHtml(participantLabel)}</span>`,
+        savedDateLabel ? `<span class="schedule-date">${escapeHtml(savedDateLabel)}</span>` : '',
+        localTimePart ? `<span class="schedule-time-local">${escapeHtml(localTimePart)}</span>` : '',
+        koreaTimePart ? `<span class="schedule-time-divider">/</span><span class="schedule-time-korea">${escapeHtml(koreaTimePart)}</span>` : '',
+        normalizedTask ? `<span class="schedule-task">${escapeHtml(normalizedTask)}</span><span class="schedule-connector">를</span>` : '',
+        normalizedPlace ? `<span class="schedule-place">${escapeHtml(normalizedPlace)}</span><span class="schedule-connector">에서</span>` : ''
+      ].join(' '),
+      equipmentHtml:[
+        equipmentTvu ? `<span class="schedule-equipment-tvu">${escapeHtml(equipmentTvu)}</span>` : '',
+        equipmentTrs ? `<span class="schedule-equipment-trs">${escapeHtml(equipmentTrs)}</span>` : '',
+        `<span class="schedule-equipment-rest">을 가지고 진행</span>`
+      ].filter(Boolean).join(' ')
+    };
+  }
+  const summaryParts=splitPersonalTimelineSummaryText(item.text);
+  return {
+    mainHtml:`<span class="schedule-main-text">${escapeHtml(summaryParts.main||String(item.text||'').trim())}</span>`,
+    equipmentHtml:summaryParts.equipment ? `<span class="schedule-equipment-fallback">${escapeHtml(summaryParts.equipment)}</span>` : ''
+  };
 }
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;
@@ -8846,8 +8995,19 @@ function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   if(!raw) return false;
   let didSanitize=false;
   try{
+    let cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
     const savedSelections=JSON.parse(raw);
-    Object.entries(savedSelections||{}).forEach(([dateKey, people])=>{
+    const filteredSavedSelections=cleanupCutoff>0
+      ? filterLegacyDisposablePersonalTimelineState(savedSelections, cleanupCutoff)
+      : keepOnlyOfficialPersonalTimelineState(savedSelections);
+    if(cleanupCutoff<=0){
+      cleanupCutoff=Date.now();
+      writeTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY, cleanupCutoff);
+    }
+    if(filteredSavedSelections.changed){
+      didSanitize=true;
+    }
+    Object.entries(filteredSavedSelections.state||{}).forEach(([dateKey, people])=>{
       if(!people||typeof people!=='object') return;
       const sanitizedPeople=Object.create(null);
       Object.entries(people).forEach(([name, fields])=>{

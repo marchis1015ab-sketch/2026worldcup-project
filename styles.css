@@ -6113,15 +6113,41 @@ input[type="file"]{
   font-size:13px;
   font-weight:700;
   line-height:1.5;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  word-break:keep-all;
+  overflow-wrap:break-word;
 }
 .personal-timeline-summary-text .schedule-main-text,
 .personal-timeline-summary-text .schedule-equipment-text{
   display:inline;
 }
 .personal-timeline-summary-text .schedule-equipment-text{
+  margin-left:4px;
+}
+.personal-timeline-summary-text .schedule-person,
+.personal-timeline-summary-text .schedule-date,
+.personal-timeline-summary-text .schedule-time-local,
+.personal-timeline-summary-text .schedule-time-korea,
+.personal-timeline-summary-text .schedule-task,
+.personal-timeline-summary-text .schedule-place,
+.schedule-equipment-text .schedule-equipment-tvu,
+.schedule-equipment-text .schedule-equipment-trs{
+  display:inline-block;
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:normal;
+}
+.personal-timeline-summary-text .schedule-time-divider,
+.personal-timeline-summary-text .schedule-connector,
+.schedule-equipment-text .schedule-equipment-rest,
+.schedule-equipment-text .schedule-equipment-fallback{
+  white-space:normal;
+  word-break:keep-all;
+  overflow-wrap:break-word;
+}
+.schedule-equipment-text .schedule-equipment-trs{
   margin-left:4px;
 }
 .personal-timeline-summary-text-mobile{
