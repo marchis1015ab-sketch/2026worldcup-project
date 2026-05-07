@@ -7617,6 +7617,7 @@ let timelineGalleryEntrySeq = 0;
 let timelineGalleryImageSeq = 0;
 let isTimelineGalleryComposerOpen = false;
 let isTimelineGalleryDeleteMode = false;
+let isTimelineGallerySaving = false;
 let timelineGalleryEditingGroupKey = '';
 let timelineGalleryPreviewState = null;
 let timelineGalleryHydrationPromise = null;
@@ -12501,7 +12502,7 @@ function renderTimelineGalleryComposerPreview(){
 }
 function renderGalleryForm(){
   const state=timelineGalleryComposerState;
-  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진/영상 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진/영상 첨부</span><input type="file" id="gallery-upload" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" data-ios-photo-choice="true" accept="image/*,video/*"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
+  return `<section class="timeline-gallery-form simple-form-card" aria-label="갤러리 작성"><div class="timeline-gallery-form-head"><h4 class="simple-form-title">사진/영상 기록 작성</h4></div><div class="timeline-gallery-form-grid"><label class="simple-form-field"><span class="simple-form-label">촬영일</span><input type="date" id="gallery-date" class="simple-form-input" data-gallery-field="shoot-date" value="${escapeHtml(state.shootDate||getTodayTimelineKey())}"></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">사진/영상 첨부</span><input type="file" id="gallery-upload" class="simple-form-input timeline-gallery-file-input" data-gallery-field="images" data-ios-photo-choice="true" accept="image/*,video/*" multiple></label><label class="simple-form-field timeline-gallery-form-field-wide"><span class="simple-form-label">메모</span><input type="text" id="gallery-memo" class="simple-form-input" data-gallery-field="memo" placeholder="메모 입력" value="${escapeHtml(state.memo||'')}"></label></div><div id="timelineGalleryComposerPreview" class="timeline-gallery-preview-grid">${renderTimelineGalleryComposerPreview()}</div><div class="timeline-gallery-form-actions"><button type="button" class="section-title-action-btn" data-gallery-action="cancel-form">취소</button><button type="button" class="section-title-action-btn export-action-btn" data-gallery-action="save">저장</button></div></section>`;
 }
 function renderTimelineGalleryCard(group){
   if(!group?.representative) return '';
@@ -12678,7 +12679,7 @@ function toggleTimelineGalleryDeleteMode(){
   if(timelineGalleryPreviewState) renderTimelineGalleryModal();
 }
 async function saveGalleryEntry(options={}){
-  if(!requireEditAccess()) return;
+  if(!requireEditAccess()||isTimelineGallerySaving) return;
   const notifySuccess=Boolean(options.notifySuccess);
   const root=document.querySelector('.timeline-gallery-view')||document;
   updateTimelineGalleryComposerStateFromForm(root);
@@ -12691,32 +12692,58 @@ async function saveGalleryEntry(options={}){
   }
   const saveButton=root.querySelector('[data-gallery-action="save"]');
   const uploadInput=root.querySelector('#gallery-upload');
+  isTimelineGallerySaving=true;
   if(saveButton) saveButton.disabled=true;
   if(uploadInput) uploadInput.disabled=true;
   try{
     const savedAt=Date.now();
     const nextItems=[];
+    const failedUploads=[];
     for(const image of images){
-      const id=createTimelineGalleryEntryId();
-      const uploadInfo=await uploadTimelineGalleryImage(image, id);
-      nextItems.push({
-        id,
-        fileName:image.fileName,
-        type:image.type||getTimelineGalleryMediaType(image),
-        dataUrl:'',
-        publicUrl:uploadInfo.publicUrl,
-        storagePath:uploadInfo.storagePath,
-        mimeType:uploadInfo.mimeType,
-        fileSize:uploadInfo.fileSize,
-        capturedDate,
-        savedAt,
-        memo
-      });
+      try{
+        const id=createTimelineGalleryEntryId();
+        const uploadInfo=await uploadTimelineGalleryImage(image, id);
+        nextItems.push({
+          id,
+          fileName:image.fileName,
+          type:image.type||getTimelineGalleryMediaType(image),
+          dataUrl:'',
+          publicUrl:uploadInfo.publicUrl,
+          storagePath:uploadInfo.storagePath,
+          mimeType:uploadInfo.mimeType,
+          fileSize:uploadInfo.fileSize,
+          capturedDate,
+          savedAt,
+          memo
+        });
+      }catch(error){
+        failedUploads.push({image, error});
+        logTimelineGalleryStorageFailure(error, {
+          fileName:image?.fileName||'',
+          capturedDate,
+          memo
+        });
+      }
     }
-    const latestStoredEntries=await getTimelineGalleryEntriesForSave();
-    timelineGalleryEntries=filterDeletedTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, ...nextItems]);
-    saveTimelineGalleryEntries();
-    if(sharedStateSyncReady) await flushPendingSharedStateWrites();
+    if(nextItems.length){
+      const latestStoredEntries=await getTimelineGalleryEntriesForSave();
+      timelineGalleryEntries=filterDeletedTimelineGalleryEntries([...latestStoredEntries, ...timelineGalleryEntries, ...nextItems]);
+      saveTimelineGalleryEntries();
+      if(sharedStateSyncReady) await flushPendingSharedStateWrites();
+    }
+    if(failedUploads.length){
+      timelineGalleryComposerState={
+        shootDate:capturedDate,
+        memo,
+        images:failedUploads.map(item=>item.image)
+      };
+      persistTimelineGalleryComposerDraft();
+      refreshTimelineGalleryView();
+      window.alert(nextItems.length
+        ? `업로드 완료 ${nextItems.length}건, 실패 ${failedUploads.length}건`
+        : `업로드 실패 ${failedUploads.length}건\n같은 날짜와 메모는 유지된 상태로 다시 시도할 수 있습니다.`);
+      return;
+    }
     isTimelineGalleryComposerOpen=false;
     resetTimelineGalleryComposerState();
     clearDraft();
@@ -12727,8 +12754,10 @@ async function saveGalleryEntry(options={}){
     const details=getTimelineGalleryStorageErrorDetails(error);
     window.alert(`업로드 실패\n원인: ${details.message||'알 수 없는 오류'}`);
   }finally{
+    if(uploadInput) uploadInput.value='';
     if(saveButton) saveButton.disabled=false;
     if(uploadInput) uploadInput.disabled=false;
+    isTimelineGallerySaving=false;
   }
 }
 async function deleteGalleryEntries(){
