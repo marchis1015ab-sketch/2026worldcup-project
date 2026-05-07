@@ -802,6 +802,7 @@ let equipmentSummaryEditMode = false;
 let personalEquipmentEditModes = Object.create(null);
 let equipmentEditDraftRows = null;
 let equipmentState = [];
+let equipmentSummaryBaseRowCount = 0;
 let currentMapSubTab = 'region';
 let currentMapActionMode = '';
 const NEWS_PROGRAMMING_TEMPLATE = [
@@ -1768,11 +1769,19 @@ function isEquipmentRowTouched(row=[]){
 function buildEquipmentSummaryDefaultRows(){
   return equipmentSummaryData.map(item=>normalizeEquipmentRowValues(item));
 }
+const EQUIPMENT_SHARED_BATCH_EDIT_ROW_COUNT = 24;
 function normalizeEquipmentState(rows=[]){
   const normalizedRows=(Array.isArray(rows)?rows:[])
     .map(normalizeEquipmentRowValues)
     .filter(row=>isEquipmentRowTouched(row));
-  return [...normalizedRows, createEmptyEquipmentRow()];
+  return normalizedRows;
+}
+function buildEquipmentSummaryDraftRows(rows=[], blankRowCount=EQUIPMENT_SHARED_BATCH_EDIT_ROW_COUNT){
+  const normalizedRows=normalizeEquipmentState(rows);
+  return [
+    ...normalizedRows,
+    ...Array.from({length:blankRowCount}, ()=>createEmptyEquipmentRow())
+  ];
 }
 function ensureEquipmentRowIds(rows=[]){
   return normalizeEquipmentState(rows);
@@ -1897,13 +1906,21 @@ function getCurrentEquipmentSourceRows(){
 function setEquipmentSummaryEditMode(isEditing=false){
   equipmentSummaryEditMode=Boolean(isEditing);
   personalEquipmentEditModes=Object.create(null);
-  equipmentEditDraftRows=equipmentSummaryEditMode ? cloneEquipmentRows(loadEquipmentState()) : null;
+  if(equipmentSummaryEditMode){
+    const persistedRows=cloneEquipmentRows(loadEquipmentState());
+    equipmentSummaryBaseRowCount=persistedRows.length;
+    equipmentEditDraftRows=buildEquipmentSummaryDraftRows(persistedRows);
+  }else{
+    equipmentSummaryBaseRowCount=0;
+    equipmentEditDraftRows=null;
+  }
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
 }
 function setPersonalEquipmentEditMode(userName='', isEditing=false){
   const normalizedUser=String(userName||'').trim();
   equipmentSummaryEditMode=false;
+  equipmentSummaryBaseRowCount=0;
   personalEquipmentEditModes=Object.create(null);
   if(normalizedUser&&isEditing){
     personalEquipmentEditModes[normalizedUser]=true;
@@ -1917,8 +1934,9 @@ function setPersonalEquipmentEditMode(userName='', isEditing=false){
 function beginEquipmentSummaryEditing(){
   setEquipmentSummaryEditMode(true);
   renderEquipmentSharedDetail();
-  const lastRowIndex=Math.max(0, getEquipmentRows('shared').length-1);
-  focusEquipmentSharedField(lastRowIndex, 0);
+  const rows=getEquipmentRows('shared');
+  const focusRowIndex=Math.min(Math.max(equipmentSummaryBaseRowCount, 0), Math.max(rows.length-1, 0));
+  focusEquipmentSharedField(focusRowIndex, 0);
 }
 function beginPersonalEquipmentEditing(userName=''){
   const normalizedUser=String(userName||'').trim();
@@ -1933,7 +1951,19 @@ function beginPersonalEquipmentEditing(userName=''){
 }
 function handleEquipmentSummarySave(){
   if(!isEquipmentSummaryEditMode()||!Array.isArray(equipmentEditDraftRows)) return;
-  saveEquipmentState(equipmentEditDraftRows);
+  const persistedRows=cloneEquipmentRows(loadEquipmentState());
+  const persistedCount=Math.min(Math.max(Number(equipmentSummaryBaseRowCount)||0, 0), persistedRows.length);
+  const draftRows=cloneEquipmentRows(equipmentEditDraftRows);
+  const updatedExistingRows=persistedRows.map((row, rowIndex)=>{
+    if(rowIndex>=persistedCount) return row;
+    const draftRow=normalizeEquipmentRowValues(draftRows[rowIndex]||row);
+    return isEquipmentRowTouched(draftRow) ? draftRow : row;
+  });
+  const appendedRows=draftRows
+    .slice(persistedCount)
+    .map(normalizeEquipmentRowValues)
+    .filter(row=>isEquipmentRowTouched(row));
+  saveEquipmentState([...updatedExistingRows, ...appendedRows]);
   setEquipmentSummaryEditMode(false);
   renderEquipmentSharedDetail();
   renderAllPersonalEquipmentTables();
@@ -2028,17 +2058,10 @@ function updateEquipmentSharedCell(rowIndex=0, colIndex=0, nextValue=''){
   const normalizedColumn=Number(colIndex);
   if(Number.isNaN(normalizedIndex)||normalizedIndex<0||normalizedIndex>=rows.length) return;
   if(Number.isNaN(normalizedColumn)||normalizedColumn<0||normalizedColumn>=getEquipmentHeaders('shared').length) return;
-  const previousLength=rows.length;
   rows[normalizedIndex][normalizedColumn]=String(nextValue||'').trim();
-  const normalizedRows=normalizeEquipmentState(rows);
-  const shouldRerender=normalizedRows.length!==previousLength;
-  equipmentEditDraftRows=normalizedRows;
+  equipmentEditDraftRows=rows;
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
-  if(shouldRerender&&currentEquipmentMode==='shared'){
-    renderEquipmentSharedDetail();
-    focusEquipmentSharedField(normalizedIndex, normalizedColumn);
-  }
 }
 function updateEquipmentRow(rowId='', fieldIndex=0, nextValue=''){
   if(!isPersonalEquipmentEditMode(currentEquipmentUser)) return;
@@ -2110,7 +2133,14 @@ function deleteSelectedEquipmentSummaryRows(){
   const rows=sourceRows
     .map(normalizeEquipmentRowValues)
     .filter(row=>!removableRowIdSet.has(String(row[row.length-1]||'').trim()));
-  equipmentEditDraftRows=normalizeEquipmentState(rows);
+  equipmentSummaryBaseRowCount=Math.max(
+    0,
+    Math.min(
+      equipmentSummaryBaseRowCount,
+      rows.filter(row=>isEquipmentRowTouched(row)).length
+    )
+  );
+  equipmentEditDraftRows=buildEquipmentSummaryDraftRows(rows);
   renderCache.equipmentSharedTable='';
   renderCache.equipmentPersonalTables=Object.create(null);
   renderEquipmentSharedDetail();
@@ -7646,6 +7676,7 @@ function resetEquipmentSyncState(){
   equipmentSummaryEditMode=false;
   personalEquipmentEditModes=Object.create(null);
   equipmentEditDraftRows=null;
+  equipmentSummaryBaseRowCount=0;
   equipmentState=[];
   equipmentCarnetEntries=[];
   isEquipmentCarnetComposerOpen=false;
@@ -15591,7 +15622,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-  console.log('APP VERSION: 2026-05-06-global-stability-optimize-01');
+console.log('APP VERSION: 2026-05-07-equipment-batch-edit-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
