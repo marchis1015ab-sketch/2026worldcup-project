@@ -2521,8 +2521,9 @@ async function fetchEquipmentCarnetEntriesFromSupabase(){
   if(!client) return null;
   const {data, error}=await client
     .from(DOCUMENTS_TABLE)
-    .select('*')
-    .order('uploaded_at', {ascending:false});
+    .select(DOCUMENTS_TABLE_SELECT_COLUMNS)
+    .order('uploaded_at', {ascending:false})
+    .limit(200);
   if(error){
     console.warn('[document-storage] documents table load failed; falling back to storage list.', error);
     try{
@@ -3332,8 +3333,9 @@ async function fetchEquipmentFileStorageEntriesFromSupabase(){
   if(!client) return null;
   const {data, error}=await client
     .from(FILE_STORAGE_TABLE)
-    .select('*')
-    .order('uploaded_at', {ascending:false});
+    .select(FILE_STORAGE_TABLE_SELECT_COLUMNS)
+    .order('uploaded_at', {ascending:false})
+    .limit(200);
   if(error){
     console.warn('[file-storage] table load failed; falling back to storage list.', error);
     try{
@@ -7406,6 +7408,16 @@ const SHARED_STATE_SYNC_REGISTRY = {
   [HEADER_REPORT_BOARD_RECENT_STORAGE_KEY]: {windowNameKey: HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY}
 };
 const SHARED_STATE_SYNC_KEYS = Object.keys(SHARED_STATE_SYNC_REGISTRY);
+const SHARED_STATE_LAZY_FETCH_KEYS = new Set([
+  TIMELINE_GALLERY_STORAGE_KEY,
+  TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY,
+  EQUIPMENT_CARNET_STORAGE_KEY
+]);
+const SHARED_STATE_INITIAL_FETCH_KEYS = SHARED_STATE_SYNC_KEYS.filter(key=>!SHARED_STATE_LAZY_FETCH_KEYS.has(key));
+const SHARED_STATE_INITIAL_FETCH_KEY_SET = new Set(SHARED_STATE_INITIAL_FETCH_KEYS);
+const SCHEDULES_TABLE_SELECT_COLUMNS = 'id,title,assignee,date,start_date,end_date,time,start_time,end_time,city,location,tvu,memo,created_at';
+const DOCUMENTS_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,file_size,storage_path,public_url,uploaded_at,memo,uploader,created_at,preview_data,original_data,deleted,removed,hidden,is_deleted,deleted_at,removed_at,hidden_at';
+const FILE_STORAGE_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,mime_type,file_size,storage_path,public_url,uploaded_at,uploader,created_at,preview_data,original_data';
 let sharedStateSyncClient = null;
 let sharedStateSyncChannel = null;
 let sharedStateSyncReady = false;
@@ -7413,6 +7425,7 @@ let sharedStateInitialSnapshotLoaded = false;
 let sharedStateSyncDisabled = false;
 let sharedStateSyncFetchInProgress = false;
 let sharedStateSyncNeedsRefetch = false;
+const sharedStatePendingRefetchKeys = new Set();
 let sharedStateSyncWriteInProgress = false;
 let sharedStateSyncWriteTimerId = null;
 const sharedStatePendingWrites = new Map();
@@ -7577,6 +7590,10 @@ let isGalleryUserScrolling = false;
 let galleryScrollTimer = null;
 let timelineGalleryPendingAutoRefresh = false;
 let lastTimelineGalleryScrollState = null;
+let sharedStateSyncInitStarted = false;
+let hasInitializedNewsProgrammingPersistence = false;
+let schedulesLoadPromise = null;
+let schedulesLoadedRangeKey = '';
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
@@ -8285,13 +8302,41 @@ function applySharedStateSnapshot(rows=[]){
   resetSharedStateSyncCaches(changedKeys);
   rerenderVisibleSharedStateViews(changedKeys);
 }
-async function fetchSharedStateSnapshot(){
+function normalizeSharedStateFetchKeys(storageKeys=[]){
+  const source=Array.isArray(storageKeys)&&storageKeys.length ? storageKeys : SHARED_STATE_INITIAL_FETCH_KEYS;
+  return Array.from(new Set(source.map(key=>String(key||'').trim()).filter(key=>SHARED_STATE_SYNC_REGISTRY[key])));
+}
+function shouldMarkInitialSharedStateSnapshot(keys=[]){
+  return Array.isArray(keys)&&keys.length>0&&keys.every(key=>SHARED_STATE_INITIAL_FETCH_KEY_SET.has(key));
+}
+function queueSharedStateRefetchKeys(storageKeys=[]){
+  normalizeSharedStateFetchKeys(storageKeys).forEach(key=>sharedStatePendingRefetchKeys.add(key));
+}
+function getVisibleSharedStateFetchKeys(){
+  const keys=[...SHARED_STATE_INITIAL_FETCH_KEYS];
+  if(document.querySelector('.timeline-gallery-view')){
+    keys.push(TIMELINE_GALLERY_STORAGE_KEY, TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY);
+  }
+  return normalizeSharedStateFetchKeys(keys);
+}
+async function fetchSharedStateSnapshot(storageKeys=SHARED_STATE_INITIAL_FETCH_KEYS, options={}){
+  const requestedKeys=normalizeSharedStateFetchKeys(storageKeys);
+  const markInitial=options?.markInitial!==false&&shouldMarkInitialSharedStateSnapshot(requestedKeys);
   const client=getSharedStateSyncClient();
   if(!client){
-    sharedStateInitialSnapshotLoaded=true;
+    if(markInitial){
+      sharedStateInitialSnapshotLoaded=true;
+    }
+    return;
+  }
+  if(!requestedKeys.length){
+    if(markInitial){
+      sharedStateInitialSnapshotLoaded=true;
+    }
     return;
   }
   if(sharedStateSyncFetchInProgress){
+    queueSharedStateRefetchKeys(requestedKeys);
     sharedStateSyncNeedsRefetch=true;
     return;
   }
@@ -8301,7 +8346,7 @@ async function fetchSharedStateSnapshot(){
     const {data, error}=await client
       .from(SHARED_STATE_SYNC_TABLE)
       .select('state_key,state_value')
-      .in('state_key', SHARED_STATE_SYNC_KEYS);
+      .in('state_key', requestedKeys);
     if(error){
       if(error.code==='42P01'){
         disableSharedStateSync(error);
@@ -8314,20 +8359,24 @@ async function fetchSharedStateSnapshot(){
   }catch(error){
     console.warn('Shared state fetch failed.', error);
   }finally{
-    sharedStateInitialSnapshotLoaded=true;
+    if(markInitial){
+      sharedStateInitialSnapshotLoaded=true;
+    }
     sharedStateSyncFetchInProgress=false;
-    if(!wasInitialSnapshotLoaded){
+    if(!wasInitialSnapshotLoaded&&markInitial){
       rerenderVisibleSharedStateViews([
         PERSONAL_TIMELINE_DETAILS_STORAGE_KEY,
         PERSONAL_TIMELINE_SHARED_STORAGE_KEY,
-        TIMELINE_GALLERY_STORAGE_KEY,
-        TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY,
-        EQUIPMENT_CARNET_STORAGE_KEY
+        HEADER_REPORT_BOARD_RECENT_STORAGE_KEY
       ]);
     }
     if(sharedStateSyncNeedsRefetch){
       sharedStateSyncNeedsRefetch=false;
-      fetchSharedStateSnapshot();
+      const nextKeys=sharedStatePendingRefetchKeys.size
+        ? Array.from(sharedStatePendingRefetchKeys)
+        : getVisibleSharedStateFetchKeys();
+      sharedStatePendingRefetchKeys.clear();
+      fetchSharedStateSnapshot(nextKeys, {markInitial:shouldMarkInitialSharedStateSnapshot(nextKeys)});
     }
   }
 }
@@ -8343,7 +8392,7 @@ function startSharedStateRealtimeSync(){
         schema:'public',
         table:SHARED_STATE_SYNC_TABLE
       },
-      ()=>fetchSharedStateSnapshot()
+      ()=>fetchSharedStateSnapshot(getVisibleSharedStateFetchKeys(), {markInitial:false})
     )
     .subscribe((status)=>{
       if(status==='SUBSCRIBED'){
@@ -8353,11 +8402,12 @@ function startSharedStateRealtimeSync(){
     });
 }
 function initSharedStateSync(){
-  if(sharedStateSyncDisabled) return;
+  if(sharedStateSyncDisabled||sharedStateSyncInitStarted) return;
   const client=getSharedStateSyncClient();
   if(!client) return;
+  sharedStateSyncInitStarted=true;
   sharedStateSyncReady=true;
-  fetchSharedStateSnapshot();
+  fetchSharedStateSnapshot(SHARED_STATE_INITIAL_FETCH_KEYS, {markInitial:true});
   startSharedStateRealtimeSync();
   flushPendingSharedStateWrites();
 }
@@ -8473,6 +8523,44 @@ function expandSchedulesByDate(schedules, targetDate){
 }
 function renderSchedules(data){
   window.supabaseSchedules=(Array.isArray(data) ? data : []).map(normalizeSchedule);
+}
+function shiftScheduleDateKey(dateKey='', dayOffset=0){
+  const normalized=String(dateKey||'').trim()||getTodayTimelineKey();
+  const baseDate=new Date(`${normalized}T00:00:00`);
+  if(Number.isNaN(baseDate.getTime())) return getTodayTimelineKey();
+  baseDate.setDate(baseDate.getDate()+Number(dayOffset||0));
+  return [
+    baseDate.getFullYear(),
+    String(baseDate.getMonth()+1).padStart(2, '0'),
+    String(baseDate.getDate()).padStart(2, '0')
+  ].join('-');
+}
+function getScheduleLoadCenterDateKey(dateKey=''){
+  return String(dateKey||currentPersonalTimelineDateKey||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+}
+function buildScheduleLoadRange(dateKey='', preloadDays=1){
+  const centerDateKey=getScheduleLoadCenterDateKey(dateKey);
+  const delta=Math.max(0, Number(preloadDays||0));
+  return {
+    centerDateKey,
+    from:shiftScheduleDateKey(centerDateKey, -delta),
+    to:shiftScheduleDateKey(centerDateKey, delta)
+  };
+}
+function buildScheduleLoadRangeKey(dateKey='', preloadDays=1){
+  const range=buildScheduleLoadRange(dateKey, preloadDays);
+  return `${range.from}__${range.centerDateKey}__${range.to}`;
+}
+function buildScheduleRangeFilter(dateKey='', preloadDays=1){
+  const range=buildScheduleLoadRange(dateKey, preloadDays);
+  const from=range.from;
+  const to=range.to;
+  return [
+    `and(start_date.lte.${to},end_date.gte.${from})`,
+    `and(start_date.is.null,date.gte.${from},date.lte.${to})`,
+    `and(end_date.is.null,start_date.gte.${from},start_date.lte.${to})`,
+    `and(date.gte.${from},date.lte.${to})`
+  ].join(',');
 }
 function buildMessage(schedule) {
   const timeLabel=buildWorldCupTimeLabel(schedule?.date||'', schedule?.time||'', schedule?.city||'');
@@ -8651,24 +8739,43 @@ async function saveSchedule(data, options={}) {
   } else {
     if(showSuccessAlert) alert('저장 완료');
     await sendScheduleSMS(scheduleData);
-    loadSchedules();
+    loadSchedules({force:true, dateKey:scheduleData.date, preloadDays:1});
     return true;
   }
 }
-async function loadSchedules() {
+async function loadSchedules(options={}) {
+  const requestedDateKey=options?.dateKey||'';
+  const force=Boolean(options?.force);
+  const preloadDays=options?.preloadDays??1;
   const supabaseClient=getScheduleSupabaseClient();
   if(!supabaseClient) return;
-  const { data, error } = await supabaseClient
-    .from(SCHEDULES_TABLE)
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error(error);
-    return;
+  const rangeKey=buildScheduleLoadRangeKey(requestedDateKey, preloadDays);
+  if(!force&&schedulesLoadedRangeKey===rangeKey&&Array.isArray(window.supabaseSchedules)){
+    return window.supabaseSchedules;
   }
+  if(!force&&schedulesLoadPromise&&schedulesLoadedRangeKey===rangeKey){
+    return schedulesLoadPromise;
+  }
+  schedulesLoadedRangeKey=rangeKey;
+  schedulesLoadPromise=(async()=>{
+    const { data, error } = await supabaseClient
+      .from(SCHEDULES_TABLE)
+      .select(SCHEDULES_TABLE_SELECT_COLUMNS)
+      .or(buildScheduleRangeFilter(requestedDateKey, preloadDays))
+      .order('created_at', { ascending: false })
+      .limit(200);
 
-  renderSchedules(data);
+    if (error) {
+      console.error(error);
+      return window.supabaseSchedules||[];
+    }
+
+    renderSchedules(data);
+    return window.supabaseSchedules||[];
+  })().finally(()=>{
+    schedulesLoadPromise=null;
+  });
+  return schedulesLoadPromise;
 }
 function subscribeRealtime() {
   const supabaseClient=getScheduleSupabaseClient();
@@ -8684,7 +8791,7 @@ function subscribeRealtime() {
       },
       () => {
         console.log('🔄 실시간 업데이트');
-        loadSchedules();
+        loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
       }
     )
     .subscribe();
@@ -11652,6 +11759,9 @@ async function getTimelineGalleryEntriesForSave(){
   return filterDeletedTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(readTimelineGalleryRaw()), deletedIdsSet);
 }
 async function hydrateTimelineGalleryEntries(force=false){
+  if(!force&&hasLoadedTimelineGalleryEntries&&hasResolvedTimelineGalleryEntries&&!timelineGalleryHydrationPromise){
+    return Promise.resolve(timelineGalleryEntries);
+  }
   if(!force&&timelineGalleryHydrationPromise) return timelineGalleryHydrationPromise;
   isTimelineGalleryHydrating=true;
   timelineGalleryHydrationPromise=(async ()=>{
@@ -16102,6 +16212,8 @@ function resetLegacyWorldCupTimeStorage(){
   }
 }
 function initializeNewsProgrammingPersistence(){
+  if(hasInitializedNewsProgrammingPersistence) return;
+  hasInitializedNewsProgrammingPersistence=true;
   loadTicker();
   loadNewsProgrammingState();
   ensureNewsProgrammingLocalPersistenceLoaded();
@@ -16116,7 +16228,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-shared-timeout-retry-01');
+console.log('APP VERSION: 2026-05-07-initial-load-optimize-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
