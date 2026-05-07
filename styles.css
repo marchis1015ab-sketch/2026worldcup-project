@@ -1,5 +1,5 @@
 ﻿:root{
-/* STYLE VERSION: 2026-05-06-document-cache-fix-01 */
+/* STYLE VERSION: 2026-05-06-global-stability-optimize-01 */
   --bg-top:#e9edf2;
   --bg-bottom:#eef2f6;
   --panel-bg:rgba(255,255,255,.96);
@@ -6538,6 +6538,28 @@ input[type="file"]{
   transform:none;
   box-shadow:none;
 }
+.section-title-actions,
+.personal-timeline-summary-actions,
+.timeline-gallery-actions,
+.timeline-gallery-form-actions,
+.news-editor-modal-actions,
+.simple-info-actions,
+.equipment-file-storage-card-actions,
+.document-storage-viewer-actions{
+  position:relative;
+  z-index:1;
+  pointer-events:auto;
+}
+.section-title-actions > *,
+.personal-timeline-summary-actions > *,
+.timeline-gallery-actions > *,
+.timeline-gallery-form-actions > *,
+.news-editor-modal-actions > *,
+.simple-info-actions > *,
+.equipment-file-storage-card-actions > *,
+.document-storage-viewer-actions > *{
+  pointer-events:auto;
+}
 .tab,
 .tab-active,
 .menu,
@@ -6726,6 +6748,7 @@ textarea.simple-form-input:focus,
 .squad-country-tab,
 .personal-timeline-person-tab{
   flex-shrink:0;
+  touch-action:manipulation;
 }
 .section-title-row,
 .map-location-pin-header,
@@ -6745,6 +6768,71 @@ textarea.simple-form-input:focus,
 .personal-timeline-summary-title{
   min-width:0;
   overflow-wrap:anywhere;
+}
+.personal-timeline-summary-line,
+.personal-timeline-summary-main,
+.personal-timeline-summary-text,
+.personal-timeline-summary-text-line,
+.personal-timeline-summary-memo-row,
+.personal-timeline-summary-actions,
+.timeline-gallery-card-body,
+.timeline-gallery-card-title-row,
+.timeline-gallery-form-grid{
+  min-width:0;
+}
+.personal-timeline-summary-text,
+.personal-timeline-summary-memo-input,
+.personal-timeline-summary-end-label,
+.personal-timeline-summary-write,
+.personal-timeline-summary-save,
+.personal-timeline-summary-delete,
+.schedule-person,
+.schedule-date,
+.schedule-time-local,
+.schedule-time-divider,
+.schedule-time-korea,
+.schedule-task,
+.schedule-place,
+.schedule-connector,
+.schedule-equipment-tvu,
+.schedule-equipment-trs,
+.schedule-equipment-rest,
+.schedule-main-text,
+.schedule-equipment-fallback{
+  font-family:inherit;
+}
+.personal-timeline-summary-text-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:2px 6px;
+  width:100%;
+  word-break:keep-all;
+  overflow-wrap:break-word;
+  white-space:normal;
+}
+.schedule-person,
+.schedule-date,
+.schedule-time-local,
+.schedule-time-korea,
+.schedule-task,
+.schedule-place,
+.schedule-connector,
+.schedule-equipment-rest,
+.schedule-main-text,
+.schedule-equipment-fallback{
+  word-break:keep-all;
+  overflow-wrap:break-word;
+  white-space:normal;
+}
+.schedule-person,
+.schedule-date,
+.schedule-time-local,
+.schedule-time-divider,
+.schedule-time-korea,
+.schedule-equipment-tvu,
+.schedule-equipment-trs{
+  white-space:nowrap;
 }
 
 /* Typography system: conservative text levels mapped onto existing UI without layout changes. */
