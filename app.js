@@ -2801,10 +2801,10 @@ function renderEquipmentCarnetComposer(){
       </label>
       <label class="simple-form-field">
         <span class="simple-form-label">파일 첨부</span>
-        <input id="document-storage-upload" class="equipment-carnet-file-input" type="file" accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4">
+        <input id="document-storage-upload" class="equipment-carnet-file-input" type="file" accept=".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4" multiple>
       </label>
     </div>
-    <p class="carnet-list-composer-description">문서, 이미지, 영상 파일을 Supabase 문서보관에 업로드합니다.</p>
+    <p class="carnet-list-composer-description">문서, 이미지, 영상 파일을 여러 개 한 번에 선택해 Supabase 문서보관에 업로드합니다.</p>
     <div class="simple-info-actions carnet-list-form-actions">
       <button type="button" class="section-title-action-btn" onclick="saveEquipmentCarnetEntry(this)">저장</button>
       <button type="button" class="section-title-action-btn" onclick="closeEquipmentCarnetComposer()">취소</button>
@@ -2915,33 +2915,54 @@ async function saveEquipmentCarnetEntry(saveButton=null){
   const titleInput=document.getElementById('equipmentCarnetTitleInput');
   const fileInput=document.getElementById('document-storage-upload')||document.getElementById('equipmentCarnetFileInput');
   const memo=String(titleInput?.value||'').trim();
-  const file=fileInput?.files?.[0]||null;
-  if(!file){
+  const files=Array.from(fileInput?.files||[]);
+  if(!files.length){
     window.alert('첨부할 파일을 선택해주세요.');
     fileInput?.focus();
     return;
   }
-  const fileType=getEquipmentCarnetFileType(file.name, file.type);
-  if(!isEquipmentCarnetFileAccepted(file.name, file.type)){
-    window.alert('지원하지 않는 파일 형식입니다.');
+  const invalidFiles=files.filter(file=>!isEquipmentCarnetFileAccepted(file.name, file.type));
+  if(invalidFiles.length){
+    window.alert(`지원하지 않는 파일 형식이 포함되어 있습니다.\n${invalidFiles.map(file=>`- ${file.name}`).join('\n')}`);
     fileInput.value='';
     fileInput.focus();
     return;
   }
   if(saveButton) saveButton.disabled=true;
   try{
-    const nextEntry=await uploadDocumentFile(file, memo);
-    if(!nextEntry) throw new Error('entry-normalize-failed');
+    const failedFiles=[];
+    const uploadedEntries=[];
+    for(const file of files){
+      try{
+        const nextEntry=await uploadDocumentFile(file, memo);
+        if(!nextEntry) throw new Error('entry-normalize-failed');
+        uploadedEntries.push(nextEntry);
+      }catch(error){
+        failedFiles.push({name:file.name, error});
+        console.error('[document-storage] multi upload failed', {fileName:file.name, error});
+      }
+    }
     const latestEntries=await fetchEquipmentCarnetEntriesFromSupabase();
-    equipmentCarnetEntries=sortEquipmentCarnetEntries(Array.isArray(latestEntries) ? latestEntries : [nextEntry, ...equipmentCarnetEntries]);
+    equipmentCarnetEntries=sortEquipmentCarnetEntries(
+      Array.isArray(latestEntries)
+        ? latestEntries
+        : [...uploadedEntries, ...equipmentCarnetEntries]
+    );
     saveEquipmentCarnetEntries();
-    isEquipmentCarnetComposerOpen=false;
-    isEquipmentCarnetDeleteMode=false;
-    equipmentCarnetSelectedIds.clear();
-    if(fileInput) fileInput.value='';
-    if(titleInput) titleInput.value='';
-    renderEquipmentCarnetDetail();
-    window.alert('문서 업로드가 완료되었습니다.');
+    const successCount=Math.max(uploadedEntries.length, 0);
+    if(successCount>0){
+      isEquipmentCarnetComposerOpen=false;
+      isEquipmentCarnetDeleteMode=false;
+      equipmentCarnetSelectedIds.clear();
+      if(fileInput) fileInput.value='';
+      if(titleInput) titleInput.value='';
+      renderEquipmentCarnetDetail();
+    }
+    if(failedFiles.length){
+      window.alert(`문서 업로드가 부분 완료되었습니다.\n성공: ${successCount}개\n실패: ${failedFiles.length}개\n${failedFiles.map(item=>`- ${item.name}`).join('\n')}`);
+    }else{
+      window.alert(`문서 업로드가 완료되었습니다.\n총 ${successCount}개 파일 저장`);
+    }
   }catch(error){
     logDocumentStorageError(error);
     window.alert(`문서 업로드에 실패했습니다.\n원인: ${error?.message||'알 수 없는 오류'}`);
@@ -3442,7 +3463,7 @@ function getEquipmentFileStorageEntries(){
 }
 function renderEquipmentFileStorageComposer(){
   if(!isEquipmentFileStorageComposerOpen) return '';
-  return `<div class="carnet-list-composer equipment-file-storage-composer" aria-label="파일 보관 작성"><div class="carnet-list-composer-title">파일 보관 작성</div><div class="carnet-list-form-grid"><label class="simple-form-field"><span class="simple-form-label">제목</span><input id="equipmentFileStorageTitleInput" class="simple-form-input" type="text" placeholder="예: 경기장 안내 PDF"></label><label class="simple-form-field"><span class="simple-form-label">파일 첨부</span><input id="file-storage-upload" class="equipment-carnet-file-input" type="file" accept=".xls,.xlsx,.csv,.pdf,.doc,.docx,.hwp,.hwpx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4"></label></div><p class="carnet-list-composer-description">파일을 Supabase 파일보관에 업로드해 모든 사용자가 다운로드할 수 있게 저장합니다.</p><div class="simple-info-actions carnet-list-form-actions"><button type="button" class="section-title-action-btn" onclick="saveEquipmentFileStorageEntry(this)">저장</button><button type="button" class="section-title-action-btn" onclick="closeEquipmentFileStorageComposer()">취소</button></div></div>`;
+  return `<div class="carnet-list-composer equipment-file-storage-composer" aria-label="파일 보관 작성"><div class="carnet-list-composer-title">파일 보관 작성</div><div class="carnet-list-form-grid"><label class="simple-form-field"><span class="simple-form-label">제목</span><input id="equipmentFileStorageTitleInput" class="simple-form-input" type="text" placeholder="예: 경기장 안내 PDF"></label><label class="simple-form-field"><span class="simple-form-label">파일 첨부</span><input id="file-storage-upload" class="equipment-carnet-file-input" type="file" accept=".xls,.xlsx,.csv,.pdf,.doc,.docx,.hwp,.hwpx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.webp,.mp4" multiple></label></div><p class="carnet-list-composer-description">파일을 여러 개 한 번에 선택해 Supabase 파일보관에 업로드하고 모든 사용자가 다운로드할 수 있게 저장합니다.</p><div class="simple-info-actions carnet-list-form-actions"><button type="button" class="section-title-action-btn" onclick="saveEquipmentFileStorageEntry(this)">저장</button><button type="button" class="section-title-action-btn" onclick="closeEquipmentFileStorageComposer()">취소</button></div></div>`;
 }
 function isEquipmentFileStorageEntrySelected(entryId=''){
   return equipmentFileStorageSelectedIds.has(String(entryId||''));
@@ -3543,23 +3564,39 @@ async function saveEquipmentFileStorageEntry(saveButton=null){
   const titleInput=document.getElementById('equipmentFileStorageTitleInput');
   const fileInput=document.getElementById('file-storage-upload')||document.getElementById('equipmentFileStorageInput');
   const title=String(titleInput?.value||'').trim();
-  const file=fileInput?.files?.[0]||null;
-  if(!file){
+  const files=Array.from(fileInput?.files||[]);
+  if(!files.length){
     window.alert('첨부할 파일을 선택해주세요.');
     fileInput?.focus();
     return;
   }
   if(saveButton) saveButton.disabled=true;
   try{
-    await uploadFileStorageItem(file, title);
-    isEquipmentFileStorageComposerOpen=false;
-    isEquipmentFileStorageDeleteMode=false;
-    equipmentFileStorageSelectedIds.clear();
-    if(fileInput) fileInput.value='';
-    if(titleInput) titleInput.value='';
+    const failedFiles=[];
+    let successCount=0;
+    for(const file of files){
+      try{
+        await uploadFileStorageItem(file, title);
+        successCount+=1;
+      }catch(error){
+        failedFiles.push({name:file.name, error});
+        console.error('[file-storage] multi upload failed', {fileName:file.name, error});
+      }
+    }
+    if(successCount>0){
+      isEquipmentFileStorageComposerOpen=false;
+      isEquipmentFileStorageDeleteMode=false;
+      equipmentFileStorageSelectedIds.clear();
+      if(fileInput) fileInput.value='';
+      if(titleInput) titleInput.value='';
+    }
     await loadFileStorageItems();
     renderEquipmentFileStorageDetail();
-    window.alert('파일 업로드가 완료되었습니다.');
+    if(failedFiles.length){
+      window.alert(`파일 업로드가 부분 완료되었습니다.\n성공: ${successCount}개\n실패: ${failedFiles.length}개\n${failedFiles.map(item=>`- ${item.name}`).join('\n')}`);
+    }else{
+      window.alert(`파일 업로드가 완료되었습니다.\n총 ${successCount}개 파일 저장`);
+    }
   }catch(error){
     logFileStorageError(error);
     if(fileInput) fileInput.value='';
@@ -15737,7 +15774,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-06-mobile-equipment-final-01');
+console.log('APP VERSION: 2026-05-07-multi-upload-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
