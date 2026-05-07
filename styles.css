@@ -1,5 +1,5 @@
 ﻿:root{
-/* STYLE VERSION: 2026-05-06-global-stability-optimize-01 */
+/* STYLE VERSION: 2026-05-06-mobile-equipment-final-01 */
   --bg-top:#e9edf2;
   --bg-bottom:#eef2f6;
   --panel-bg:rgba(255,255,255,.96);
@@ -10077,6 +10077,113 @@ textarea.simple-form-input,
 }
 
 @media (min-width:768px) and (max-width:1200px){
+  .equipment-table-wrapper{
+    min-height:0;
+    max-height:none;
+    overflow:visible;
+    background:#fff;
+  }
+
+  .equipment-mobile-list{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    border-top:1px solid #d9e2ec;
+    background:#fff;
+  }
+
+  .equipment-mobile-row{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    min-height:64px;
+    padding:10px 12px;
+    border-bottom:1px solid #ddd;
+    background:#fff;
+    box-sizing:border-box;
+  }
+
+  .equipment-mobile-row.is-empty{
+    opacity:.72;
+  }
+
+  .equipment-mobile-check{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    min-height:24px;
+    margin-bottom:6px;
+    color:#52677e;
+    font-size:12px;
+    font-weight:800;
+    white-space:nowrap;
+  }
+
+  .equipment-mobile-check input{
+    width:18px;
+    height:18px;
+    margin:0;
+  }
+
+  .equipment-mobile-lines{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    min-width:0;
+  }
+
+  .equipment-mobile-line-1,
+  .equipment-mobile-line-2,
+  .equipment-mobile-line-3{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+    align-items:center;
+    min-width:0;
+    gap:8px;
+    font-size:14px;
+  }
+
+  .equipment-mobile-value{
+    min-width:0;
+    color:#334155;
+    font-size:14px;
+    font-weight:700;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+  }
+
+  .equipment-mobile-empty{
+    visibility:hidden;
+  }
+
+  .equipment-mobile-name{
+    color:#0f172a;
+    font-size:14px;
+    font-weight:900;
+  }
+
+  .equipment-mobile-model{
+    color:#17314c;
+    font-size:13px;
+    font-weight:800;
+  }
+
+  .equipment-mobile-note{
+    white-space:normal;
+    word-break:break-word;
+  }
+
+  .equipment-mobile-input,
+  .mobile-line .equipment-user-select{
+    width:100%;
+    min-width:0;
+    min-height:34px;
+    padding:6px 8px;
+    font-size:13px;
+    line-height:1.2;
+    box-sizing:border-box;
+  }
+
   .personal-timeline-summary-line{
     grid-template-columns:minmax(0,1fr);
     grid-template-areas:

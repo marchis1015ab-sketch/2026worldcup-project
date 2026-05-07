@@ -2205,7 +2205,7 @@ function renderEquipmentTableHtml(mode, user=''){
   const rows=(mode==='shared'&&isEditing)
     ? getEquipmentRows(mode, user)
     : getEquipmentRows(mode, user).filter(row=>isEquipmentRowTouched(row));
-  if(isMobileViewport()){
+  if(isCompactEquipmentViewport()){
     return renderEquipmentMobileList(mode, user, rows, isEditing);
   }
   if(mode==='shared'){
@@ -2220,7 +2220,7 @@ function renderPersonalEquipmentTable(user=''){
   const headers=getEquipmentHeaders('personal');
   const isEditing=isPersonalEquipmentEditMode(user);
   const rows=getEquipmentRows('personal', user).filter(row=>isEquipmentRowTouched(row));
-  if(isMobileViewport()){
+  if(isCompactEquipmentViewport()){
     return renderEquipmentMobileList('personal', user, rows, isEditing);
   }
   return `<colgroup><col class="equipment-col-select"><col class="equipment-col-name"><col class="equipment-col-model"><col class="equipment-col-maker"><col class="equipment-col-serial"><col class="equipment-col-qty"><col class="equipment-col-note"><col class="equipment-col-user"></colgroup><thead><tr><th class="equipment-col-select">선택</th>${headers.map(label=>`<th>${label}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>{const rowId=String(row[row.length-1]||'').trim(); return `<tr><td data-label="선택">${isEditing?`<input type="checkbox" class="personal-equipment-row-check" value="${escapeHtml(rowId)}">`:''}</td>${headers.map((label, index)=>{if(index===headers.length-1){ return `<td data-label="${escapeHtml(label)}"><span class="equipment-personal-user-text">${escapeHtml(String(user||''))}</span></td>`; } const value=String(row[index]||''); if(isEditing){ const inputType=index===4?'number':'text'; return `<td data-label="${escapeHtml(label)}"><input type="${inputType}" class="equipment-table-input" data-personal-row-id="${escapeHtml(rowId)}" data-personal-col-index="${index}" value="${escapeHtml(value)}" oninput="updateEquipmentRow('${escapeHtml(rowId)}', ${index}, this.value)"></td>`; } return `<td data-label="${escapeHtml(label)}"><span class="equipment-readonly-text">${escapeHtml(value)}</span></td>`;}).join('')}</tr>`;}).join('')}</tbody>`;
@@ -7323,6 +7323,8 @@ const PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelin
 const PERSONAL_TIMELINE_DETAILS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-v1';
 const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetails__';
 const PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY = '__worldcupGuidePersonalTimelineDetailsCleanupAt_20260506__';
+const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-deleted-v1';
+const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetailsDeleted__';
 const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY = 'worldcup-guide-gallery-deleted-v1';
@@ -7353,6 +7355,7 @@ const SHARED_STATE_SYNC_REGISTRY = {
   [TIMELINE_STORAGE_KEY]: {windowNameKey: TIMELINE_WINDOW_NAME_KEY},
   [PERSONAL_TIMELINE_SHARED_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY},
   [PERSONAL_TIMELINE_DETAILS_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY},
+  [PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY]: {windowNameKey: PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY},
   [TIMELINE_GALLERY_STORAGE_KEY]: {windowNameKey: TIMELINE_GALLERY_WINDOW_NAME_KEY},
   [TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY]: {windowNameKey: TIMELINE_GALLERY_DELETED_IDS_WINDOW_NAME_KEY},
   [HEADER_REPORT_BOARD_RECENT_STORAGE_KEY]: {windowNameKey: HEADER_REPORT_BOARD_RECENT_WINDOW_NAME_KEY}
@@ -7721,10 +7724,11 @@ function resetSharedStateSyncCaches(changedKeys=[]){
   if(changed.has(EQUIPMENT_EDITOR_STORAGE_KEY)||changed.has(EQUIPMENT_CARNET_STORAGE_KEY)) resetEquipmentSyncState();
   if(changed.has(MAP_LOCATION_PIN_STORAGE_KEY)) resetMapLocationPinSyncState();
   if(changed.has(TIMELINE_STORAGE_KEY)
-    ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
-    ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
-    ||changed.has(TIMELINE_GALLERY_STORAGE_KEY)
-    ||changed.has(TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY)
+  ||changed.has(TIMELINE_GALLERY_STORAGE_KEY)
+  ||changed.has(TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY)
     ||changed.has(HEADER_REPORT_BOARD_RECENT_STORAGE_KEY)){
     resetTimelineSyncState();
   }
@@ -7739,10 +7743,11 @@ function isSharedStateMenuActive(id){
 function rerenderVisibleSharedStateViews(changedKeys=[]){
   const changed=new Set(changedKeys);
   const timelineChanged=changed.has(TIMELINE_STORAGE_KEY)
-    ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
-    ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
-    ||changed.has(TIMELINE_GALLERY_STORAGE_KEY)
-    ||changed.has(TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY)
+  ||changed.has(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY)
+  ||changed.has(TIMELINE_GALLERY_STORAGE_KEY)
+  ||changed.has(TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY)
     ||changed.has(HEADER_REPORT_BOARD_RECENT_STORAGE_KEY);
   if(changed.has(NEWS_EDITOR_STORAGE_KEY)){
     if(currentNewsYear&&currentNewsBroadcaster&&isSharedStatePanelVisible('detailCol')&&isSharedStateMenuActive('newsMenu')){
@@ -7885,6 +7890,84 @@ function parsePersonalTimelineDetailsState(raw=''){
   }catch(error){
     return {};
   }
+}
+function buildPersonalTimelineDetailDeleteKey(dateKey='', name=''){
+  const normalizedDate=normalizePersonalTimelineEndDate(dateKey||'');
+  const normalizedName=String(name||'').trim();
+  return normalizedDate&&normalizedName ? `${normalizedDate}::${normalizedName}` : '';
+}
+function readPersonalTimelineDeletedKeysRaw(){
+  const storages=getTimelineStorageAreas();
+  for(const storage of storages){
+    const raw=storage.getItem(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY);
+    if(raw) return raw;
+  }
+  if(typeof window==='undefined'||!window.name) return '';
+  try{
+    const payload=JSON.parse(window.name);
+    return typeof payload?.[PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY]==='string' ? payload[PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY] : '';
+  }catch(error){
+    return '';
+  }
+}
+function writePersonalTimelineDeletedKeysRaw(raw=''){
+  const storages=getTimelineStorageAreas();
+  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY, raw));
+  if(typeof window==='undefined') return;
+  let payload={};
+  if(window.name){
+    try{
+      payload=JSON.parse(window.name);
+    }catch(error){
+      payload={};
+    }
+  }
+  payload[PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY]=raw;
+  try{
+    window.name=JSON.stringify(payload);
+  }catch(error){
+    window.name='';
+  }
+  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY, raw);
+  if(sharedStateSyncReady) void flushPendingSharedStateWrites();
+}
+function parsePersonalTimelineDeletedKeysRaw(raw=''){
+  if(!raw) return [];
+  try{
+    const parsed=JSON.parse(raw);
+    const source=Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.keys) ? parsed.keys : []);
+    return Array.from(new Set(source.map(value=>String(value||'').trim()).filter(Boolean)));
+  }catch(error){
+    console.warn('Failed to parse personal timeline deleted keys.', error);
+    return [];
+  }
+}
+function buildPersonalTimelineDeletedKeysRaw(keys=[]){
+  const normalized=Array.from(new Set((Array.isArray(keys)?keys:[]).map(value=>String(value||'').trim()).filter(Boolean)));
+  return normalized.length ? JSON.stringify({version:1, updatedAt:Date.now(), keys:normalized}) : '';
+}
+function mergePersonalTimelineDeletedKeysRaw(localRaw='', remoteRaw=''){
+  return buildPersonalTimelineDeletedKeysRaw([
+    ...parsePersonalTimelineDeletedKeysRaw(remoteRaw),
+    ...parsePersonalTimelineDeletedKeysRaw(localRaw)
+  ]);
+}
+function getPersonalTimelineDeletedKeySet(){
+  return new Set(parsePersonalTimelineDeletedKeysRaw(readPersonalTimelineDeletedKeysRaw()));
+}
+function deletePersonalTimelineDeletedKey(dateKey='', name=''){
+  const deletedKey=buildPersonalTimelineDetailDeleteKey(dateKey, name);
+  if(!deletedKey) return false;
+  const nextKeys=parsePersonalTimelineDeletedKeysRaw(readPersonalTimelineDeletedKeysRaw()).filter(key=>key!==deletedKey);
+  writePersonalTimelineDeletedKeysRaw(buildPersonalTimelineDeletedKeysRaw(nextKeys));
+  return true;
+}
+function addPersonalTimelineDeletedKey(dateKey='', name=''){
+  const deletedKey=buildPersonalTimelineDetailDeleteKey(dateKey, name);
+  if(!deletedKey) return false;
+  const nextKeys=[...parsePersonalTimelineDeletedKeysRaw(readPersonalTimelineDeletedKeysRaw()), deletedKey];
+  writePersonalTimelineDeletedKeysRaw(buildPersonalTimelineDeletedKeysRaw(nextKeys));
+  return true;
 }
 function getPersonalTimelineDetailEntryMergeScore(entry={}){
   return [
@@ -8038,6 +8121,12 @@ function applySharedStateSnapshot(rows=[]){
     if(storageKey===PERSONAL_TIMELINE_DETAILS_STORAGE_KEY){
       const mergedRaw=mergePersonalTimelineDetailsRaw(currentRaw, nextRaw);
       if(mergedRaw&&mergedRaw!==nextRaw){
+        nextRaw=mergedRaw;
+        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
+      }
+    }else if(storageKey===PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY){
+      const mergedRaw=mergePersonalTimelineDeletedKeysRaw(currentRaw, nextRaw);
+      if(mergedRaw!==nextRaw){
         nextRaw=mergedRaw;
         scheduleSharedStateSyncWrite(storageKey, mergedRaw);
       }
@@ -9263,6 +9352,7 @@ function buildPersonalTimelineSummaryMarkup(item={}){
 function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
   const {persist=false}=options;
   clearObjectEntries(personalTimelineDetailSelections);
+  const deletedKeySet=getPersonalTimelineDeletedKeySet();
   let cleanupCutoff=readTimelineCleanupMarkerValue(PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY);
   if(cleanupCutoff<=0){
     cleanupCutoff=Date.now();
@@ -9283,6 +9373,10 @@ function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
       const sanitizedPeople=Object.create(null);
       Object.entries(people).forEach(([name, fields])=>{
         if(!fields||typeof fields!=='object') return;
+        if(deletedKeySet.has(buildPersonalTimelineDetailDeleteKey(dateKey, name))){
+          didSanitize=true;
+          return;
+        }
         const entries=Array.isArray(fields) ? fields : [fields];
         const sanitizedEntries=entries.map(sanitizePersonalTimelineDetailEntry).filter(Boolean);
         if(!didSanitize&&JSON.stringify(entries)!==JSON.stringify(sanitizedEntries)){
@@ -9309,6 +9403,13 @@ function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
   hasLoadedPersonalTimelineDetailSelections = true;
   clearLegacyPersonalTimelineDetailCaches();
+  setSharedStateLocalRaw(
+    PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY,
+    mergePersonalTimelineDeletedKeysRaw(
+      getSharedStateLocalRaw(PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY),
+      readPersonalTimelineDeletedKeysRaw()
+    )
+  );
   populatePersonalTimelineDetailSelectionsFromRaw(readPersonalTimelineDetailsRaw(), {persist:true});
   if(typeof console!=='undefined'&&typeof console.log==='function'){
     console.log('[cumulative] data source', lastPersonalTimelineDetailsSource);
@@ -9805,6 +9906,14 @@ function compareKstDateTimePair(leftDateKey='', leftTime='', rightDateKey='', ri
   if(leftDateKey!==rightDateKey) return String(leftDateKey).localeCompare(String(rightDateKey));
   return String(leftTime).localeCompare(String(rightTime));
 }
+function isPersonalTimelineDeletedLike(detail={}){
+  const deletedFlags=[detail?.deleted, detail?.removed, detail?.hidden, detail?.is_deleted];
+  if(deletedFlags.some(value=>{
+    const text=String(value||'').trim().toLowerCase();
+    return text==='true'||text==='1'||text==='deleted'||text==='removed'||text==='hidden';
+  })) return true;
+  return [detail?.deleted_at, detail?.removed_at, detail?.hidden_at].some(value=>String(value||'').trim()!=='');
+}
 function isPersonalTimelineEntryStarted(detail={}, dateKey=''){
   const startInfo=getPersonalTimelineEntryStartKstInfo(detail, dateKey);
   if(!startInfo?.dateKey||!startInfo?.time) return true;
@@ -9814,6 +9923,7 @@ function isPersonalTimelineEntryStarted(detail={}, dateKey=''){
 function isPersonalTimelineTvuEntryActive(detail={}, dateKey=''){
   const tvu=normalizeTvuNumberValue(detail?.TVU||'');
   if(!tvu) return false;
+  if(isPersonalTimelineDeletedLike(detail)) return false;
   if(!isPersonalTimelineEntryStarted(detail, dateKey)) return false;
   const normalizedEndTime=normalizePersonalTimelineEndTime(detail?.endTime||detail?.종료시간||'');
   if(!normalizedEndTime||normalizedEndTime==='종료시간 미정') return true;
@@ -9981,6 +10091,7 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
       delete personalTimelineDetailSelections[dateKey];
     }
   }
+  addPersonalTimelineDeletedKey(dateKey, name);
   savePersonalTimelineDetailSelections();
   saveHeaderReportBoardRecentMarks();
   if(personalTimelineEndEditorState.itemId===buildPersonalTimelineEndEditorId(dateKey, name, entryIndex)){
@@ -10014,6 +10125,7 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   if(!requireEditAccess()) return {didAppendNew:false, entryIndex:-1};
   if(!dateKey||!name) return {didAppendNew:false, entryIndex:-1};
   loadPersonalTimelineDetailSelections();
+  deletePersonalTimelineDeletedKey(dateKey, name);
   const normalized=Object.create(null);
   let didAppendNew=false;
   let entryIndex=-1;
@@ -13338,6 +13450,9 @@ function updateHeaderCountdown(){
 function isMobileViewport(){
   return typeof window!=='undefined'&&window.matchMedia('(max-width: 768px)').matches;
 }
+function isCompactEquipmentViewport(){
+  return typeof window!=='undefined'&&window.matchMedia('(max-width: 1200px)').matches;
+}
 function getDesktopTabStackIds(){
   return ['newsTabStack','bracketTabStack','mexicoStadiumTabStack'];
 }
@@ -15341,9 +15456,9 @@ function renderEquipmentSharedDetail(){
   const detailTable=document.getElementById('detailTable');
   document.getElementById('equipmentSharedTab')?.classList.add('active');
   document.getElementById('detailTitle').innerHTML=renderEquipmentTitle('shared');
-  document.getElementById('detailSubtitle').innerHTML=isMobileViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
+  document.getElementById('detailSubtitle').innerHTML=isCompactEquipmentViewport() ? '' : renderEquipmentSharedTvuIndicatorHtml();
   detailTable.className='data-table equipment-table';
-  if(isMobileViewport()){
+  if(isCompactEquipmentViewport()){
     detailTable.innerHTML=renderEquipmentSummaryTable();
   }else if(!renderCache.equipmentSharedTable){
     renderCache.equipmentSharedTable=renderEquipmentSummaryTable();
@@ -15622,7 +15737,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-equipment-batch-edit-01');
+console.log('APP VERSION: 2026-05-06-mobile-equipment-final-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
