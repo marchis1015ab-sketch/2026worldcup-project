@@ -600,7 +600,7 @@ const tickerState = {
   memoDate: ''
 };
 const VIEW_ONLY_ALERT_MESSAGE = '보기 전용 권한입니다.';
-const ACCESS_VIEWER_ALLOWED_LABELS = ['닫기','취소','이전','다음','오늘로','갤러리','인쇄','내보내기','열기','보기','검색','전체'];
+const ACCESS_VIEWER_ALLOWED_LABELS = ['닫기','취소','이전','다음','오늘로','갤러리','인쇄','열기','보기','검색','전체'];
 const ACCESS_EDIT_ACTION_LABELS = ['저장','삭제','작성','업로드','추가','종료','지우기','수정'];
 let accessModeObserver = null;
 let accessModeRefreshHandle = 0;
@@ -673,7 +673,7 @@ function isViewerAllowedControl(el){
   if(!el||!(el instanceof Element)) return false;
   if(isMapAction(el)&&!isRestrictedMapControl(el)) return true;
   if(el.dataset.viewerAllowed==='true') return true;
-  if(el.matches('.item, .page-btn, .news-editor-modal-close, .timeline-modal-close, [data-timeline-day-move], [data-timeline-day-picker], .personal-timeline-quick-btn[data-timeline-action], .personal-timeline-person-tab, .timeline-gallery-group-card, .timeline-gallery-group-thumb, .timeline-gallery-card, .timeline-gallery-modal-close, .carnet-viewer-modal-close, .equipment-file-storage-viewer-close, .header-report-board-page-btn, #userSelect')) return true;
+  if(el.matches('.item, .page-btn, .news-editor-modal-close, .timeline-modal-close, [data-timeline-day-move], [data-timeline-day-picker], .personal-timeline-quick-btn[data-timeline-action], .personal-timeline-person-tab, .personal-timeline-shared-image-btn, .timeline-gallery-group-card, .timeline-gallery-group-thumb, .timeline-gallery-card, [data-gallery-group-preview], [data-gallery-modal-step], [data-gallery-modal-entry], [data-gallery-modal-close], [data-timeline-image-close], .timeline-gallery-modal-close, .timeline-gallery-thumb-btn, .equipment-carnet-card, .equipment-carnet-mobile-link, .equipment-file-storage-card, .equipment-file-storage-mobile-row, .carnet-viewer-modal-close, .equipment-file-storage-viewer-close, .header-report-board-page-btn, #userSelect')) return true;
   if(el.matches('a[href], summary')) return true;
   const text=getAccessControlText(el);
   return Boolean(text)&&ACCESS_VIEWER_ALLOWED_LABELS.some(label=>text===label||text.includes(label));
@@ -2871,7 +2871,7 @@ function renderEquipmentCarnetCard(entry){
     ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기">`
     : `<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
-  return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
+  return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
     <div class="equipment-carnet-thumb">${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${thumbnail}</div>
     <div class="equipment-carnet-card-body">
       <h4 class="equipment-carnet-card-title">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</h4>
@@ -2889,7 +2889,7 @@ function renderEquipmentCarnetMobileRow(entry){
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<div class="equipment-carnet-mobile-row document-storage-item${isSelected?' is-selected':''}">
     ${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}
-    <button type="button" class="equipment-carnet-mobile-link" onclick="${openAction}">
+    <button type="button" class="equipment-carnet-mobile-link" data-viewer-allowed="true" onclick="${openAction}">
       <span class="equipment-carnet-mobile-title">${escapeHtml(entry.fileName||entry.title||'문서 파일')}</span>
       <span class="equipment-carnet-mobile-meta">${escapeHtml(meta)}</span>
     </button>
@@ -3531,7 +3531,7 @@ function renderEquipmentFileStorageCard(entry){
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
-  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><strong class="equipment-carnet-card-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</strong><span class="equipment-carnet-card-date file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
+  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><strong class="equipment-carnet-card-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</strong><span class="equipment-carnet-card-date file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
 }
 function renderEquipmentFileStorageMobileRow(entry){
   const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
@@ -3539,7 +3539,7 @@ function renderEquipmentFileStorageMobileRow(entry){
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
-  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" onclick="${openAction}"><strong class="equipment-carnet-mobile-title file-storage-title" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'자료 파일')}</strong><span class="equipment-carnet-mobile-meta file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
+  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" data-viewer-allowed="true" onclick="${openAction}"><strong class="equipment-carnet-mobile-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'자료 파일')}</strong><span class="equipment-carnet-mobile-meta file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
 }
 function renderEquipmentFileStorageItems(entries=[]){
   if(!entries.length){
@@ -10923,7 +10923,7 @@ function renderPersonalTimelineSharedColumn(dateKey){
     const editButtonHtml=isEditMode ? `<button type="button" class="personal-timeline-shared-entry-edit-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 수정">수정</button>` : '';
     const deleteButtonHtml=isDeleteMode ? `<button type="button" class="personal-timeline-shared-entry-delete-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 삭제">삭제</button>` : '';
     const textHtml=sharedText ? `<div class="personal-timeline-entry-text personal-timeline-entry-text-shared-item"><span class="personal-timeline-entry-text-shared-bullet">•</span><span class="personal-timeline-entry-text-shared-body">${escapeHtml(sharedText)}</span></div>` : '';
-    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><button type="button" class="personal-timeline-shared-image-btn" data-shared-image-src="${escapeHtml(image.src)}" data-shared-image-name="${escapeHtml(image.name)}" aria-label="${escapeHtml(image.name)} 크게 보기"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"></button><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
+    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><button type="button" class="personal-timeline-shared-image-btn" data-viewer-allowed="true" data-shared-image-src="${escapeHtml(image.src)}" data-shared-image-name="${escapeHtml(image.name)}" aria-label="${escapeHtml(image.name)} 크게 보기"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"></button><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
     return `<div class="personal-timeline-entry personal-timeline-entry-shared"><div class="personal-timeline-entry-head">${deleteButtonHtml}${editButtonHtml}<span class="personal-timeline-entry-name personal-timeline-entry-name-shared">영상취재팀 공동</span></div>${textHtml}${mediaHtml}</div>`;
   }).join('');
 }
@@ -12014,7 +12014,7 @@ function renderTimelineGalleryCard(group){
   const deleteHintHtml=isTimelineGalleryDeleteMode?'<span class="timeline-gallery-card-delete-hint">체크한 사진만 삭제됩니다.</span>':'';
   const editButtonHtml=!isTimelineGalleryDeleteMode ? `<button type="button" class="timeline-gallery-card-edit-btn" data-gallery-edit-group="${escapeHtml(group.key)}">수정</button>` : '';
   const editFormHtml=timelineGalleryEditingGroupKey===group.key&&!isTimelineGalleryDeleteMode ? renderTimelineGalleryEditForm(group) : '';
-  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}${timelineGalleryEditingGroupKey===group.key?' is-editing':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<div class="timeline-gallery-main-image" data-gallery-group-preview="${escapeHtml(group.key)}">${renderTimelineGalleryMedia(representative, '', `${group.memoLabel} 대표 썸네일`)}${countHtml}</div><div class="timeline-gallery-card-body"><div class="timeline-gallery-card-title-row"><h4>${escapeHtml(group.memoLabel)}</h4>${editButtonHtml}</div>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}${editFormHtml}</div></article>`;
+  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}${timelineGalleryEditingGroupKey===group.key?' is-editing':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<div class="timeline-gallery-main-image" data-viewer-allowed="true" data-gallery-group-preview="${escapeHtml(group.key)}">${renderTimelineGalleryMedia(representative, '', `${group.memoLabel} 대표 썸네일`)}${countHtml}</div><div class="timeline-gallery-card-body"><div class="timeline-gallery-card-title-row"><h4>${escapeHtml(group.memoLabel)}</h4>${editButtonHtml}</div>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}${editFormHtml}</div></article>`;
 }
 function renderTimelineGalleryList(){
   const items=sortTimelineGalleryEntries(timelineGalleryEntries);
@@ -15774,7 +15774,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-multi-upload-01');
+console.log('APP VERSION: 2026-05-07-viewer-preview-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
