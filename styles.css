@@ -4670,13 +4670,39 @@ video{width:100%;height:auto;border-radius:8px}
   border-radius:8px;
   background:#eef2f7;
 }
+.timeline-modal-media-file-thumb{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  aspect-ratio:4/3;
+  border-radius:8px;
+  background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);
+  color:#17314c;
+}
+.timeline-modal-media-file-ext{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:54px;
+  min-height:30px;
+  padding:0 12px;
+  border-radius:999px;
+  background:#17314c;
+  color:#fff;
+  font:inherit;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.4px;
+}
 .timeline-modal-media-caption{
   margin-top:6px;
   color:#334155;
   font-size:11px;
   font-weight:700;
   line-height:1.35;
-  word-break:break-all;
+  word-break:keep-all;
+  overflow-wrap:break-word;
 }
 .timeline-modal-media-remove{
   position:absolute;
@@ -5240,7 +5266,7 @@ video{width:100%;height:auto;border-radius:8px}
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
   gap:14px;
-  margin-top:14px;
+  margin-top:8px;
 }
 .personal-timeline-shared-figure{
   margin:0;
@@ -5255,6 +5281,31 @@ video{width:100%;height:auto;border-radius:8px}
   background:transparent;
   cursor:pointer;
 }
+.personal-timeline-shared-file-thumb{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  aspect-ratio:4/3;
+  border-radius:10px;
+  background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);
+  color:#17314c;
+}
+.personal-timeline-shared-file-ext{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:64px;
+  min-height:34px;
+  padding:0 14px;
+  border-radius:999px;
+  background:#17314c;
+  color:#fff;
+  font:inherit;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.45px;
+}
 .personal-timeline-shared-image{
   display:block;
   width:100%;
@@ -5268,7 +5319,8 @@ video{width:100%;height:auto;border-radius:8px}
   font-size:11px;
   font-weight:700;
   line-height:1.35;
-  word-break:break-all;
+  word-break:keep-all;
+  overflow-wrap:break-word;
 }
 
 .timeline-gallery-shell-card{
@@ -5912,7 +5964,7 @@ input[type="file"]{
 }
 .personal-timeline-column-shared .personal-timeline-column-empty{min-height:460px}
 .personal-timeline-column-shared .personal-timeline-entry-text{
-  min-height:360px;
+  min-height:0;
   font-size:17px;
   line-height:1.9;
 }

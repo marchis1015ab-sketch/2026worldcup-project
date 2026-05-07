@@ -673,7 +673,7 @@ function isViewerAllowedControl(el){
   if(!el||!(el instanceof Element)) return false;
   if(isMapAction(el)&&!isRestrictedMapControl(el)) return true;
   if(el.dataset.viewerAllowed==='true') return true;
-  if(el.matches('.item, .page-btn, .news-editor-modal-close, .timeline-modal-close, [data-timeline-day-move], [data-timeline-day-picker], .personal-timeline-quick-btn[data-timeline-action], .personal-timeline-person-tab, .personal-timeline-shared-image-btn, .timeline-gallery-group-card, .timeline-gallery-group-thumb, .timeline-gallery-card, [data-gallery-group-preview], [data-gallery-modal-step], [data-gallery-modal-entry], [data-gallery-modal-close], [data-timeline-image-close], .timeline-gallery-modal-close, .timeline-gallery-thumb-btn, .equipment-carnet-card, .equipment-carnet-mobile-link, .equipment-file-storage-card, .equipment-file-storage-mobile-row, .carnet-viewer-modal-close, .equipment-file-storage-viewer-close, .header-report-board-page-btn, #userSelect')) return true;
+  if(el.matches('.item, .page-btn, .news-editor-modal-close, .timeline-modal-close, [data-timeline-day-move], [data-timeline-day-picker], .personal-timeline-day-picker, .personal-timeline-day-picker-trigger, .personal-timeline-quick-btn[data-timeline-action], .personal-timeline-person-tab, .personal-timeline-shared-image-btn, .personal-timeline-shared-media-btn, .timeline-gallery-group-card, .timeline-gallery-group-thumb, .timeline-gallery-card, [data-gallery-group-preview], [data-gallery-modal-step], [data-gallery-modal-entry], [data-gallery-modal-close], [data-timeline-image-close], .timeline-gallery-modal-close, .timeline-gallery-thumb-btn, .equipment-carnet-card, .equipment-carnet-mobile-link, .equipment-file-storage-card, .equipment-file-storage-mobile-row, .carnet-viewer-modal-close, .equipment-file-storage-viewer-close, .header-report-board-page-btn, #userSelect')) return true;
   if(el.matches('a[href], summary')) return true;
   const text=getAccessControlText(el);
   return Boolean(text)&&ACCESS_VIEWER_ALLOWED_LABELS.some(label=>text===label||text.includes(label));
@@ -8242,7 +8242,13 @@ async function fetchSharedStateSnapshot(){
     sharedStateInitialSnapshotLoaded=true;
     sharedStateSyncFetchInProgress=false;
     if(!wasInitialSnapshotLoaded){
-      rerenderVisibleSharedStateViews([PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, EQUIPMENT_CARNET_STORAGE_KEY]);
+      rerenderVisibleSharedStateViews([
+        PERSONAL_TIMELINE_DETAILS_STORAGE_KEY,
+        PERSONAL_TIMELINE_SHARED_STORAGE_KEY,
+        TIMELINE_GALLERY_STORAGE_KEY,
+        TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY,
+        EQUIPMENT_CARNET_STORAGE_KEY
+      ]);
     }
     if(sharedStateSyncNeedsRefetch){
       sharedStateSyncNeedsRefetch=false;
@@ -8901,11 +8907,33 @@ function normalizePersonalTimelineSharedMediaItem(item){
     file:typeof File!=='undefined'&&item?.file instanceof File ? item.file : null
   };
 }
-function normalizePersonalTimelineSharedEntry(entry){
+function buildPersonalTimelineSharedEntryStableId(entry={}, dateKey=''){
+  const normalizedDateKey=normalizePersonalTimelineViewDateKey(dateKey);
+  const text=String(entry?.text||'').replace(/\r\n/g, '\n').trim();
+  const imageKeys=(Array.isArray(entry?.images) ? entry.images : [])
+    .map(normalizePersonalTimelineSharedMediaItem)
+    .filter(Boolean)
+    .map(getPersonalTimelineSharedImageIdentity)
+    .filter(Boolean)
+    .sort();
+  const base=[normalizedDateKey, text, imageKeys.join('|')].filter(Boolean).join('::');
+  if(!base) return '';
+  let hash=0;
+  for(let index=0; index<base.length; index+=1){
+    hash=((hash<<5)-hash)+base.charCodeAt(index);
+    hash|=0;
+  }
+  return `shared_${Math.abs(hash).toString(36)}_${base.length.toString(36)}`;
+}
+function getPersonalTimelineSharedEntryIdentity(entry={}, dateKey=''){
+  return String(entry?.id||'').trim()||buildPersonalTimelineSharedEntryStableId(entry, dateKey);
+}
+function normalizePersonalTimelineSharedEntry(entry, dateKey=''){
   if(typeof entry==='string'){
     entry={text:entry, images:[]};
   }
-  const id=String(entry?.id||'').trim()||`schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const id=getPersonalTimelineSharedEntryIdentity(entry, dateKey)
+    || `schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const text=String(entry?.text||'').trim();
   const images=Array.isArray(entry?.images) ? entry.images.map(normalizePersonalTimelineSharedMediaItem).filter(Boolean) : [];
   if(!text&&!images.length) return null;
@@ -8916,12 +8944,23 @@ function normalizePersonalTimelineSharedEntry(entry){
     updatedAt:String(entry?.updatedAt||new Date().toISOString())
   };
 }
-function normalizePersonalTimelineSharedEntries(entries){
-  if(Array.isArray(entries)){
-    return entries.map(normalizePersonalTimelineSharedEntry).filter(Boolean);
-  }
-  const normalized=normalizePersonalTimelineSharedEntry(entries);
-  return normalized ? [normalized] : [];
+function normalizePersonalTimelineSharedEntries(entries, dateKey=''){
+  const source=Array.isArray(entries) ? entries : [entries];
+  const merged=new Map();
+  source
+    .map(entry=>normalizePersonalTimelineSharedEntry(entry, dateKey))
+    .filter(Boolean)
+    .forEach(entry=>{
+      const key=getPersonalTimelineSharedEntryIdentity(entry, dateKey);
+      if(!key) return;
+      const current=merged.get(key);
+      merged.set(key, current ? mergePersonalTimelineSharedEntry(current, entry) : entry);
+    });
+  return Array.from(merged.values()).sort((a,b)=>{
+    const left=Date.parse(String(a?.updatedAt||'').trim())||0;
+    const right=Date.parse(String(b?.updatedAt||'').trim())||0;
+    return right-left;
+  });
 }
 function parsePersonalTimelineSharedState(raw=''){
   const text=String(raw||'').trim();
@@ -8975,7 +9014,7 @@ function mergePersonalTimelineSharedEntry(localEntry=null, remoteEntry=null){
 function buildPersonalTimelineSharedStateRaw(state={}){
   const payload=Object.create(null);
   Object.entries(state||{}).forEach(([dateKey, entries])=>{
-    const normalized=normalizePersonalTimelineSharedEntries(entries);
+    const normalized=normalizePersonalTimelineSharedEntries(entries, dateKey);
     if(normalized.length){
       payload[dateKey]=normalized;
     }
@@ -8989,13 +9028,14 @@ function mergePersonalTimelineSharedRaw(localRaw='', remoteRaw=''){
   const dateKeys=new Set([...Object.keys(localState), ...Object.keys(remoteState)]);
   dateKeys.forEach(dateKey=>{
     const entryMap=new Map();
-    [...normalizePersonalTimelineSharedEntries(remoteState[dateKey]), ...normalizePersonalTimelineSharedEntries(localState[dateKey])].forEach(entry=>{
-      const key=String(entry?.id||'').trim()||`${String(entry?.text||'').trim()}__${String(entry?.updatedAt||'').trim()}`;
+    [...normalizePersonalTimelineSharedEntries(remoteState[dateKey], dateKey), ...normalizePersonalTimelineSharedEntries(localState[dateKey], dateKey)].forEach(entry=>{
+      const key=getPersonalTimelineSharedEntryIdentity(entry, dateKey)
+        || `${String(entry?.text||'').trim()}__${String(entry?.updatedAt||'').trim()}`;
       if(!key) return;
       const current=entryMap.get(key);
       entryMap.set(key, mergePersonalTimelineSharedEntry(current, entry));
     });
-    const nextEntries=Array.from(entryMap.values()).map(normalizePersonalTimelineSharedEntry).filter(Boolean).sort((a,b)=>{
+    const nextEntries=Array.from(entryMap.values()).map(entry=>normalizePersonalTimelineSharedEntry(entry, dateKey)).filter(Boolean).sort((a,b)=>{
       const left=Date.parse(String(a?.updatedAt||'').trim())||0;
       const right=Date.parse(String(b?.updatedAt||'').trim())||0;
       return right-left;
@@ -9023,7 +9063,7 @@ function loadPersonalTimelineSharedEntries(){
   try{
     const savedEntries=JSON.parse(raw);
     Object.entries(savedEntries||{}).forEach(([dateKey, entry])=>{
-      const normalized=normalizePersonalTimelineSharedEntries(entry);
+      const normalized=normalizePersonalTimelineSharedEntries(entry, dateKey);
       if(normalized.length){
         personalTimelineSharedEntries[dateKey]=normalized;
         const label=buildPersonalTimelineSharedLabel(normalized);
@@ -9043,10 +9083,10 @@ function savePersonalTimelineSharedEntries(){
 }
 function getPersonalTimelineSharedEntries(dateKey){
   loadPersonalTimelineSharedEntries();
-  const normalized=normalizePersonalTimelineSharedEntries(personalTimelineSharedEntries[dateKey]);
+  const normalized=normalizePersonalTimelineSharedEntries(personalTimelineSharedEntries[dateKey], dateKey);
   if(normalized.length) return normalized;
   const legacyText=getTimelineLabel('영상취재팀 공동', dateKey);
-  return legacyText ? [{text:legacyText, images:[]}] : [];
+  return legacyText ? normalizePersonalTimelineSharedEntries([{text:legacyText, images:[]}], dateKey) : [];
 }
 function getPersonalTimelineSharedEntry(dateKey, entryIndex=0){
   return getPersonalTimelineSharedEntries(dateKey)[entryIndex]||null;
@@ -9054,7 +9094,7 @@ function getPersonalTimelineSharedEntry(dateKey, entryIndex=0){
 function setPersonalTimelineSharedEntries(dateKey, entries){
   if(!dateKey) return;
   loadPersonalTimelineSharedEntries();
-  const normalized=normalizePersonalTimelineSharedEntries(entries);
+  const normalized=normalizePersonalTimelineSharedEntries(entries, dateKey);
   if(normalized.length){
     personalTimelineSharedEntries[dateKey]=normalized;
     const label=buildPersonalTimelineSharedLabel(normalized);
@@ -9083,6 +9123,59 @@ function setScheduleSavingState(isSaving){
   if(fileInput) fileInput.disabled=Boolean(isSaving);
   if(input) input.disabled=Boolean(isSaving);
 }
+function isPersonalTimelineSharedHydrating(){
+  return Boolean(getSharedStateSyncClient())&&!sharedStateInitialSnapshotLoaded;
+}
+function getSharedScheduleGalleryTitle(text='', fallbackName=''){
+  const firstLine=String(text||'')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(line=>String(line||'').trim())
+    .find(Boolean);
+  return firstLine||String(fallbackName||'').trim()||'공용일정 첨부사진';
+}
+function isTimelineSharedImageAttachment(item={}){
+  const fileType=String(item?.fileType||item?.mimeType||'').trim().toLowerCase();
+  const fileName=String(item?.fileName||item?.name||'').trim();
+  return fileType.startsWith('image/')||isImageFile(fileName);
+}
+function buildTimelineSharedPreviewItem(item={}){
+  const fileName=String(item?.fileName||item?.name||'첨부 파일').trim()||'첨부 파일';
+  const publicUrl=String(item?.publicUrl||item?.src||'').trim();
+  const originalData=String(item?.src||'').trim();
+  return {
+    fileName,
+    fileType:String(item?.fileType||item?.mimeType||'').trim(),
+    publicUrl,
+    originalData,
+    previewData:{
+      src:publicUrl||originalData
+    }
+  };
+}
+function renderTimelineSharedAttachmentThumb(item={}){
+  const fileName=String(item?.fileName||item?.name||'첨부 파일').trim()||'첨부 파일';
+  if(isTimelineSharedImageAttachment(item)){
+    return `<img class="personal-timeline-shared-image" src="${escapeHtml(String(item?.src||item?.publicUrl||'').trim())}" alt="${escapeHtml(fileName)}">`;
+  }
+  return `<span class="personal-timeline-shared-file-thumb"><span class="personal-timeline-shared-file-ext">${escapeHtml((getFilePreviewExtension(fileName)||'FILE').toUpperCase())}</span></span>`;
+}
+function openTimelineSharedMediaPreview(previewItem={}){
+  const normalizedItem=buildTimelineSharedPreviewItem(previewItem);
+  const previewUrl=String(normalizedItem.publicUrl||normalizedItem.originalData||'').trim();
+  if(!previewUrl) return;
+  if(isTimelineSharedImageAttachment(normalizedItem)){
+    openTimelineImagePreviewModal(previewUrl, normalizedItem.fileName);
+    return;
+  }
+  openFilePreview({
+    fileName:normalizedItem.fileName,
+    fileType:normalizedItem.fileType,
+    publicUrl:previewUrl,
+    originalData:normalizedItem.originalData,
+    previewData:normalizedItem.previewData
+  });
+}
 async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryIndex=-1, text='', selection=null}={}){
   if(!requireEditAccess()) return;
   const scheduleId=String(selection?.scheduleId||selection?.entryId||'').trim()
@@ -9107,8 +9200,8 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
       scheduleId,
       uploadedAt:attachment.uploadedAt
     });
-    if(!mediaItem?.storagePath){
-      await insertSchedulePhotoToGallery(attachment, dateKey, text);
+    if(!mediaItem?.storagePath&&isTimelineSharedImageAttachment(attachment)){
+      await insertSchedulePhotoToGallery(attachment, dateKey, getSharedScheduleGalleryTitle(text, attachment.fileName));
     }
   }
   const mergedImages=mergePersonalTimelineSharedMediaItems(
@@ -10973,6 +11066,9 @@ function renderPersonalTimelineDetailOptions(field, options, selectedValue='', o
   return `<option value=""${placeholderAttributes}${placeholderSelected}>${placeholderLabel}</option>${legacySelectedOption}${optionHtml}`;
 }
 function renderPersonalTimelineSharedColumn(dateKey){
+  if(isPersonalTimelineSharedHydrating()){
+    return '<div class="personal-timeline-column-empty personal-timeline-column-empty-shared">공용일정을 불러오는 중입니다.</div>';
+  }
   const sharedEntries=getPersonalTimelineSharedEntries(dateKey);
   if(!sharedEntries.length){
     return '<div class="personal-timeline-column-empty personal-timeline-column-empty-shared"></div>';
@@ -10984,7 +11080,11 @@ function renderPersonalTimelineSharedColumn(dateKey){
     const editButtonHtml=isEditMode ? `<button type="button" class="personal-timeline-shared-entry-edit-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 수정">수정</button>` : '';
     const deleteButtonHtml=isDeleteMode ? `<button type="button" class="personal-timeline-shared-entry-delete-btn" data-date-key="${dateKey}" data-entry-index="${entryIndex}" aria-label="공용 일정 삭제">삭제</button>` : '';
     const textHtml=sharedText ? `<div class="personal-timeline-entry-text personal-timeline-entry-text-shared-item"><span class="personal-timeline-entry-text-shared-bullet">•</span><span class="personal-timeline-entry-text-shared-body">${escapeHtml(sharedText)}</span></div>` : '';
-    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>`<figure class="personal-timeline-shared-figure"><button type="button" class="personal-timeline-shared-image-btn" data-viewer-allowed="true" data-shared-image-src="${escapeHtml(image.src)}" data-shared-image-name="${escapeHtml(image.name)}" aria-label="${escapeHtml(image.name)} 크게 보기"><img class="personal-timeline-shared-image" src="${image.src}" alt="${escapeHtml(image.name)}"></button><figcaption class="personal-timeline-shared-caption">${escapeHtml(image.name)}</figcaption></figure>`).join('')}</div>` : '';
+    const mediaHtml=sharedEntry.images.length ? `<div class="personal-timeline-shared-media">${sharedEntry.images.map(image=>{
+      const previewPayload=escapeHtml(JSON.stringify(buildTimelineSharedPreviewItem(image)));
+      const fileName=String(image?.name||image?.fileName||'첨부 파일').trim()||'첨부 파일';
+      return `<figure class="personal-timeline-shared-figure"><button type="button" class="personal-timeline-shared-image-btn personal-timeline-shared-media-btn" data-viewer-allowed="true" data-shared-media-preview="${previewPayload}" aria-label="${escapeHtml(fileName)} 미리보기">${renderTimelineSharedAttachmentThumb(image)}</button><figcaption class="personal-timeline-shared-caption">${escapeHtml(fileName)}</figcaption></figure>`;
+    }).join('')}</div>` : '';
     return `<div class="personal-timeline-entry personal-timeline-entry-shared"><div class="personal-timeline-entry-head">${deleteButtonHtml}${editButtonHtml}<span class="personal-timeline-entry-name personal-timeline-entry-name-shared">영상취재팀 공동</span></div>${textHtml}${mediaHtml}</div>`;
   }).join('');
 }
@@ -11098,8 +11198,14 @@ function renderTimelineModalMediaList(){
   const mediaItems=Array.isArray(pendingTimelineSelection?.mediaItems) ? pendingTimelineSelection.mediaItems : [];
   mediaWrap.classList.toggle('hidden', !pendingTimelineSelection?.mode||pendingTimelineSelection.mode!=='shared');
   mediaList.innerHTML=mediaItems.length
-    ? mediaItems.map(item=>`<figure class="timeline-modal-media-item"><img class="timeline-modal-media-thumb" src="${item.src}" alt="${escapeHtml(item.name)}"><figcaption class="timeline-modal-media-caption">${escapeHtml(item.name)}</figcaption><button type="button" class="timeline-modal-media-remove" data-media-id="${item.id}" aria-label="${escapeHtml(item.name)} 삭제">×</button></figure>`).join('')
-    : '<div class="timeline-modal-media-empty">첨부된 사진 없음</div>';
+    ? mediaItems.map(item=>{
+      const fileName=String(item?.name||item?.fileName||'첨부 파일').trim()||'첨부 파일';
+      const thumbHtml=isTimelineSharedImageAttachment(item)
+        ? `<img class="timeline-modal-media-thumb" src="${escapeHtml(String(item?.src||'').trim())}" alt="${escapeHtml(fileName)}">`
+        : `<span class="timeline-modal-media-file-thumb"><span class="timeline-modal-media-file-ext">${escapeHtml((getFilePreviewExtension(fileName)||'FILE').toUpperCase())}</span></span>`;
+      return `<figure class="timeline-modal-media-item">${thumbHtml}<figcaption class="timeline-modal-media-caption">${escapeHtml(fileName)}</figcaption><button type="button" class="timeline-modal-media-remove" data-media-id="${item.id}" aria-label="${escapeHtml(fileName)} 삭제">×</button></figure>`;
+    }).join('')
+    : '<div class="timeline-modal-media-empty">첨부된 파일 없음</div>';
 }
 function readTimelineModalFiles(files){
   return Promise.all(Array.from(files||[]).map(file=>new Promise(resolve=>{
@@ -12951,6 +13057,18 @@ function renderPersonalTimelineSchedule(view){
     };
     list.onclick=event=>{
       event.stopPropagation();
+      const dayPickerWrap=event.target.closest('.personal-timeline-day-picker');
+      if(dayPickerWrap&&list.contains(dayPickerWrap)){
+        const dayPickerInput=dayPickerWrap.querySelector('[data-timeline-day-picker]');
+        if(dayPickerInput&&!dayPickerInput.disabled){
+          try{
+            dayPickerInput.showPicker?.();
+          }catch(error){}
+          dayPickerInput.focus();
+          dayPickerInput.click?.();
+        }
+        return;
+      }
       const dayMoveButton=event.target.closest('[data-timeline-day-move]');
       if(dayMoveButton&&list.contains(dayMoveButton)){
         movePersonalTimelineViewDate(Number(dayMoveButton.dataset.timelineDayMove||0));
@@ -13004,7 +13122,16 @@ function renderPersonalTimelineSchedule(view){
       }
       const sharedImageButton=event.target.closest('.personal-timeline-shared-image-btn');
       if(sharedImageButton&&list.contains(sharedImageButton)){
-        openTimelineImagePreviewModal(sharedImageButton.dataset.sharedImageSrc||'', sharedImageButton.dataset.sharedImageName||'');
+        const previewRaw=String(sharedImageButton.dataset.sharedMediaPreview||'').trim();
+        if(previewRaw){
+          try{
+            openTimelineSharedMediaPreview(JSON.parse(previewRaw));
+          }catch(error){
+            console.warn('공용일정 첨부 미리보기 데이터 파싱 실패:', error);
+          }
+        }else{
+          openTimelineImagePreviewModal(sharedImageButton.dataset.sharedImageSrc||'', sharedImageButton.dataset.sharedImageName||'');
+        }
         return;
       }
       const deleteButton=event.target.closest('.personal-timeline-summary-delete');
@@ -13175,7 +13302,7 @@ function updateTimelineSelection(targetCell){
 }
 function ensureTimelineModal(){
   if(document.getElementById('timelineModal')) return;
-  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">일정 입력</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="선택한 날짜 구간의 일정을 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>사진 첨부</span><input id="timelineModalFile" type="file" data-ios-photo-choice="true" accept="image/*" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="clearTimelineSelectionEntries()">지우기</button><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">일정 입력</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="선택한 날짜 구간의 일정을 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>파일 첨부</span><input id="timelineModalFile" type="file" data-ios-photo-choice="true" accept="image/*,application/pdf,.csv,.xls,.xlsx,.txt,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="clearTimelineSelectionEntries()">지우기</button><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button></div></div></div>`);
   const modal=document.getElementById('timelineModal');
   const input=document.getElementById('timelineModalInput');
   const fileInput=document.getElementById('timelineModalFile');
@@ -15853,7 +15980,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-cumulative-status-rework-01');
+console.log('APP VERSION: 2026-05-07-shared-attachment-dedupe-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
