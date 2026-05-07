@@ -7874,43 +7874,7 @@ function getSharedStateSyncClient(){
   return sharedStateSyncClient;
 }
 async function flushPendingSharedStateWrites(){
-  if(sharedStateSyncWriteTimerId!==null){
-    window.clearTimeout(sharedStateSyncWriteTimerId);
-    sharedStateSyncWriteTimerId=null;
-  }
-  const client=getSharedStateSyncClient();
-  if(!client||sharedStateSyncWriteInProgress||!sharedStatePendingWrites.size) return;
-  sharedStateSyncWriteInProgress=true;
-  const pendingEntries=[...sharedStatePendingWrites.entries()];
-  sharedStatePendingWrites.clear();
-  try{
-    const {error}=await client
-      .from(SHARED_STATE_SYNC_TABLE)
-      .upsert(
-        pendingEntries.map(([state_key, state_value])=>({
-          state_key,
-          state_value,
-          updated_at:new Date().toISOString()
-        })),
-        {onConflict:'state_key'}
-      );
-    if(error){
-      pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
-      if(error.code==='42P01'){
-        disableSharedStateSync(error);
-      }else{
-        console.warn('Shared state write failed.', error);
-      }
-    }
-  }catch(error){
-    pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
-    console.warn('Shared state write failed.', error);
-  }finally{
-    sharedStateSyncWriteInProgress=false;
-    if(sharedStatePendingWrites.size&&sharedStateSyncReady){
-      schedulePendingSharedStateFlush(120);
-    }
-  }
+  return flushPendingSharedStateWritesWithRetry();
 }
 function schedulePendingSharedStateFlush(delay=120){
   if(!sharedStateSyncReady||sharedStateSyncDisabled||sharedStateSyncWriteTimerId!==null) return;
@@ -7935,6 +7899,117 @@ function parsePersonalTimelineDetailsState(raw=''){
     return parsed&&typeof parsed==='object' ? parsed : {};
   }catch(error){
     return {};
+  }
+}
+function waitForSharedStateRetry(delayMs=400){
+  return new Promise(resolve=>window.setTimeout(resolve, delayMs));
+}
+function isSharedStateTimeoutError(error){
+  const text=[
+    String(error?.message||''),
+    String(error?.details||''),
+    String(error?.hint||''),
+    String(error?.error||''),
+    String(error?.name||'')
+  ].join(' ').trim();
+  return /timed out|timeout|network|failed to fetch|fetch failed|connection/i.test(text);
+}
+function buildSharedStateWriteDebugPayload(pendingEntries=[]){
+  return pendingEntries.map(([stateKey, stateValue])=>({
+    stateKey,
+    payloadLength:String(stateValue||'').length
+  }));
+}
+async function flushPendingSharedStateWritesWithRetry(options={}){
+  const {
+    retries=2,
+    delayMs=450,
+    throwOnError=false,
+    context={}
+  }=options||{};
+  if(sharedStateSyncWriteTimerId!==null){
+    window.clearTimeout(sharedStateSyncWriteTimerId);
+    sharedStateSyncWriteTimerId=null;
+  }
+  const client=getSharedStateSyncClient();
+  if(!client||sharedStateSyncWriteInProgress||!sharedStatePendingWrites.size){
+    return {ok:true, attempts:0, skipped:true};
+  }
+  sharedStateSyncWriteInProgress=true;
+  const pendingEntries=[...sharedStatePendingWrites.entries()];
+  sharedStatePendingWrites.clear();
+  let lastError=null;
+  try{
+    for(let attempt=0; attempt<=retries; attempt+=1){
+      console.log('[shared-state] write attempt', {
+        attempt:attempt+1,
+        maxAttempts:retries+1,
+        supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+        table:SHARED_STATE_SYNC_TABLE,
+        payload:buildSharedStateWriteDebugPayload(pendingEntries),
+        context
+      });
+      try{
+        const {error}=await client
+          .from(SHARED_STATE_SYNC_TABLE)
+          .upsert(
+            pendingEntries.map(([state_key, state_value])=>({
+              state_key,
+              state_value,
+              updated_at:new Date().toISOString()
+            })),
+            {onConflict:'state_key'}
+          );
+        if(!error){
+          return {ok:true, attempts:attempt+1, skipped:false};
+        }
+        lastError=error;
+        if(error.code==='42P01'){
+          disableSharedStateSync(error);
+          break;
+        }
+        console.error('[shared-state] write failed', {
+          attempt:attempt+1,
+          maxAttempts:retries+1,
+          supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+          table:SHARED_STATE_SYNC_TABLE,
+          payload:buildSharedStateWriteDebugPayload(pendingEntries),
+          context,
+          error
+        });
+        if(attempt<retries&&isSharedStateTimeoutError(error)){
+          await waitForSharedStateRetry(delayMs*(attempt+1));
+          continue;
+        }
+        break;
+      }catch(error){
+        lastError=error;
+        console.error('[shared-state] write failed', {
+          attempt:attempt+1,
+          maxAttempts:retries+1,
+          supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+          table:SHARED_STATE_SYNC_TABLE,
+          payload:buildSharedStateWriteDebugPayload(pendingEntries),
+          context,
+          error
+        });
+        if(attempt<retries&&isSharedStateTimeoutError(error)){
+          await waitForSharedStateRetry(delayMs*(attempt+1));
+          continue;
+        }
+        break;
+      }
+    }
+    pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
+    if(throwOnError&&lastError){
+      throw lastError;
+    }
+    return {ok:false, attempts:retries+1, skipped:false, error:lastError};
+  }finally{
+    sharedStateSyncWriteInProgress=false;
+    if(sharedStatePendingWrites.size&&sharedStateSyncReady){
+      schedulePendingSharedStateFlush(120);
+    }
   }
 }
 function buildPersonalTimelineDetailDeleteKey(dateKey='', name=''){
@@ -9178,6 +9253,10 @@ function openTimelineSharedMediaPreview(previewItem={}){
 }
 async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryIndex=-1, text='', selection=null}={}){
   if(!requireEditAccess()) return;
+  const previousSharedRaw=readPersonalTimelineSharedRaw();
+  const previousAssignmentsRaw=readTimelineAssignmentsRaw();
+  const previousGalleryRaw=readTimelineGalleryRaw();
+  const previousGalleryEntries=[...timelineGalleryEntries];
   const scheduleId=String(selection?.scheduleId||selection?.entryId||'').trim()
     || String(selection?.initialEntry?.id||'').trim()
     || (typeof crypto!=='undefined'&&crypto.randomUUID ? crypto.randomUUID() : `schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`);
@@ -9185,10 +9264,19 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
   const existingEntry=entryIndex>=0 ? normalizePersonalTimelineSharedEntry(nextEntries[entryIndex]) : null;
   const mediaItems=Array.isArray(selection?.mediaItems) ? selection.mediaItems : [];
   const uploadedImages=[];
+  const nextSelectionMediaItems=[];
+  console.log('[shared-schedule] save start', {
+    dateKey,
+    scheduleId,
+    supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+    table:SHARED_STATE_SYNC_TABLE,
+    textFirstLine:getSharedScheduleGalleryTitle(text, ''),
+    attachmentCount:mediaItems.length
+  });
   for(const mediaItem of mediaItems){
     const attachment=await uploadScheduleAttachmentToGallery(mediaItem, scheduleId);
     if(!attachment) continue;
-    uploadedImages.push({
+    const normalizedAttachment={
       id:String(mediaItem?.id||createTimelineModalMediaId()),
       name:attachment.fileName,
       fileName:attachment.fileName,
@@ -9199,10 +9287,15 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
       source:'schedule',
       scheduleId,
       uploadedAt:attachment.uploadedAt
-    });
+    };
+    uploadedImages.push(normalizedAttachment);
+    nextSelectionMediaItems.push({...normalizedAttachment, file:null});
     if(!mediaItem?.storagePath&&isTimelineSharedImageAttachment(attachment)){
       await insertSchedulePhotoToGallery(attachment, dateKey, getSharedScheduleGalleryTitle(text, attachment.fileName));
     }
+  }
+  if(selection){
+    selection.mediaItems=nextSelectionMediaItems.length ? nextSelectionMediaItems.map(item=>({...item})) : mediaItems.map(item=>({...item}));
   }
   const mergedImages=mergePersonalTimelineSharedMediaItems(
     [
@@ -9226,8 +9319,48 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
   }else if(nextEntry){
     nextEntries.push(nextEntry);
   }
-  setPersonalTimelineSharedEntries(dateKey, nextEntries);
-  if(sharedStateSyncReady) await flushPendingSharedStateWrites();
+  try{
+    setPersonalTimelineSharedEntries(dateKey, nextEntries);
+    if(sharedStateSyncReady){
+      await flushPendingSharedStateWritesWithRetry({
+        retries:2,
+        delayMs:550,
+        throwOnError:true,
+        context:{
+          action:'saveCommonScheduleWithAttachment',
+          dateKey,
+          scheduleId,
+          textFirstLine:getSharedScheduleGalleryTitle(text, ''),
+          attachmentCount:mergedImages.length
+        }
+      });
+    }
+  }catch(error){
+    console.error('[shared-schedule] save failed', {
+      dateKey,
+      scheduleId,
+      supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+      table:SHARED_STATE_SYNC_TABLE,
+      textFirstLine:getSharedScheduleGalleryTitle(text, ''),
+      attachmentCount:mergedImages.length,
+      error
+    });
+    writeTimelineAssignmentsRaw(previousAssignmentsRaw);
+    writePersonalTimelineSharedRaw(previousSharedRaw);
+    writeTimelineGalleryRaw(previousGalleryRaw);
+    timelineEditableLabels.forEach(label=>timelineAssignments[label]?.clear());
+    hasLoadedTimelineSavedAssignments=false;
+    hasLoadedPersonalTimelineSharedEntries=false;
+    clearObjectEntries(personalTimelineSharedEntries);
+    loadSavedTimelineAssignments();
+    loadPersonalTimelineSharedEntries();
+    applyTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(previousGalleryRaw), 'rollback');
+    timelineGalleryEntries=previousGalleryEntries.map(item=>({...item}));
+    if(document.querySelector('.timeline-gallery-view')){
+      refreshTimelineGalleryView();
+    }
+    throw error;
+  }
   updatePersonalTimelineSharedColumn(item, dateKey);
   updatePersonalTimelineItemEntryState(item, dateKey);
   if(item) item.classList.add('is-open');
@@ -13431,7 +13564,10 @@ async function writeTimelineSelection(value){
       if(selection.mode==='shared') window.alert('공용일정이 저장되었습니다.');
     }catch(error){
       console.error('공용일정 저장 실패:', error);
-      window.alert(`공용일정 저장에 실패했습니다. 원인: ${error?.message||error||'알 수 없는 오류'}`);
+      const timeoutLike=isSharedStateTimeoutError(error);
+      window.alert(timeoutLike
+        ? 'DB 연결 지연으로 저장 실패했습니다. 잠시 후 다시 저장해주세요.'
+        : `공용일정 저장에 실패했습니다. 원인: ${error?.message||error||'알 수 없는 오류'}`);
     }finally{
       setScheduleSavingState(false);
     }
@@ -15980,7 +16116,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-shared-attachment-dedupe-01');
+console.log('APP VERSION: 2026-05-07-shared-timeout-retry-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
