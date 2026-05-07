@@ -2409,6 +2409,10 @@ function clearLegacyPersonalTimelineDetailCaches(){
     });
   });
 }
+function clearEquipmentCarnetFetchCache(){
+  equipmentCarnetFetchCache=null;
+  equipmentCarnetFetchPromise=null;
+}
 function isDocumentStorageDeletedLikeFlag(value){
   if(value===true) return true;
   const text=String(value??'').trim().toLowerCase();
@@ -2519,6 +2523,11 @@ async function fetchEquipmentCarnetEntriesFromStorageList(client){
 async function fetchEquipmentCarnetEntriesFromSupabase(){
   const client=getDocumentStorageClient();
   if(!client) return null;
+  if(equipmentCarnetFetchCache&&Date.now()-equipmentCarnetFetchCache.fetchedAt<EQUIPMENT_STORAGE_FETCH_CACHE_TTL_MS){
+    return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
+  }
+  if(equipmentCarnetFetchPromise) return equipmentCarnetFetchPromise;
+  equipmentCarnetFetchPromise=(async ()=>{
   const {data, error}=await client
     .from(DOCUMENTS_TABLE)
     .select(DOCUMENTS_TABLE_SELECT_COLUMNS)
@@ -2527,13 +2536,20 @@ async function fetchEquipmentCarnetEntriesFromSupabase(){
   if(error){
     console.warn('[document-storage] documents table load failed; falling back to storage list.', error);
     try{
-      return await fetchEquipmentCarnetEntriesFromStorageList(client);
+      const fallbackEntries=await fetchEquipmentCarnetEntriesFromStorageList(client);
+      equipmentCarnetFetchCache={fetchedAt:Date.now(), entries:sanitizeEquipmentCarnetEntries(fallbackEntries)};
+      return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
     }catch(listError){
       console.warn('[document-storage] storage list fallback failed.', listError);
       return null;
     }
   }
-  return sanitizeEquipmentCarnetEntries(data||[]);
+  equipmentCarnetFetchCache={fetchedAt:Date.now(), entries:sanitizeEquipmentCarnetEntries(data||[])};
+  return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
+  })().finally(()=>{
+    equipmentCarnetFetchPromise=null;
+  });
+  return equipmentCarnetFetchPromise;
 }
 async function refreshEquipmentCarnetEntriesFromSupabase(options={}){
   const forceRender=Boolean(options.forceRender);
@@ -2601,6 +2617,7 @@ function renderDocuments(items=[]){
 }
 async function uploadDocumentFile(file, memo=''){
   if(!file) return null;
+  clearEquipmentCarnetFetchCache();
   const client=getDocumentStorageClient();
   if(!client?.storage?.from){
     throw new Error('Supabase Storage 연결이 준비되지 않았습니다.');
@@ -2656,6 +2673,7 @@ async function uploadDocumentFile(file, memo=''){
 async function removeEquipmentCarnetDocuments(entries=[]){
   const client=getDocumentStorageClient();
   if(!client) throw new Error('Supabase 연결이 준비되지 않았습니다.');
+  clearEquipmentCarnetFetchCache();
   const ids=(entries||[]).map(entry=>String(entry?.id||'').trim()).filter(id=>id&&!id.startsWith('storage-'));
   const paths=Array.from(new Set((entries||[]).map(entry=>String(entry?.storagePath||'').trim()).filter(Boolean)));
   if(paths.length&&client.storage?.from){
@@ -2869,7 +2887,7 @@ function renderEquipmentCarnetCard(entry){
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
   const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
   const thumbnail=isImage&&publicUrl
-    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기">`
+    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기" loading="lazy" decoding="async">`
     : `<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
@@ -3272,6 +3290,10 @@ function saveEquipmentFileStorageEntries(){
 function getFileStorageClient(){
   return getSharedStateSyncClient?.()||window.supabaseClient||null;
 }
+function clearEquipmentFileStorageFetchCache(){
+  equipmentFileStorageFetchCache=null;
+  equipmentFileStorageFetchPromise=null;
+}
 function createFileStoragePath(file={}){
   const originalName=file?.name||'file';
   const ext=String(originalName).includes('.')
@@ -3331,6 +3353,11 @@ async function fetchEquipmentFileStorageEntriesFromStorageList(client){
 async function fetchEquipmentFileStorageEntriesFromSupabase(){
   const client=getFileStorageClient();
   if(!client) return null;
+  if(equipmentFileStorageFetchCache&&Date.now()-equipmentFileStorageFetchCache.fetchedAt<EQUIPMENT_STORAGE_FETCH_CACHE_TTL_MS){
+    return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
+  }
+  if(equipmentFileStorageFetchPromise) return equipmentFileStorageFetchPromise;
+  equipmentFileStorageFetchPromise=(async ()=>{
   const {data, error}=await client
     .from(FILE_STORAGE_TABLE)
     .select(FILE_STORAGE_TABLE_SELECT_COLUMNS)
@@ -3339,13 +3366,20 @@ async function fetchEquipmentFileStorageEntriesFromSupabase(){
   if(error){
     console.warn('[file-storage] table load failed; falling back to storage list.', error);
     try{
-      return await fetchEquipmentFileStorageEntriesFromStorageList(client);
+      const fallbackEntries=await fetchEquipmentFileStorageEntriesFromStorageList(client);
+      equipmentFileStorageFetchCache={fetchedAt:Date.now(), entries:sortEquipmentFileStorageEntries(fallbackEntries)};
+      return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
     }catch(listError){
       console.warn('[file-storage] storage list fallback failed.', listError);
       return null;
     }
   }
-  return (data||[]).map(normalizeEquipmentFileStorageEntry).filter(Boolean);
+  equipmentFileStorageFetchCache={fetchedAt:Date.now(), entries:sortEquipmentFileStorageEntries((data||[]).map(normalizeEquipmentFileStorageEntry).filter(Boolean))};
+  return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
+  })().finally(()=>{
+    equipmentFileStorageFetchPromise=null;
+  });
+  return equipmentFileStorageFetchPromise;
 }
 async function refreshEquipmentFileStorageEntriesFromSupabase(options={}){
   const forceRender=Boolean(options.forceRender);
@@ -3385,6 +3419,7 @@ function renderFileStorageItems(items=[]){
 }
 async function uploadFileStorageItem(file, title=''){
   if(!file) return null;
+  clearEquipmentFileStorageFetchCache();
   const client=getFileStorageClient();
   if(!client?.storage?.from){
     throw new Error('Supabase Storage 연결이 준비되지 않았습니다.');
@@ -3443,6 +3478,7 @@ async function uploadFileStorageItem(file, title=''){
 async function removeEquipmentFileStorageFiles(entries=[]){
   const client=getFileStorageClient();
   if(!client) throw new Error('Supabase 연결이 준비되지 않았습니다.');
+  clearEquipmentFileStorageFetchCache();
   const ids=(entries||[]).map(entry=>String(entry?.id||'').trim()).filter(id=>id&&!id.startsWith('storage-'));
   const paths=Array.from(new Set((entries||[]).map(entry=>String(entry?.storagePath||'').trim()).filter(Boolean)));
   if(paths.length&&client.storage?.from){
@@ -3521,7 +3557,7 @@ function renderEquipmentFileStorageThumb(entry){
   const extension=(entry.previewData?.extension||getEquipmentFileStorageExtension(entry.fileName)||entry.fileType||'file').toUpperCase();
   const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
   if((entry.fileType==='image'||String(entry.fileType||'').startsWith('image/'))&&publicUrl){
-    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기">`;
+    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기" loading="lazy" decoding="async">`;
   }
   const typeClass=entry.fileType==='pdf' ? ' is-pdf' : '';
   const label=entry.fileType==='pdf' ? 'PDF' : extension||'FILE';
@@ -7594,6 +7630,14 @@ let sharedStateSyncInitStarted = false;
 let hasInitializedNewsProgrammingPersistence = false;
 let schedulesLoadPromise = null;
 let schedulesLoadedRangeKey = '';
+const sharedStateValueCache = new Map();
+const sharedStateValueFetchPromises = new Map();
+const SHARED_STATE_VALUE_CACHE_TTL_MS = 15000;
+let equipmentCarnetFetchCache = null;
+let equipmentCarnetFetchPromise = null;
+let equipmentFileStorageFetchCache = null;
+let equipmentFileStorageFetchPromise = null;
+const EQUIPMENT_STORAGE_FETCH_CACHE_TTL_MS = 15000;
 const timelineAssignments = Object.fromEntries(timelineEditableRows.map(row=>[row.label,new Map()]));
 let hasSeededTimelineTeamSchedules = false;
 let hasLoadedTimelineSavedAssignments = false;
@@ -7780,6 +7824,10 @@ function resetTimelineSyncState(){
 }
 function resetSharedStateSyncCaches(changedKeys=[]){
   const changed=new Set(changedKeys);
+  changed.forEach(key=>{
+    sharedStateValueCache.delete(key);
+    sharedStateValueFetchPromises.delete(key);
+  });
   if(changed.has(NEWS_EDITOR_STORAGE_KEY)) resetNewsEditorSyncState();
   if(changed.has(NEWS_PROGRAMMING_STORAGE_KEY)) resetNewsProgrammingSyncState();
   if(changed.has(SQUAD_INJURY_STORAGE_KEY)) resetSquadSyncState();
@@ -7902,7 +7950,9 @@ function schedulePendingSharedStateFlush(delay=120){
 }
 function scheduleSharedStateSyncWrite(storageKey, raw=''){
   if(sharedStateSyncDisabled||!SHARED_STATE_SYNC_REGISTRY[storageKey]) return;
-  sharedStatePendingWrites.set(storageKey, String(raw??''));
+  const normalizedRaw=String(raw??'');
+  sharedStatePendingWrites.set(storageKey, normalizedRaw);
+  sharedStateValueCache.set(storageKey, {succeeded:true, raw:normalizedRaw, fetchedAt:Date.now()});
   sharedStateLocalWriteGuards.set(storageKey, Date.now()+SHARED_STATE_LOCAL_WRITE_GUARD_MS);
   if(sharedStateSyncReady){
     schedulePendingSharedStateFlush(120);
@@ -8522,7 +8572,28 @@ function expandSchedulesByDate(schedules, targetDate){
     });
 }
 function renderSchedules(data){
-  window.supabaseSchedules=(Array.isArray(data) ? data : []).map(normalizeSchedule);
+  const merged=new Map();
+  (Array.isArray(data) ? data : []).map(normalizeSchedule).forEach(item=>{
+    const key=String(item?.id||'').trim()
+      || [
+        item?.date||item?.startDate||'',
+        item?.endDate||'',
+        item?.title||'',
+        item?.assignee||'',
+        item?.location||'',
+        item?.time||item?.startTime||''
+      ].map(value=>String(value||'').trim()).join('::');
+    if(!key) return;
+    const current=merged.get(key);
+    if(!current){
+      merged.set(key, item);
+      return;
+    }
+    const currentTime=Date.parse(String(current?.created_at||current?.createdAt||''))||0;
+    const nextTime=Date.parse(String(item?.created_at||item?.createdAt||''))||0;
+    merged.set(key, nextTime>=currentTime ? item : current);
+  });
+  window.supabaseSchedules=Array.from(merged.values());
 }
 function shiftScheduleDateKey(dateKey='', dayOffset=0){
   const normalized=String(dateKey||'').trim()||getTodayTimelineKey();
@@ -9338,7 +9409,7 @@ function buildTimelineSharedPreviewItem(item={}){
 function renderTimelineSharedAttachmentThumb(item={}){
   const fileName=String(item?.fileName||item?.name||'첨부 파일').trim()||'첨부 파일';
   if(isTimelineSharedImageAttachment(item)){
-    return `<img class="personal-timeline-shared-image" src="${escapeHtml(String(item?.src||item?.publicUrl||'').trim())}" alt="${escapeHtml(fileName)}">`;
+    return `<img class="personal-timeline-shared-image" src="${escapeHtml(String(item?.src||item?.publicUrl||'').trim())}" alt="${escapeHtml(fileName)}" loading="lazy" decoding="async">`;
   }
   return `<span class="personal-timeline-shared-file-thumb"><span class="personal-timeline-shared-file-ext">${escapeHtml((getFilePreviewExtension(fileName)||'FILE').toUpperCase())}</span></span>`;
 }
@@ -11719,24 +11790,40 @@ async function fetchTimelineGalleryDeletedIdsStateResult(){
 async function fetchSharedStateValueResult(stateKey=''){
   const client=getSharedStateSyncClient();
   if(!client) return {succeeded:false, raw:''};
+  const normalizedKey=String(stateKey||'').trim();
+  const cached=sharedStateValueCache.get(normalizedKey);
+  if(cached&&Date.now()-cached.fetchedAt<SHARED_STATE_VALUE_CACHE_TTL_MS){
+    return {succeeded:true, raw:cached.raw};
+  }
+  if(sharedStateValueFetchPromises.has(normalizedKey)){
+    return sharedStateValueFetchPromises.get(normalizedKey);
+  }
+  const promise=(async ()=>{
   try{
     const {data, error}=await client
       .from(SHARED_STATE_SYNC_TABLE)
       .select('state_value')
-      .eq('state_key', stateKey)
+      .eq('state_key', normalizedKey)
       .limit(1);
     if(error){
-      console.warn('Failed to fetch shared state value.', stateKey, error);
+      console.warn('Failed to fetch shared state value.', normalizedKey, error);
       return {succeeded:false, raw:''};
     }
-    return {
+    const result={
       succeeded:true,
       raw:String(data?.[0]?.state_value??'')
     };
+    sharedStateValueCache.set(normalizedKey, {...result, fetchedAt:Date.now()});
+    return result;
   }catch(error){
-    console.warn('Failed to fetch shared state value.', stateKey, error);
+    console.warn('Failed to fetch shared state value.', normalizedKey, error);
     return {succeeded:false, raw:''};
+  }finally{
+    sharedStateValueFetchPromises.delete(normalizedKey);
   }
+  })();
+  sharedStateValueFetchPromises.set(normalizedKey, promise);
+  return promise;
 }
 async function fetchTimelineGallerySharedRaw(){
   const result=await fetchTimelineGallerySharedStateResult();
@@ -11882,9 +11969,16 @@ function mergeTimelineGalleryRaw(localRaw='', remoteRaw=''){
 }
 function loadTimelineGalleryEntries(){
   if(hasLoadedTimelineGalleryEntries||timelineGalleryHydrationPromise) return;
-  timelineGalleryEntries=[];
+  const localRaw=readTimelineGalleryRaw();
+  const deletedIdsSet=getTimelineGalleryDeletedIdsSet();
+  timelineGalleryEntries=localRaw
+    ? filterDeletedTimelineGalleryEntries(parseTimelineGalleryEntriesRaw(localRaw), deletedIdsSet)
+    : [];
   hasResolvedTimelineGalleryEntries=false;
   hasLoadedTimelineGalleryEntries=true;
+  if(timelineGalleryEntries.length){
+    hasResolvedTimelineGalleryEntries=true;
+  }
   hydrateTimelineGalleryEntries();
 }
 function saveTimelineGalleryEntries(){
@@ -12021,7 +12115,7 @@ function renderTimelineGalleryMedia(entry={}, className='', alt='갤러리 미�
   const safeAlt=escapeHtml(alt||entry?.fileName||'갤러리 미디어');
   const classAttr=className ? ` class="${escapeHtml(className)}"` : '';
   if(getTimelineGalleryMediaType(entry)==='video'){
-    return `<video${classAttr} src="${source}" controls playsinline preload="metadata"></video>`;
+    return `<video${classAttr} src="${source}" controls playsinline preload="none"></video>`;
   }
   return `<img${classAttr} src="${source}" alt="${safeAlt}" loading="lazy" decoding="async">`;
 }
@@ -13259,6 +13353,20 @@ function renderPersonalTimelineDayView(view){
   const dateKey=setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey);
   return `<div class="personal-timeline-list is-day-view">${renderPersonalTimelineDayNavigator(dateKey)}${renderPersonalTimelineDayCard(dateKey, view)}</div>`;
 }
+function refreshPersonalTimelineDayView(list, view){
+  if(!list) return;
+  list.innerHTML=`${renderPersonalTimelineDayNavigator(currentPersonalTimelineDateKey)}${renderPersonalTimelineDayCard(currentPersonalTimelineDateKey, view)}`;
+  list.querySelectorAll('.personal-timeline-person-list').forEach(personList=>{
+    const activeName=personList.dataset.activePerson||'';
+    if(activeName){
+      activatePersonalTimelinePersonTab(personList, activeName);
+    }
+  });
+  ensureTimelineExportButton();
+  applyMobileTimelineAStructure();
+  updateHeaderTimes();
+  updateMobileHeaderReportBoardVisibility();
+}
 function renderPersonalTimelineSchedule(view){
   resetPersonalTimelineEndEditorState();
   setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey||getTodayTimelineKey());
@@ -13280,7 +13388,8 @@ function renderPersonalTimelineSchedule(view){
       const dayPicker=event.target.closest('[data-timeline-day-picker]');
       if(dayPicker&&list.contains(dayPicker)){
         setPersonalTimelineViewDateKey(dayPicker.value||'');
-        renderPersonalTimelineSchedule(view);
+        refreshPersonalTimelineDayView(list, view);
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
         return;
       }
       const select=event.target.closest('.personal-timeline-detail-select');
@@ -13315,7 +13424,8 @@ function renderPersonalTimelineSchedule(view){
       const dayMoveButton=event.target.closest('[data-timeline-day-move]');
       if(dayMoveButton&&list.contains(dayMoveButton)){
         movePersonalTimelineViewDate(Number(dayMoveButton.dataset.timelineDayMove||0));
-        renderPersonalTimelineSchedule(view);
+        refreshPersonalTimelineDayView(list, view);
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
         return;
       }
       const quickActionButton=event.target.closest('.personal-timeline-quick-btn[data-timeline-action]');
@@ -13325,7 +13435,8 @@ function renderPersonalTimelineSchedule(view){
           return;
         }
         setPersonalTimelineViewDateKey(getTodayTimelineKey());
-        renderPersonalTimelineSchedule(view);
+        refreshPersonalTimelineDayView(list, view);
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
         return;
       }
       const personTab=event.target.closest('.personal-timeline-person-tab');
@@ -16228,7 +16339,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-initial-load-optimize-01');
+console.log('APP VERSION: 2026-05-07-loading-speed-optimize-02');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
