@@ -14076,8 +14076,38 @@ function updateHeaderCountdown(){
   numberEl.innerHTML=renderHeaderCountdownDisplay(displayState.value, displayState.prefix);
   countdownEl.setAttribute('aria-label', `월드컵 개막 ${displayState.prefix}${displayState.value}`);
 }
+function getViewportWidthForMode(){
+  if(typeof window==='undefined') return Number.POSITIVE_INFINITY;
+  const widths=[
+    window.visualViewport?.width,
+    document.documentElement?.clientWidth,
+    window.innerWidth,
+    window.screen?.width
+  ].map(value=>Number(value)).filter(value=>Number.isFinite(value)&&value>0);
+  return widths.length ? Math.min(...widths) : Number.POSITIVE_INFINITY;
+}
+function isTouchMobileDevice(){
+  if(typeof window==='undefined') return false;
+  const ua=String(window.navigator?.userAgent||'').toLowerCase();
+  const platform=String(window.navigator?.platform||'').toLowerCase();
+  const maxTouchPoints=Number(window.navigator?.maxTouchPoints||0);
+  const isMobileUa=/iphone|ipod|android.*mobile|windows phone|blackberry|mobile/.test(ua);
+  const isIpadLike=/ipad/.test(ua)||(/mac/.test(platform)&&maxTouchPoints>1);
+  const narrowScreen=Number(window.screen?.width||0)>0&&Math.min(Number(window.screen.width), Number(window.screen.height||window.screen.width))<=768;
+  return isMobileUa||(!isIpadLike&&maxTouchPoints>0&&narrowScreen);
+}
 function isMobileViewport(){
-  return typeof window!=='undefined'&&window.matchMedia('(max-width: 768px)').matches;
+  if(typeof window==='undefined') return false;
+  const mediaMatch=typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 768px)').matches;
+  return mediaMatch||getViewportWidthForMode()<=768||isTouchMobileDevice();
+}
+function syncViewportModeClasses(){
+  if(typeof document==='undefined'||!document.body) return;
+  const mobile=isMobileViewport();
+  const compact=isCompactEquipmentViewport();
+  document.body.classList.toggle('is-mobile-viewport', mobile);
+  document.body.classList.toggle('is-tablet-viewport', !mobile&&compact);
+  document.body.classList.toggle('is-desktop-viewport', !mobile&&!compact);
 }
 function isCompactEquipmentViewport(){
   return typeof window!=='undefined'&&window.matchMedia('(max-width: 1200px)').matches;
@@ -14278,6 +14308,7 @@ function goBackMobileSubview(){
 }
 function updateMobileHeaderReportBoardVisibility(){
   if(typeof document==='undefined'||!document.body) return;
+  syncViewportModeClasses();
   const hasOpenSubview=getVisibleMobilePanels().length>0;
   updateMobileSubviewPanels();
   document.body.classList.toggle('mobile-subview-open', isMobileViewport()&&hasOpenSubview);
@@ -16395,6 +16426,8 @@ if(typeof window!=='undefined'){
   window.addEventListener('resize', updateMobileHeaderReportBoardVisibility);
   window.addEventListener('resize', ensureMobileHistoryGuard);
   window.addEventListener('resize', applyMobileTimelineAStructure);
+  window.addEventListener('orientationchange', updateMobileHeaderReportBoardVisibility);
+  window.addEventListener('pageshow', updateMobileHeaderReportBoardVisibility);
   window.addEventListener('beforeunload', event=>{
     if(!isTimelineGalleryComposerOpen&&!hasTimelineGalleryComposerDraft()) return;
     event.preventDefault();
@@ -16407,6 +16440,7 @@ if(typeof window!=='undefined'){
   });
   initSharedStateSync();
 }
+syncViewportModeClasses();
 updateMobileHeaderReportBoardVisibility();
 if(typeof document!=='undefined'&&document.readyState!=='loading'){
   initAccessMode();
