@@ -6781,16 +6781,32 @@ function formatKoreaTimeLabel(dateKey='', localTime='', cityOrLocation=''){
 }
 function formatEquipmentLabel(detail={}){
   const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', detail?.TVU||'')||'').trim();
-  return tvuLabel ? formatExportEquipmentLabel(tvuLabel) : '';
+  if(!tvuLabel) return '';
+  if(isPersonalTimelineNoTvuValue(detail?.TVU||'')) return PERSONAL_TIMELINE_NO_TVU_VALUE;
+  return formatExportEquipmentLabel(tvuLabel);
 }
 function normalizeTvuNumberValue(value){
   const text=String(value||'').trim();
   if(!text) return '';
+  if(text===PERSONAL_TIMELINE_NO_TVU_VALUE) return PERSONAL_TIMELINE_NO_TVU_VALUE;
   if(TVU_NUMBER_LEGACY_MAP[text]) return TVU_NUMBER_LEGACY_MAP[text];
   const match=text.match(/^TVU\s*(\d+)\s*번?(?:\s+TRS\s+\d+)?$/i)||text.match(/^(\d+)\s*번?$/);
   if(!match) return text;
   const normalized=`${match[1]}번`;
   return TVU_NUMBER_LEGACY_MAP[normalized]||normalized;
+}
+function isPersonalTimelineNoTvuValue(value=''){
+  return normalizeTvuNumberValue(value)===PERSONAL_TIMELINE_NO_TVU_VALUE;
+}
+function hasPhysicalTimelineTvu(value=''){
+  const normalized=normalizeTvuNumberValue(value);
+  return Boolean(normalized)&&normalized!==PERSONAL_TIMELINE_NO_TVU_VALUE;
+}
+function buildPersonalTimelineEquipmentPhrase(tvuValue=''){
+  const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', tvuValue)||'').trim();
+  if(!tvuLabel) return '';
+  if(isPersonalTimelineNoTvuValue(tvuValue)) return PERSONAL_TIMELINE_NO_TVU_VALUE;
+  return `${tvuLabel}을 가지고 진행`;
 }
 function joinReporterNames(name='', reporter=''){
   return buildPersonalTimelineParticipantLabel(name, reporter);
@@ -6827,26 +6843,17 @@ function formatScheduleTickerItem(schedule){
 }
 function getAllUpcomingScheduleTickerEntries(){
   loadPersonalTimelineDetailSelections();
-  const today=getTodayLocalDateString();
-  return getPersonalTimelineVisibleReportsForDate(today)
-    .map(item=>{
-      const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
-      const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, getPersonalTimelineStartTime(item.detail));
-      const nowSort=getTimeZoneNowSortValue(entryTimeZone);
-      return {
-        ...item,
-        entryTimeZone,
-        scheduleSort,
-        nowSort,
-        isUpcoming:scheduleSort>=nowSort
-      };
-    })
-    .filter(item=>item.isUpcoming||item.dateKey<today)
+  return getAllPersonalTimelineGeneratedReports()
+    .map(item=>({
+      ...item,
+      scheduleSort:getPersonalTimelineScheduleSortValue(item.dateKey, getPersonalTimelineStartTime(item.detail))
+    }))
     .sort((a,b)=>{
-      if(a.scheduleSort!==b.scheduleSort) return a.scheduleSort-b.scheduleSort;
-      if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
+      if(a.savedAt!==b.savedAt) return b.savedAt-a.savedAt;
+      if(a.scheduleSort!==b.scheduleSort) return b.scheduleSort-a.scheduleSort;
+      if(a.dateKey!==b.dateKey) return String(b.dateKey).localeCompare(String(a.dateKey));
       if(a.name!==b.name) return String(a.name).localeCompare(String(b.name));
-      return Number(a.entryIndex||0)-Number(b.entryIndex||0);
+      return Number(b.entryIndex||0)-Number(a.entryIndex||0);
     });
 }
 function getScheduleBoardItems(){
@@ -7297,7 +7304,8 @@ const personalTimelineRows = [
   {label:'정재우',type:'person'}
 ];
 const personalTimelineMemberNames = personalTimelineRows.filter(row=>row.label!=='영상취재팀 공동').map(row=>row.label);
-const TVU_NUMBER_OPTIONS = ['1번','15번','16번','17번','18번','19번'];
+const PERSONAL_TIMELINE_NO_TVU_VALUE = 'TVU 미지참';
+const TVU_NUMBER_OPTIONS = ['1번','15번','16번','17번','18번','19번', PERSONAL_TIMELINE_NO_TVU_VALUE];
 const TVU_NUMBER_LEGACY_MAP = {
   '2번':'15번',
   '3번':'16번',
@@ -7436,7 +7444,8 @@ const personalTimelineTvuLabelMap = {
   '16번':'TVU 16번 TRS 0016',
   '17번':'TVU 17번 TRS 0017',
   '18번':'TVU 18번 TRS 0018',
-  '19번':'TVU 19번 TRS 0019'
+  '19번':'TVU 19번 TRS 0019',
+  [PERSONAL_TIMELINE_NO_TVU_VALUE]:PERSONAL_TIMELINE_NO_TVU_VALUE
 };
 let personalTimelineEndEditorState = {
   itemId:'',
@@ -9302,6 +9311,9 @@ function parseLegacyPersonalTimelineEndAt(value=''){
   };
 }
 function formatPersonalTimelineEndLabel(detail={}){
+  if(String(detail?.manualEndLabel||detail?.inactiveLabel||'').trim()){
+    return String(detail?.manualEndLabel||detail?.inactiveLabel||'').trim();
+  }
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(detail?.endTime||'');
   const endTimeLabel=String(detail?.endTimeLabel||detail?.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
@@ -9347,7 +9359,7 @@ function renderPersonalTimelineSummaryLine(item){
   const isEditingMemo=isPersonalTimelineSummaryMemoEditing(item);
   const headHtml=summaryMarkup.headHtml||summaryMarkup.mainHtml||'';
   const bodyHtml=summaryMarkup.bodyHtml||summaryMarkup.equipmentHtml||'';
-  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><div class="personal-timeline-summary-text cumulative-main-text"><div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-head">${headHtml}</div>${bodyHtml?`<div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-body cumulative-equipment-text">${bodyHtml}</div>`:''}</div>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
+  return `<div class="personal-timeline-summary-line cumulative-item"><div class="personal-timeline-summary-main"><div class="personal-timeline-summary-text cumulative-main-text"><div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-head">${headHtml}</div>${bodyHtml?`<div class="personal-timeline-summary-text-line personal-timeline-summary-text-line-body cumulative-equipment-text">${bodyHtml}</div>`:''}</div>${endLabel?`<span class="personal-timeline-summary-end-label">${escapeHtml(endLabel)}</span>`:''}</div><div class="personal-timeline-summary-memo-row"><textarea class="personal-timeline-summary-memo-input cumulative-memo" data-summary-memo-date="${item.dateKey}" data-summary-memo-person="${escapeHtml(item.name)}" data-summary-memo-entry-index="${item.entryIndex}" aria-label="${escapeHtml(item.name)} 메모"${isEditingMemo?'':' disabled'}>${memoValue}</textarea></div><div class="personal-timeline-summary-actions cumulative-actions"><button type="button" class="personal-timeline-summary-write${isEditingMemo?' is-active':''}" data-summary-memo-write="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">작성</button><button type="button" class="personal-timeline-summary-save" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">저장</button><button type="button" class="personal-timeline-summary-end" data-summary-end="true" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">종료</button><button type="button" class="personal-timeline-summary-delete" data-date-key="${item.dateKey}" data-person="${escapeHtml(item.name)}" data-entry-index="${item.entryIndex}">삭제</button></div>${renderPersonalTimelineEndEditor(item)}</div>`;
 }
 function buildPersonalTimelineSummaryMarkup(item={}){
   const detail=item?.detail||{};
@@ -9356,7 +9368,8 @@ function buildPersonalTimelineSummaryMarkup(item={}){
   const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', getPersonalTimelineDetailEntryFieldValue(detail, '취재기자'));
   const savedDateLabel=formatPersonalTimelineSavedDateLabel(item?.dateKey||'');
   const timeLabel=formatPersonalTimelineTimeRangeLabel(detail, item?.dateKey||'', normalizedPlace||detail?.장소||'');
-  const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'))||'').trim();
+  const tvuValue=getPersonalTimelineDetailEntryFieldValue(detail, 'TVU');
+  const tvuLabel=String(getPersonalTimelineOptionLabel('TVU', tvuValue)||'').trim();
   if(participantLabel&&savedDateLabel&&timeLabel&&normalizedTask&&normalizedPlace&&tvuLabel){
     const equipmentMatch=tvuLabel.match(/^(TVU\s*\d+번)(?:\s+(TRS\s*\d+))?$/i);
     const equipmentTvu=String(equipmentMatch?.[1]||tvuLabel).trim();
@@ -9364,6 +9377,7 @@ function buildPersonalTimelineSummaryMarkup(item={}){
     const timeParts=String(timeLabel).split(' / ');
     const localTimePart=String(timeParts[0]||'').trim();
     const koreaTimePart=String(timeParts.slice(1).join(' / ')||'').trim();
+    const noTvu=isPersonalTimelineNoTvuValue(tvuValue);
     return {
       headHtml:[
         `<span class="schedule-person">${escapeHtml(participantLabel)}</span>`,
@@ -9375,8 +9389,8 @@ function buildPersonalTimelineSummaryMarkup(item={}){
         normalizedTask ? `<span class="schedule-task">${escapeHtml(normalizedTask)}</span><span class="schedule-connector">를</span>` : '',
         normalizedPlace ? `<span class="schedule-place">${escapeHtml(normalizedPlace)}</span><span class="schedule-connector">에서</span>` : '',
         equipmentTvu ? `<span class="schedule-equipment-tvu">${escapeHtml(equipmentTvu)}</span>` : '',
-        equipmentTrs ? `<span class="schedule-equipment-trs">${escapeHtml(equipmentTrs)}</span>` : '',
-        `<span class="schedule-equipment-rest">을 가지고 진행</span>`
+        !noTvu&&equipmentTrs ? `<span class="schedule-equipment-trs">${escapeHtml(equipmentTrs)}</span>` : '',
+        noTvu ? '' : '<span class="schedule-equipment-rest">을 가지고 진행</span>'
       ].filter(Boolean).join(' ')
     };
   }
@@ -9538,7 +9552,7 @@ function validatePersonalTimelineTimeRange(detailValues={}){
 function getPersonalTimelineConflictingReports(dateKey='', personName=''){
   const normalizedDateKey=normalizePersonalTimelineViewDateKey(dateKey);
   if(!normalizedDateKey) return [];
-  return getPersonalTimelineVisibleReportsForDate(normalizedDateKey).filter(item=>item.name!==personName);
+  return getPersonalTimelineVisibleReportsForDate(normalizedDateKey).filter(item=>item.name!==personName&&isPersonalTimelineEntryActive(item.detail, item.dateKey));
 }
 function getPersonalTimelineOptionOccupationMap(dateKey='', personName='', detailValues={}){
   const normalizedValues=normalizePersonalTimelineDetailValues(detailValues);
@@ -9555,6 +9569,7 @@ function getPersonalTimelineOptionOccupationMap(dateKey='', personName='', detai
     if(!rangesOverlapByMinutes(draftRange.startMinutes, draftRange.endMinutes, occupiedRange.startMinutes, occupiedRange.endMinutes)) return;
     ['장소','취재기자','TVU','업무내용'].forEach(field=>{
       const value=getPersonalTimelineDetailEntryFieldValue(conflictingDetail, field);
+      if(field==='TVU'&&(isPersonalTimelineNoTvuValue(value)||isPersonalTimelineNoTvuValue(normalizedValues[field]))) return;
       if(value) occupationMap[field].add(value);
     });
   });
@@ -9583,6 +9598,7 @@ function validatePersonalTimelineDetailAssignment(dateKey='', personName='', det
     ['장소','취재기자','TVU','업무내용'].forEach(field=>{
       const normalizedValue=normalizedValues[field];
       if(!normalizedValue) return;
+      if(field==='TVU'&&isPersonalTimelineNoTvuValue(normalizedValue)) return;
       const occupiedValue=getPersonalTimelineDetailEntryFieldValue(conflictingDetail, field);
       if(!occupiedValue||occupiedValue!==normalizedValue) return;
       const label=getPersonalTimelineConflictLabel(field, normalizedValue);
@@ -9612,10 +9628,19 @@ function sanitizePersonalTimelineDetailEntry(entry){
   const endDate=normalizePersonalTimelineEndDate(entry.endDate||legacyEndAt.endDate||'');
   const endTime=normalizePersonalTimelineEndTime(entry.endTime||legacyEndAt.endTime||'');
   const endTimeLabel=String(entry.endTimeLabel||entry.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
+  const manualEnded=String(entry?.manualEnded||entry?.inactive||entry?.ended||'').trim().toLowerCase();
+  const manualEndedAt=String(entry?.manualEndedAt||entry?.inactiveAt||entry?.endedAt||'').trim();
+  const manualEndLabel=String(entry?.manualEndLabel||entry?.inactiveLabel||'').trim();
   if(endDate) sanitizedFields.endDate=endDate;
   if(endTime) sanitizedFields.endTime=endTime;
   if(endTimeLabel) sanitizedFields.endTimeLabel=endTimeLabel;
   if(endTimeLabel) sanitizedFields.endLabel=endTimeLabel;
+  if(manualEnded==='true'||manualEnded==='1'||manualEnded==='ended'){
+    sanitizedFields.manualEnded='true';
+  }
+  if(manualEndedAt) sanitizedFields.manualEndedAt=manualEndedAt;
+  if(manualEndLabel) sanitizedFields.manualEndLabel=manualEndLabel;
+  if(manualEndLabel) sanitizedFields.inactiveLabel=manualEndLabel;
   const memo=String(entry?.memo||'').trim();
   if(memo) sanitizedFields.memo=memo;
   const createdAtValue=Number(entry?._createdAt||0);
@@ -9741,7 +9766,7 @@ function buildPersonalTimelineMobileReportLines(item){
   const participantLabel=buildPersonalTimelineParticipantLabel(item?.name||'', detail.취재기자||'');
   const timeLabel=formatPersonalTimelineTimeRangeLabel(detail, item?.dateKey||getTodayTimelineKey(), normalizedPlace||detail?.장소||'');
   const taskPlaceLabel=`${String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim()}를 ${String(normalizedPlace||'').trim()}에서`;
-  const equipmentLabel=`${getPersonalTimelineOptionLabel('TVU', detail.TVU)}을 가지고 진행`;
+  const equipmentLabel=buildPersonalTimelineEquipmentPhrase(detail.TVU);
   return [participantLabel, timeLabel, taskPlaceLabel, equipmentLabel];
 }
 function buildPersonalTimelineReportText(name, detail, dateKey=''){
@@ -9753,8 +9778,8 @@ function buildPersonalTimelineReportText(name, detail, dateKey=''){
   const normalizedPlace=getPersonalTimelineDetailEntryFieldValue(detail, '장소');
   const normalizedTask=getPersonalTimelineDetailEntryFieldValue(detail, '업무내용');
   const taskLabel=String(getPersonalTimelineTaskReportLabel(normalizedTask)||normalizedTask).trim();
-  const tvuLabel=getPersonalTimelineOptionLabel('TVU', getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
-  return `${participantLabel}${savedDateLabel?` ${savedDateLabel}`:''} ${formatPersonalTimelineTimeRangeLabel(detail, dateKey, normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소'))} ${taskLabel}를 ${normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소')}에서 ${tvuLabel}을 가지고 진행`;
+  const equipmentPhrase=buildPersonalTimelineEquipmentPhrase(getPersonalTimelineDetailEntryFieldValue(detail, 'TVU'));
+  return `${participantLabel}${savedDateLabel?` ${savedDateLabel}`:''} ${formatPersonalTimelineTimeRangeLabel(detail, dateKey, normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소'))} ${taskLabel}를 ${normalizedPlace||getPersonalTimelineDetailEntryFieldValue(detail, '장소')}에서 ${equipmentPhrase}`.trim();
 }
 function getPersonalTimelineGeneratedReportsForDate(dateKey){
   return personalTimelineMemberNames.flatMap(name=>getPersonalTimelineDetailEntries(dateKey, name).map((detail, entryIndex)=>({
@@ -9766,7 +9791,7 @@ function getPersonalTimelineGeneratedReportsForDate(dateKey){
     savedAt:getPersonalTimelineDetailSavedAt(detail, dateKey, entryIndex),
     timeSort:getPersonalTimelineTimeSortValue(getPersonalTimelineStartTime(detail)),
     text:buildPersonalTimelineReportText(name, detail, dateKey)
-  }))).filter(item=>item.text).sort((a,b)=>{
+  }))).filter(item=>item.text&&!isPersonalTimelineDeletedLike(item.detail)).sort((a,b)=>{
     if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
     if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
     return a.entryIndex-b.entryIndex;
@@ -9802,11 +9827,28 @@ function getPersonalTimelineSummaryReportsForDate(viewDateKey=''){
     return b.entryIndex-a.entryIndex;
   });
 }
+function isPersonalTimelineEntryManuallyEnded(detail={}){
+  const text=String(detail?.manualEnded||detail?.inactive||detail?.ended||'').trim().toLowerCase();
+  return text==='true'||text==='1'||text==='ended';
+}
 function isPersonalTimelineEndActiveForDate(detail={}, viewDateKey=''){
   const endDate=normalizePersonalTimelineEndDate(detail?.endDate||'');
   if(!endDate) return true;
   const normalizedViewDate=String(viewDateKey||'').trim();
   return !normalizedViewDate || normalizedViewDate<=endDate;
+}
+function isPersonalTimelineEntryInactive(detail={}, dateKey=''){
+  if(isPersonalTimelineDeletedLike(detail)) return true;
+  if(isPersonalTimelineEntryManuallyEnded(detail)) return true;
+  const normalizedEndTime=normalizePersonalTimelineEndTime(detail?.endTime||detail?.종료시간||'');
+  if(!normalizedEndTime||normalizedEndTime==='종료시간 미정') return false;
+  const endInfo=getPersonalTimelineEntryEndKstInfo(detail, dateKey);
+  if(!endInfo?.dateKey||!endInfo?.time) return false;
+  const nowKst=getKstDateTimeParts();
+  return compareKstDateTimePair(nowKst.dateKey, nowKst.time, endInfo.dateKey, endInfo.time)>=0;
+}
+function isPersonalTimelineEntryActive(detail={}, dateKey=''){
+  return !isPersonalTimelineEntryInactive(detail, dateKey);
 }
 function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
   loadPersonalTimelineDetailSelections();
@@ -9841,7 +9883,7 @@ function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
       });
     });
   });
-  return [...latestReportsByName.values()].filter(item=>isPersonalTimelineEndActiveForDate(item.detail, normalizedViewDate)).sort((a,b)=>{
+  return [...latestReportsByName.values()].filter(item=>isPersonalTimelineEntryActive(item.detail, item.dateKey)&&isPersonalTimelineEndActiveForDate(item.detail, normalizedViewDate)).sort((a,b)=>{
     if(a.timeSort!==b.timeSort) return a.timeSort-b.timeSort;
     if(a.dateKey!==b.dateKey) return String(a.dateKey).localeCompare(String(b.dateKey));
     if(a.name!==b.name) return personalTimelineMemberNames.indexOf(a.name)-personalTimelineMemberNames.indexOf(b.name);
@@ -9850,24 +9892,17 @@ function getPersonalTimelineOngoingReportsForDate(viewDateKey=''){
 }
 function getAllPersonalTimelineGeneratedReports(){
   loadPersonalTimelineDetailSelections();
-  const reports=Object.keys(personalTimelineDetailSelections).sort().filter(dateKey=>!isPastTimelineDateKey(dateKey)).flatMap(dateKey=>{
+  const reports=Object.keys(personalTimelineDetailSelections).sort().flatMap(dateKey=>{
     const items=getPersonalTimelineGeneratedReportsForDate(dateKey);
     return items.map((item, index)=>{
-      const entryTimeZone=getPersonalTimelineEntryTimeZone(item.detail);
       const scheduleSort=getPersonalTimelineScheduleSortValue(item.dateKey, getPersonalTimelineStartTime(item.detail));
-      const nowSort=getTimeZoneNowSortValue(entryTimeZone);
-      const isUpcoming=scheduleSort>=nowSort;
-      const urgencyDelta=isUpcoming ? scheduleSort-nowSort : Number.MAX_SAFE_INTEGER;
       return {
         ...item,
         sortOrder:index,
-        entryTimeZone,
         scheduleSort,
-        nowSort,
-        isUpcoming,
-        urgencyDelta
+        urgencyDelta:Math.max(0, Date.now()-getPersonalTimelineDetailSavedAt(item.detail, item.dateKey, item.entryIndex))
       };
-    }).filter(item=>item.isUpcoming&&isPersonalTimelineEndActiveForDate(item.detail, getTodayTimelineKey()));
+    }).filter(item=>isPersonalTimelineEntryActive(item.detail, item.dateKey));
   });
   const latestReportsByName=new Map();
   reports.forEach(item=>{
@@ -9877,10 +9912,9 @@ function getAllPersonalTimelineGeneratedReports(){
     }
   });
   return [...latestReportsByName.values()].sort((a,b)=>{
-    if(a.urgencyDelta!==b.urgencyDelta) return a.urgencyDelta-b.urgencyDelta;
-    if(a.scheduleSort!==b.scheduleSort) return a.scheduleSort-b.scheduleSort;
-    if(a.savedAt!==b.savedAt) return a.savedAt-b.savedAt;
-    return a.sortOrder-b.sortOrder;
+    if(a.savedAt!==b.savedAt) return b.savedAt-a.savedAt;
+    if(a.scheduleSort!==b.scheduleSort) return b.scheduleSort-a.scheduleSort;
+    return b.sortOrder-a.sortOrder;
   });
 }
 function renderEquipmentSharedTvuIndicatorHtml(){
@@ -9959,15 +9993,8 @@ function isPersonalTimelineEntryStarted(detail={}, dateKey=''){
 }
 function isPersonalTimelineTvuEntryActive(detail={}, dateKey=''){
   const tvu=normalizeTvuNumberValue(detail?.TVU||'');
-  if(!tvu) return false;
-  if(isPersonalTimelineDeletedLike(detail)) return false;
-  if(!isPersonalTimelineEntryStarted(detail, dateKey)) return false;
-  const normalizedEndTime=normalizePersonalTimelineEndTime(detail?.endTime||detail?.종료시간||'');
-  if(!normalizedEndTime||normalizedEndTime==='종료시간 미정') return true;
-  const endInfo=getPersonalTimelineEntryEndKstInfo(detail, dateKey);
-  if(!endInfo?.dateKey||!endInfo?.time) return true;
-  const nowKst=getKstDateTimeParts();
-  return compareKstDateTimePair(nowKst.dateKey, nowKst.time, endInfo.dateKey, endInfo.time)<0;
+  if(!hasPhysicalTimelineTvu(tvu)) return false;
+  return isPersonalTimelineEntryActive(detail, dateKey);
 }
 function getPersonalTimelineActiveTvuUsage(){
   if(isPersonalTimelineSummaryHydrating()){
@@ -10173,9 +10200,10 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
     const text=normalizePersonalTimelineDetailFieldValue(field, detailValues?.[field]);
     if(text) normalized[field]=text;
   });
-  const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||lastEntry?.endDate||'');
-  const endTime=normalizePersonalTimelineEndTime(detailValues?.endTime||lastEntry?.endTime||'');
-  const endTimeLabel=String(detailValues?.endTimeLabel||lastEntry?.endTimeLabel||lastEntry?.endLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
+  const requestedEndTime=normalizePersonalTimelineEndTime(detailValues?.endTime||'');
+  const endDate=normalizePersonalTimelineEndDate(detailValues?.endDate||(requestedEndTime ? dateKey : ''));
+  const endTime=requestedEndTime;
+  const endTimeLabel=String(detailValues?.endTimeLabel||buildPersonalTimelineEndTimeLabel(endTime)).trim();
   const memo=String(detailValues?.memo??lastEntry?.memo??'').trim();
   if(endDate) normalized.endDate=endDate;
   if(endTime) normalized.endTime=endTime;
@@ -10238,10 +10266,14 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
   if(!entries[entryIndex]) return false;
   const nextEntry=sanitizePersonalTimelineDetailEntry({
     ...entries[entryIndex],
+    manualEnded:'true',
+    manualEndedAt:new Date().toISOString(),
     endDate:normalizedDate,
     endTime:normalizedTime,
     endTimeLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
     endLabel:buildPersonalTimelineEndTimeLabel(normalizedTime),
+    manualEndLabel:`종료: ${normalizedDate} ${buildPersonalTimelineEndTimeLabel(normalizedTime)}`,
+    inactiveLabel:`종료: ${normalizedDate} ${buildPersonalTimelineEndTimeLabel(normalizedTime)}`,
     _createdAt:entries[entryIndex]?._createdAt||entries[entryIndex]?._savedAt||Date.now(),
     _savedAt:Date.now()
   });
@@ -10253,6 +10285,35 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
   updateHeaderReportBoard();
   updateEquipmentSharedTvuIndicators();
   resetPersonalTimelineEndEditorState();
+  return true;
+}
+function endPersonalTimelineDetailEntry(dateKey='', name='', entryIndex=-1){
+  if(!requireEditAccess()) return false;
+  loadPersonalTimelineDetailSelections();
+  const dateSelections=personalTimelineDetailSelections[dateKey];
+  const entries=Array.isArray(dateSelections?.[name]) ? [...dateSelections[name]] : [];
+  if(!entries[entryIndex]) return false;
+  const nowKst=getKstDateTimeParts();
+  const endLabel=buildPersonalTimelineEndTimeLabel(nowKst.time);
+  const nextEntry=sanitizePersonalTimelineDetailEntry({
+    ...entries[entryIndex],
+    manualEnded:'true',
+    manualEndedAt:new Date().toISOString(),
+    endDate:nowKst.dateKey,
+    endTime:nowKst.time,
+    endTimeLabel:endLabel,
+    endLabel:endLabel,
+    manualEndLabel:`종료: ${nowKst.dateKey} ${endLabel}`,
+    inactiveLabel:`종료: ${nowKst.dateKey} ${endLabel}`,
+    _createdAt:entries[entryIndex]?._createdAt||entries[entryIndex]?._savedAt||Date.now(),
+    _savedAt:Date.now()
+  });
+  if(!nextEntry) return false;
+  entries[entryIndex]=nextEntry;
+  dateSelections[name]=entries;
+  savePersonalTimelineDetailSelections();
+  updateHeaderReportBoard();
+  updateEquipmentSharedTvuIndicators();
   return true;
 }
 function collectPersonalTimelineRowValues(row){
@@ -13001,6 +13062,22 @@ function renderPersonalTimelineSchedule(view){
         }
         return;
       }
+      const summaryEndButton=event.target.closest('[data-summary-end="true"]');
+      if(summaryEndButton&&list.contains(summaryEndButton)){
+        const item=summaryEndButton.closest('.personal-timeline-item');
+        const dateKey=summaryEndButton.dataset.dateKey||'';
+        const personName=summaryEndButton.dataset.person||'';
+        const entryIndex=Number(summaryEndButton.dataset.entryIndex);
+        if(endPersonalTimelineDetailEntry(dateKey, personName, entryIndex)){
+          if(item){
+            updatePersonalTimelineSummaryBoard(item, item.dataset.dateKey||dateKey);
+            syncPersonalTimelinePersonRowFromSavedState(item, item.dataset.dateKey||dateKey, personName);
+            updatePersonalTimelineItemEntryState(item, item.dataset.dateKey||dateKey);
+          }
+          updateHeaderTimes();
+        }
+        return;
+      }
       const endCancelButton=event.target.closest('[data-end-editor-cancel="true"]');
       if(endCancelButton&&list.contains(endCancelButton)){
         resetPersonalTimelineEndEditorState();
@@ -13469,6 +13546,8 @@ function updateHeaderTimes(){
   koreaEl.textContent=formatHeaderClock('Asia/Seoul');
   koreaEl.title='대한민국 기준';
   updatePersonalTimelineNavigatorTimeLabel();
+  updateHeaderReportBoard();
+  updateEquipmentSharedTvuIndicators();
 }
 function startHeaderTimeTicker(){
   updateHeaderTimes();
@@ -15774,7 +15853,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-viewer-preview-01');
+console.log('APP VERSION: 2026-05-07-cumulative-status-rework-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);

@@ -6198,6 +6198,7 @@ input[type="file"]{
   font-weight:800;
 }
 .personal-timeline-summary-write,
+.personal-timeline-summary-end,
 .personal-timeline-summary-save,
 .personal-timeline-summary-delete{
   flex:0 0 auto;
@@ -6221,6 +6222,13 @@ input[type="file"]{
   color:#17314c;
   font:inherit;
 }
+.personal-timeline-summary-end{
+  border:1px solid #355f8a;
+  border-radius:8px;
+  background:#dce9f7;
+  color:#17314c;
+  font:inherit;
+}
 .personal-timeline-summary-write.is-active{
   border-color:#355f8a;
   background:#dce9f7;
@@ -6234,6 +6242,7 @@ input[type="file"]{
   font:inherit;
 }
 .personal-timeline-summary-write:hover,
+.personal-timeline-summary-end:hover,
 .personal-timeline-summary-save:hover,
 .personal-timeline-summary-delete:hover{
   filter:brightness(1.03);
@@ -6992,9 +7001,10 @@ textarea.simple-form-input,
     justify-content:flex-end;
     align-items:center;
     gap:8px;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
   }
   .personal-timeline-summary-write,
+  .personal-timeline-summary-end,
   .personal-timeline-summary-save,
   .personal-timeline-summary-delete{
     flex:0 0 auto;
@@ -9263,12 +9273,28 @@ textarea.simple-form-input,
   .personal-timeline-summary-actions{
     width:100%;
     justify-content:flex-end;
+    gap:6px;
+    flex-wrap:wrap;
   }
 
   .personal-timeline-summary-memo-input{
     min-height:32px;
     height:32px;
     font-size:12px;
+  }
+
+  .personal-timeline-summary-line{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-areas:
+      "main"
+      "memo"
+      "actions"
+      "editor";
+    gap:8px;
+  }
+
+  .personal-timeline-summary-main{
+    gap:8px;
   }
 
   .personal-timeline-day-head{
