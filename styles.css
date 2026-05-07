@@ -1,5 +1,5 @@
 ﻿:root{
-/* STYLE VERSION: mobile-ui-fix */
+/* STYLE VERSION: responsive-ui-stabilize */
   --bg-top:#e9edf2;
   --bg-bottom:#eef2f6;
   --panel-bg:rgba(255,255,255,.96);
@@ -10433,4 +10433,23 @@ body.is-mobile-viewport.mobile-subview-open .sidebar{
 
 body.is-mobile-viewport .mobile-subview-bar:not(.hidden){
   display:flex;
+}
+
+.mobile-only,
+.tablet-only{
+  display:none !important;
+}
+
+body.is-mobile-viewport .desktop-only,
+body.is-tablet-viewport .desktop-only{
+  display:none !important;
+}
+
+body.is-mobile-viewport .mobile-only,
+body.is-tablet-viewport .tablet-only{
+  display:revert !important;
+}
+
+body.is-desktop-viewport .desktop-only{
+  display:revert !important;
 }

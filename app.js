@@ -14109,6 +14109,21 @@ function syncViewportModeClasses(){
   document.body.classList.toggle('is-tablet-viewport', !mobile&&compact);
   document.body.classList.toggle('is-desktop-viewport', !mobile&&!compact);
 }
+function setupViewportModeListeners(){
+  if(typeof window==='undefined'||window.__worldcupViewportModeListenersReady) return;
+  window.__worldcupViewportModeListenersReady=true;
+  const sync=()=>updateMobileHeaderReportBoardVisibility();
+  ['(max-width: 768px)','(max-width: 1200px)'].forEach(query=>{
+    const media=typeof window.matchMedia==='function' ? window.matchMedia(query) : null;
+    if(!media) return;
+    if(typeof media.addEventListener==='function'){
+      media.addEventListener('change', sync);
+    }else if(typeof media.addListener==='function'){
+      media.addListener(sync);
+    }
+  });
+  window.visualViewport?.addEventListener?.('resize', sync);
+}
 function isCompactEquipmentViewport(){
   return typeof window!=='undefined'&&window.matchMedia('(max-width: 1200px)').matches;
 }
@@ -16399,7 +16414,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: 2026-05-07-loading-speed-optimize-02');
+console.log('APP VERSION: responsive-ui-stabilize');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
@@ -16440,6 +16455,7 @@ if(typeof window!=='undefined'){
   });
   initSharedStateSync();
 }
+setupViewportModeListeners();
 syncViewportModeClasses();
 updateMobileHeaderReportBoardVisibility();
 if(typeof document!=='undefined'&&document.readyState!=='loading'){
