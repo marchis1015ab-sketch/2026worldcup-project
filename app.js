@@ -16632,7 +16632,81 @@ function initRenewalShellControls(){
   if(typeof document==='undefined') return;
   const shell=document.querySelector('.wc26-shell');
   if(!shell||shell.dataset.wc26ControlsBound==='true') return;
+  const legacyRoot=document.querySelector('.wc26-legacy-root');
   shell.dataset.wc26ControlsBound='true';
+  const panelLinkMap={
+    '오늘의 주요 일정 전체보기':'일정',
+    '운영상태 요약 전체보기':'운영상태',
+    '장비 현황 전체보기':'장비',
+    'MAP 전체보기':'MAP',
+    '운영 알림 전체보기':'운영상태'
+  };
+  const syncNavActiveState=key=>{
+    shell.querySelectorAll('[data-wc26-group="nav"]').forEach(node=>{
+      const isActive=node.dataset.wc26Key===key;
+      node.classList.toggle('is-active', isActive);
+      node.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  };
+  const showLegacyRoot=()=>{
+    if(!legacyRoot) return;
+    legacyRoot.classList.add('is-visible');
+    legacyRoot.setAttribute('aria-hidden', 'false');
+  };
+  const hideLegacyRoot=()=>{
+    if(!legacyRoot) return;
+    legacyRoot.classList.remove('is-visible');
+    legacyRoot.setAttribute('aria-hidden', 'true');
+  };
+  const scrollToNode=node=>{
+    if(!node||typeof node.scrollIntoView!=='function') return;
+    node.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+  const openLegacyPanel=action=>{
+    if(typeof action!=='function') return;
+    showLegacyRoot();
+    action();
+    window.setTimeout(()=>scrollToNode(legacyRoot), 40);
+  };
+  const runShellNavigation=key=>{
+    switch(key){
+      case '일정':
+        openLegacyPanel(()=>togglePersonalTimeline());
+        return true;
+      case '장비':
+        openLegacyPanel(()=>toggleEquipment());
+        return true;
+      case '보관함':
+        openLegacyPanel(()=>{
+          toggleEquipment();
+          if(typeof showEquipmentCarnet==='function'){
+            showEquipmentCarnet(document.getElementById('equipmentCarnetTab')||null);
+          }
+        });
+        return true;
+      case '대진표':
+        openLegacyPanel(()=>toggleBracket());
+        return true;
+      case '경기장':
+        openLegacyPanel(()=>toggleMexicoStadium());
+        return true;
+      case 'MAP':
+        openLegacyPanel(()=>toggleMapPanel());
+        return true;
+      case '방송편성':
+        openLegacyPanel(()=>toggleNewsProgramming());
+        return true;
+      case '월드컵 뉴스':
+        openLegacyPanel(()=>toggleMain());
+        return true;
+      case '운영상태':
+        hideLegacyRoot();
+        scrollToNode(shell);
+        return true;
+      default:
+        return false;
+    }
+  };
   shell.querySelectorAll('[data-wc26-control]').forEach(node=>{
     node.setAttribute('aria-pressed', node.classList.contains('is-active')?'true':'false');
   });
@@ -16650,15 +16724,18 @@ function initRenewalShellControls(){
       }
     });
     if(group==='nav'&&key){
-      shell.querySelectorAll('[data-wc26-group="nav"]').forEach(node=>{
-        if(node.dataset.wc26Key===key){
-          node.classList.add('is-active');
-          node.setAttribute('aria-pressed', 'true');
-        }
-      });
+      syncNavActiveState(key);
+      runShellNavigation(key);
     }else{
       control.classList.add('is-active');
       control.setAttribute('aria-pressed', 'true');
+      if(control.dataset.wc26Control==='panel-link'){
+        const mappedKey=panelLinkMap[target]||'';
+        if(mappedKey){
+          syncNavActiveState(mappedKey);
+          runShellNavigation(mappedKey);
+        }
+      }
     }
     console.log(`[renewal-shell] ${control.dataset.wc26Control}: ${target}`);
   });
