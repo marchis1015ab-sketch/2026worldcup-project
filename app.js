@@ -7485,6 +7485,19 @@ const SHARED_STATE_SYNC_SUPABASE_URL = window.APP_CONFIG?.supabaseUrl||'';
 const SHARED_STATE_SYNC_SUPABASE_ANON_KEY = window.APP_CONFIG?.supabaseAnonKey||'';
 const SHARED_STATE_SYNC_TABLE = 'shared_state';
 const SCHEDULES_TABLE = 'schedules';
+const SCHEDULES_DB_COLUMNS = Object.freeze({
+  id:'id',
+  title:'title',
+  assignee:'assignee',
+  date:'match_date',
+  matchTime:'match_time',
+  localTime:'local_time',
+  koreaTime:'korea_time',
+  location:'location',
+  team:'team',
+  opponent:'opponent',
+  createdAt:'created_at'
+});
 let currentUser = null;
 let schedulesRealtimeChannel = null;
 let schedulesRealtimeRefreshTimerId = null;
@@ -7512,7 +7525,19 @@ const SHARED_STATE_LAZY_FETCH_KEYS = new Set([
 ]);
 const SHARED_STATE_INITIAL_FETCH_KEYS = SHARED_STATE_SYNC_KEYS.filter(key=>!SHARED_STATE_LAZY_FETCH_KEYS.has(key));
 const SHARED_STATE_INITIAL_FETCH_KEY_SET = new Set(SHARED_STATE_INITIAL_FETCH_KEYS);
-const SCHEDULES_TABLE_SELECT_COLUMNS = 'id,title,assignee,date,start_date,end_date,time,start_time,end_time,city,location,tvu,memo,created_at';
+const SCHEDULES_TABLE_SELECT_COLUMNS = [
+  SCHEDULES_DB_COLUMNS.id,
+  SCHEDULES_DB_COLUMNS.title,
+  SCHEDULES_DB_COLUMNS.assignee,
+  SCHEDULES_DB_COLUMNS.date,
+  SCHEDULES_DB_COLUMNS.matchTime,
+  SCHEDULES_DB_COLUMNS.localTime,
+  SCHEDULES_DB_COLUMNS.koreaTime,
+  SCHEDULES_DB_COLUMNS.location,
+  SCHEDULES_DB_COLUMNS.team,
+  SCHEDULES_DB_COLUMNS.opponent,
+  SCHEDULES_DB_COLUMNS.createdAt
+].join(',');
 const DOCUMENTS_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,file_size,storage_path,public_url,uploaded_at,memo,uploader,created_at,preview_data,original_data,deleted,removed,hidden,is_deleted,deleted_at,removed_at,hidden_at';
 const FILE_STORAGE_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,mime_type,file_size,storage_path,public_url,uploaded_at,uploader,created_at,preview_data,original_data';
 let sharedStateSyncClient = null;
@@ -8596,15 +8621,51 @@ function initUserSelect(){
     loadCurrentUser(e.target.value);
   });
 }
+function getScheduleRecordDateValue(data={}){
+  return String(
+    data?.[SCHEDULES_DB_COLUMNS.date]
+    ||data?.match_date
+    ||data?.date
+    ||data?.startDate
+    ||data?.start_date
+    ||''
+  ).trim();
+}
+function getScheduleRecordLocalTimeValue(data={}){
+  return normalizePersonalTimelineEndTime(
+    data?.[SCHEDULES_DB_COLUMNS.localTime]
+    ||data?.local_time
+    ||data?.[SCHEDULES_DB_COLUMNS.matchTime]
+    ||data?.match_time
+    ||data?.startTime
+    ||data?.start_time
+    ||data?.time
+    ||''
+  );
+}
+function getScheduleRecordKoreaTimeValue(data={}, fallbackDate='', fallbackLocation=''){
+  const storedValue=String(
+    data?.[SCHEDULES_DB_COLUMNS.koreaTime]
+    ||data?.korea_time
+    ||data?.koreaTime
+    ||''
+  ).trim();
+  if(storedValue) return storedValue;
+  const dateKey=String(fallbackDate||getScheduleRecordDateValue(data)||'').trim();
+  const localTime=getScheduleRecordLocalTimeValue(data);
+  const location=String(fallbackLocation||data?.location||data?.city||'').trim();
+  return formatKoreaTimeLabel(dateKey, localTime, location);
+}
 function normalizeScheduleData(data={}){
   const location=String(data?.location||'').trim();
   const resolvedCityContext=location ? resolveScheduleCityContext(location) : {city:''};
-  const normalizedDate=String(data?.startDate||data?.start_date||data?.date||getTodayTimelineKey()).trim()||getTodayTimelineKey();
+  const normalizedDate=String(getScheduleRecordDateValue(data)||getTodayTimelineKey()).trim()||getTodayTimelineKey();
   const normalizedEndDate=String(data?.endDate||data?.end_date||data?.finishDate||normalizedDate).trim()||normalizedDate;
-  const normalizedStartTime=normalizePersonalTimelineEndTime(data?.startTime||data?.start_time||data?.time||data?.local_time||'');
+  const normalizedStartTime=getScheduleRecordLocalTimeValue(data);
   const rawEndTime=String(data?.endTime??data?.end_time??'').trim();
   const normalizedEndTime=rawEndTime==='종료시간 미정' ? '' : normalizePersonalTimelineEndTime(rawEndTime);
   const normalizedCity=resolveWorldCupCityName(String(data?.city||resolvedCityContext.city||NEWS_PROGRAMMING_DEFAULT_CITY).trim()||NEWS_PROGRAMMING_DEFAULT_CITY);
+  const normalizedKoreaTime=getScheduleRecordKoreaTimeValue(data, normalizedDate, location||normalizedCity);
   return {
     title:String(data?.title||'').trim(),
     assignee:String(data?.assignee||'').trim(),
@@ -8617,26 +8678,31 @@ function normalizeScheduleData(data={}){
     startTime:normalizedStartTime,
     endTime:normalizedEndTime,
     city:normalizedCity,
+    koreaTime:normalizedKoreaTime,
     location,
     tvu:String(data?.tvu||'').trim(),
     memo:String(data?.memo||'').trim()
   };
 }
 function normalizeSchedule(item){
-  const startDate=String(item?.startDate||item?.start_date||item?.date||'').trim();
-  const endDate=String(item?.endDate||item?.end_date||item?.finishDate||item?.date||startDate||'').trim();
-  const startTime=normalizePersonalTimelineEndTime(item?.startTime||item?.start_time||item?.time||item?.local_time||'');
+  const recordDate=getScheduleRecordDateValue(item);
+  const startDate=String(recordDate||'').trim();
+  const endDate=String(item?.endDate||item?.end_date||item?.finishDate||recordDate||startDate||'').trim();
+  const startTime=getScheduleRecordLocalTimeValue(item);
   const endTime=normalizePersonalTimelineEndTime(item?.endTime||item?.end_time||'');
+  const koreaTime=getScheduleRecordKoreaTimeValue(item, startDate, item?.location||item?.city||'');
   return {
     ...item,
     startDate,
     endDate,
-    date:String(item?.date||startDate||'').trim(),
-    start_date:String(item?.start_date||startDate||'').trim(),
-    end_date:String(item?.end_date||endDate||startDate||'').trim(),
+    date:String(recordDate||startDate||'').trim(),
+    start_date:String(recordDate||startDate||'').trim(),
+    end_date:String(recordDate||endDate||startDate||'').trim(),
     time:startTime,
     startTime,
     endTime,
+    local_time:startTime,
+    korea_time:koreaTime,
     memo:String(item?.memo||'').trim()
   };
 }
@@ -8708,12 +8774,7 @@ function buildScheduleRangeFilter(dateKey='', preloadDays=1){
   const range=buildScheduleLoadRange(dateKey, preloadDays);
   const from=range.from;
   const to=range.to;
-  return [
-    `and(start_date.lte.${to},end_date.gte.${from})`,
-    `and(start_date.is.null,date.gte.${from},date.lte.${to})`,
-    `and(end_date.is.null,start_date.gte.${from},start_date.lte.${to})`,
-    `and(date.gte.${from},date.lte.${to})`
-  ].join(',');
+  return `and(${SCHEDULES_DB_COLUMNS.date}.gte.${from},${SCHEDULES_DB_COLUMNS.date}.lte.${to})`;
 }
 function buildMessage(schedule) {
   const timeLabel=buildWorldCupTimeLabel(schedule?.date||'', schedule?.time||'', schedule?.city||'');
@@ -8825,54 +8886,17 @@ async function saveSchedule(data, options={}) {
   const scheduleData=normalizeScheduleData(data);
   const showSuccessAlert=options?.showSuccessAlert!==false;
   const primaryPayload={
-    title:scheduleData.title,
-    assignee:scheduleData.assignee,
-    date:scheduleData.date,
-    start_date:scheduleData.startDate,
-    end_date:scheduleData.endDate,
-    time:scheduleData.time,
-    start_time:scheduleData.startTime,
-    end_time:scheduleData.endTime,
-    city:scheduleData.city,
-    location:scheduleData.location,
-    tvu:scheduleData.tvu,
-    memo:scheduleData.memo
+    [SCHEDULES_DB_COLUMNS.title]:scheduleData.title,
+    [SCHEDULES_DB_COLUMNS.assignee]:scheduleData.assignee,
+    [SCHEDULES_DB_COLUMNS.date]:scheduleData.date,
+    [SCHEDULES_DB_COLUMNS.matchTime]:scheduleData.time,
+    [SCHEDULES_DB_COLUMNS.localTime]:scheduleData.time,
+    [SCHEDULES_DB_COLUMNS.koreaTime]:scheduleData.koreaTime,
+    [SCHEDULES_DB_COLUMNS.location]:scheduleData.location,
+    [SCHEDULES_DB_COLUMNS.team]:'',
+    [SCHEDULES_DB_COLUMNS.opponent]:''
   };
-  if(!scheduleData.endTime) delete primaryPayload.end_time;
-  if(!scheduleData.memo) delete primaryPayload.memo;
-  if(!scheduleData.tvu) delete primaryPayload.tvu;
-
-  const legacyFallback={
-    title:scheduleData.title,
-    assignee:scheduleData.assignee,
-    date:scheduleData.date,
-    start_date:scheduleData.startDate,
-    end_date:scheduleData.endDate,
-    local_time:scheduleData.time,
-    start_time:scheduleData.startTime,
-    location:scheduleData.location,
-    memo:scheduleData.memo
-  };
-  if(scheduleData.endTime) legacyFallback.end_time=scheduleData.endTime;
-  if(!scheduleData.memo) delete legacyFallback.memo;
-
-  const minimalFallback={
-    title:scheduleData.title,
-    assignee:scheduleData.assignee,
-    local_time:scheduleData.time,
-    location:scheduleData.location,
-    memo:scheduleData.memo
-  };
-  if(!scheduleData.memo) delete minimalFallback.memo;
-
-  const payloadVariants=[
-    primaryPayload,
-    {...primaryPayload, memo:undefined},
-    legacyFallback,
-    {...legacyFallback, memo:undefined},
-    minimalFallback,
-    {...minimalFallback, memo:undefined}
-  ].map(payload=>Object.fromEntries(
+  const payloadVariants=[primaryPayload].map(payload=>Object.fromEntries(
     Object.entries(payload).filter(([, value])=>typeof value!=='undefined'&&String(value??'').trim()!=='')
   ));
 
@@ -8920,7 +8944,9 @@ async function loadSchedules(options={}) {
 
     if (error) {
       console.error(error);
-      return window.supabaseSchedules||[];
+      window.supabaseSchedules=[];
+      schedulesLoadedRangeKey='';
+      return [];
     }
 
     renderSchedules(data);
