@@ -8631,6 +8631,9 @@ function getScheduleRecordDateValue(data={}){
     ||''
   ).trim();
 }
+function isValidScheduleDateKey(value=''){
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value||'').trim());
+}
 function getScheduleRecordLocalTimeValue(data={}){
   return normalizePersonalTimelineEndTime(
     data?.[SCHEDULES_DB_COLUMNS.localTime]
@@ -8654,6 +8657,7 @@ function getScheduleRecordKoreaTimeValue(data={}, fallbackDate='', fallbackLocat
   const dateKey=String(fallbackDate||getScheduleRecordDateValue(data)||'').trim();
   const localTime=getScheduleRecordLocalTimeValue(data);
   const location=String(fallbackLocation||data?.location||data?.city||'').trim();
+  if(!isValidScheduleDateKey(dateKey)||!/^\d{2}:\d{2}$/.test(localTime)||!location) return '';
   return formatKoreaTimeLabel(dateKey, localTime, location);
 }
 function normalizeScheduleData(data={}){
@@ -8721,7 +8725,12 @@ function expandSchedulesByDate(schedules, targetDate){
 }
 function renderSchedules(data){
   const merged=new Map();
+  const unresolved=[];
   (Array.isArray(data) ? data : []).map(normalizeSchedule).forEach(item=>{
+    if(!isValidScheduleDateKey(item?.date||item?.startDate||'')){
+      unresolved.push(item);
+      return;
+    }
     const key=String(item?.id||'').trim()
       || [
         item?.date||item?.startDate||'',
@@ -8741,6 +8750,7 @@ function renderSchedules(data){
     const nextTime=Date.parse(String(item?.created_at||item?.createdAt||''))||0;
     merged.set(key, nextTime>=currentTime ? item : current);
   });
+  window.supabaseSchedulesUnscheduled=unresolved;
   window.supabaseSchedules=Array.from(merged.values());
 }
 function shiftScheduleDateKey(dateKey='', dayOffset=0){
