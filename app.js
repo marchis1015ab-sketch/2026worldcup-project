@@ -7719,6 +7719,10 @@ let sharedStateSyncInitStarted = false;
 let hasInitializedNewsProgrammingPersistence = false;
 let schedulesLoadPromise = null;
 let schedulesLoadedRangeKey = '';
+let schedulesUnscheduledLoadPromise = null;
+let schedulesUnscheduledLoaded = false;
+const unscheduledScheduleDraftDates = Object.create(null);
+const unscheduledScheduleSavingIds = new Set();
 const sharedStateValueCache = new Map();
 const sharedStateValueFetchPromises = new Map();
 const SHARED_STATE_VALUE_CACHE_TTL_MS = 15000;
@@ -8710,6 +8714,86 @@ function normalizeSchedule(item){
     memo:String(item?.memo||'').trim()
   };
 }
+function sortSchedulesByCreatedAtDesc(items=[]){
+  return [...items].sort((left, right)=>{
+    const leftTime=Date.parse(String(left?.created_at||left?.createdAt||''))||0;
+    const rightTime=Date.parse(String(right?.created_at||right?.createdAt||''))||0;
+    return rightTime-leftTime;
+  });
+}
+function setUnscheduledSchedules(data=[]){
+  const items=sortSchedulesByCreatedAtDesc(
+    (Array.isArray(data)?data:[])
+      .map(normalizeSchedule)
+      .filter(item=>!isValidScheduleDateKey(item?.date||item?.startDate||''))
+  );
+  const activeIds=new Set(items.map(item=>String(item?.id||'').trim()).filter(Boolean));
+  Object.keys(unscheduledScheduleDraftDates).forEach(id=>{
+    if(!activeIds.has(id)) delete unscheduledScheduleDraftDates[id];
+  });
+  window.supabaseSchedulesUnscheduled=items;
+  schedulesUnscheduledLoaded=true;
+  return items;
+}
+function getUnscheduledSchedules(){
+  return Array.isArray(window.supabaseSchedulesUnscheduled) ? window.supabaseSchedulesUnscheduled : [];
+}
+function getUnscheduledScheduleDraftDate(id=''){
+  return String(unscheduledScheduleDraftDates[String(id||'').trim()]||'').trim();
+}
+function setUnscheduledScheduleDraftDate(id='', value=''){
+  const normalizedId=String(id||'').trim();
+  if(!normalizedId) return;
+  const normalizedValue=String(value||'').trim();
+  if(normalizedValue){
+    unscheduledScheduleDraftDates[normalizedId]=normalizedValue;
+  }else{
+    delete unscheduledScheduleDraftDates[normalizedId];
+  }
+}
+function formatScheduleCreatedAtLabel(value=''){
+  const raw=String(value||'').trim();
+  if(!raw) return '-';
+  const parsed=new Date(raw);
+  if(Number.isNaN(parsed.getTime())) return raw;
+  const parts=new Intl.DateTimeFormat('ko-KR', {
+    year:'numeric',
+    month:'2-digit',
+    day:'2-digit',
+    hour:'2-digit',
+    minute:'2-digit',
+    hour12:false
+  }).formatToParts(parsed).reduce((acc, part)=>{
+    acc[part.type]=part.value;
+    return acc;
+  }, {});
+  return `${parts.year||'----'}.${parts.month||'--'}.${parts.day||'--'} ${parts.hour||'--'}:${parts.minute||'--'}`;
+}
+function findUnscheduledScheduleDateInput(root, scheduleId=''){
+  const normalizedId=String(scheduleId||'').trim();
+  if(!root||!normalizedId) return null;
+  return Array.from(root.querySelectorAll('[data-unscheduled-date-id]')).find(input=>String(input?.dataset?.unscheduledDateId||'').trim()===normalizedId)||null;
+}
+function renderPersonalTimelineUnscheduledCard(item){
+  const scheduleId=String(item?.id||'').trim();
+  if(!scheduleId) return '';
+  const isSaving=unscheduledScheduleSavingIds.has(scheduleId);
+  const selectedDate=getUnscheduledScheduleDraftDate(scheduleId);
+  const assignee=String(item?.assignee||'').trim()||'-';
+  const localTime=String(item?.local_time||item?.time||item?.startTime||'').trim()||'-';
+  const koreaTime=String(item?.korea_time||item?.koreaTime||'').trim()||'-';
+  const location=String(item?.location||'').trim()||'-';
+  const createdAt=formatScheduleCreatedAtLabel(item?.created_at||item?.createdAt||'');
+  return `<article class="personal-timeline-unscheduled-card" data-unscheduled-schedule-id="${escapeHtml(scheduleId)}"><div class="personal-timeline-unscheduled-card-head"><div class="personal-timeline-unscheduled-title-wrap"><strong class="personal-timeline-unscheduled-title">${escapeHtml(String(item?.title||'').trim()||'제목 없음')}</strong><span class="personal-timeline-unscheduled-badge">날짜 미지정</span></div><span class="personal-timeline-unscheduled-created">등록 ${escapeHtml(createdAt)}</span></div><dl class="personal-timeline-unscheduled-meta"><div class="personal-timeline-unscheduled-meta-row"><dt>담당</dt><dd>${escapeHtml(assignee)}</dd></div><div class="personal-timeline-unscheduled-meta-row"><dt>현지</dt><dd>${escapeHtml(localTime)}</dd></div><div class="personal-timeline-unscheduled-meta-row"><dt>한국</dt><dd>${escapeHtml(koreaTime)}</dd></div><div class="personal-timeline-unscheduled-meta-row"><dt>장소</dt><dd>${escapeHtml(location)}</dd></div></dl><div class="personal-timeline-unscheduled-actions"><label class="personal-timeline-unscheduled-field"><span>복구 날짜</span><input type="date" class="simple-form-input personal-timeline-unscheduled-date-input" data-unscheduled-date-id="${escapeHtml(scheduleId)}" value="${escapeHtml(selectedDate)}"${!canEdit()||isSaving?' disabled aria-disabled="true" data-edit-only="true"':''}></label><button type="button" class="section-title-action-btn personal-timeline-unscheduled-save-btn" data-edit-only="true" data-unscheduled-save-id="${escapeHtml(scheduleId)}"${!canEdit()||isSaving?' disabled aria-disabled="true"':''}>${isSaving?'저장 중':'저장'}</button></div></article>`;
+}
+function renderPersonalTimelineUnscheduledSection(){
+  const items=getUnscheduledSchedules();
+  if(!items.length) return '';
+  const helperText=canEdit()
+    ? '날짜를 직접 지정해 저장하면 일반 일정으로 이동합니다.'
+    : '날짜 복구는 편집 권한이 있는 계정에서만 가능합니다.';
+  return `<section class="personal-timeline-unscheduled-section simple-form-card"><div class="personal-timeline-unscheduled-header"><div class="personal-timeline-unscheduled-heading-wrap"><h3 class="personal-timeline-unscheduled-heading">날짜 미지정 일정</h3><p class="personal-timeline-unscheduled-description">${escapeHtml(helperText)}</p></div><span class="personal-timeline-unscheduled-count">${items.length}건</span></div><div class="personal-timeline-unscheduled-list">${items.map(renderPersonalTimelineUnscheduledCard).join('')}</div></section>`;
+}
 function expandSchedulesByDate(schedules, targetDate){
   const target=new Date(`${targetDate}T00:00:00`);
   if(Number.isNaN(target.getTime())) return [];
@@ -8725,10 +8809,8 @@ function expandSchedulesByDate(schedules, targetDate){
 }
 function renderSchedules(data){
   const merged=new Map();
-  const unresolved=[];
   (Array.isArray(data) ? data : []).map(normalizeSchedule).forEach(item=>{
     if(!isValidScheduleDateKey(item?.date||item?.startDate||'')){
-      unresolved.push(item);
       return;
     }
     const key=String(item?.id||'').trim()
@@ -8750,7 +8832,6 @@ function renderSchedules(data){
     const nextTime=Date.parse(String(item?.created_at||item?.createdAt||''))||0;
     merged.set(key, nextTime>=currentTime ? item : current);
   });
-  window.supabaseSchedulesUnscheduled=unresolved;
   window.supabaseSchedules=Array.from(merged.values());
 }
 function shiftScheduleDateKey(dateKey='', dayOffset=0){
@@ -8926,9 +9007,41 @@ async function saveSchedule(data, options={}) {
   } else {
     if(showSuccessAlert) alert('저장 완료');
     await sendScheduleSMS(scheduleData);
-    loadSchedules({force:true, dateKey:scheduleData.date, preloadDays:1});
+    await loadSchedules({force:true, dateKey:scheduleData.date, preloadDays:1});
+    refreshVisiblePersonalTimelineScheduleView();
     return true;
   }
+}
+async function loadUnscheduledSchedules(options={}){
+  const force=Boolean(options?.force);
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient) return getUnscheduledSchedules();
+  if(!force&&schedulesUnscheduledLoaded&&Array.isArray(window.supabaseSchedulesUnscheduled)){
+    return window.supabaseSchedulesUnscheduled;
+  }
+  if(!force&&schedulesUnscheduledLoadPromise){
+    return schedulesUnscheduledLoadPromise;
+  }
+  schedulesUnscheduledLoadPromise=(async()=>{
+    const { data, error } = await supabaseClient
+      .from(SCHEDULES_TABLE)
+      .select(SCHEDULES_TABLE_SELECT_COLUMNS)
+      .is(SCHEDULES_DB_COLUMNS.date, null)
+      .order(SCHEDULES_DB_COLUMNS.createdAt, { ascending: false })
+      .limit(200);
+
+    if(error){
+      console.error(error);
+      schedulesUnscheduledLoaded=false;
+      window.supabaseSchedulesUnscheduled=[];
+      return [];
+    }
+
+    return setUnscheduledSchedules(data);
+  })().finally(()=>{
+    schedulesUnscheduledLoadPromise=null;
+  });
+  return schedulesUnscheduledLoadPromise;
 }
 async function loadSchedules(options={}) {
   const requestedDateKey=options?.dateKey||'';
@@ -8955,11 +9068,14 @@ async function loadSchedules(options={}) {
     if (error) {
       console.error(error);
       window.supabaseSchedules=[];
+      window.supabaseSchedulesUnscheduled=[];
+      schedulesUnscheduledLoaded=false;
       schedulesLoadedRangeKey='';
       return [];
     }
 
     renderSchedules(data);
+    await loadUnscheduledSchedules({force});
     return window.supabaseSchedules||[];
   })().finally(()=>{
     schedulesLoadPromise=null;
@@ -8989,10 +9105,52 @@ function scheduleRealtimeScheduleRefresh(){
   if(schedulesRealtimeRefreshTimerId){
     clearTimeout(schedulesRealtimeRefreshTimerId);
   }
-  schedulesRealtimeRefreshTimerId=setTimeout(()=>{
+  schedulesRealtimeRefreshTimerId=setTimeout(async()=>{
     schedulesRealtimeRefreshTimerId=null;
-    loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+    await loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+    refreshVisiblePersonalTimelineScheduleView();
   }, 120);
+}
+async function saveUnscheduledScheduleDate(scheduleId='', matchDate=''){
+  if(!requireEditAccess()) return false;
+  const normalizedId=String(scheduleId||'').trim();
+  if(!normalizedId) return false;
+  const normalizedDate=String(matchDate||getUnscheduledScheduleDraftDate(normalizedId)||'').trim();
+  if(!isValidScheduleDateKey(normalizedDate)){
+    alert('복구할 날짜를 선택하세요.');
+    return false;
+  }
+  if(unscheduledScheduleSavingIds.has(normalizedId)) return false;
+  const supabaseClient=getScheduleSupabaseClient();
+  if(!supabaseClient){
+    console.error('날짜 미지정 일정 저장 실패: Supabase client is not ready.');
+    alert('저장 실패');
+    return false;
+  }
+  const rowId=/^\d+$/.test(normalizedId) ? Number(normalizedId) : normalizedId;
+  unscheduledScheduleSavingIds.add(normalizedId);
+  refreshVisiblePersonalTimelineScheduleView();
+  const { error } = await supabaseClient
+    .from(SCHEDULES_TABLE)
+    .update({
+      [SCHEDULES_DB_COLUMNS.date]:normalizedDate
+    })
+    .eq(SCHEDULES_DB_COLUMNS.id, rowId)
+    .is(SCHEDULES_DB_COLUMNS.date, null);
+  unscheduledScheduleSavingIds.delete(normalizedId);
+
+  if(error){
+    console.error('날짜 미지정 일정 저장 실패:', error);
+    refreshVisiblePersonalTimelineScheduleView();
+    alert('저장 실패');
+    return false;
+  }
+
+  delete unscheduledScheduleDraftDates[normalizedId];
+  await loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+  refreshVisiblePersonalTimelineScheduleView();
+  alert('저장 완료');
+  return true;
 }
 function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailValues={}){
   const localTime=getPersonalTimelineStartTime(detailValues);
@@ -13516,11 +13674,19 @@ function renderPersonalTimelineDayCard(dateKey, view){
     kind:row.label==='영상취재팀 공동'?'shared':'personal'
   })).filter(item=>item.value);
   const hasEntries=assignments.length||generatedReports.length;
-  return `<article class="personal-timeline-item personal-timeline-day-item ${hasEntries?'has-entry':'is-empty'} personal-timeline-phase-${phase.key} is-open" data-month="${currentDate.getMonth()+1}" data-date-key="${normalizedDateKey}" data-date="${normalizedDateKey}"><div class="personal-timeline-day-head"><div class="personal-timeline-day-badges"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day-label">${escapeHtml(formatPersonalTimelineNavigatorLabel(normalizedDateKey)||dateLabel)}</span></div><div class="personal-timeline-day-clock">${escapeHtml(getPersonalTimelineNavigatorTimeLabel())}</div></div><div class="personal-timeline-content"><div class="personal-timeline-card"><div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header-wrap">${renderPersonalTimelineSharedColumnHeader(normalizedDateKey, dateLabel)}</div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(normalizedDateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span><span class="personal-timeline-column-date">${escapeHtml(dateLabel)}</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(normalizedDateKey)}</div></section></div></div></div></article>`;
+  return `<article class="personal-timeline-item personal-timeline-day-item ${hasEntries?'has-entry':'is-empty'} personal-timeline-phase-${phase.key} is-open" data-month="${currentDate.getMonth()+1}" data-date-key="${normalizedDateKey}" data-date="${normalizedDateKey}"><div class="personal-timeline-day-head"><div class="personal-timeline-day-badges"><span class="personal-timeline-dday personal-timeline-dday-${phase.key}">${phase.label}</span><span class="personal-timeline-day-label">${escapeHtml(formatPersonalTimelineNavigatorLabel(normalizedDateKey)||dateLabel)}</span></div><div class="personal-timeline-day-clock">${escapeHtml(getPersonalTimelineNavigatorTimeLabel())}</div></div><div class="personal-timeline-content"><div class="personal-timeline-card"><div class="personal-timeline-columns"><section class="personal-timeline-column personal-timeline-column-shared"><div class="personal-timeline-column-header-wrap">${renderPersonalTimelineSharedColumnHeader(normalizedDateKey, dateLabel)}</div><div class="personal-timeline-column-body">${renderPersonalTimelineSharedColumn(normalizedDateKey)}</div></section><section class="personal-timeline-column personal-timeline-column-personal"><div class="personal-timeline-column-header personal-timeline-column-header-personal"><span class="personal-timeline-column-title">개별 일정</span><span class="personal-timeline-column-date">${escapeHtml(dateLabel)}</span></div><div class="personal-timeline-column-body">${renderPersonalTimelinePersonalColumn(normalizedDateKey)}</div></section></div>${renderPersonalTimelineUnscheduledSection()}</div></div></article>`;
 }
 function renderPersonalTimelineDayView(view){
   const dateKey=setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey);
   return `<div class="personal-timeline-list is-day-view">${renderPersonalTimelineDayNavigator(dateKey)}${renderPersonalTimelineDayCard(dateKey, view)}</div>`;
+}
+function refreshVisiblePersonalTimelineScheduleView(){
+  if(currentTimelineView!=='personal') return;
+  const detailCol=document.getElementById('detailCol');
+  if(!detailCol?.classList.contains('personal-timeline-mode')) return;
+  const list=detailCol.querySelector('.personal-timeline-list');
+  if(!list) return;
+  refreshPersonalTimelineDayView(list, timelineViews.personal||timelineViews[currentTimelineView]||timelineViews.personal);
 }
 function refreshPersonalTimelineDayView(list, view){
   if(!list) return;
@@ -13558,7 +13724,12 @@ function renderPersonalTimelineSchedule(view){
       if(dayPicker&&list.contains(dayPicker)){
         setPersonalTimelineViewDateKey(dayPicker.value||'');
         refreshPersonalTimelineDayView(list, view);
-        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1}).then(()=>refreshVisiblePersonalTimelineScheduleView());
+        return;
+      }
+      const unscheduledDateInput=event.target.closest('[data-unscheduled-date-id]');
+      if(unscheduledDateInput&&list.contains(unscheduledDateInput)){
+        setUnscheduledScheduleDraftDate(unscheduledDateInput.dataset.unscheduledDateId||'', unscheduledDateInput.value||'');
         return;
       }
       const select=event.target.closest('.personal-timeline-detail-select');
@@ -13571,6 +13742,11 @@ function renderPersonalTimelineSchedule(view){
       }
     };
     list.oninput=event=>{
+      const unscheduledDateInput=event.target.closest('[data-unscheduled-date-id]');
+      if(unscheduledDateInput&&list.contains(unscheduledDateInput)){
+        setUnscheduledScheduleDraftDate(unscheduledDateInput.dataset.unscheduledDateId||'', unscheduledDateInput.value||'');
+        return;
+      }
       const memoInput=event.target.closest('.personal-timeline-summary-memo-input');
       if(!memoInput||!list.contains(memoInput)) return;
       if(memoInput.disabled) return;
@@ -13594,7 +13770,7 @@ function renderPersonalTimelineSchedule(view){
       if(dayMoveButton&&list.contains(dayMoveButton)){
         movePersonalTimelineViewDate(Number(dayMoveButton.dataset.timelineDayMove||0));
         refreshPersonalTimelineDayView(list, view);
-        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1}).then(()=>refreshVisiblePersonalTimelineScheduleView());
         return;
       }
       const quickActionButton=event.target.closest('.personal-timeline-quick-btn[data-timeline-action]');
@@ -13605,7 +13781,14 @@ function renderPersonalTimelineSchedule(view){
         }
         setPersonalTimelineViewDateKey(getTodayTimelineKey());
         refreshPersonalTimelineDayView(list, view);
-        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+        loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1}).then(()=>refreshVisiblePersonalTimelineScheduleView());
+        return;
+      }
+      const unscheduledSaveButton=event.target.closest('[data-unscheduled-save-id]');
+      if(unscheduledSaveButton&&list.contains(unscheduledSaveButton)){
+        const scheduleId=String(unscheduledSaveButton.dataset.unscheduledSaveId||'').trim();
+        const dateInput=findUnscheduledScheduleDateInput(list, scheduleId);
+        saveUnscheduledScheduleDate(scheduleId, dateInput?.value||'');
         return;
       }
       const personTab=event.target.closest('.personal-timeline-person-tab');
@@ -13766,6 +13949,7 @@ function renderPersonalTimelineSchedule(view){
   detailCol.onclick=null;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
+  loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1}).then(()=>refreshVisiblePersonalTimelineScheduleView());
 }
 function renderTimelineHeaderCell(date){
   const classes=getTimelineDayClasses(date);
