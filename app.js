@@ -16630,27 +16630,27 @@ function initializeNewsProgrammingPersistence(){
 
 function initRenewalShellControls(){
   if(typeof document==='undefined') return;
-  const shell=document.querySelector('.wc26-shell--exact');
+  const shell=document.querySelector('.wc26-shell');
   if(!shell||shell.dataset.wc26ControlsBound==='true') return;
   shell.dataset.wc26ControlsBound='true';
-  shell.querySelectorAll('.wc26-hotspot[data-wc26-control]').forEach(node=>{
+  shell.querySelectorAll('[data-wc26-control]').forEach(node=>{
     node.setAttribute('aria-pressed', node.classList.contains('is-active')?'true':'false');
   });
   shell.addEventListener('click', event=>{
-    const control=event.target.closest('.wc26-hotspot[data-wc26-control]');
+    const control=event.target.closest('[data-wc26-control]');
     if(!control||!shell.contains(control)) return;
     event.preventDefault();
     const group=control.dataset.wc26Group||'';
     const key=control.dataset.wc26Key||'';
     const target=control.dataset.target||control.getAttribute('aria-label')||'unknown';
-    shell.querySelectorAll('.wc26-hotspot.is-active').forEach(node=>{
+    shell.querySelectorAll('[data-wc26-control].is-active').forEach(node=>{
       if(group&&node.dataset.wc26Group===group){
         node.classList.remove('is-active');
         node.setAttribute('aria-pressed', 'false');
       }
     });
     if(group==='nav'&&key){
-      shell.querySelectorAll('.wc26-hotspot[data-wc26-group="nav"]').forEach(node=>{
+      shell.querySelectorAll('[data-wc26-group="nav"]').forEach(node=>{
         if(node.dataset.wc26Key===key){
           node.classList.add('is-active');
           node.setAttribute('aria-pressed', 'true');
