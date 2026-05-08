@@ -2335,9 +2335,55 @@ function sanitizeEquipmentCarnetRows(rows=[]){
   }
   return sanitizedRows;
 }
+function getStoredFileBaseName(value=''){
+  const text=String(value||'').trim();
+  if(!text) return '';
+  const clean=text.split('?')[0].split('#')[0].replace(/\\/g, '/');
+  return clean.split('/').pop()||clean;
+}
+function getFileExtensionLabel(value=''){
+  const base=getStoredFileBaseName(value);
+  const match=base.match(/\.([a-z0-9]{1,8})$/i);
+  return match ? match[1].toLowerCase() : '';
+}
+function isInternalStorageFileName(value=''){
+  const base=getStoredFileBaseName(value).toLowerCase();
+  if(!base) return false;
+  const stem=base.replace(/\.[a-z0-9]{1,8}$/i, '');
+  if(/^file_[a-z0-9_-]{4,}$/i.test(stem)) return true;
+  if(/^file_\d{10,}_[a-z0-9_-]{10,}$/i.test(stem)) return true;
+  if(/^storage-[a-z0-9/_-]{12,}$/i.test(stem)) return true;
+  if(/^\d{10,}[-_][a-z0-9]{6,}$/i.test(stem)) return true;
+  if(/^[0-9a-f]{24,}$/i.test(stem)) return true;
+  return false;
+}
+function stripStorageUploadPrefix(value=''){
+  return getStoredFileBaseName(value).replace(/^\d+-[a-z0-9]+-/i, '').trim();
+}
+function resolveStoredFileDisplayName(entry={}, fallbackLabel='파일'){
+  const candidates=[
+    entry?.originalName,
+    entry?.original_name,
+    entry?.displayName,
+    entry?.display_name,
+    entry?.name,
+    entry?.title,
+    entry?.memo,
+    entry?.file_name,
+    entry?.fileName,
+    stripStorageUploadPrefix(entry?.storage_path||entry?.storagePath||'')
+  ];
+  for(const candidate of candidates){
+    const text=String(candidate||'').trim();
+    if(text&&!isInternalStorageFileName(text)) return text;
+  }
+  const extension=getFileExtensionLabel(entry?.file_name||entry?.fileName||entry?.storage_path||entry?.storagePath||'');
+  return extension ? `${fallbackLabel}.${extension}` : fallbackLabel;
+}
 function normalizeEquipmentCarnetEntry(entry={}, index=0){
   const fileName=String(entry?.file_name||entry?.fileName||entry?.name||entry?.title||'').trim();
   const title=String(entry?.title||entry?.memo||fileName||'').trim();
+  const displayName=resolveStoredFileDisplayName(entry, '문서 파일');
   const rawFileType=String(entry?.file_type||entry?.fileType||'').trim();
   const fileType=getEquipmentCarnetFileType(fileName, rawFileType)||rawFileType||getEquipmentCarnetFileType(fileName);
   const originalData=String(entry?.originalData||entry?.url||'').trim();
@@ -2350,6 +2396,7 @@ function normalizeEquipmentCarnetEntry(entry={}, index=0){
   return {
     id:String(entry?.id||`equipment-carnet-restored-${Date.now()}-${index}`).trim(),
     title:title||fileName||'문서 파일',
+    displayName,
     fileName,
     fileType:fileType||'file',
     fileSize:Number(entry?.file_size||entry?.fileSize)||0,
@@ -2466,6 +2513,7 @@ function saveEquipmentCarnetEntries(){
     items:sortEquipmentCarnetEntries(equipmentCarnetEntries).map(entry=>({
       id:entry.id,
       title:entry.title,
+      displayName:entry.displayName||'',
       fileName:entry.fileName,
       fileType:entry.fileType,
       fileSize:entry.fileSize||0,
@@ -2885,15 +2933,16 @@ function renderEquipmentCarnetCard(entry){
   const isImage=entry.fileType==='image'||String(entry.fileType||'').startsWith('image/');
   const createdAt=formatEquipmentCarnetDate(entry.uploadedAt||entry.createdAt);
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
+  const displayName=entry.displayName||entry.title||entry.fileName||'파일명 없음';
   const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
   const thumbnail=isImage&&publicUrl
-    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기" loading="lazy" decoding="async">`
+    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(displayName)} 미리보기" loading="lazy" decoding="async">`
     : `<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
     <div class="equipment-carnet-thumb">${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${thumbnail}</div>
     <div class="equipment-carnet-card-body">
-      <h4 class="equipment-carnet-card-title">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</h4>
+      <h4 class="equipment-carnet-card-title">${escapeHtml(displayName)}</h4>
       <div class="equipment-carnet-card-file">${escapeHtml([formatDocumentFileSize(entry.fileSize), entry.memo].filter(Boolean).join(' · ')||'문서 파일')}</div>
       <div class="equipment-carnet-card-date">${escapeHtml([createdAt, entry.uploader].filter(Boolean).join(' · '))}</div>
       <a class="document-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a>
@@ -2905,11 +2954,12 @@ function renderEquipmentCarnetMobileRow(entry){
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const meta=[formatDocumentFileSize(entry.fileSize), createdAt, entry.uploader].filter(Boolean).join(' · ')||'등록 정보 없음';
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
+  const displayName=entry.displayName||entry.title||entry.fileName||'문서 파일';
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<div class="equipment-carnet-mobile-row document-storage-item${isSelected?' is-selected':''}">
     ${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}
     <button type="button" class="equipment-carnet-mobile-link" data-viewer-allowed="true" onclick="${openAction}">
-      <span class="equipment-carnet-mobile-title">${escapeHtml(entry.fileName||entry.title||'문서 파일')}</span>
+      <span class="equipment-carnet-mobile-title">${escapeHtml(displayName)}</span>
       <span class="equipment-carnet-mobile-meta">${escapeHtml(meta)}</span>
     </button>
     <a class="document-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'document')}" target="_blank" rel="noopener noreferrer">다운로드</a>
@@ -3186,6 +3236,7 @@ function normalizeEquipmentFileStorageEntry(entry={}, index=0){
   const uploadedAt=String(entry?.uploaded_at||entry?.uploadedAt||'').trim();
   const fileName=String(entry?.file_name||entry?.fileName||entry?.name||'').trim();
   const title=String(entry?.title||fileName||'').trim();
+  const displayName=resolveStoredFileDisplayName(entry, '자료 파일');
   if(!originalData&&!publicUrl&&!storagePath&&!fileName&&!title) return null;
   const rawFileType=String(entry?.file_type||entry?.fileType||entry?.mimeType||'').trim();
   const fileType=getEquipmentFileStorageType(fileName, rawFileType)||rawFileType||'file';
@@ -3194,6 +3245,7 @@ function normalizeEquipmentFileStorageEntry(entry={}, index=0){
   return {
     id:String(entry?.id||`equipment-file-restored-${Date.now()}-${index}`).trim(),
     title:title||fileName||'자료 파일',
+    displayName,
     fileName:fileName||'파일',
     fileType,
     mimeType:String(entry?.mimeType||previewData.mimeType||'').trim(),
@@ -3271,6 +3323,7 @@ function saveEquipmentFileStorageEntries(){
     items:sortEquipmentFileStorageEntries(equipmentFileStorageEntries).map(entry=>({
       id:entry.id,
       title:entry.title,
+      displayName:entry.displayName||'',
       fileName:entry.fileName,
       fileType:entry.fileType,
       mimeType:entry.mimeType,
@@ -3556,8 +3609,9 @@ async function deleteSelectedEquipmentFileStorageEntries(){
 function renderEquipmentFileStorageThumb(entry){
   const extension=(entry.previewData?.extension||getEquipmentFileStorageExtension(entry.fileName)||entry.fileType||'file').toUpperCase();
   const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
+  const displayName=entry.displayName||entry.title||entry.fileName||'파일';
   if((entry.fileType==='image'||String(entry.fileType||'').startsWith('image/'))&&publicUrl){
-    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(entry.title)} 미리보기" loading="lazy" decoding="async">`;
+    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(displayName)} 미리보기" loading="lazy" decoding="async">`;
   }
   const typeClass=entry.fileType==='pdf' ? ' is-pdf' : '';
   const label=entry.fileType==='pdf' ? 'PDF' : extension||'FILE';
@@ -3568,16 +3622,18 @@ function renderEquipmentFileStorageCard(entry){
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
+  const displayName=entry.displayName||entry.title||entry.fileName||'파일명 없음';
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
-  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><strong class="equipment-carnet-card-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'파일명 없음')}</strong><span class="equipment-carnet-card-date file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
+  return `<article class="equipment-carnet-card equipment-file-storage-card file-storage-card file-storage-item${isSelected?' is-selected':''}${isEquipmentFileStorageDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}"><div class="equipment-carnet-thumb equipment-file-storage-thumb">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${renderEquipmentFileStorageThumb(entry)}</div><div class="equipment-carnet-card-body equipment-file-storage-card-body file-storage-info"><strong class="equipment-carnet-card-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(displayName)}</strong><span class="equipment-carnet-card-date file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span><div class="equipment-file-storage-card-actions"><a class="file-storage-download-btn" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">다운로드</a></div></div></article>`;
 }
 function renderEquipmentFileStorageMobileRow(entry){
   const isSelected=isEquipmentFileStorageEntrySelected(entry.id);
   const meta=[formatEquipmentFileStorageDate(entry.uploadedAt||entry.createdAt), formatEquipmentFileStorageSize(entry.fileSize), entry.uploader].filter(Boolean).join(' · ');
   const publicUrl=String(entry.publicUrl||entry.originalData||'').trim();
   const previewPayload=escapeHtml(JSON.stringify(entry));
+  const displayName=entry.displayName||entry.title||entry.fileName||'자료 파일';
   const openAction=isEquipmentFileStorageDeleteMode ? `toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')` : `openEquipmentFileStoragePreviewById('${escapeHtml(entry.id)}')`;
-  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" data-viewer-allowed="true" onclick="${openAction}"><strong class="equipment-carnet-mobile-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(entry.fileName||entry.title||'자료 파일')}</strong><span class="equipment-carnet-mobile-meta file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
+  return `<div class="equipment-carnet-mobile-row equipment-file-storage-mobile-row file-storage-item${isSelected?' is-selected':''}">${isEquipmentFileStorageDeleteMode?`<label class="equipment-carnet-mobile-check"><input type="checkbox" class="file-storage-delete-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentFileStorageSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}<button type="button" class="equipment-carnet-mobile-link file-storage-info" data-viewer-allowed="true" onclick="${openAction}"><strong class="equipment-carnet-mobile-title file-storage-title" data-viewer-allowed="true" onclick="event.stopPropagation();openFilePreview(JSON.parse(this.dataset.previewItem))" data-preview-item="${previewPayload}">${escapeHtml(displayName)}</strong><span class="equipment-carnet-mobile-meta file-storage-meta">${escapeHtml(meta||'등록 정보 없음')}</span></button><a class="file-storage-download-btn equipment-file-storage-mobile-export" href="${escapeHtml(publicUrl||'#')}" download="${escapeHtml(entry.fileName||'file')}" target="_blank" rel="noopener noreferrer">다운로드</a></div>`;
 }
 function renderEquipmentFileStorageItems(entries=[]){
   if(!entries.length){
@@ -7427,6 +7483,7 @@ const SHARED_STATE_SYNC_TABLE = 'shared_state';
 const SCHEDULES_TABLE = 'schedules';
 let currentUser = null;
 let schedulesRealtimeChannel = null;
+let schedulesRealtimeRefreshTimerId = null;
 const SHARED_STATE_SYNC_REGISTRY = {
   [NEWS_EDITOR_STORAGE_KEY]: {windowNameKey: NEWS_EDITOR_WINDOW_NAME_KEY},
   [NEWS_PROGRAMMING_STORAGE_KEY]: {windowNameKey: NEWS_PROGRAMMING_WINDOW_NAME_KEY},
@@ -7456,6 +7513,8 @@ const DOCUMENTS_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,file_size,s
 const FILE_STORAGE_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,mime_type,file_size,storage_path,public_url,uploaded_at,uploader,created_at,preview_data,original_data';
 let sharedStateSyncClient = null;
 let sharedStateSyncChannel = null;
+let sharedStateRealtimeFetchTimerId = null;
+const sharedStateRealtimeFetchKeys = new Set();
 let sharedStateSyncReady = false;
 let sharedStateInitialSnapshotLoaded = false;
 let sharedStateSyncDisabled = false;
@@ -8443,7 +8502,7 @@ function startSharedStateRealtimeSync(){
         schema:'public',
         table:SHARED_STATE_SYNC_TABLE
       },
-      ()=>fetchSharedStateSnapshot(getVisibleSharedStateFetchKeys(), {markInitial:false})
+      ()=>scheduleSharedStateRealtimeFetch(getVisibleSharedStateFetchKeys())
     )
     .subscribe((status)=>{
       if(status==='SUBSCRIBED'){
@@ -8451,6 +8510,23 @@ function startSharedStateRealtimeSync(){
         flushPendingSharedStateWrites();
       }
     });
+}
+function scheduleSharedStateRealtimeFetch(keys=[]){
+  const nextKeys=Array.isArray(keys)&&keys.length ? keys : getVisibleSharedStateFetchKeys();
+  nextKeys.forEach(key=>{
+    if(key) sharedStateRealtimeFetchKeys.add(key);
+  });
+  if(sharedStateRealtimeFetchTimerId){
+    clearTimeout(sharedStateRealtimeFetchTimerId);
+  }
+  sharedStateRealtimeFetchTimerId=setTimeout(()=>{
+    const fetchKeys=sharedStateRealtimeFetchKeys.size
+      ? Array.from(sharedStateRealtimeFetchKeys)
+      : getVisibleSharedStateFetchKeys();
+    sharedStateRealtimeFetchKeys.clear();
+    sharedStateRealtimeFetchTimerId=null;
+    fetchSharedStateSnapshot(fetchKeys, {markInitial:false});
+  }, 120);
 }
 function initSharedStateSync(){
   if(sharedStateSyncDisabled||sharedStateSyncInitStarted) return;
@@ -8863,10 +8939,19 @@ function subscribeRealtime() {
       },
       () => {
         console.log('🔄 실시간 업데이트');
-        loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+        scheduleRealtimeScheduleRefresh();
       }
     )
     .subscribe();
+}
+function scheduleRealtimeScheduleRefresh(){
+  if(schedulesRealtimeRefreshTimerId){
+    clearTimeout(schedulesRealtimeRefreshTimerId);
+  }
+  schedulesRealtimeRefreshTimerId=setTimeout(()=>{
+    schedulesRealtimeRefreshTimerId=null;
+    loadSchedules({force:true, dateKey:currentPersonalTimelineDateKey, preloadDays:1});
+  }, 120);
 }
 function getPersonalTimelineSchedulePayload(dateKey='', personName='', detailValues={}){
   const localTime=getPersonalTimelineStartTime(detailValues);
@@ -16414,7 +16499,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
-console.log('APP VERSION: responsive-ui-stabilize');
+console.log('APP VERSION: mobile-realtime-fix');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
