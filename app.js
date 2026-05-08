@@ -11053,7 +11053,7 @@ function saveHeaderReportBoardLaneSnapshots(){
   });
 }
 function stepHeaderReportBoardMarquee(timestamp){
-  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
+  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
   const speed=isMobile ? 58 : 68;
   const deltaSeconds=headerReportBoardLastFrameAt ? Math.min(0.05, (timestamp-headerReportBoardLastFrameAt)/1000) : 0;
   headerReportBoardLastFrameAt=timestamp;
@@ -11100,7 +11100,7 @@ function renderHeaderReportBoardMarqueeTrack(track, topItems=[], bottomItems=[])
     syncHeaderReportBoardLane('bottom', bottomItems);
     const elapsedSeconds=headerReportBoardLastActiveAt ? Math.max(0, (Date.now()-headerReportBoardLastActiveAt)/1000) : 0;
     if(elapsedSeconds>0){
-      const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
+      const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
       const speed=isMobile ? 58 : 68;
       Object.values(headerReportBoardLaneStates).forEach(state=>{
         state.items.forEach(entry=>{
@@ -11113,7 +11113,7 @@ function renderHeaderReportBoardMarqueeTrack(track, topItems=[], bottomItems=[])
   requestAnimationFrame(syncMarquee);
 }
 function getHeaderReportBoardTimings(){
-  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 720px)').matches;
+  const isMobile=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
   return isMobile
     ? {hold:14000, slide:2200, reset:2350}
     : {hold:10000, slide:1400, reset:1550};
@@ -14189,6 +14189,10 @@ function getViewportWidthForMode(){
   ].map(value=>Number(value)).filter(value=>Number.isFinite(value)&&value>0);
   return widths.length ? Math.min(...widths) : Number.POSITIVE_INFINITY;
 }
+const MOBILE_VIEWPORT_MAX=767;
+const TABLET_VIEWPORT_MAX=1024;
+const MOBILE_VIEWPORT_QUERY=`(max-width: ${MOBILE_VIEWPORT_MAX}px)`;
+const COMPACT_VIEWPORT_QUERY=`(max-width: ${TABLET_VIEWPORT_MAX}px)`;
 function isTouchMobileDevice(){
   if(typeof window==='undefined') return false;
   const ua=String(window.navigator?.userAgent||'').toLowerCase();
@@ -14196,13 +14200,13 @@ function isTouchMobileDevice(){
   const maxTouchPoints=Number(window.navigator?.maxTouchPoints||0);
   const isMobileUa=/iphone|ipod|android.*mobile|windows phone|blackberry|mobile/.test(ua);
   const isIpadLike=/ipad/.test(ua)||(/mac/.test(platform)&&maxTouchPoints>1);
-  const narrowScreen=Number(window.screen?.width||0)>0&&Math.min(Number(window.screen.width), Number(window.screen.height||window.screen.width))<=768;
+  const narrowScreen=Number(window.screen?.width||0)>0&&Math.min(Number(window.screen.width), Number(window.screen.height||window.screen.width))<=MOBILE_VIEWPORT_MAX;
   return isMobileUa||(!isIpadLike&&maxTouchPoints>0&&narrowScreen);
 }
 function isMobileViewport(){
   if(typeof window==='undefined') return false;
-  const mediaMatch=typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 768px)').matches;
-  return mediaMatch||getViewportWidthForMode()<=768||isTouchMobileDevice();
+  const mediaMatch=typeof window.matchMedia==='function'&&window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
+  return mediaMatch||getViewportWidthForMode()<=MOBILE_VIEWPORT_MAX||isTouchMobileDevice();
 }
 function syncViewportModeClasses(){
   if(typeof document==='undefined'||!document.body) return;
@@ -14216,7 +14220,7 @@ function setupViewportModeListeners(){
   if(typeof window==='undefined'||window.__worldcupViewportModeListenersReady) return;
   window.__worldcupViewportModeListenersReady=true;
   const sync=()=>updateMobileHeaderReportBoardVisibility();
-  ['(max-width: 768px)','(max-width: 1200px)'].forEach(query=>{
+  [MOBILE_VIEWPORT_QUERY,COMPACT_VIEWPORT_QUERY].forEach(query=>{
     const media=typeof window.matchMedia==='function' ? window.matchMedia(query) : null;
     if(!media) return;
     if(typeof media.addEventListener==='function'){
@@ -14228,7 +14232,7 @@ function setupViewportModeListeners(){
   window.visualViewport?.addEventListener?.('resize', sync);
 }
 function isCompactEquipmentViewport(){
-  return typeof window!=='undefined'&&window.matchMedia('(max-width: 1200px)').matches;
+  return typeof window!=='undefined'&&window.matchMedia(COMPACT_VIEWPORT_QUERY).matches;
 }
 function getDesktopTabStackIds(){
   return ['newsTabStack','bracketTabStack','mexicoStadiumTabStack'];
@@ -16517,7 +16521,7 @@ if(typeof window!=='undefined'){
     console.error('GLOBAL PROMISE ERROR:', event.reason||'');
   });
   console.log('APP INIT START');
- console.log('APP VERSION: cache-hardening-20260508-01');
+ console.log('APP VERSION: mobile-ui-compact-20260508-01');
   const deployCheckText=String(document.getElementById('deploy-version-badge')?.textContent||'').trim();
   const appScriptVersion=Array.from(document.scripts||[]).map(script=>String(script?.src||'')).find(src=>src.includes('/app.js?v='))||'';
   console.log('[deploy] current deploy check', deployCheckText);
