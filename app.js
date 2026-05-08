@@ -13106,9 +13106,6 @@ function bindTimelineGalleryViewEvents(){
       persistTimelineGalleryComposerDraft();
       updateTimelineGalleryComposerPreview();
       fileInput.value='';
-      if(nextImages.length){
-        await saveGalleryEntry({notifySuccess:true});
-      }
       return;
     }
     const groupCheck=event.target.closest('[data-gallery-group-check]');
