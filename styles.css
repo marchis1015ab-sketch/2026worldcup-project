@@ -11324,16 +11324,58 @@ body{
   background:#08133c;
 }
 
-.wc26-shell--exact > :not(.wc26-shell__reference):not(.wc26-shell__sr){
+.wc26-shell--exact > :not(.wc26-shell__frame):not(.wc26-shell__sr){
   display:none !important;
+}
+
+.wc26-shell__frame{
+  position:relative;
+  flex:0 0 auto;
+  height:100vh;
+  aspect-ratio:1536 / 1024;
 }
 
 .wc26-shell__reference{
   display:block;
-  width:auto;
+  width:100%;
   max-width:none;
-  height:100vh;
-  margin:0 auto;
+  height:100%;
+  margin:0;
+}
+
+.wc26-shell__overlay{
+  position:absolute;
+  inset:0;
+  z-index:2;
+}
+
+.wc26-hotspot{
+  position:absolute;
+  left:calc(var(--x) * 100%);
+  top:calc(var(--y) * 100%);
+  width:calc(var(--w) * 100%);
+  height:calc(var(--h) * 100%);
+  padding:0;
+  border:1px solid transparent;
+  border-radius:calc(var(--radius, 0.018) * 100vw);
+  background:transparent;
+  cursor:pointer;
+  outline:none;
+  transition:border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.wc26-hotspot:hover,
+.wc26-hotspot:focus-visible{
+  border-color:rgba(45, 244, 255, .42);
+  box-shadow:0 0 0 1px rgba(255, 90, 28, .28);
+}
+
+.wc26-hotspot.is-active{
+  border-color:rgba(45, 244, 255, .84);
+  box-shadow:
+    0 0 0 1px rgba(255, 90, 28, .62),
+    inset 0 0 0 1px rgba(45, 244, 255, .84);
+  background:rgba(3, 20, 34, .10);
 }
 
 .wc26-shell__sr{
@@ -11349,11 +11391,19 @@ body{
 }
 
 @media (max-width:979px){
-  .wc26-shell__reference{
-    width:auto;
-    min-width:0;
+  .wc26-shell__frame{
     height:100vh;
+  }
+
+  .wc26-shell__reference{
+    width:100%;
+    min-width:0;
+    height:100%;
     margin:0;
+  }
+
+  .wc26-hotspot{
+    border-radius:calc(var(--radius, 0.018) * 100vw);
   }
 }
 @media (max-width:767px){
