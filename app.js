@@ -6621,12 +6621,50 @@ function compareTimelineExportRows(a, b){
   if(timeCompare) return timeCompare;
   return String(a.취재기자||'').localeCompare(String(b.취재기자||''), 'ko');
 }
-function getTimelineExportRows(){
+function normalizeTimelineExportKeyValue(value=''){
+  return String(value||'')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+function buildTimelineExportDedupeKey(row={}){
   return [
+    row.날짜,
+    row.시간,
+    row.취재기자,
+    row.장소,
+    row.장비,
+    row.내용
+  ].map(normalizeTimelineExportKeyValue).join('||');
+}
+function mergeTimelineExportMemo(currentMemo='', nextMemo=''){
+  const parts=[currentMemo, nextMemo]
+    .flatMap(value=>String(value||'').split(','))
+    .map(value=>value.trim())
+    .filter(Boolean);
+  return Array.from(new Set(parts)).join(', ');
+}
+function dedupeTimelineExportRows(rows=[]){
+  const merged=new Map();
+  (Array.isArray(rows)?rows:[]).forEach(row=>{
+    if(!row||typeof row!=='object') return;
+    const key=buildTimelineExportDedupeKey(row);
+    if(!key.replace(/\|/g, '')) return;
+    const current=merged.get(key);
+    if(!current){
+      merged.set(key, {...row});
+      return;
+    }
+    current.메모=mergeTimelineExportMemo(current.메모, row.메모);
+  });
+  return Array.from(merged.values());
+}
+function getTimelineExportRows(){
+  return dedupeTimelineExportRows([
     ...getTimelineSharedExportRows(),
     ...getTimelineDetailExportRows(),
     ...getTimelineAssignmentExportRows()
-  ].sort(compareTimelineExportRows);
+  ]).sort(compareTimelineExportRows);
 }
 function getEquipmentExportRowsFromRows(rows=[]){
   const headers=getEquipmentHeaders('shared');
