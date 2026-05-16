@@ -2930,14 +2930,11 @@ async function deleteSelectedEquipmentCarnetEntries(){
   }
 }
 function renderEquipmentCarnetCard(entry){
-  const isImage=entry.fileType==='image'||String(entry.fileType||'').startsWith('image/');
   const createdAt=formatEquipmentCarnetDate(entry.uploadedAt||entry.createdAt);
   const isSelected=isEquipmentCarnetEntrySelected(entry.id);
   const displayName=entry.displayName||entry.title||entry.fileName||'파일명 없음';
   const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
-  const thumbnail=isImage&&publicUrl
-    ? `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(displayName)} 미리보기" loading="lazy" decoding="async">`
-    : `<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
+  const thumbnail=`<div class="equipment-carnet-file-icon"><span>${escapeHtml(getEquipmentCarnetFileExtension(entry.fileName||'')||entry.fileType||'FILE')}</span></div>`;
   const openAction=isEquipmentCarnetDeleteMode ? `toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')` : `openEquipmentCarnetViewer('${escapeHtml(entry.id)}')`;
   return `<article class="equipment-carnet-card${isSelected?' is-selected':''}${isEquipmentCarnetDeleteMode?' is-delete-mode':''}" data-viewer-allowed="true" onclick="${openAction}" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${openAction};}">
     <div class="equipment-carnet-thumb">${isEquipmentCarnetDeleteMode?`<label class="equipment-carnet-select-badge" onclick="event.stopPropagation()"><input type="checkbox" class="equipment-carnet-select-checkbox" ${isSelected?'checked':''} onchange="toggleEquipmentCarnetSelection('${escapeHtml(entry.id)}')"><span>선택</span></label>`:''}${thumbnail}</div>
@@ -3611,11 +3608,6 @@ async function deleteSelectedEquipmentFileStorageEntries(){
 }
 function renderEquipmentFileStorageThumb(entry){
   const extension=(entry.previewData?.extension||getEquipmentFileStorageExtension(entry.fileName)||entry.fileType||'file').toUpperCase();
-  const publicUrl=String(entry.publicUrl||entry.originalData||entry.previewData?.src||'').trim();
-  const displayName=entry.displayName||entry.title||entry.fileName||'파일';
-  if((entry.fileType==='image'||String(entry.fileType||'').startsWith('image/'))&&publicUrl){
-    return `<img class="equipment-carnet-thumb-image" src="${escapeHtml(publicUrl)}" alt="${escapeHtml(displayName)} 미리보기" loading="lazy" decoding="async">`;
-  }
   const typeClass=entry.fileType==='pdf' ? ' is-pdf' : '';
   const label=entry.fileType==='pdf' ? 'PDF' : extension||'FILE';
   return `<div class="equipment-file-storage-file-icon${typeClass}"><span>${escapeHtml(label)}</span></div>`;
@@ -7610,6 +7602,11 @@ const headerClockModes = {
   venue:'venue',
   device:'device'
 };
+const PERFORMANCE_DEBUG_ENABLED = false;
+function perfDebug(label, value){
+  if(!PERFORMANCE_DEBUG_ENABLED) return;
+  console.log('[perf]', label, value);
+}
 const scheduleStadiumTimeZones = {
   azteca:'America/Mexico_City',
   akron:'America/Mexico_City',
@@ -8536,6 +8533,7 @@ async function fetchSharedStateSnapshot(storageKeys=SHARED_STATE_INITIAL_FETCH_K
 function startSharedStateRealtimeSync(){
   const client=getSharedStateSyncClient();
   if(!client||sharedStateSyncChannel) return;
+  perfDebug('realtime.channel.created', SHARED_STATE_SYNC_TABLE);
   sharedStateSyncChannel=client
     .channel('worldcup-shared-state')
     .on(
@@ -8949,6 +8947,7 @@ async function loadSchedules(options={}) {
   }
   schedulesLoadedRangeKey=rangeKey;
   schedulesLoadPromise=(async()=>{
+    perfDebug('supabase.select.schedules', {rangeKey, force});
     const { data, error } = await supabaseClient
       .from(SCHEDULES_TABLE)
       .select(SCHEDULES_TABLE_SELECT_COLUMNS)
@@ -8971,6 +8970,7 @@ async function loadSchedules(options={}) {
 function subscribeRealtime() {
   const supabaseClient=getScheduleSupabaseClient();
   if(!supabaseClient||schedulesRealtimeChannel) return;
+  perfDebug('realtime.channel.created', SCHEDULES_TABLE);
   schedulesRealtimeChannel=supabaseClient
     .channel('schedules-changes')
     .on(
@@ -9538,7 +9538,7 @@ function buildTimelineSharedPreviewItem(item={}){
 function renderTimelineSharedAttachmentThumb(item={}){
   const fileName=String(item?.fileName||item?.name||'첨부 파일').trim()||'첨부 파일';
   if(isTimelineSharedImageAttachment(item)){
-    return `<img class="personal-timeline-shared-image" src="${escapeHtml(String(item?.src||item?.publicUrl||'').trim())}" alt="${escapeHtml(fileName)}" loading="lazy" decoding="async">`;
+    return `<span class="personal-timeline-shared-file-thumb personal-timeline-shared-image-placeholder" role="img" aria-label="${escapeHtml(fileName)} 미리보기"><span class="personal-timeline-shared-file-ext">IMG</span></span>`;
   }
   return `<span class="personal-timeline-shared-file-thumb"><span class="personal-timeline-shared-file-ext">${escapeHtml((getFilePreviewExtension(fileName)||'FILE').toUpperCase())}</span></span>`;
 }
@@ -12257,10 +12257,17 @@ function renderTimelineGalleryMedia(entry={}, className='', alt='갤러리 미�
   const source=escapeHtml(getTimelineGalleryMediaSrc(entry));
   const safeAlt=escapeHtml(alt||entry?.fileName||'갤러리 미디어');
   const classAttr=className ? ` class="${escapeHtml(className)}"` : '';
+  perfDebug('storage.media.render', {type:getTimelineGalleryMediaType(entry), hasSource:Boolean(source)});
   if(getTimelineGalleryMediaType(entry)==='video'){
     return `<video${classAttr} src="${source}" controls playsinline preload="none"></video>`;
   }
   return `<img${classAttr} src="${source}" alt="${safeAlt}" loading="lazy" decoding="async">`;
+}
+function renderTimelineGalleryDeferredMedia(entry={}, className='', alt='갤러리 미디어'){
+  const safeAlt=escapeHtml(alt||entry?.fileName||'갤러리 미디어');
+  const extraClass=className ? ` ${escapeHtml(className)}` : '';
+  const typeLabel=getTimelineGalleryMediaType(entry)==='video' ? '영상' : '사진';
+  return `<div class="timeline-gallery-deferred-media${extraClass}" role="img" aria-label="${safeAlt}"><span>${typeLabel}</span></div>`;
 }
 function getTimelineGalleryClient(){
   return getSharedStateSyncClient();
@@ -12661,7 +12668,7 @@ function renderTimelineGalleryCard(group){
   const deleteHintHtml=isTimelineGalleryDeleteMode?'<span class="timeline-gallery-card-delete-hint">체크한 사진만 삭제됩니다.</span>':'';
   const editButtonHtml=!isTimelineGalleryDeleteMode ? `<button type="button" class="timeline-gallery-card-edit-btn" data-gallery-edit-group="${escapeHtml(group.key)}">수정</button>` : '';
   const editFormHtml=timelineGalleryEditingGroupKey===group.key&&!isTimelineGalleryDeleteMode ? renderTimelineGalleryEditForm(group) : '';
-  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}${timelineGalleryEditingGroupKey===group.key?' is-editing':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<div class="timeline-gallery-main-image" data-viewer-allowed="true" data-gallery-group-preview="${escapeHtml(group.key)}">${renderTimelineGalleryMedia(representative, '', `${group.memoLabel} 대표 썸네일`)}${countHtml}</div><div class="timeline-gallery-card-body"><div class="timeline-gallery-card-title-row"><h4>${escapeHtml(group.memoLabel)}</h4>${editButtonHtml}</div>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}${editFormHtml}</div></article>`;
+  return `<article class="timeline-gallery-card${isSelected?' is-selected':''}${timelineGalleryEditingGroupKey===group.key?' is-editing':''}" data-gallery-group-key="${escapeHtml(group.key)}">${checkHtml}<div class="timeline-gallery-main-image" data-viewer-allowed="true" data-gallery-group-preview="${escapeHtml(group.key)}">${renderTimelineGalleryDeferredMedia(representative, '', `${group.memoLabel} 대표 썸네일`)}${countHtml}</div><div class="timeline-gallery-card-body"><div class="timeline-gallery-card-title-row"><h4>${escapeHtml(group.memoLabel)}</h4>${editButtonHtml}</div>${capturedDateHtml}<time>${escapeHtml(formatTimelineGallerySavedAt(representative.savedAt))}</time>${fileHtml}${memoHtml}${deleteHintHtml}${editFormHtml}</div></article>`;
 }
 function renderTimelineGalleryList(){
   const items=sortTimelineGalleryEntries(timelineGalleryEntries);
@@ -13159,7 +13166,7 @@ function renderTimelineGalleryModal(){
       const isActive=item.id===entry.id;
       const isChecked=timelineGallerySelectedIds.has(item.id);
       const checkboxHtml=isTimelineGalleryDeleteMode ? `<label class="timeline-gallery-modal-thumb-check"><input type="checkbox" data-gallery-modal-check="${escapeHtml(item.id)}"${isChecked?' checked':''}><span>선택</span></label>` : '';
-      return `<article class="timeline-gallery-modal-thumb${isActive?' is-active':''}"><button type="button" class="timeline-gallery-thumb-btn" data-gallery-modal-entry="${escapeHtml(item.id)}">${renderTimelineGalleryMedia(item, '', item.fileName||'갤러리 미디어')}</button><div class="timeline-gallery-modal-thumb-meta"><strong class="timeline-gallery-modal-thumb-name">${escapeHtml(item.fileName||'사진')}</strong><span>${escapeHtml(formatTimelineGallerySavedAt(item.savedAt))}</span></div>${checkboxHtml}</article>`;
+      return `<article class="timeline-gallery-modal-thumb${isActive?' is-active':''}"><button type="button" class="timeline-gallery-thumb-btn" data-gallery-modal-entry="${escapeHtml(item.id)}">${renderTimelineGalleryDeferredMedia(item, '', item.fileName||'갤러리 미디어')}</button><div class="timeline-gallery-modal-thumb-meta"><strong class="timeline-gallery-modal-thumb-name">${escapeHtml(item.fileName||'사진')}</strong><span>${escapeHtml(formatTimelineGallerySavedAt(item.savedAt))}</span></div>${checkboxHtml}</article>`;
     }).join('');
   }
   const currentIndex=items.findIndex(item=>item.id===entry.id);
@@ -13765,6 +13772,7 @@ function renderPersonalTimelineSchedule(view){
     ensureTimelineExportButton();
     applyMobileTimelineAStructure();
   }
+  loadSchedules({dateKey:currentPersonalTimelineDateKey, preloadDays:1});
   detailCol.onclick=null;
   document.getElementById('detailCol').classList.remove('hidden');
   updateMobileHeaderReportBoardVisibility();
@@ -14542,6 +14550,22 @@ function scrollSectionToTop(targetEl, options={}){
   const {offset=16}=options;
   afterTabRenderedScroll(targetEl, offset);
 }
+function loadLazyIframe(iframe){
+  if(!iframe||iframe.dataset.loaded==='true') return;
+  const src=String(iframe.dataset.src||'').trim();
+  if(!src) return;
+  iframe.src=src;
+  iframe.dataset.loaded='true';
+  perfDebug('iframe.src.loaded', src);
+}
+function loadLazyIframesInActivePanel(root=document){
+  const scope=root&&root.querySelectorAll ? root : document;
+  scope.querySelectorAll('iframe[data-src]').forEach(iframe=>{
+    const hiddenParent=iframe.closest('.hidden,[hidden]');
+    if(hiddenParent) return;
+    loadLazyIframe(iframe);
+  });
+}
 function getActiveContentStartTarget(fallbackSelector=''){
   if(fallbackSelector){
     const fallback=document.querySelector(fallbackSelector);
@@ -14553,7 +14577,9 @@ function getActiveContentStartTarget(fallbackSelector=''){
     || document.querySelector('.content-main');
 }
 function focusPanelStart(panelSelector='', options={}){
-  scrollSectionToTop(getActiveContentStartTarget(panelSelector), options);
+  const target=getActiveContentStartTarget(panelSelector);
+  loadLazyIframesInActivePanel(target||document);
+  scrollSectionToTop(target, options);
 }
 function getScheduleCardStartPanel(){
   return document.querySelector('.personal-timeline-item.is-open .personal-timeline-card')
@@ -16573,7 +16599,6 @@ if(typeof window!=='undefined'){
   document.addEventListener('DOMContentLoaded', initAccessMode);
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
   document.addEventListener('DOMContentLoaded', initUserSelect);
-  document.addEventListener('DOMContentLoaded', loadSchedules);
   document.addEventListener('DOMContentLoaded', subscribeRealtime);
   document.addEventListener('DOMContentLoaded', applyMobileTimelineAStructure);
   document.addEventListener('DOMContentLoaded', ()=>enforceIosFriendlyImageInputs(document));

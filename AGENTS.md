@@ -108,3 +108,18 @@
 - 필요할 때만 새 파일을 만든다.
 - SQL이 필요하면 실행 파일명을 명확히 적는다.
 - 최종 답변은 초보자도 적용 가능하게 경로와 파일명을 정확히 적는다.
+
+## Supabase bandwidth protection rules
+
+- Do not eagerly load hidden legacy iframes.
+- Legacy iframe must use data-src and receive src only when opened.
+- Do not load public schedule attachments during initial app load.
+- Do not generate Excel, CSV, image, or video previews until the user opens the preview.
+- Gallery images must use lazy loading.
+- Videos must use preload="none".
+- Original Storage files must load only on demand.
+- Supabase select calls must be guarded by loaded/dirty flags.
+- Realtime channels must be created once and reused.
+- Tab changes must not create duplicate subscriptions.
+- Header time updates and ticker updates must not trigger full page re-render.
+- Keep PERFORMANCE_DEBUG_ENABLED false by default.

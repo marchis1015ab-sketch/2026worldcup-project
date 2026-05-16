@@ -5602,6 +5602,29 @@ input[type="file"]{
   object-fit:cover;
   background:#eef2f7;
 }
+.timeline-gallery-deferred-media{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  aspect-ratio:4/3;
+  border-radius:8px;
+  background:linear-gradient(135deg,#eef3f9 0%,#fbfdff 100%);
+  color:#315f8d;
+  font-size:13px;
+  font-weight:900;
+}
+.timeline-gallery-deferred-media span{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:52px;
+  min-height:52px;
+  padding:0 10px;
+  border:1px solid rgba(49,95,141,.18);
+  border-radius:999px;
+  background:#fff;
+}
 .gallery-item img,
 .gallery-item video,
 .gallery-thumb img,
