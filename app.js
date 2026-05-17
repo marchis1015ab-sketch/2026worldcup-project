@@ -1032,6 +1032,22 @@ const bridgeLoadState = {
   timelineRangeKey: "",
 };
 
+function runWhenBrowserIsIdle(callback, options = {}) {
+  if (typeof callback !== "function") {
+    return 0;
+  }
+  const tabletDelay = Number(options.tabletDelay ?? 2200);
+  const desktopDelay = Number(options.desktopDelay ?? 700);
+  const delay = window.matchMedia?.("(max-width: 1024px)")?.matches ? tabletDelay : desktopDelay;
+  return window.setTimeout(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(callback, { timeout: Number(options.timeout ?? 2600) });
+      return;
+    }
+    callback();
+  }, Math.max(0, delay));
+}
+
 function perfDebug(label, value) {
   if (!PERFORMANCE_DEBUG_ENABLED) {
     return;
@@ -1874,10 +1890,10 @@ function renderDailyMatchCarousel() {
 
   if (!allMatches.length && !dailyMatchSummaryRequested) {
     dailyMatchSummaryRequested = true;
-    window.setTimeout(() => {
+    runWhenBrowserIsIdle(() => {
       ensureScheduleSummaryBridgeLoaded();
       requestMatchMapBridgeSummary();
-    }, 0);
+    }, { desktopDelay: 900, tabletDelay: 2800, timeout: 3200 });
   }
 
   dailyMatchItems = allMatches.filter((match) => match.matchDate === targetDate);

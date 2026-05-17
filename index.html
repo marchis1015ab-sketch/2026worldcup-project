@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>New Suit Prototype</title>
     <link rel="icon" type="image/png" href="./legacy-schedule/images/app-icon.png" />
-    <link rel="stylesheet" href="./styles.css?v=korea-roster-20260518-01" />
+    <link rel="preload" as="image" href="./images/reference/wc26-bg-reference-tablet.jpg" media="(max-width: 1024px)" />
+    <link rel="stylesheet" href="./styles.css?v=tablet-load-20260518-01" />
     <link rel="stylesheet" href="./tournament-tab.css?v=20260517-22" />
   </head>
   <body>
@@ -93,6 +94,10 @@
             src="./images/logo/sidebar-top-brand.png"
             alt="FIFA JTBC Official NewsCameraTeam"
             class="sidebar-brand-image"
+            width="1024"
+            height="1024"
+            decoding="async"
+            fetchpriority="high"
           />
           <div class="sidebar-brand-mobile-copy">
             <div class="sidebar-brand-mobile-heading" aria-label="모바일 메인 제목">
@@ -1117,7 +1122,7 @@
     <div class="toast" id="toast-shell" role="status" aria-live="polite"></div>
     <div class="timeline-tooltip" id="timeline-tooltip-shell" hidden aria-hidden="true"></div>
 
-    <script src="./app.js?v=korea-roster-20260518-01"></script>
+    <script src="./app.js?v=tablet-load-20260518-01"></script>
     <script src="./tournament-tab.js?v=20260517-22"></script>
   </body>
 </html>
