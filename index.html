@@ -1,241 +1,1129 @@
 ﻿<!DOCTYPE html>
 <html lang="ko">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>월드컵 영상취재 가이드라인</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Suit Prototype</title>
+    <link rel="icon" type="image/png" href="./legacy-schedule/images/app-icon.png" />
+    <link rel="stylesheet" href="./styles.css?v=korea-roster-20260518-01" />
+    <link rel="stylesheet" href="./tournament-tab.css?v=20260517-22" />
+  </head>
+  <body>
+    <div class="broadcast-bg" aria-hidden="true"></div>
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="0"
+      height="0"
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+    >
+      <defs>
+        <symbol id="icon-home" viewBox="0 0 24 24">
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5.25 9.75V21h13.5V9.75" />
+          <path d="M9.75 21v-6h4.5v6" />
+        </symbol>
+        <symbol id="icon-calendar" viewBox="0 0 24 24">
+          <path d="M7 2.75v3.5" />
+          <path d="M17 2.75v3.5" />
+          <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
+          <path d="M3.5 9.5h17" />
+        </symbol>
+        <symbol id="icon-trophy" viewBox="0 0 24 24">
+          <path d="M8 4h8v3.5A4 4 0 0 1 12 11.5 4 4 0 0 1 8 7.5V4Z" />
+          <path d="M8 5H5.5A2.5 2.5 0 0 0 3 7.5v0A4.5 4.5 0 0 0 7.5 12H8" />
+          <path d="M16 5h2.5A2.5 2.5 0 0 1 21 7.5v0A4.5 4.5 0 0 1 16.5 12H16" />
+          <path d="M12 11.5V15" />
+          <path d="M9 20h6" />
+          <path d="M8 20a4 4 0 0 1 8 0" />
+        </symbol>
+        <symbol id="icon-video" viewBox="0 0 24 24">
+          <rect x="3" y="6" width="13" height="12" rx="2.5" />
+          <path d="m16 10 5-3v10l-5-3" />
+        </symbol>
+        <symbol id="icon-map" viewBox="0 0 24 24">
+          <path d="m3 6.5 5-2 8 3 5-2v12l-5 2-8-3-5 2Z" />
+          <path d="M8 4.5v15" />
+          <path d="M16 7.5v15" />
+        </symbol>
+        <symbol id="icon-archive" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="4" rx="1.5" />
+          <path d="M5 8h14v10.5A2.5 2.5 0 0 1 16.5 21h-9A2.5 2.5 0 0 1 5 18.5V8Z" />
+          <path d="M10 12h4" />
+        </symbol>
+        <symbol id="icon-tv" viewBox="0 0 24 24">
+          <rect x="3" y="5" width="18" height="12" rx="2.5" />
+          <path d="m9 2 3 3 3-3" />
+          <path d="M9 21h6" />
+          <path d="M12 17v4" />
+        </symbol>
+        <symbol id="icon-settings" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3.25" />
+          <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.75 1.75 0 0 1-2.47 2.47l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.92V20a1.75 1.75 0 0 1-3.5 0v-.16a1 1 0 0 0-.66-.94 1 1 0 0 0-1.1.2l-.1.1a1.75 1.75 0 1 1-2.47-2.47l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.92-.6H4a1.75 1.75 0 0 1 0-3.5h.16a1 1 0 0 0 .94-.66 1 1 0 0 0-.2-1.1l-.1-.1A1.75 1.75 0 1 1 7.27 5.2l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.92V4a1.75 1.75 0 0 1 3.5 0v.16a1 1 0 0 0 .66.94 1 1 0 0 0 1.1-.2l.1-.1a1.75 1.75 0 1 1 2.47 2.47l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .92.6H20a1.75 1.75 0 0 1 0 3.5h-.16a1 1 0 0 0-.94.66 1 1 0 0 0 .2 1.1Z" />
+        </symbol>
+        <symbol id="icon-folder" viewBox="0 0 24 24">
+          <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6A2.5 2.5 0 0 1 20.5 9.5v7A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-9Z" />
+          <path d="M3.5 9h17" />
+        </symbol>
+        <symbol id="icon-pin" viewBox="0 0 24 24">
+          <path d="M12 20.5s6-5.9 6-11a6 6 0 1 0-12 0c0 5.1 6 11 6 11Z" />
+          <circle cx="12" cy="9.5" r="2.25" />
+        </symbol>
+        <symbol id="icon-newspaper" viewBox="0 0 24 24">
+          <path d="M6 7.5h10" />
+          <path d="M6 11h10" />
+          <path d="M6 14.5h6" />
+          <path d="M16.5 14.5h.01" />
+          <path d="M5 4.5h12.5A1.5 1.5 0 0 1 19 6v11.5A2.5 2.5 0 0 1 16.5 20H7.5A2.5 2.5 0 0 1 5 17.5V4.5Z" />
+          <path d="M5 17.5A2.5 2.5 0 0 0 7.5 20H19.5" />
+        </symbol>
+      </defs>
+    </svg>
 
-<link rel="icon" type="image/png" sizes="32x32" href="images/app-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="images/app-icon.png">
-<link rel="apple-touch-icon" href="images/app-icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="images/app-icon.png">
-<link rel="manifest" href="manifest.json">
-
-<meta name="theme-color" content="#000000">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-
-  <meta property="og:title" content="2026 북중미 월드컵 영상취재 가이드라인" />
-  <meta property="og:description" content="월드컵 취재 관련 정보와 일정, 장비 현황을 확인하세요." />
-  <meta property="og:image" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/images/thumbnail.png" />
-  <meta property="og:url" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/" />
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css?v=mobile-realtime-fix" />
-  <meta name="deploy-version" content="mobile-realtime-fix">
-</head>
-<body>
-  <div id="deploy-version-badge">DEPLOY CHECK: mobile-realtime-fix</div>
-<div class="page">
-  <div class="header">
-    <div class="header-main">
-      <div class="header-copy">
-        <p class="header-kicker">FIFA WORLD CUP 2026</p>
-        <h1>2026 북중미 월드컵 영상취재 가이드라인</h1>
-        <p class="header-slogan">짜릿하게 다채롭게 월드컵은 JTBC</p>
-      </div>
-      <div class="header-side">
-        <div class="header-time-guide">
-          <div id="headerLocalTimePlace" class="header-time-guide-place">에스타디오 과달라하라</div>
-          <div class="header-time-guide-row">
-            <span id="headerLocalTimeLabel" class="header-time-guide-label">현지시각</span>
-            <span id="headerLocalTime" class="header-time-guide-value">--:--</span>
-          </div>
-          <div class="header-time-guide-row">
-            <span class="header-time-guide-label">한국시각</span>
-            <span id="headerKoreaTime" class="header-time-guide-value">--:--</span>
-          </div>
-        </div>
-        <div id="headerCountdown" class="header-countdown" aria-label="월드컵 개막 디데이">
-          <span class="header-countdown-number">00</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="content-shell">
-    <div class="content-main">
-      <div id="headerReportBoard" class="header-report-board" aria-live="polite">
-        <div class="header-report-board-label">
-          <span class="header-report-board-label-title">업무 현황</span>
-          <span id="headerReportBoardMeta" class="header-report-board-label-meta">4월 5일</span>
-        </div>
-        <div class="header-report-board-lines">
-          <div class="header-report-board-window">
-            <div id="headerScheduleBoardTrack" class="header-report-board-track"></div>
-          </div>
-          <div class="header-report-board-window header-report-board-window-secondary">
-            <div id="headerNoticeBoardTrack" class="header-report-board-track"></div>
-          </div>
-        </div>
-      </div>
-      <div id="mobileSubviewBar" class="mobile-subview-bar hidden">
-        <button type="button" class="mobile-subview-back" onclick="goBackMobileSubview()">뒤로가기</button>
-        <span id="mobileSubviewTitle" class="mobile-subview-title">메뉴</span>
-        <div class="mobile-subview-actions">
-          <button type="button" id="mobileSpecialReportToggleBtn" class="section-title-action-btn news-programming-special-toggle mobile-subview-special-btn hidden" aria-expanded="false" onclick="toggleNewsProgrammingSpecialComposer()">특보</button>
-        </div>
-      </div>
-      <div class="container">
-        <div id="desktopTabPane" class="desktop-tab-pane">
-    <div class="sidebar">
-      <div id="personalTimelineMenu" class="menu" onclick="togglePersonalTimeline()">일정타임라인</div>
-      <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">장비현황</div>
-      <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
-      <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">대표팀 선수단</div>
-      <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">경기장</div>
-      <div id="mapMenu" class="menu" onclick="toggleMapPanel()">MAP</div>
-      <div id="newsProgrammingMenu" class="menu" onclick="toggleNewsProgramming()">방송편성</div>
-      <div id="newsMenu" class="menu" onclick="toggleMain()">지상파 월드컵 뉴스</div>
-    </div>
-
-    <div id="newsTabStack" class="tab-stack hidden">
-      <div id="newsCol" class="column hidden">
-        <div id="newsYearTabs" class="tab-row primary-tab-row">
-          <div class="item news-year-item" onclick="showNewsYear('2026', this)" aria-label="2026 북중미 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2026.png" alt="2026 북중미 월드컵 로고"></span></div>
-          <div class="item news-year-item" onclick="showNewsYear('2022', this)" aria-label="2022 카타르 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2022.png" alt="2022 카타르 월드컵 로고"></span></div>
-          <div class="item news-year-item" onclick="showNewsYear('2018', this)" aria-label="2018 러시아 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2018.png" alt="2018 러시아 월드컵 로고"></span></div>
-          <div class="item news-year-item" onclick="showNewsYear('2014', this)" aria-label="2014 브라질 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2014.png" alt="2014 브라질 월드컵 로고"></span></div>
-          <div id="newsExportBar" class="news-export-bar">
-            <button type="button" class="section-title-action-btn export-action-btn news-export-btn" onclick="exportAllExcel()">전체 내보내기</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="newsBroadcasterCol" class="column hidden">
-        <div class="item broadcaster-item broadcaster-item-kbs" onclick="activateBroadcaster(this, 'KBS')" aria-label="KBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-kbs" src="assets/news-ci-kbs-clean.png" alt="KBS 로고"></span></div>
-        <div class="item broadcaster-item broadcaster-item-mbc" onclick="activateBroadcaster(this, 'MBC')" aria-label="MBC"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-mbc" src="assets/news-ci-mbc-clean.png" alt="MBC 로고"></span></div>
-        <div class="item broadcaster-item broadcaster-item-sbs" onclick="activateBroadcaster(this, 'SBS')" aria-label="SBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-sbs" src="assets/news-ci-sbs-clean.png" alt="SBS 로고"></span></div>
-      </div>
-    </div>
-
-    <div id="bracketTabStack" class="tab-stack hidden">
-      <div id="bracketStageCol" class="column hidden">
-        <div id="bracketStageTabs" class="tab-row primary-tab-row stage-tabs">
-          <div class="item" onclick="showBracketStage('group', this)">조별리그</div>
-          <div class="item" onclick="showBracketStage('thirdPlaceRanking', this)">조별 3위 랭킹</div>
-          <div class="item" onclick="showBracketStage('round32', this)">32강</div>
-          <div class="item" onclick="showBracketStage('round16', this)">16강</div>
-          <div class="item" onclick="showBracketStage('quarterfinal', this)">8강</div>
-          <div class="item" onclick="showBracketStage('semifinal', this)">4강</div>
-          <div class="item" onclick="showBracketStage('final', this)">결승</div>
-        </div>
-      </div>
-
-      <div id="groupCol" class="column hidden">
-        <div class="item" onclick="showGroup('A', this)">Group A</div>
-        <div class="item" onclick="showGroup('B', this)">Group B</div>
-        <div class="item" onclick="showGroup('C', this)">Group C</div>
-        <div class="item" onclick="showGroup('D', this)">Group D</div>
-        <div class="item" onclick="showGroup('E', this)">Group E</div>
-        <div class="item" onclick="showGroup('F', this)">Group F</div>
-        <div class="item" onclick="showGroup('G', this)">Group G</div>
-        <div class="item" onclick="showGroup('H', this)">Group H</div>
-        <div class="item" onclick="showGroup('I', this)">Group I</div>
-        <div class="item" onclick="showGroup('J', this)">Group J</div>
-        <div class="item" onclick="showGroup('K', this)">Group K</div>
-        <div class="item" onclick="showGroup('L', this)">Group L</div>
-      </div>
-    </div>
-
-    <div id="groupASquadCol" class="column hidden">
-      <div id="groupASquadTabs" class="tab-row primary-tab-row">
-        <div class="item squad-country-tab squad-country-korea" onclick="showGroupASquad('korea', this)">대한민국</div>
-        <div class="item squad-country-tab squad-country-mexico" onclick="showGroupASquad('mexico', this)">멕시코</div>
-        <div class="item squad-country-tab squad-country-south-africa" onclick="showGroupASquad('southAfrica', this)">남아프리카 공화국</div>
-        <div class="item squad-country-tab squad-country-czech" onclick="showGroupASquad('czech', this)">체코</div>
-      </div>
-    </div>
-
-      <div id="equipmentUserCol" class="column hidden">
-        <div class="equipment-user-slot equipment-user-slot-shared">
-          <div id="equipmentSharedTab" class="item" onclick="showEquipmentShared(this)">장비종합현황</div>
-          <div class="equipment-user-note equipment-user-note-shared">
-            <span class="equipment-user-note-text">
-              <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="15번">TVU 15번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="16번">TVU 16번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="17번">TVU 17번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="18번">TVU 18번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-              <span class="equipment-user-tvu" data-tvu="19번">TVU 19번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
-            </span>
+    <div class="shell-frame">
+      <aside class="sidebar" aria-label="주요 메뉴">
+        <div
+          class="sidebar-brand sidebar-brand--home"
+          id="sidebar-home-button"
+          role="button"
+          tabindex="0"
+          aria-label="메인 화면으로 이동"
+        >
+          <img
+            src="./images/logo/sidebar-top-brand.png"
+            alt="FIFA JTBC Official NewsCameraTeam"
+            class="sidebar-brand-image"
+          />
+          <div class="sidebar-brand-mobile-copy">
+            <div class="sidebar-brand-mobile-heading" aria-label="모바일 메인 제목">
+              <p class="sidebar-brand-mobile-title-line">2026 북중미 월드컵</p>
+              <p class="sidebar-brand-mobile-title-line">영상취재팀 가이드라인</p>
+            </div>
+            <div class="sidebar-brand-mobile-status" aria-label="모바일 시각과 디데이">
+              <div class="sidebar-brand-mobile-time-stack">
+                <p class="sidebar-brand-mobile-time-row">
+                  <span class="sidebar-brand-mobile-time-label">현지시각</span>
+                  <strong class="sidebar-brand-mobile-time-value" id="new-suit-mobile-local-time">--:--</strong>
+                </p>
+                <p class="sidebar-brand-mobile-time-row">
+                  <span class="sidebar-brand-mobile-time-label">한국시각</span>
+                  <strong class="sidebar-brand-mobile-time-value" id="new-suit-mobile-seoul-time">--:--</strong>
+                </p>
+              </div>
+              <div class="sidebar-brand-mobile-dday" id="new-suit-mobile-dday">D-DAY</div>
+            </div>
           </div>
         </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="박재현" onclick="showEquipmentPersonal('박재현', this)"><span class="equipment-user-name">박재현</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="장후원" onclick="showEquipmentPersonal('장후원', this)"><span class="equipment-user-name">장후원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="정상원" onclick="showEquipmentPersonal('정상원', this)"><span class="equipment-user-name">정상원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="이주원" onclick="showEquipmentPersonal('이주원', this)"><span class="equipment-user-name">이주원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="김진광" onclick="showEquipmentPersonal('김진광', this)"><span class="equipment-user-name">김진광</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot">
-          <div class="item equipment-user-person-item" data-user="정재우" onclick="showEquipmentPersonal('정재우', this)"><span class="equipment-user-name">정재우</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
-        </div>
-        <div class="equipment-user-slot equipment-user-slot-carnet">
-          <div id="equipmentCarnetTab" class="item" onclick="showEquipmentCarnet(this)">문서보관</div>
-        </div>
-        <div class="equipment-user-slot equipment-user-slot-file-storage">
-          <div id="equipmentFileStorageTab" class="item" onclick="showEquipmentFileStorage(this)">파일 보관</div>
-        </div>
-      </div>
 
-    <div id="mexicoStadiumTabStack" class="tab-stack hidden">
-      <div id="mexicoStadiumCol" class="column hidden">
-        <div id="mexicoStadiumTabs" class="tab-row primary-tab-row">
-          <div class="item" onclick="showMexicoStadium('akron', this)">아크론스타디움 [과달라하라]</div>
-          <div class="item" onclick="showMexicoStadium('bbva', this)">에스타디오 BBVA [멕시코시티]</div>
-          <div class="item" onclick="showMexicoStadium('mexicoCityStadium', this)">멕시코시티 스타디움 [멕시코시티]</div>
-          <div class="item" onclick="showMexicoStadium('laStadium', this)">LA 스타디움 [로스앤젤레스]</div>
-          <div class="item" onclick="showMexicoStadium('seattleStadium', this)">시애틀 스타디움 [시애틀]</div>
-          <div class="item" onclick="showMexicoStadium('bostonStadium', this)">보스턴 스타디움 [보스턴]</div>
-        </div>
-      </div>
+        <nav class="menu side-nav" aria-label="WC26 main navigation">
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="schedule" data-section="all" data-module-group="schedule">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-calendar"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">일정</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="field-ops" data-section="equipment-summary" data-module-group="field-operations">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-video"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">장비</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="archive" data-section="document" data-module-group="archive">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-archive"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">보관함</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="match-schedule" data-section="bracket" data-module-group="match-schedule">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-trophy"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">대진표</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="map" data-section="venue" data-module-group="location-map">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-pin"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">경기장</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="broadcast-news" data-section="broadcast" data-module-group="broadcast-news">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-tv"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">방송편성</span></span>
+          </button>
+          <button class="menu__item nav-item nav-direct menu-launch" type="button" data-target="operations" data-section="operation-status" data-module-group="operations">
+            <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-settings"></use></svg></span>
+            <span class="menu__text"><span class="menu__label nav-label">운영상태</span></span>
+          </button>
+        </nav>
 
-      <div id="mexicoStadiumSectionCol" class="column hidden">
-        <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부동선</div>
-        <div class="item" onclick="showMexicoStadiumSection('conferenceRoom', this)">컨퍼런스 룸</div>
-        <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
-        <div class="item" onclick="showMexicoStadiumSection('ground', this)">그라운드</div>
-        <div class="item" onclick="showMexicoStadiumSection('shooting', this)">powerade zone</div>
-        <div class="item" onclick="showMexicoStadiumSection('playerArrival', this)">선수도착</div>
+        <section class="mobile-dashboard-menu" aria-label="모바일 메인 메뉴">
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="schedule" data-section="all">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-calendar"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">타임라인</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="field-ops" data-section="equipment-summary">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-video"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">장비현황</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="archive" data-section="document">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-folder"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">자료보관</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="match-schedule" data-section="bracket">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-trophy"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">경기일정</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="map" data-section="venue">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-pin"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">경기장</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="broadcast-news" data-section="broadcast">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-tv"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">방송편성</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="operations" data-section="official-links">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-home"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">공식사이트</span>
+          </button>
+          <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="operations" data-section="operation-status">
+            <span class="mobile-dashboard-menu-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-settings"></use></svg></span>
+            <span class="quick-button__title mobile-dashboard-menu-card__label">운영탭</span>
+          </button>
+        </section>
+
+      </aside>
+
+      <main class="dashboard" aria-label="뉴 슈트 메인페이지">
+        <button type="button" class="mobile-section-back" id="mobile-section-back" hidden aria-label="모바일 메인으로 돌아가기">← 취소</button>
+        <header class="topbar">
+          <div class="topbar__title-group">
+            <p class="topbar__eyebrow">FIFA WORLD CUP 2026</p>
+            <h2 class="topbar__title" id="new-suit-page-title">2026 북중미 월드컵 영상취재팀 가이드라인</h2>
+          </div>
+
+          <section class="top-right-meta" aria-label="시각과 디데이">
+            <div class="time-stack-panel">
+              <div class="time-row">
+                <span class="time-place" id="new-suit-local-place">현지장소</span>
+                <span class="time-label-cell"><span class="time-label">현지시각</span></span>
+                <strong class="time-value" id="new-suit-local-time">00:00</strong>
+              </div>
+              <div class="time-row">
+                <span class="time-place">서울</span>
+                <span class="time-label-cell"><span class="time-label">한국시각</span></span>
+                <strong class="time-value" id="new-suit-seoul-time">00:00</strong>
+              </div>
+            </div>
+
+            <div class="dday-panel">
+              <strong class="dday-value" id="new-suit-dday">
+                <span class="dday-copy">
+              <span class="dday-label">디데이</span>
+                  <span class="dday-prefix">D-</span>
+                </span>
+                <span class="dday-number">0</span>
+              </strong>
+            </div>
+          </section>
+        </header>
+
+        <section class="dashboard-shell dashboard-view is-active" id="view-dashboard" data-view="dashboard" aria-label="한 화면 운영 상황판">
+          <section class="dashboard-panel-grid" aria-label="메인 패널 6분할">
+            <article
+              class="panel panel--hero ops-panel"
+              id="panel-main-match"
+              data-role="main-match"
+              data-max-items="1"
+              data-summary-mode="timeline-shell"
+              data-detail-target="schedule"
+              data-section="all"
+              data-overflow-mode="panel-scroll"
+              data-more-label="+ more"
+
+              data-layout-order="1">
+              <div class="panel__header panel-head">
+                <div>
+                  <h3 class="panel__title">타임라인</h3>
+                </div>
+                <div class="panel-head-actions">
+                  <div class="timeline-nav-group" aria-label="timeline date navigation">
+                    <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="prev">이전</button>
+                    <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="today">오늘</button>
+                    <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="next">다음</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel-body">
+                <div class="timeline-blank-panel" id="timeline-blank-panel">
+                  <div class="timeline-gantt-shell" id="timeline-gantt-shell" data-timeline-host="dashboard">
+                    <div class="timeline-gantt-empty" id="timeline-gantt-empty">일정현황 데이터를 불러오는 중</div>
+                    <div class="timeline-gantt-scroller" id="timeline-gantt-scroller" hidden>
+                      <div class="timeline-gantt-grid" id="timeline-gantt-grid"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article
+                class="panel panel--side ops-panel"
+                id="panel-field-status"
+                data-role="field-status"
+                data-max-items="6"
+                data-summary-mode="accumulated-schedule-equipment-place-shell"
+                data-detail-target="field-ops"
+                data-overflow-mode="panel-scroll"
+              
+                data-layout-order="2">
+                <div class="panel__header panel-head">
+                  <div>
+                    <h3 class="panel__title">장비현황</h3>
+                  </div>
+                </div>
+
+                <div class="panel-body">
+                  <ul class="status-list panel-list">
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">박재현</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">장후원</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">정상원</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">이주원</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">김진광</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                    <li class="status-row compact-row">
+                      <strong class="status-row__name">정재우</strong>
+                      <span class="status-row__place">대기</span>
+                      <span class="status-row__unit">TVU</span>
+                      <span class="status-row__unit">TRS</span>
+                    </li>
+                  </ul>
+                </div>
+              </article>
+
+              <article
+                class="panel panel--side ops-panel"
+                id="panel-upcoming"
+                data-role="daily-match-schedule"
+                data-summary-mode="daily-match-carousel"
+                data-detail-target="match-schedule"
+                data-overflow-mode="carousel"
+                data-carousel-interval="7000"
+              
+                data-layout-order="3">
+                <div class="panel__header panel-head">
+                  <div>
+                    <h3 class="panel__title">데일리 경기 일정</h3>
+                  </div>
+                  <span class="panel__tag" id="daily-match-date-label">오늘</span>
+                </div>
+
+                <div class="panel-body">
+                  <div class="daily-match-carousel" id="daily-match-carousel" aria-live="polite">
+                    <div class="daily-match-empty" id="daily-match-empty">오늘 등록된 경기 일정 없음</div>
+                    <div class="daily-match-track" id="daily-match-track"></div>
+                    <div class="daily-match-controls" id="daily-match-controls" hidden>
+                      <button class="daily-match-nav" type="button" data-carousel-action="prev" aria-label="이전 경기">‹</button>
+                      <div class="daily-match-dots" id="daily-match-dots" aria-label="경기 슬라이드 선택"></div>
+                      <button class="daily-match-nav" type="button" data-carousel-action="next" aria-label="다음 경기">›</button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+            <article
+              class="panel panel--compact ops-panel"
+              id="panel-schedule"
+              data-role="schedule-summary"
+              data-summary-mode="official-site-links"
+              data-detail-target="operations"
+              data-section="official-links"
+              data-overflow-mode="panel-scroll"
+
+              data-layout-order="4">
+              <div class="panel__header panel-head">
+                <div>
+                  <h3 class="panel__title">공식 사이트</h3>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="official-site-shell" id="official-site-shell">
+                  <div class="official-site-links" id="official-site-links" aria-label="공식 사이트 링크">
+                    <a class="official-site-button" href="https://www.fifa.com/" target="_blank" rel="noopener noreferrer">FIFA</a>
+                    <a class="official-site-button" href="https://www.kfa.or.kr/" target="_blank" rel="noopener noreferrer">KFA</a>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article
+              class="panel panel--compact ops-panel"
+              id="panel-equipment"
+              data-role="broadcast-status"
+              data-summary-mode="broadcast-onair-status"
+              data-detail-target="broadcast-news"
+              data-section="broadcast"
+              data-overflow-mode="panel-scroll"
+
+              data-layout-order="5">
+              <div class="panel__header panel-head">
+                <div>
+                  <h3 class="panel__title">방송편성</h3>
+                </div>
+                <span class="broadcast-lamp" id="broadcast-status-lamp" hidden></span>
+              </div>
+              <div class="panel-body">
+                <div class="broadcast-status-shell" id="broadcast-status-shell"></div>
+              </div>
+            </article>
+
+            <article
+              class="panel panel--compact ops-panel"
+              id="panel-ops-alert"
+              data-role="venue-panel"
+              data-summary-mode="stadium-shell"
+              data-detail-target="map"
+              data-section="venue"
+              data-overflow-mode="panel-scroll"
+
+              data-layout-order="6">
+              <div class="panel__header panel-head">
+                <div>
+                  <h3 class="panel__title">경기장</h3>
+                </div>
+              </div>
+              <div class="panel-body main-stadium-panel-body">
+                <div class="main-stadium-empty-layer" aria-hidden="true"></div>
+              </div>
+            </article>
+          </section>
+
+          <section class="quick-strip" id="quick-actions" aria-label="빠른 실행" data-max-items="6" data-summary-mode="fixed-six-buttons">
+            <button type="button" class="quick-button" id="quick-timeline" data-action="일정현황"><span class="quick-button__title">일정현황</span></button>
+            <button type="button" class="quick-button" id="quick-schedule" data-action="개인일정"><span class="quick-button__title">개인일정</span></button>
+            <button type="button" class="quick-button" id="quick-equipment" data-action="장비"><span class="quick-button__title">장비</span></button>
+            <button type="button" class="quick-button" id="quick-map" data-action="MAP"><span class="quick-button__title">MAP</span></button>
+            <button type="button" class="quick-button" id="quick-archive" data-action="갤러리"><span class="quick-button__title">갤러리</span></button>
+            <button type="button" class="quick-button" id="quick-news" data-action="뉴스"><span class="quick-button__title">뉴스</span></button>
+          </section>
+
+          <footer class="ticker" id="ops-ticker" aria-label="타임라인 티커" data-summary-mode="today-accumulated-schedule" data-detail-target="schedule" data-section="accumulated" data-overflow-mode="fixed-height">
+            <div class="ticker__label">현재일정</div>
+            <div class="ticker__track">
+              <div class="ticker__content" id="accumulated-ticker-content" data-empty-label="현재 누적일정 이식 대기">
+                <span>현재 누적일정 이식 대기</span>
+                <span>개인 일정은 누적일정으로 한 번 더 흐릅니다</span>
+                <span>현재 누적일정 정보를 받을 때 shell 반영</span>
+              </div>
+            </div>
+          </footer>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-match-schedule" data-view="match-schedule" hidden aria-label="경기일정 상세 shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="match-schedule">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">경기일정 / 대진표</h3>
+                <p class="schedule-bridge-meta" id="match-bridge-meta" hidden aria-hidden="true"></p>
+              </div>
+              <span class="panel__tag" id="match-bridge-tag">LIVE BRIDGE</span>
+            </div>
+            <div class="panel-body schedule-bridge-body">
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--primary" aria-label="match bridge navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-match-shell-mode="group-stage">조별리그</button>
+                <button type="button" class="schedule-bridge-button" data-match-shell-mode="third-place-ranking">3위 순위</button>
+                <button type="button" class="schedule-bridge-button" data-match-shell-mode="bracket">토너먼트</button>
+                <button type="button" class="schedule-bridge-button" data-match-shell-mode="squad">선수단</button>
+              </div>
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--secondary" id="match-group-stage-toolbar" aria-label="group stage navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-match-group-key="A">A조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="B">B조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="C">C조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="D">D조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="E">E조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="F">F조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="G">G조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="H">H조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="I">I조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="J">J조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="K">K조</button>
+                <button type="button" class="schedule-bridge-button" data-match-group-key="L">L조</button>
+              </div>
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--secondary" id="match-knockout-stage-toolbar" aria-label="knockout navigation" hidden>
+                <button type="button" class="schedule-bridge-button is-active" data-match-knockout-stage="round32">32강</button>
+                <button type="button" class="schedule-bridge-button" data-match-knockout-stage="round16">16강</button>
+                <button type="button" class="schedule-bridge-button" data-match-knockout-stage="quarterfinal">8강</button>
+                <button type="button" class="schedule-bridge-button" data-match-knockout-stage="semifinal">4강</button>
+                <button type="button" class="schedule-bridge-button" data-match-knockout-stage="thirdPlaceMatch">3·4위전</button>
+                <button type="button" class="schedule-bridge-button" data-match-knockout-stage="final">결승</button>
+              </div>
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--secondary" id="match-squad-toolbar" aria-label="squad navigation" hidden>
+                <button type="button" class="schedule-bridge-button is-active" data-match-squad-key="korea">대한민국</button>
+                <button type="button" class="schedule-bridge-button" data-match-squad-key="mexico">멕시코</button>
+                <button type="button" class="schedule-bridge-button" data-match-squad-key="southAfrica">남아공</button>
+                <button type="button" class="schedule-bridge-button" data-match-squad-key="czech">체코</button>
+              </div>
+              <section class="match-squad-empty-shell" id="match-squad-empty-shell" aria-label="선수단 빈 패널" hidden></section>
+              <section class="group-a-newsuit-form" id="match-group-a-form-shell" aria-label="A조 뉴슈트 경기일정" hidden>
+                <div class="group-a-newsuit-header group-a-header">
+                  <div class="group-a-header-title">
+                    <h4>Group A</h4>
+                  </div>
+                  <div class="group-a-header-flags" id="match-group-a-header-flags" aria-label="Group A 참가국 국기"></div>
+                </div>
+                <div class="group-a-newsuit-status" id="match-group-a-form-status" aria-label="A조 상태"></div>
+                <div class="group-a-newsuit-grid">
+                  <article class="group-a-newsuit-panel group-a-newsuit-standings group-a-standings-panel">
+                    <div class="group-a-newsuit-panel-head">
+                      <strong>A조 순위</strong>
+                      <span>승점 자동 정렬 결과</span>
+                    </div>
+                    <div class="group-a-newsuit-standings-list" id="match-group-a-form-standings"></div>
+                  </article>
+                  <article class="group-a-newsuit-panel group-a-newsuit-matches group-a-matches-panel">
+                    <div class="group-a-matches-split" id="match-group-a-matches-split">
+                      <div class="group-a-matches-upper" id="match-group-a-matches-upper">
+                        <div class="group-a-newsuit-panel-head">
+                          <strong>A조 경기일정</strong>
+                          <span>경기 순서 / 경기장 포함</span>
+                        </div>
+                        <div class="group-a-newsuit-match-list" id="match-group-a-form-matches"></div>
+                      </div>
+                      <div class="group-fixture-results" id="match-results-shell" hidden aria-label="경기 결과 목록">
+                        <div class="group-fixture-results-head">
+                          <strong id="match-results-title">경기 결과</strong>
+                          <span id="match-results-meta">현재 선택된 경기 목록</span>
+                        </div>
+                        <div class="group-fixture-results-list" id="match-results-list"></div>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <article class="group-a-newsuit-panel group-a-newsuit-engine" hidden aria-hidden="true">
+                  <div class="group-a-newsuit-panel-head">
+                    <strong>대진표 붙여넣기 / 결과 입력</strong>
+                    <span>기존 legacy 엔진 보존</span>
+                  </div>
+                  <p>이번 단계에서는 기존 계산·저장 엔진을 삭제하지 않고, A조 표시 화면만 뉴슈트 전용 폼으로 분리했습니다.</p>
+                  <button type="button" class="group-a-newsuit-engine-button" id="match-group-a-engine-toggle">기존 입력 엔진 열기</button>
+                </article>
+              </section>
+              <!-- [Z-TEST-START] 3위순위 임시 테스트 -->
+              <section class="group-a-newsuit-form z-third-place-test-form" id="match-z-third-place-test-shell" aria-label="3위 순위" hidden>
+                <div class="group-a-newsuit-header z-third-place-test-header">
+                  <div class="group-a-header-title">
+                    <h4>3위 순위</h4>
+                  </div>
+                </div>
+                <div class="group-a-newsuit-grid z-third-place-test-grid">
+                  <article class="group-a-newsuit-panel z-third-place-test-panel">
+                    <div class="group-a-newsuit-panel-head">
+                      <strong>3위 순위</strong>
+                    </div>
+                    <div class="z-third-place-test-table-wrap" id="match-z-third-place-test-table-wrap"></div>
+                  </article>
+                </div>
+              </section>
+              <!-- [Z-TEST-END] 3위순위 임시 테스트 -->
+              <section class="wc26-tournament-shell" id="match-tournament-shell" aria-label="토너먼트 뉴슈트 탭" hidden>
+                <div class="wc26-tournament-root" id="match-tournament-root"></div>
+              </section>
+              <div class="schedule-bridge-frame-shell" id="match-bridge-frame-shell">
+                <div class="schedule-bridge-loading" id="match-bridge-loading">legacy match bridge loading...</div>
+                <iframe
+                  class="schedule-bridge-frame"
+                  id="match-bridge-frame"
+                  data-src="./legacy-schedule/index.html?v=korea-roster-20260518-01&localStadiumOnly=1"
+                  src=""
+                  title="legacy match bridge"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-map" data-view="map" hidden aria-label="경기장 map detail shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="stadiums">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">경기장</h3>
+                <p class="schedule-bridge-meta" id="map-bridge-meta">1차 이식: legacy 경기장 / MAP 통합 bridge 연결</p>
+              </div>
+              <span class="panel__tag" id="map-bridge-tag">LIVE BRIDGE</span>
+            </div>
+            <div class="panel-body schedule-bridge-body">
+              <div class="schedule-bridge-toolbar" aria-label="map bridge navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-map-bridge-nav="stadiums">경기장</button>
+                <button type="button" class="schedule-bridge-button" data-map-bridge-nav="map">MAP</button>
+              </div>
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--secondary" id="map-stadium-toolbar" aria-label="stadium navigation" hidden>
+              </div>
+              <section class="map-stadium-catalog-shell" id="map-stadium-catalog-shell" hidden aria-label="경기장 카드 목록">
+                <div class="map-stadium-catalog-grid" id="map-stadium-catalog-grid"></div>
+                <div class="map-stadium-catalog-empty" id="map-stadium-catalog-empty" hidden></div>
+              </section>
+              <div class="schedule-bridge-frame-shell" id="map-bridge-frame-shell">
+                <div class="schedule-bridge-loading" id="map-bridge-loading">legacy map bridge loading...</div>
+                <iframe
+                  class="schedule-bridge-frame"
+                  id="map-bridge-frame"
+                  data-src="./legacy-schedule/index.html?v=equipment-console-20260517-34"
+                  src=""
+                  title="legacy map bridge"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-schedule" data-view="schedule" hidden aria-label="일정 상세 shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="schedule">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">일정현황</h3>
+              </div>
+              <div class="panel-head-actions">
+                <div class="timeline-nav-group" aria-label="timeline date navigation">
+                  <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="prev">이전</button>
+                  <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="today">오늘</button>
+                  <button type="button" class="timeline-action-button timeline-action-button--nav" data-timeline-nav="next">다음</button>
+                </div>
+                <button type="button" class="timeline-action-button" data-timeline-action="create">작성</button>
+                <button type="button" class="timeline-action-button" data-timeline-action="manage">수정</button>
+              </div>
+            </div>
+            <div class="panel-body schedule-bridge-body">
+              <div class="schedule-bridge-toolbar" aria-label="schedule bridge navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-schedule-bridge-nav="all">타임라인</button>
+                <button type="button" class="schedule-bridge-button" data-schedule-bridge-nav="shared">공용일정</button>
+                <button type="button" class="schedule-bridge-button" data-schedule-bridge-nav="personal">개인일정</button>
+                <button type="button" class="schedule-bridge-button" data-schedule-bridge-nav="accumulated">누적일정</button>
+              </div>
+              <div class="schedule-local-timeline-shell" id="schedule-local-timeline-shell">
+                <div class="timeline-gantt-shell timeline-gantt-shell--detail" id="schedule-timeline-gantt-shell" data-timeline-host="schedule">
+                  <div class="timeline-gantt-empty" id="schedule-timeline-gantt-empty">일정현황 데이터를 불러오는 중</div>
+                  <div class="timeline-gantt-scroller" id="schedule-timeline-gantt-scroller" hidden>
+                    <div class="timeline-gantt-grid" id="schedule-timeline-gantt-grid"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="schedule-local-shared-shell" id="schedule-local-shared-shell" hidden>
+                <section class="shared-schedule-panel shared-schedule-panel--composer" id="shared-schedule-composer-panel" aria-label="공용일정 작성 패널" hidden>
+                  <div class="shared-schedule-panel__head">
+                    <div>
+                      <h4 class="shared-schedule-panel__title">공용일정</h4>
+                      <p class="shared-schedule-panel__copy">팀 전체 공지 일정 / 이동 / 회의 / 첨부자료</p>
+                    </div>
+                    <div class="shared-schedule-panel__actions">
+                      <button type="button" class="timeline-action-button" id="shared-schedule-save-button">저장</button>
+                      <button type="button" class="timeline-action-button timeline-action-button--ghost" id="shared-schedule-cancel-button">취소</button>
+                    </div>
+                  </div>
+                  <div class="shared-schedule-form">
+                    <label class="shared-schedule-field">
+                      <span class="shared-schedule-field__label">날짜 선택</span>
+                      <input type="date" class="shared-schedule-input" id="shared-schedule-date-input" />
+                    </label>
+                    <label class="shared-schedule-field shared-schedule-field--wide">
+                      <span class="shared-schedule-field__label">공용 일정 내용</span>
+                      <textarea class="shared-schedule-input shared-schedule-input--textarea" id="shared-schedule-content-input" placeholder="공용 일정 내용을 입력하세요"></textarea>
+                    </label>
+                    <label class="shared-schedule-field shared-schedule-field--wide">
+                      <span class="shared-schedule-field__label">첨부파일 선택</span>
+                      <input type="file" class="shared-schedule-input shared-schedule-input--file" id="shared-schedule-file-input" multiple />
+                    </label>
+                  </div>
+                  <div class="shared-schedule-preview" id="shared-schedule-preview" aria-live="polite"></div>
+                </section>
+                <section class="shared-schedule-panel shared-schedule-panel--list" aria-label="저장된 공용일정 목록">
+                  <div class="shared-schedule-panel__head">
+                    <div>
+                      <h4 class="shared-schedule-panel__title">공용일정</h4>
+                      <p class="shared-schedule-panel__copy" id="shared-schedule-list-meta">공용일정 데이터를 불러오는 중</p>
+                    </div>
+                    <div class="shared-schedule-panel__actions">
+                      <button type="button" class="timeline-action-button" id="shared-schedule-create-button">작성</button>
+                      <button type="button" class="timeline-action-button timeline-action-button--ghost" id="shared-schedule-delete-mode-button">삭제모드</button>
+                      <button type="button" class="timeline-action-button timeline-action-button--danger" id="shared-schedule-delete-confirm-button" hidden>선택 삭제</button>
+                    </div>
+                  </div>
+                  <div class="shared-schedule-list" id="shared-schedule-list"></div>
+                </section>
+              </div>
+              <div class="schedule-local-personal-shell" id="schedule-local-personal-shell" hidden>
+                <section class="personal-schedule-panel personal-schedule-panel--inline" aria-label="개인일정 입력">
+                  <div class="shared-schedule-panel__head">
+                    <div>
+                      <h4 class="shared-schedule-panel__title">개인일정</h4>
+                    </div>
+                    <div class="shared-schedule-panel__actions">
+                      <label class="personal-schedule-datebar">
+                        <span>날짜</span>
+                        <input type="date" class="shared-schedule-input" id="personal-schedule-date-input" />
+                      </label>
+                    </div>
+                  </div>
+                  <div class="personal-schedule-list" id="personal-schedule-list"></div>
+                </section>
+              </div>
+              <div class="schedule-local-accumulated-shell" id="schedule-local-accumulated-shell" hidden>
+                <section class="shared-schedule-panel shared-schedule-panel--list accumulated-schedule-panel" aria-label="누적일정 목록">
+                  <div class="shared-schedule-panel__head">
+                    <div>
+                      <h4 class="shared-schedule-panel__title">누적일정</h4>
+                      <p class="shared-schedule-panel__copy" id="accumulated-schedule-list-meta">개인일정 누적 기록을 불러오는 중</p>
+                    </div>
+                    <div class="shared-schedule-panel__actions">
+                      <button type="button" class="timeline-action-button" id="personal-schedule-export-button">개인일정내보내기</button>
+                    </div>
+                  </div>
+                  <div class="accumulated-schedule-list" id="accumulated-schedule-list"></div>
+                </section>
+              </div>
+              <div class="schedule-bridge-frame-shell" id="schedule-bridge-frame-shell">
+                <div class="schedule-bridge-loading" id="schedule-bridge-loading">legacy schedule bridge loading...</div>
+                <iframe
+                  class="schedule-bridge-frame"
+                  id="schedule-bridge-frame"
+                  data-src="./legacy-schedule/index.html?v=media-news-actions-20260518-01"
+                  src=""
+                  title="legacy schedule bridge"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-field-ops" data-view="field-ops" hidden aria-label="장비운영 상세 shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="equipment-summary">
+            <div class="panel__header panel-head"><div><h3 class="panel__title">장비운영</h3></div><span class="panel__tag">SHELL</span></div>
+            <div class="panel-body field-ops-body">
+              <section class="ops-panel field-subview is-active" id="field-equipment-summary-panel" data-section="equipment-summary" data-section-panel="equipment-summary">
+                <div class="panel-head"><h4>장비종합</h4></div>
+                <div class="panel-body field-equipment-grid">
+                  <p class="utility-copy field-subview-copy">장비종합 이식 대기</p>
+                  <p class="utility-copy field-subview-copy">장비 목록 / 사용 상태 / 까르네 바로가기 연결</p>
+                  <article class="field-equipment-card" data-category="shared-equipment"><strong>공용 장비</strong><span>분류 shell</span></article>
+                  <article class="field-equipment-card" data-category="personal-equipment"><strong>개인 장비</strong><span>분류 shell</span></article>
+                  <article class="field-equipment-card" data-category="carnet-shortcut"><strong>까르네</strong><span>바로가기 shell</span></article>
+                  <article class="field-equipment-card" data-category="inspection-needed"><strong>점검 필요</strong><span>분류 shell</span></article>
+                </div>
+              </section>
+
+              <section class="ops-panel field-subview" id="field-personal-summary-panel" data-section="personal-summary" data-section-panel="personal-summary">
+                <div class="panel-head"><h4>개인장비</h4></div>
+                <div class="panel-body">
+                  <div class="personal-equipment-tabs" role="tablist" aria-label="개인장비 선택">
+                    <button class="personal-equipment-tab" type="button" data-crew="박재현">박재현</button>
+                    <button class="personal-equipment-tab" type="button" data-crew="장후원">장후원</button>
+                    <button class="personal-equipment-tab" type="button" data-crew="정상원">정상원</button>
+                    <button class="personal-equipment-tab" type="button" data-crew="이주원">이주원</button>
+                    <button class="personal-equipment-tab" type="button" data-crew="김진광">김진광</button>
+                    <button class="personal-equipment-tab" type="button" data-crew="정재우">정재우</button>
+                  </div>
+
+                  <div id="personal-equipment-detail" class="personal-equipment-detail" hidden>
+                    <div class="personal-equipment-detail-head">
+                      <h3 id="personal-equipment-title">개인장비</h3>
+                      <button class="personal-equipment-close" type="button" aria-label="개인장비 창 닫기">닫기</button>
+                    </div>
+                    <div class="personal-equipment-detail-body">
+                      <p>장비종합 이식 대기</p>
+                      <p>TVU / TRS / 기타 장비 상태 연결</p>
+                      <p>개인장비 선택 유지</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-archive" data-view="archive" hidden aria-label="자료보관 상세 shell">
+          <article class="panel ops-panel detail-panel archive-suit-shell" data-section-shell="document-storage">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">자료보관</h3>
+                <p class="schedule-bridge-meta" id="storage-bridge-meta"></p>
+              </div>
+              <span class="panel__tag" id="storage-bridge-tag">LIVE BRIDGE</span>
+            </div>
+            <div class="panel-body schedule-bridge-body archive-suit-body">
+              <div class="schedule-bridge-toolbar archive-suit-toolbar" aria-label="storage bridge navigation">
+                <div class="archive-suit-tab-group" aria-label="자료보관 하위탭">
+                  <button type="button" class="schedule-bridge-button is-active" data-storage-bridge-nav="document-storage">문서보관</button>
+                  <button type="button" class="schedule-bridge-button" data-storage-bridge-nav="file-storage">파일보관</button>
+                  <button type="button" class="schedule-bridge-button" data-storage-bridge-nav="gallery">갤러리</button>
+                  <button type="button" class="schedule-bridge-button" data-storage-bridge-nav="video">동영상</button>
+                </div>
+                <div class="archive-suit-actions" aria-label="자료보관 통합 작업">
+                  <div class="archive-suit-create-wrap">
+                    <button type="button" class="archive-suit-action" data-archive-action="create">작성</button>
+                    <div class="archive-suit-create-menu" data-archive-create-menu hidden>
+                      <button type="button" data-archive-create-target="document-storage">문서보관</button>
+                      <button type="button" data-archive-create-target="file-storage">파일보관</button>
+                      <button type="button" data-archive-create-target="gallery">갤러리</button>
+                      <button type="button" data-archive-create-target="video">동영상</button>
+                    </div>
+                  </div>
+                  <button type="button" class="archive-suit-action" data-archive-action="edit">수정</button>
+                  <button type="button" class="archive-suit-action is-danger" data-archive-action="delete">삭제</button>
+                </div>
+              </div>
+              <div class="archive-suit-panels" id="storage-bridge-frame-shell">
+                <section class="archive-suit-tab-panel is-active" data-archive-suit-panel="document-storage" data-archive-label="문서보관" aria-label="문서보관"></section>
+                <section class="archive-suit-tab-panel" data-archive-suit-panel="file-storage" data-archive-label="파일보관" aria-label="파일보관" hidden></section>
+                <section class="archive-suit-tab-panel" data-archive-suit-panel="gallery" data-archive-label="갤러리" aria-label="갤러리" hidden></section>
+                <section class="archive-suit-tab-panel" data-archive-suit-panel="video" data-archive-label="동영상" aria-label="동영상" hidden></section>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-broadcast-news" data-view="broadcast-news" hidden aria-label="broadcast news detail shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="broadcast-schedule">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">방송편성</h3>
+                <p class="schedule-bridge-meta" id="media-bridge-meta"></p>
+              </div>
+              <span class="panel__tag" id="media-bridge-tag">ON AIR OPS</span>
+            </div>
+            <div class="panel-body schedule-bridge-body">
+              <div class="schedule-bridge-toolbar" aria-label="media bridge navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-media-bridge-nav="broadcast-schedule">방송편성</button>
+                <button type="button" class="schedule-bridge-button" data-media-bridge-nav="worldcup-news">월드컵 뉴스</button>
+              </div>
+              <div class="schedule-bridge-toolbar schedule-bridge-toolbar--secondary" id="media-news-year-toolbar" aria-label="worldcup news year navigation" hidden>
+                <button type="button" class="schedule-bridge-button is-active" data-media-news-year="2026">2026</button>
+                <button type="button" class="schedule-bridge-button" data-media-news-year="2022">2022</button>
+                <button type="button" class="schedule-bridge-button" data-media-news-year="2018">2018</button>
+                <button type="button" class="schedule-bridge-button" data-media-news-year="2014">2014</button>
+              </div>
+              <div class="schedule-bridge-frame-shell" id="media-bridge-frame-shell">
+                <div class="schedule-bridge-loading" id="media-bridge-loading">legacy media bridge loading...</div>
+                <iframe
+                  class="schedule-bridge-frame"
+                  id="media-bridge-frame"
+                  data-src="./legacy-schedule/index.html?v=group-a-visible-render-fix"
+                  src=""
+                  title="legacy media bridge"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-view detail-shell" id="view-operations" data-view="operations" hidden aria-label="operations detail shell">
+          <article class="panel ops-panel detail-panel" data-section-shell="operation-memo">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">운영 현황</h3>
+                <p class="schedule-bridge-meta" id="ops-bridge-meta">개발 과정 / 현재 작업 버전</p>
+              </div>
+              <span class="panel__tag" id="ops-bridge-tag">STATUS</span>
+            </div>
+            <div class="panel-body schedule-bridge-body">
+              <div class="schedule-bridge-toolbar" aria-label="operations bridge navigation">
+                <button type="button" class="schedule-bridge-button is-active" data-ops-bridge-nav="operation-memo">운영메모</button>
+                <button type="button" class="schedule-bridge-button" data-ops-bridge-nav="official-links">공식 링크</button>
+                <button type="button" class="schedule-bridge-button" data-ops-bridge-nav="operation-status">운영상태</button>
+              </div>
+              <section class="ops-static-panel" id="ops-operation-memo-panel" hidden>
+                <div class="ops-static-card ops-memo-card">
+                  <div class="ops-memo-form">
+                    <label class="ops-memo-label" for="ops-memo-input">메모 입력</label>
+                    <textarea id="ops-memo-input" class="ops-memo-input" rows="4" placeholder="수정사항 요청이나 운영 메모를 남겨주세요."></textarea>
+                    <div class="ops-memo-actions">
+                      <button type="button" class="schedule-bridge-button is-active" id="ops-memo-save">저장</button>
+                      <button type="button" class="schedule-bridge-button" id="ops-memo-reset">입력 초기화</button>
+                    </div>
+                  </div>
+                  <div class="ops-memo-list-wrap">
+                    <p class="ops-memo-list-title">저장된 메모</p>
+                    <div class="ops-memo-list" id="ops-memo-list"></div>
+                  </div>
+                </div>
+              </section>
+              <section class="ops-static-panel" id="ops-official-links-panel" hidden>
+                <div class="ops-static-card">
+                  <div class="ops-static-table-wrap">
+                    <table class="ops-static-table" aria-label="공식 링크 표">
+                      <thead>
+                        <tr>
+                          <th>구분</th>
+                          <th>링크명</th>
+                          <th>URL</th>
+                          <th>비고</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td data-label="구분">FIFA</td>
+                          <td data-label="링크명">FIFA 공식 사이트</td>
+                          <td data-label="URL"><a href="https://www.fifa.com/" target="_blank" rel="noopener noreferrer">https://www.fifa.com/</a></td>
+                          <td data-label="비고">FIFA 공식 홈페이지</td>
+                        </tr>
+                        <tr>
+                          <td data-label="구분">FIFA MEDIA</td>
+                          <td data-label="링크명">FIFA Media Hub</td>
+                          <td data-label="URL"><a href="https://media.fifa.com/en/home" target="_blank" rel="noopener noreferrer">https://media.fifa.com/en/home</a></td>
+                          <td data-label="비고">FIFA 미디어 허브</td>
+                        </tr>
+                        <tr>
+                          <td data-label="구분">KFA</td>
+                          <td data-label="링크명">대한축구협회 공식 사이트</td>
+                          <td data-label="URL"><a href="https://www.kfa.or.kr/" target="_blank" rel="noopener noreferrer">https://www.kfa.or.kr/</a></td>
+                          <td data-label="비고">KFA 공식 홈페이지</td>
+                        </tr>
+                        <tr>
+                          <td data-label="구분">KFA MEDIA</td>
+                          <td data-label="링크명">KFA 미디어채널</td>
+                          <td data-label="URL"><a href="https://media.kfa.or.kr/" target="_blank" rel="noopener noreferrer">https://media.kfa.or.kr/</a></td>
+                          <td data-label="비고">KFA 미디어채널</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+              <section class="ops-static-panel" id="ops-operation-status-panel" hidden>
+                <div class="ops-static-card ops-status-card">
+                  <p><strong>개발 과정</strong> 01~07 NEW SUIT 화면 정리 진행</p>
+                  <p><strong>현재 작업 버전</strong> PC 안정화 / 하위탭 밝은 UI 적용 중</p>
+                  <p><strong>유지 기준</strong> 기존 데이터와 저장 구조 보존</p>
+                </div>
+              </section>
+              <div class="schedule-bridge-frame-shell" id="ops-bridge-frame-shell">
+                <div class="schedule-bridge-loading" id="ops-bridge-loading">legacy ops bridge loading...</div>
+                <iframe
+                  class="schedule-bridge-frame"
+                  id="ops-bridge-frame"
+                  data-src="./legacy-schedule/index.html?v=group-a-visible-render-fix"
+                  src=""
+                  title="legacy operations bridge"
+                  loading="lazy"
+                ></iframe>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel-stash" hidden aria-hidden="true">
+          <article class="panel ops-panel" id="panel-map" data-role="venue-map">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">MAP/장소</h3>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <p class="utility-copy">이 화면에서 다시 연결할 장소 / MAP shell 확장 예정</p>
+            </div>
+            </article>
+
+          <article class="panel ops-panel" id="panel-archive" data-role="archive-links">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">자료보관</h3>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <p class="utility-copy"></p>
+            </div>
+            </article>
+
+          <article class="panel ops-panel" id="panel-broadcast" data-role="broadcast-news">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">방송편성</h3>
+              </div>
+            </div>
+
+            <div class="panel-body">
+            </div>
+            </article>
+
+          <article class="panel ops-panel" id="panel-news" data-role="news-shell">
+            <div class="panel__header panel-head">
+              <div>
+                <h3 class="panel__title">뉴스</h3>
+              </div>
+            </div>
+
+            <div class="panel-body">
+              <p class="utility-copy">이 화면에서 다시 연결할 뉴스 shell 확장 예정</p>
+            </div>
+            </article>
+
+          <article class="panel" id="panel-sync" data-role="sync-monitor">
+            <div class="panel__header">
+              <div>
+                <h3 class="panel__title">동기화</h3>
+              </div>
+            </div>
+            <p class="utility-copy">운영 상태와 동기화 shell 확장 예정</p>
+          </article>
+
+          <article class="panel panel--utility" id="panel-bracket" data-role="bracket-shell">
+            <div class="panel__header">
+              <div>
+                <h3 class="panel__title">대진표</h3>
+              </div>
+            </div>
+            <p class="utility-copy">경기/선수단 그룹 안에서 다시 연결할 bracket placeholder</p>
+          </article>
+
+          <article class="panel panel--utility" id="panel-squad" data-role="squad-shell">
+            <div class="panel__header">
+              <div>
+                <h3 class="panel__title">선수단</h3>
+              </div>
+            </div>
+            <p class="utility-copy">경기/선수단 그룹 안에서 대표팀 연결 예정 placeholder</p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <iframe
+      class="schedule-bridge-sync-frame"
+      id="schedule-bridge-sync-frame"
+      data-src="./legacy-schedule/index.html?v=group-a-visible-render-fix&summaryBridge=1"
+      src=""
+      title="legacy schedule bridge summary sync"
+      loading="lazy"
+      aria-hidden="true"
+      tabindex="-1"
+    ></iframe>
+
+    <div class="timeline-modal" id="timeline-entry-modal" hidden>
+      <div class="timeline-modal__backdrop" data-timeline-modal-close></div>
+      <div class="timeline-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="timeline-entry-modal-title">
+        <div class="timeline-modal__header">
+          <h3 class="timeline-modal__title" id="timeline-entry-modal-title">일정현황 작성</h3>
+          <button type="button" class="timeline-modal__close" data-timeline-modal-close aria-label="닫기">×</button>
+        </div>
+        <div class="timeline-modal__body">
+          <input type="hidden" id="timeline-entry-id" />
+          <label class="timeline-modal__field">
+            <span>이름 선택</span>
+            <select id="timeline-entry-name"></select>
+          </label>
+          <div class="timeline-modal__field-grid">
+            <label class="timeline-modal__field">
+              <span>시작 날짜</span>
+              <input type="date" id="timeline-entry-start" />
+            </label>
+            <label class="timeline-modal__field">
+              <span>종료 날짜</span>
+              <input type="date" id="timeline-entry-end" />
+            </label>
+          </div>
+          <label class="timeline-modal__field">
+            <span>장소 입력</span>
+            <input type="text" id="timeline-entry-place" maxlength="60" placeholder="예: LA 숙소" />
+          </label>
+          <label class="timeline-modal__field">
+            <span>메모 입력</span>
+            <textarea id="timeline-entry-memo" rows="3" maxlength="300" placeholder="메모"></textarea>
+          </label>
+        </div>
+        <div class="timeline-modal__actions">
+          <button type="button" class="timeline-modal__button timeline-modal__button--ghost" data-timeline-modal-close>취소</button>
+          <button type="button" class="timeline-modal__button" id="timeline-entry-save">저장</button>
+        </div>
       </div>
     </div>
 
-    <div id="detailCol" class="table-column hidden">
-      <div class="section-title-row programming-detail-title-row">
-        <h2 id="detailTitle" class="section-title">상세 보기</h2>
-        <div id="detailTitleActions" class="section-title-actions"></div>
+    <div class="timeline-modal" id="timeline-manage-modal" hidden>
+      <div class="timeline-modal__backdrop" data-timeline-manage-close></div>
+      <div class="timeline-modal__dialog timeline-modal__dialog--wide" role="dialog" aria-modal="true" aria-labelledby="timeline-manage-modal-title">
+        <div class="timeline-modal__header">
+          <h3 class="timeline-modal__title" id="timeline-manage-modal-title">일정현황 수정</h3>
+          <button type="button" class="timeline-modal__close" data-timeline-manage-close aria-label="닫기">×</button>
+        </div>
+        <div class="timeline-modal__body">
+          <div class="timeline-manage-list" id="timeline-manage-list"></div>
+        </div>
       </div>
-      <div id="detailSubtitle" class="section-subtitle"></div>
-      <div class="table-card"><table id="detailTable" class="data-table"></table></div>
     </div>
-  </div>
-</div>
-<div id="file-preview-modal" class="file-preview-modal" aria-hidden="true">
-  <div class="file-preview-content" role="dialog" aria-modal="true" aria-label="파일 미리보기">
-    <button id="file-preview-close" type="button">닫기</button>
-    <div id="file-preview-body" class="file-preview-body"></div>
-  </div>
-</div>
-<div id="timelineGalleryModalMount"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-window.APP_CONFIG = {
-  supabaseUrl: 'https://dwujummgbntrtvmldqmz.supabase.co',
-  supabaseAnonKey: 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l',
-  googleMapsApiKey: ''
-};
-</script>
-<script src="supabase-client.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./app.js?v=mobile-realtime-fix"></script>
-</body>
+
+    <div class="timeline-modal shared-schedule-detail-modal" id="shared-schedule-detail-modal" hidden>
+      <div class="timeline-modal__backdrop" data-shared-schedule-detail-close></div>
+      <div class="timeline-modal__dialog timeline-modal__dialog--wide shared-schedule-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="shared-schedule-detail-title">
+        <div class="timeline-modal__header">
+          <div>
+            <p class="shared-schedule-detail-date" id="shared-schedule-detail-date"></p>
+            <h3 class="timeline-modal__title" id="shared-schedule-detail-title">공용일정 상세</h3>
+          </div>
+          <button type="button" class="timeline-modal__close" data-shared-schedule-detail-close aria-label="닫기">×</button>
+        </div>
+        <div class="timeline-modal__body shared-schedule-detail-body">
+          <p class="shared-schedule-detail-content" id="shared-schedule-detail-content"></p>
+          <p class="shared-schedule-detail-meta" id="shared-schedule-detail-meta"></p>
+          <div class="shared-schedule-detail-attachments" id="shared-schedule-detail-attachments"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-modal shared-schedule-file-preview-modal" id="shared-schedule-file-preview-modal" hidden>
+      <div class="timeline-modal__backdrop" data-shared-schedule-file-preview-close></div>
+      <div class="timeline-modal__dialog timeline-modal__dialog--wide shared-schedule-file-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="shared-schedule-file-preview-title">
+        <div class="timeline-modal__header">
+          <div>
+            <p class="shared-schedule-file-preview-type" id="shared-schedule-file-preview-type"></p>
+            <h3 class="timeline-modal__title" id="shared-schedule-file-preview-title">첨부파일 미리보기</h3>
+          </div>
+          <button type="button" class="timeline-modal__close" data-shared-schedule-file-preview-close aria-label="닫기">×</button>
+        </div>
+        <div class="timeline-modal__body shared-schedule-file-preview-body" id="shared-schedule-file-preview-body"></div>
+        <div class="timeline-modal__actions shared-schedule-file-preview-actions" id="shared-schedule-file-preview-actions"></div>
+      </div>
+    </div>
+
+    <div class="timeline-modal personal-schedule-detail-modal" id="personal-schedule-detail-modal" hidden>
+      <div class="timeline-modal__backdrop" data-personal-schedule-detail-close></div>
+      <div class="timeline-modal__dialog timeline-modal__dialog--wide personal-schedule-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="personal-schedule-detail-title">
+        <div class="timeline-modal__header">
+          <div>
+            <p class="shared-schedule-detail-date" id="personal-schedule-detail-date"></p>
+            <h3 class="timeline-modal__title" id="personal-schedule-detail-title">개인일정 상세</h3>
+          </div>
+          <button type="button" class="timeline-modal__close" data-personal-schedule-detail-close aria-label="닫기">×</button>
+        </div>
+        <div class="timeline-modal__body personal-schedule-detail-body" id="personal-schedule-detail-body"></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast-shell" role="status" aria-live="polite"></div>
+    <div class="timeline-tooltip" id="timeline-tooltip-shell" hidden aria-hidden="true"></div>
+
+    <script src="./app.js?v=korea-roster-20260518-01"></script>
+    <script src="./tournament-tab.js?v=20260517-22"></script>
+  </body>
 </html>
+
+
+
+
+
+
