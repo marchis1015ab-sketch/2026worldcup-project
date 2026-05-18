@@ -135,7 +135,7 @@
           }
         }
         if (!Array.isArray(rows) || !rows.length) {
-          const fallbackResponse = await fetch("./equipment-shared-state-fallback.json?v=bridge-target-fix-20260518-02");
+          const fallbackResponse = await fetch("./equipment-shared-state-fallback.json?v=bridge-target-fix-20260518-03");
           if (fallbackResponse.ok) {
             rows = await fallbackResponse.json();
           }
