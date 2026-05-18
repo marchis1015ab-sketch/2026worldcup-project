@@ -6329,6 +6329,47 @@ function syncMediaBridgeEmbeddedSkin() {
   queueMediaBridgeScrollSync();
 }
 
+function markMediaBridgeReady(sectionId = mediaBridgeSection) {
+  mediaBridgeReady = true;
+  mediaBridgeFrameShell?.classList.add("is-ready");
+  if (mediaBridgeLoading) {
+    mediaBridgeLoading.textContent = "";
+  }
+  setMediaBridgeButtonState(sectionId || mediaBridgeSection);
+  syncMediaBridgeEmbeddedSkin();
+  queueMediaBridgeScrollSync();
+  queueBridgeSummaryBurst(requestMediaBridgeSummary);
+}
+
+function markMediaBridgeReadyFromDocument(sectionId = mediaBridgeSection) {
+  const legacyDocument = mediaBridgeFrame?.contentDocument || mediaBridgeFrame?.contentWindow?.document || null;
+  const legacyBody = legacyDocument?.body;
+  if (!legacyBody) {
+    return false;
+  }
+  const hasMediaContent =
+    legacyBody.classList.contains("wc26-legacy-schedule-bridge") ||
+    Boolean(legacyDocument.getElementById("detailCol")) ||
+    Boolean(legacyDocument.querySelector(".news-programming-shell")) ||
+    Boolean(legacyDocument.querySelector(".broadcast-suit-shell")) ||
+    Boolean(legacyDocument.querySelector(".news-table"));
+  if (!hasMediaContent) {
+    return false;
+  }
+  markMediaBridgeReady(sectionId);
+  return true;
+}
+
+function queueMediaBridgeReadyFallback(sectionId = mediaBridgeSection) {
+  [180, 420, 900, 1600].forEach((delay) => {
+    window.setTimeout(() => {
+      if (!mediaBridgeReady) {
+        markMediaBridgeReadyFromDocument(sectionId);
+      }
+    }, delay);
+  });
+}
+
 function syncMediaBridgeFrameScrollHeight() {
   const legacyDocument = mediaBridgeFrame?.contentDocument || mediaBridgeFrame?.contentWindow?.document || null;
   if (!mediaBridgeFrame) {
@@ -14499,13 +14540,7 @@ function handleScheduleBridgeMessage(event) {
   }
 
   if (payload.type === WC26_MEDIA_BRIDGE_MESSAGE.ready && isMediaBridgeSource) {
-    mediaBridgeReady = true;
-    mediaBridgeFrameShell?.classList.add("is-ready");
-    if (mediaBridgeLoading) {
-      mediaBridgeLoading.textContent = "legacy media bridge ready";
-    }
-    setMediaBridgeButtonState(payload.section || mediaBridgeSection);
-    queueMediaBridgeScrollSync();
+    markMediaBridgeReady(payload.section || mediaBridgeSection);
   }
 
   if (payload.type === WC26_OPS_BRIDGE_MESSAGE.ready && isOpsBridgeSource) {
@@ -15240,6 +15275,7 @@ function initMediaBridge() {
       syncMediaBridgeEmbeddedSkin();
       setMediaBridgeSection(mediaBridgeSection);
     }, 120);
+    queueMediaBridgeReadyFallback(mediaBridgeSection);
     [320, 760, 1400].forEach((delay) => {
       window.setTimeout(syncMediaBridgeEmbeddedSkin, delay);
     });
