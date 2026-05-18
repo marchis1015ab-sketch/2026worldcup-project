@@ -14204,7 +14204,9 @@ function exportAccumulatedPersonalSchedules() {
 function createLegacyPersonalScheduleRow(syncWindow, values = {}) {
   const row = syncWindow.document.createElement("div");
   row.className = "personal-timeline-person-row";
+  row.dataset.personName = values.name || "";
   const button = syncWindow.document.createElement("button");
+  button.type = "button";
   button.className = "personal-timeline-save-btn";
   button.dataset.dateKey = values.dateKey;
   button.dataset.person = values.name;
@@ -14212,6 +14214,8 @@ function createLegacyPersonalScheduleRow(syncWindow, values = {}) {
   ["취재기자", "시작시간", "종료시간", "업무내용", "장소", "TVU"].forEach((field) => {
     const select = syncWindow.document.createElement("select");
     select.className = "personal-timeline-detail-select";
+    select.dataset.dateKey = values.dateKey;
+    select.dataset.person = values.name;
     select.dataset.field = field;
     const option = syncWindow.document.createElement("option");
     option.value = values[field] || "";
@@ -14246,17 +14250,51 @@ async function handlePersonalScheduleRowSave(row) {
     saveButton.disabled = true;
   }
   try {
-    const syncWindow = await waitForScheduleBridgeFunction("savePersonalTimelinePersonRow");
+    console.info("[personal-schedule] personal save start", {
+      dateKey,
+      name,
+      hasBridgeFrame: Boolean(scheduleBridgeSyncFrame),
+      hasRow: Boolean(row),
+    });
+    const syncWindow = await waitForScheduleBridgeFunction("savePersonalTimelinePersonRow", 15000);
+    console.info("[personal-schedule] personal save bridge check", {
+      hasSyncWindow: Boolean(syncWindow),
+      hasSaveFunction: typeof syncWindow?.savePersonalTimelinePersonRow === "function",
+    });
     if (typeof syncWindow?.savePersonalTimelinePersonRow !== "function") {
       throw new Error("personal schedule save bridge unavailable");
     }
     const legacyRow = createLegacyPersonalScheduleRow(syncWindow, values);
-    await syncWindow.savePersonalTimelinePersonRow(legacyRow);
+    console.info("[personal-schedule] personal save legacy row created", {
+      dateKey: legacyRow.querySelector(".personal-timeline-save-btn")?.dataset.dateKey || "",
+      name: legacyRow.querySelector(".personal-timeline-save-btn")?.dataset.person || "",
+      selectCount: legacyRow.querySelectorAll(".personal-timeline-detail-select[data-field]").length,
+    });
+    const saveResult = await syncWindow.savePersonalTimelinePersonRow(legacyRow);
+    if (typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+      await syncWindow.flushPendingSharedStateWritesWithRetry({
+        retries: 3,
+        delayMs: 700,
+        throwOnError: true,
+        context: {feature: "personal-schedule-save", dateKey, name},
+      });
+    }
+    const savedEntries = typeof syncWindow.getPersonalTimelineDetailEntries === "function"
+      ? syncWindow.getPersonalTimelineDetailEntries(dateKey, name)
+      : [];
+    console.info("[personal-schedule] personal save legacy result", {
+      saveResult,
+      savedEntryCount: Array.isArray(savedEntries) ? savedEntries.length : 0,
+    });
+    if (!Array.isArray(savedEntries) || !savedEntries.length) {
+      throw new Error("personal schedule save did not create a legacy detail entry");
+    }
     renderPersonalScheduleList();
     refreshAccumulatedScheduleFlow();
     requestScheduleBridgeSummary();
     showToast("개인일정이 저장되었습니다.");
-  } catch (_error) {
+  } catch (error) {
+    console.error("[personal-schedule] personal save failed", error);
     showToast("개인일정을 저장하지 못했습니다.");
   } finally {
     personalScheduleIsSaving = false;
