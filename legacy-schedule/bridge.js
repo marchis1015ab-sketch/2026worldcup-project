@@ -81,11 +81,26 @@
 
   function fetchBridgeSharedStateKeys(keys = []) {
     const normalizedKeys = keys.map((key) => String(key || "").trim()).filter(Boolean);
+    const cacheRows = (rows = []) => {
+      rows.forEach((row) => {
+        const stateKey = String(row?.state_key || "").trim();
+        const stateValue = String(row?.state_value ?? "");
+        if (!stateKey || !normalizedKeys.includes(stateKey) || !stateValue) {
+          return;
+        }
+        try {
+          window.localStorage?.setItem(stateKey, stateValue);
+        } catch (_error) {}
+        try {
+          window.sessionStorage?.setItem(stateKey, stateValue);
+        } catch (_error) {}
+      });
+    };
     const fallbackFetch = async () => {
       try {
         const supabaseUrl = String(window.APP_CONFIG?.supabaseUrl || "").replace(/\/+$/, "");
         const supabaseAnonKey = String(window.APP_CONFIG?.supabaseAnonKey || "");
-        if (!supabaseUrl || !supabaseAnonKey || !normalizedKeys.length || typeof applySharedStateSnapshot !== "function") {
+        if (!supabaseUrl || !supabaseAnonKey || !normalizedKeys.length) {
           return;
         }
         const query = normalizedKeys.map((key) => encodeURIComponent(key)).join(",");
@@ -103,7 +118,10 @@
         }
         const rows = await response.json();
         if (Array.isArray(rows) && rows.length) {
-          applySharedStateSnapshot(rows);
+          cacheRows(rows);
+          if (typeof applySharedStateSnapshot === "function") {
+            applySharedStateSnapshot(rows);
+          }
         }
       } catch (_error) {}
     };
