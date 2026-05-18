@@ -109,14 +109,14 @@
     };
     try {
       if (typeof fetchSharedStateSnapshot === "function") {
-        return Promise.resolve(
+        Promise.resolve(
           fetchSharedStateSnapshot(
             normalizedKeys,
             { markInitial: false },
           ),
         )
           .catch(() => undefined)
-          .then(fallbackFetch);
+          .then(() => undefined);
       }
     } catch (_error) {}
     return fallbackFetch();
