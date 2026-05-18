@@ -1121,7 +1121,25 @@ function getNewsData(){
   if(newsData) return newsData;
   newsData = {
   "2026": {
-    "KBS": [],
+    "KBS": [
+      {"date":"2026.05.09","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8556921","analysis":"2차전 상대 멕시코, 논란 끝에 조기 소집"},
+      {"date":"2026.05.08","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8556515","analysis":"‘인간 승리’ 조규성, 4년 전 월드컵 스타의 부활 노린다!"},
+      {"date":"2026.05.06","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8554517","analysis":"‘부활한 황소’ 황희찬, 북중미도 ‘폭풍 질주’ , 부상복귀 황희찬 관련 리포트"},
+      {"date":"2026.05.04","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8552729","analysis":"‘소리없는 영웅’ 이재성, 북중미에서는 당당한 주인공으로!\n마지막 월드컵이 될지도 모르는 이재성 선수, 부상 회복중"},
+      {"date":"2026.05.02","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8551424","analysis":"이란 월드컵 참가 논의"},
+      {"date":"2026.04.30","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8550681","analysis":"월드컵 최종 명단, 5월 16일 광화문에서 발표 2018 러시아 월드컵 출정식 영상 사용"},
+      {"date":"2026.04.30","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8550663","analysis":"오현규 조명"},
+      {"date":"2026.04.29","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8549448","analysis":"김민재 조명"},
+      {"date":"2026.04.28","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8548327","analysis":"모드리치 부상"},
+      {"date":"2026.04.28","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8548272","analysis":"이강인 조명"},
+      {"date":"2026.04.27","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8547048","analysis":"48개국 확대 명과 암"},
+      {"date":"2026.04.24","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8545356","analysis":"‘12년 전 실패’와 싸우는 홍명보 감독, 북중미서 명예 회복 도전!\n홍명보 감독 리포트"},
+      {"date":"2026.04.24","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8545413","analysis":"스포츠 존에 배치\n‘1골 1도움’ 오현규, 북중미월드컵 활약 기대에 관한 리포트"},
+      {"date":"2026.04.23","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8544336","analysis":"이번 월드컵은 대한민국 주장, 손흥민의 마지막 월드컵이 될 전망 리포트\n손흥민이 매번 눈믈을 흘리며 월드컵에 임했던 과거 자료를 잘 사용"},
+      {"date":"2026.04.22","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8543149","analysis":"이제 50일 앞으로 다가온 북중미 월드컵.\n이번에도 세계적인 별들이 총출동한다는 리포트"},
+      {"date":"2026.04.21","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8541975","analysis":"‘사상 처음’이 많은 북중미 월드컵, 이런 게 달라집니다!\nJTBC보다 먼저 '하이드레이션 브레이크'를 분석해줌"},
+      {"date":"2026.04.20","title":"KBS뉴스9","link":"https://news.kbs.co.kr/news/pc/view/view.do?ncd=8540821","analysis":"북중미 월드컵 중계 확정 첫날.\n“수신료 가치·공적 책무 실현” 이란 타이틀로 홍보 시작."}
+    ],
     "MBC": [],
     "SBS": []
   },
