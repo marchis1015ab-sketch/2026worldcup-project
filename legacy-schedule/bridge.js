@@ -79,6 +79,20 @@
     return EQUIPMENT_SECTION_SET.has(normalized) ? normalized : "equipment-summary";
   }
 
+  function fetchBridgeSharedStateKeys(keys = []) {
+    try {
+      if (typeof fetchSharedStateSnapshot === "function") {
+        return Promise.resolve(
+          fetchSharedStateSnapshot(
+            keys.map((key) => String(key || "").trim()).filter(Boolean),
+            { markInitial: false },
+          ),
+        ).catch(() => undefined);
+      }
+    } catch (_error) {}
+    return Promise.resolve(undefined);
+  }
+
   function normalizeStorageSection(section = "") {
     const normalized = String(section || "").trim().toLowerCase();
     if (normalized === "file-storage" || normalized === "file") {
@@ -700,20 +714,27 @@
         (item) => String(item.textContent || "").trim() === resolvedMember,
       );
 
-      if (normalized === "carnet" && typeof window.showEquipmentCarnet === "function") {
-        const carnetButton = document.getElementById("equipmentCarnetTab");
-        window.showEquipmentCarnet(carnetButton || undefined);
-      } else if (normalized === "personal-summary" && typeof window.showEquipmentPersonal === "function") {
-        window.showEquipmentPersonal(resolvedMember, personalButton || undefined);
-      } else if (typeof window.showEquipmentShared === "function") {
-        window.showEquipmentShared(sharedButton || undefined);
-      }
+      fetchBridgeSharedStateKeys([
+        "worldcup-guide-equipment-editor-v1",
+        "worldcup-guide-equipment-carnet-v1",
+        "worldcup-guide-timeline-assignments-v2",
+        "worldcup-guide-personal-timeline-details-v1",
+      ]).finally(() => {
+        if (normalized === "carnet" && typeof window.showEquipmentCarnet === "function") {
+          const carnetButton = document.getElementById("equipmentCarnetTab");
+          window.showEquipmentCarnet(carnetButton || undefined);
+        } else if (normalized === "personal-summary" && typeof window.showEquipmentPersonal === "function") {
+          window.showEquipmentPersonal(resolvedMember, personalButton || undefined);
+        } else if (typeof window.showEquipmentShared === "function") {
+          window.showEquipmentShared(sharedButton || undefined);
+        }
 
-      queueEquipmentSummarySync({ force: true });
-      postToParent({
-        type: EQUIPMENT_READY_TYPE,
-        section: normalized,
-        member: normalized === "personal-summary" ? resolvedMember : "",
+        queueEquipmentSummarySync({ force: true });
+        postToParent({
+          type: EQUIPMENT_READY_TYPE,
+          section: normalized,
+          member: normalized === "personal-summary" ? resolvedMember : "",
+        });
       });
     }, 80);
   }
