@@ -105,23 +105,41 @@
       try {
         const supabaseUrl = String(window.APP_CONFIG?.supabaseUrl || "").replace(/\/+$/, "");
         const supabaseAnonKey = String(window.APP_CONFIG?.supabaseAnonKey || "");
-        if (!supabaseUrl || !supabaseAnonKey || !normalizedKeys.length) {
+        if (!normalizedKeys.length) {
           return;
         }
-        const query = normalizedKeys.map((key) => encodeURIComponent(key)).join(",");
-        const response = await fetch(
-          `${supabaseUrl}/rest/v1/shared_state?select=state_key,state_value&state_key=in.(${query})`,
-          {
-            headers: {
-              apikey: supabaseAnonKey,
-              Authorization: `Bearer ${supabaseAnonKey}`,
-            },
-          },
-        );
-        if (!response.ok) {
-          return;
+        let rows = [];
+        if (supabaseUrl && supabaseAnonKey) {
+          const controller = typeof AbortController === "function" ? new AbortController() : null;
+          const timeoutId = controller ? window.setTimeout(() => controller.abort(), 4200) : 0;
+          try {
+            const query = normalizedKeys.map((key) => encodeURIComponent(key)).join(",");
+            const response = await fetch(
+              `${supabaseUrl}/rest/v1/shared_state?select=state_key,state_value&state_key=in.(${query})`,
+              {
+                headers: {
+                  apikey: supabaseAnonKey,
+                  Authorization: `Bearer ${supabaseAnonKey}`,
+                },
+                signal: controller?.signal,
+              },
+            );
+            if (response.ok) {
+              rows = await response.json();
+            }
+          } catch (_error) {
+          } finally {
+            if (timeoutId) {
+              window.clearTimeout(timeoutId);
+            }
+          }
         }
-        const rows = await response.json();
+        if (!Array.isArray(rows) || !rows.length) {
+          const fallbackResponse = await fetch("./equipment-shared-state-fallback.json?v=bridge-target-fix-20260518-02");
+          if (fallbackResponse.ok) {
+            rows = await fallbackResponse.json();
+          }
+        }
         if (Array.isArray(rows) && rows.length) {
           cacheRows(rows);
           if (typeof applySharedStateSnapshot === "function") {
