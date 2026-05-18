@@ -95,6 +95,11 @@
           window.sessionStorage?.setItem(stateKey, stateValue);
         } catch (_error) {}
       });
+      try {
+        if (typeof resetEquipmentSyncState === "function") {
+          resetEquipmentSyncState();
+        }
+      } catch (_error) {}
     };
     const fallbackFetch = async () => {
       try {
