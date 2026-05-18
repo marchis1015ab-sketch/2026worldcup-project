@@ -147,7 +147,7 @@ const mobileHomeMatchPreview = document.getElementById("mobile-home-match-previe
 const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
-const WC26_BRIDGE_VERSION = "equipment-bridge-fix-20260518-01";
+const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-02";
 window.__WC26_LOCAL_BUILD_ID = WC26_LOCAL_BUILD_ID;
 const WC26_GROUP_A_FLAGS = [
   { code: "mx", label: "멕시코" },
