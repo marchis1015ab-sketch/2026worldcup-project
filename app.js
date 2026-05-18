@@ -147,7 +147,7 @@ const mobileHomeMatchPreview = document.getElementById("mobile-home-match-previe
 const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
-const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-03";
+const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-04";
 window.__WC26_LOCAL_BUILD_ID = WC26_LOCAL_BUILD_ID;
 const WC26_GROUP_A_FLAGS = [
   { code: "mx", label: "멕시코" },
@@ -9916,7 +9916,7 @@ function ensureEquipmentBridgeShell() {
         <iframe
           class="schedule-bridge-frame"
           id="equipment-bridge-frame"
-          data-src="./legacy-schedule/index.html?v=${WC26_BRIDGE_VERSION}"
+          data-src="./legacy-schedule/?v=${WC26_BRIDGE_VERSION}"
           src=""
           title="legacy equipment bridge"
           loading="lazy"
