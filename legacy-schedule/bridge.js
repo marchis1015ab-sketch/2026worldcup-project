@@ -80,17 +80,46 @@
   }
 
   function fetchBridgeSharedStateKeys(keys = []) {
+    const normalizedKeys = keys.map((key) => String(key || "").trim()).filter(Boolean);
+    const fallbackFetch = async () => {
+      try {
+        const supabaseUrl = String(window.APP_CONFIG?.supabaseUrl || "").replace(/\/+$/, "");
+        const supabaseAnonKey = String(window.APP_CONFIG?.supabaseAnonKey || "");
+        if (!supabaseUrl || !supabaseAnonKey || !normalizedKeys.length || typeof applySharedStateSnapshot !== "function") {
+          return;
+        }
+        const query = normalizedKeys.map((key) => encodeURIComponent(key)).join(",");
+        const response = await fetch(
+          `${supabaseUrl}/rest/v1/shared_state?select=state_key,state_value&state_key=in.(${query})`,
+          {
+            headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${supabaseAnonKey}`,
+            },
+          },
+        );
+        if (!response.ok) {
+          return;
+        }
+        const rows = await response.json();
+        if (Array.isArray(rows) && rows.length) {
+          applySharedStateSnapshot(rows);
+        }
+      } catch (_error) {}
+    };
     try {
       if (typeof fetchSharedStateSnapshot === "function") {
         return Promise.resolve(
           fetchSharedStateSnapshot(
-            keys.map((key) => String(key || "").trim()).filter(Boolean),
+            normalizedKeys,
             { markInitial: false },
           ),
-        ).catch(() => undefined);
+        )
+          .catch(() => undefined)
+          .then(fallbackFetch);
       }
     } catch (_error) {}
-    return Promise.resolve(undefined);
+    return fallbackFetch();
   }
 
   function normalizeStorageSection(section = "") {
