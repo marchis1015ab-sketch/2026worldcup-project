@@ -893,19 +893,14 @@
 
     bridgeBooted = true;
     document.body.classList.add("wc26-legacy-schedule-bridge");
-    navigate("all");
     if (SUMMARY_BRIDGE_ONLY) {
+      navigate("all");
       queueInitialBridgeSummaryBursts();
       window.addEventListener(SUMMARY_DIRTY_EVENT, () => {
         queueSummarySync();
       });
       return true;
     }
-    navigateEquipment("equipment-summary");
-    navigateMedia("broadcast-schedule");
-    navigateOps("operation-memo");
-    navigateSquad("squad");
-    navigateMatchMap("match-schedule");
 
     if (typeof window.loadSchedules === "function") {
       Promise.resolve(

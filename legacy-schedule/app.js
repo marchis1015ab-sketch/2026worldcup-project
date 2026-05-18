@@ -15566,6 +15566,7 @@ function isTouchMobileDevice(){
 }
 function isMobileViewport(){
   if(typeof window==='undefined') return false;
+  if(document?.body?.classList?.contains('wc26-legacy-schedule-bridge')) return false;
   const mediaMatch=typeof window.matchMedia==='function'&&window.matchMedia('(max-width: 768px)').matches;
   return mediaMatch||getViewportWidthForMode()<=768||isTouchMobileDevice();
 }

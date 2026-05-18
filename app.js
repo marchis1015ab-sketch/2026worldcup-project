@@ -5225,6 +5225,11 @@ function postMediaBridgeNavigation(sectionId = "broadcast-schedule") {
 
 function setMediaBridgeSection(sectionId = "broadcast-schedule") {
   mediaBridgeSection = normalizeMediaBridgeSection(sectionId);
+  mediaBridgeReady = false;
+  mediaBridgeFrameShell?.classList.remove("is-ready");
+  if (mediaBridgeLoading) {
+    mediaBridgeLoading.textContent = "legacy media bridge loading...";
+  }
   setMediaBridgeButtonState(mediaBridgeSection);
   syncMediaBridgeUi();
   syncMediaBridgeEmbeddedSkin();
@@ -5236,6 +5241,7 @@ function setMediaBridgeSection(sectionId = "broadcast-schedule") {
       }, delay);
     });
   }
+  queueMediaBridgeReadyFallback(mediaBridgeSection);
   queueMediaBridgeScrollSync();
 }
 
@@ -6297,6 +6303,53 @@ function syncMapBridgeEmbeddedSkin() {
   }
 }
 
+function isMapBridgeTargetReady(sectionId = mapBridgeSection) {
+  const legacyDocument = mapBridgeFrame?.contentDocument || mapBridgeFrame?.contentWindow?.document || null;
+  if (!legacyDocument?.body) {
+    return false;
+  }
+  const normalized = normalizeMapBridgeSection(sectionId);
+  if (normalized !== "map") {
+    return true;
+  }
+  const detailCol = legacyDocument.getElementById("detailCol");
+  return (
+    isLegacyBridgeElementVisible(detailCol) &&
+    Boolean(legacyDocument.querySelector(".map-location-pin-shell.place-system-shell")) &&
+    Boolean(legacyDocument.getElementById("placeSystemGrid"))
+  );
+}
+
+function markMapBridgeReadyFromDocument(sectionId = mapBridgeSection) {
+  const legacyDocument = mapBridgeFrame?.contentDocument || mapBridgeFrame?.contentWindow?.document || null;
+  if (!legacyDocument?.body) {
+    return false;
+  }
+  syncMapBridgeEmbeddedSkin();
+  if (!isMapBridgeTargetReady(sectionId)) {
+    return false;
+  }
+  mapBridgeReady = true;
+  mapBridgeFrameShell?.classList.add("is-ready");
+  if (mapBridgeLoading) {
+    mapBridgeLoading.textContent = "";
+  }
+  syncMapBridgeEmbeddedSkin();
+  queueMapBridgeScrollSync();
+  setMapBridgeButtonState(sectionId || mapBridgeSection);
+  return true;
+}
+
+function queueMapBridgeReadyFallback(sectionId = mapBridgeSection, delays = [180, 420, 900, 1600]) {
+  delays.forEach((delay) => {
+    window.setTimeout(() => {
+      if (!mapBridgeReady) {
+        markMapBridgeReadyFromDocument(sectionId);
+      }
+    }, delay);
+  });
+}
+
 function syncStorageBridgeEmbeddedSkin() {
   const legacyDocument = storageBridgeFrame?.contentDocument || storageBridgeFrame?.contentWindow?.document || null;
   if (!legacyDocument?.body) {
@@ -6329,6 +6382,53 @@ function syncMediaBridgeEmbeddedSkin() {
   queueMediaBridgeScrollSync();
 }
 
+function isLegacyBridgeElementVisible(element) {
+  if (!element) {
+    return false;
+  }
+  let node = element;
+  while (node && node.nodeType === 1) {
+    if (node.hidden || node.classList?.contains("hidden")) {
+      return false;
+    }
+    node = node.parentElement;
+  }
+  try {
+    const style = element.ownerDocument?.defaultView?.getComputedStyle(element);
+    if (style && (style.display === "none" || style.visibility === "hidden" || style.opacity === "0")) {
+      return false;
+    }
+  } catch (_error) {
+    // Same-origin style checks are best-effort only.
+  }
+  return true;
+}
+
+function isMediaBridgeTargetReady(sectionId = mediaBridgeSection) {
+  const legacyDocument = mediaBridgeFrame?.contentDocument || mediaBridgeFrame?.contentWindow?.document || null;
+  if (!legacyDocument?.body) {
+    return false;
+  }
+  const normalized = normalizeMediaBridgeSection(sectionId);
+  const detailCol = legacyDocument.getElementById("detailCol");
+  const detailTable = legacyDocument.getElementById("detailTable");
+  if (!isLegacyBridgeElementVisible(detailCol)) {
+    return false;
+  }
+  if (normalized === "worldcup-news") {
+    return (
+      detailTable?.classList?.contains("news-table") &&
+      Boolean(detailTable.querySelector("thead")) &&
+      Boolean(detailTable.querySelector("tbody"))
+    );
+  }
+  return Boolean(
+    legacyDocument.getElementById("newsProgrammingPanel") ||
+      legacyDocument.querySelector(".news-programming-shell") ||
+      legacyDocument.querySelector(".broadcast-suit-shell"),
+  );
+}
+
 function markMediaBridgeReady(sectionId = mediaBridgeSection) {
   mediaBridgeReady = true;
   mediaBridgeFrameShell?.classList.add("is-ready");
@@ -6343,17 +6443,11 @@ function markMediaBridgeReady(sectionId = mediaBridgeSection) {
 
 function markMediaBridgeReadyFromDocument(sectionId = mediaBridgeSection) {
   const legacyDocument = mediaBridgeFrame?.contentDocument || mediaBridgeFrame?.contentWindow?.document || null;
-  const legacyBody = legacyDocument?.body;
-  if (!legacyBody) {
+  if (!legacyDocument?.body) {
     return false;
   }
-  const hasMediaContent =
-    legacyBody.classList.contains("wc26-legacy-schedule-bridge") ||
-    Boolean(legacyDocument.getElementById("detailCol")) ||
-    Boolean(legacyDocument.querySelector(".news-programming-shell")) ||
-    Boolean(legacyDocument.querySelector(".broadcast-suit-shell")) ||
-    Boolean(legacyDocument.querySelector(".news-table"));
-  if (!hasMediaContent) {
+  syncMediaBridgeEmbeddedSkin();
+  if (!isMediaBridgeTargetReady(sectionId)) {
     return false;
   }
   markMediaBridgeReady(sectionId);
@@ -9516,6 +9610,11 @@ function applyMapStadiumSelection() {
 
 function setMapBridgeSection(sectionId = "map") {
   mapBridgeSection = normalizeMapBridgeSection(sectionId);
+  mapBridgeReady = false;
+  mapBridgeFrameShell?.classList.remove("is-ready");
+  if (mapBridgeLoading) {
+    mapBridgeLoading.textContent = "legacy map bridge loading...";
+  }
   setMapBridgeButtonState(mapBridgeSection);
   setMapCardTabState(mapBridgeSection);
   syncMapBridgeShellVisibility();
@@ -9524,6 +9623,7 @@ function setMapBridgeSection(sectionId = "map") {
     renderMapStadiumCards(mapBridgeCountryKey);
   }
   postMatchMapBridgeNavigation(mapBridgeFrame, mapBridgeSection);
+  queueMapBridgeReadyFallback(mapBridgeSection);
 }
 
 function applyMatchMapBridgeSummary(summary = {}) {
@@ -9880,17 +9980,34 @@ function markEquipmentBridgeReady(sectionId = equipmentBridgeSection, options = 
   applyEquipmentBridgeSearchFilter();
 }
 
-function markEquipmentBridgeReadyFromDocument(sectionId = equipmentBridgeSection, options = {}) {
+function isEquipmentBridgeTargetReady(sectionId = equipmentBridgeSection) {
   const legacyDocument = getEquipmentBridgeLegacyDocument();
-  const legacyBody = legacyDocument?.body;
-  if (!legacyBody) {
+  if (!legacyDocument?.body) {
     return false;
   }
-  const hasEquipmentSurface =
-    Boolean(legacyDocument.getElementById("detailCol")) ||
-    Boolean(legacyDocument.getElementById("equipmentMenu")) ||
-    Boolean(legacyDocument.getElementById("equipmentSharedTab"));
-  if (!hasEquipmentSurface) {
+  const normalized = normalizeEquipmentBridgeSection(sectionId);
+  const detailCol = legacyDocument.getElementById("detailCol");
+  const detailTable = legacyDocument.getElementById("detailTable");
+  if (!isLegacyBridgeElementVisible(detailCol) || !detailTable) {
+    return false;
+  }
+  const detailMode = String(detailCol.dataset?.equipmentBridgeMode || "").trim();
+  if (normalized === "personal-summary") {
+    return detailMode === "personal" && detailTable.classList.contains("equipment-table") && detailTable.innerHTML.trim().length > 0;
+  }
+  if (normalized === "carnet") {
+    return detailMode === "carnet" && Boolean(legacyDocument.querySelector(".carnet-list-panel, .equipment-carnet-card, #equipmentCarnetTitleInput"));
+  }
+  return detailMode === "shared" && detailTable.classList.contains("equipment-table") && detailTable.innerHTML.trim().length > 0;
+}
+
+function markEquipmentBridgeReadyFromDocument(sectionId = equipmentBridgeSection, options = {}) {
+  const legacyDocument = getEquipmentBridgeLegacyDocument();
+  if (!legacyDocument?.body) {
+    return false;
+  }
+  syncEquipmentBridgeEmbeddedSkin();
+  if (!isEquipmentBridgeTargetReady(sectionId)) {
     return false;
   }
   markEquipmentBridgeReady(sectionId, options);
@@ -10343,6 +10460,11 @@ function applyEquipmentBridgeSummary(summary = {}) {
 
 function setEquipmentBridgeSection(sectionId = "equipment-summary", options = {}) {
   equipmentBridgeSection = normalizeEquipmentBridgeSection(sectionId);
+  equipmentBridgeReady = false;
+  equipmentBridgeFrameShell?.classList.remove("is-ready");
+  if (equipmentBridgeLoading) {
+    equipmentBridgeLoading.textContent = "legacy equipment bridge loading...";
+  }
   if (equipmentBridgeSection === "personal-summary") {
     setEquipmentBridgeSelectedCrew(String(options.member || equipmentBridgeSelectedCrew || "").trim());
   }
@@ -14524,7 +14646,7 @@ function handleScheduleBridgeMessage(event) {
   }
 
   if (payload.type === WC26_EQUIPMENT_BRIDGE_MESSAGE.ready && isEquipmentBridgeSource) {
-    markEquipmentBridgeReady(payload.section || equipmentBridgeSection, {
+    markEquipmentBridgeReadyFromDocument(payload.section || equipmentBridgeSection, {
       member: payload.member || equipmentBridgeSelectedCrew,
     });
   }
@@ -14540,7 +14662,7 @@ function handleScheduleBridgeMessage(event) {
   }
 
   if (payload.type === WC26_MEDIA_BRIDGE_MESSAGE.ready && isMediaBridgeSource) {
-    markMediaBridgeReady(payload.section || mediaBridgeSection);
+    markMediaBridgeReadyFromDocument(payload.section || mediaBridgeSection);
   }
 
   if (payload.type === WC26_OPS_BRIDGE_MESSAGE.ready && isOpsBridgeSource) {
@@ -14562,14 +14684,7 @@ function handleScheduleBridgeMessage(event) {
   }
 
   if (payload.type === WC26_MATCH_MAP_BRIDGE_MESSAGE.ready && isMapBridgeSource) {
-    mapBridgeReady = true;
-    mapBridgeFrameShell?.classList.add("is-ready");
-    if (mapBridgeLoading) {
-      mapBridgeLoading.textContent = "legacy map bridge ready";
-    }
-    syncMapBridgeEmbeddedSkin();
-    queueMapBridgeScrollSync();
-    setMapBridgeButtonState(payload.section || mapBridgeSection);
+    markMapBridgeReadyFromDocument(payload.section || mapBridgeSection);
   }
 
   if (payload.type === WC26_SQUAD_BRIDGE_MESSAGE.ready && isMatchBridgeSource) {
@@ -15116,6 +15231,7 @@ function initMatchMapBridge() {
     window.setTimeout(() => {
       setMapBridgeSection(mapBridgeSection);
     }, 120);
+    queueMapBridgeReadyFallback(mapBridgeSection);
     queueBridgeSummaryBurst(requestMatchMapBridgeSummary);
   });
 

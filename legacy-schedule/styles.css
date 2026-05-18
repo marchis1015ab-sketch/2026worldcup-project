@@ -11742,6 +11742,11 @@ body.wc26-map-bridge-embedded #mexicoStadiumCol{
   display: none !important;
 }
 
+body.wc26-map-bridge-embedded .tab-stack,
+body.wc26-map-bridge-embedded .desktop-tab-pane > .column:not(#detailCol){
+  display: none !important;
+}
+
 body.wc26-map-bridge-embedded .desktop-tab-pane,
 body.wc26-map-bridge-embedded #detailCol,
 body.wc26-map-bridge-embedded #detailCol.hidden{
