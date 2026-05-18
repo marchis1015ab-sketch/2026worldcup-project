@@ -8626,6 +8626,13 @@ async function flushPendingSharedStateWritesWithRetry(options={}){
             {onConflict:'state_key'}
           );
         if(!error){
+          console.debug('[save-diagnostic] shared-state write success', {
+            feature:'shared_state',
+            supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
+            table:SHARED_STATE_SYNC_TABLE,
+            payload:buildSharedStateWriteDebugPayload(pendingEntries),
+            context
+          });
           return {ok:true, attempts:attempt+1, skipped:false};
         }
         lastError=error;
@@ -8633,7 +8640,7 @@ async function flushPendingSharedStateWritesWithRetry(options={}){
           disableSharedStateSync(error);
           break;
         }
-        console.info('[shared-state] write failed', {
+        console.error('[save-diagnostic] shared-state write failed', {
           attempt:attempt+1,
           maxAttempts:retries+1,
           supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
@@ -8649,7 +8656,7 @@ async function flushPendingSharedStateWritesWithRetry(options={}){
         break;
       }catch(error){
         lastError=error;
-        console.info('[shared-state] write failed', {
+        console.error('[save-diagnostic] shared-state write failed', {
           attempt:attempt+1,
           maxAttempts:retries+1,
           supabaseUrl:String(SHARED_STATE_SYNC_SUPABASE_URL||'').trim(),
