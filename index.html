@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>New Suit Prototype</title>
     <link rel="icon" type="image/png" href="./legacy-schedule/images/app-icon.png" />
-    <link rel="preload" as="image" href="./images/reference/wc26-bg-reference-tablet.jpg" media="(max-width: 1024px)" />
-    <link rel="stylesheet" href="./styles.css?v=tablet-load-20260518-01" />
+    <link rel="stylesheet" href="./styles.css?v=korea-roster-20260518-01" />
     <link rel="stylesheet" href="./tournament-tab.css?v=20260517-22" />
   </head>
   <body>
@@ -94,10 +93,6 @@
             src="./images/logo/sidebar-top-brand.png"
             alt="FIFA JTBC Official NewsCameraTeam"
             class="sidebar-brand-image"
-            width="1024"
-            height="1024"
-            decoding="async"
-            fetchpriority="high"
           />
           <div class="sidebar-brand-mobile-copy">
             <div class="sidebar-brand-mobile-heading" aria-label="모바일 메인 제목">
@@ -150,6 +145,10 @@
             <span class="menu__text"><span class="menu__label nav-label">운영상태</span></span>
           </button>
         </nav>
+
+        <section class="mobile-home-match-preview" id="mobile-home-match-preview" aria-label="모바일 경기 프리뷰" hidden>
+          <div class="mobile-home-match-preview__shell" id="mobile-home-match-preview-shell"></div>
+        </section>
 
         <section class="mobile-dashboard-menu" aria-label="모바일 메인 메뉴">
           <button class="nav-subitem mobile-dashboard-menu-card menu-launch" type="button" data-target="schedule" data-section="all">
@@ -705,7 +704,7 @@
                 <iframe
                   class="schedule-bridge-frame"
                   id="schedule-bridge-frame"
-                  data-src="./legacy-schedule/index.html?v=kbs-news-20260518-01"
+                  data-src="./legacy-schedule/index.html?v=media-news-actions-20260518-01"
                   src=""
                   title="legacy schedule bridge"
                   loading="lazy"
@@ -1122,7 +1121,7 @@
     <div class="toast" id="toast-shell" role="status" aria-live="polite"></div>
     <div class="timeline-tooltip" id="timeline-tooltip-shell" hidden aria-hidden="true"></div>
 
-    <script src="./app.js?v=tablet-load-20260518-01"></script>
+    <script src="./app.js?v=korea-roster-20260518-01"></script>
     <script src="./tournament-tab.js?v=20260517-22"></script>
   </body>
 </html>

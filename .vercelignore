@@ -1,0 +1,5 @@
+backups/
+test-results/
+server*.log
+__edge_dom_dump*.html
+__equipment_dom_check.html

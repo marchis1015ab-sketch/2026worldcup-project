@@ -143,6 +143,8 @@ const mobileHeaderLocalTimeNode = document.getElementById("new-suit-mobile-local
 const mobileHeaderSeoulTimeNode = document.getElementById("new-suit-mobile-seoul-time");
 const mobileHeaderDdayNode = document.getElementById("new-suit-mobile-dday");
 const mobileSectionBackButton = document.getElementById("mobile-section-back");
+const mobileHomeMatchPreview = document.getElementById("mobile-home-match-preview");
+const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
 const WC26_BRIDGE_VERSION = "equipment-console-20260517-28";
@@ -872,6 +874,29 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
 `;
 const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
 @media (max-width: 767px) {
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active #detailCol,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .simple-info-table,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .simple-info-table tbody,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .simple-info-table tr,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .simple-info-table td,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .simple-info-cell,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-panel,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-shell,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-shell,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-list-panel,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-programming-grid,
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-card-row {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active #detailCol {
+    padding: 0 !important;
+  }
+
   body.wc26-media-bridge-embedded.media-bridge-news-active #detailCol {
     padding: 10px !important;
   }
@@ -1015,6 +1040,13 @@ let dailyMatchSummaryRequested = false;
 let dailyMatchPointerGesture = null;
 let dailyMatchTouchGesture = null;
 let dailyMatchGestureBound = false;
+let mobileHomeMatchPreviewTimer = null;
+let mobileHomeMatchPreviewResumeTimer = null;
+let mobileHomeMatchPreviewActiveIndex = 0;
+let mobileHomeMatchPreviewItems = [];
+let mobileHomeMatchPreviewPointerGesture = null;
+let mobileHomeMatchPreviewTouchGesture = null;
+let mobileHomeMatchPreviewGestureBound = false;
 let mainStadiumTimer = null;
 let mainStadiumActiveIndex = 0;
 let mainStadiumItems = [];
@@ -1031,22 +1063,6 @@ const bridgeLoadState = {
   scheduleSummaryRequested: false,
   timelineRangeKey: "",
 };
-
-function runWhenBrowserIsIdle(callback, options = {}) {
-  if (typeof callback !== "function") {
-    return 0;
-  }
-  const tabletDelay = Number(options.tabletDelay ?? 2200);
-  const desktopDelay = Number(options.desktopDelay ?? 700);
-  const delay = window.matchMedia?.("(max-width: 1024px)")?.matches ? tabletDelay : desktopDelay;
-  return window.setTimeout(() => {
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(callback, { timeout: Number(options.timeout ?? 2600) });
-      return;
-    }
-    callback();
-  }, Math.max(0, delay));
-}
 
 function perfDebug(label, value) {
   if (!PERFORMANCE_DEBUG_ENABLED) {
@@ -1753,6 +1769,39 @@ function restartDailyMatchAuto() {
   startDailyMatchAuto();
 }
 
+function stopMobileHomeMatchPreviewAuto() {
+  window.clearInterval(mobileHomeMatchPreviewTimer);
+  mobileHomeMatchPreviewTimer = null;
+}
+
+function startMobileHomeMatchPreviewAuto() {
+  stopMobileHomeMatchPreviewAuto();
+
+  if (mobileHomeMatchPreviewItems.length < 2) {
+    return;
+  }
+
+  mobileHomeMatchPreviewTimer = window.setInterval(() => {
+    setMobileHomeMatchPreviewSlide(mobileHomeMatchPreviewActiveIndex + 1);
+  }, WC26_DAILY_MATCH_INTERVAL);
+}
+
+function pauseMobileHomeMatchPreviewAuto() {
+  stopMobileHomeMatchPreviewAuto();
+  window.clearTimeout(mobileHomeMatchPreviewResumeTimer);
+
+  if (mobileHomeMatchPreviewItems.length < 2) {
+    return;
+  }
+
+  mobileHomeMatchPreviewResumeTimer = window.setTimeout(startMobileHomeMatchPreviewAuto, WC26_DAILY_MATCH_RESUME_DELAY);
+}
+
+function restartMobileHomeMatchPreviewAuto() {
+  window.clearTimeout(mobileHomeMatchPreviewResumeTimer);
+  startMobileHomeMatchPreviewAuto();
+}
+
 function setDailyMatchSlide(nextIndex) {
   const carousel = document.querySelector("#daily-match-carousel");
   const slides = carousel ? Array.from(carousel.querySelectorAll(".daily-match-slide")) : [];
@@ -1810,6 +1859,192 @@ function createDailyMatchLogo() {
   logo.draggable = false;
   logoWrap.append(logo);
   return logoWrap;
+}
+
+function getMobileHomeMatchPreviewMatches() {
+  const entries = getDailyMatchSource()
+    .map((rawMatch) => ({ rawMatch, adaptedMatch: adaptDailyMatch(rawMatch) }))
+    .filter((entry) => entry.adaptedMatch);
+  const allMatches = entries.map((entry) => entry.adaptedMatch);
+  const targetDate = getNearestDailyMatchDate(allMatches, getLocalDateKey(), dailyMatchSelectedDate || "");
+
+  if (!targetDate) {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry.adaptedMatch.matchDate === targetDate)
+    .map(({ rawMatch, adaptedMatch }) => {
+      const stadiumName = sanitizeGroupAStadiumName(adaptedMatch.stadium, "경기장 미정");
+      return {
+        key: [adaptedMatch.number, adaptedMatch.homeTeam, adaptedMatch.awayTeam, adaptedMatch.matchDate, stadiumName].join("::"),
+        number: adaptedMatch.number,
+        groupName: adaptedMatch.groupName,
+        home: adaptedMatch.homeTeam,
+        away: adaptedMatch.awayTeam,
+        localTime: adaptedMatch.localTime || "--:--",
+        koreaTime: adaptedMatch.koreaTime || "--:--",
+        stadium: stadiumName,
+        stadiumImage: resolveWC26StadiumImagePath(
+          stadiumName,
+          rawMatch?.stadiumImage || rawMatch?.imagePath || rawMatch?.image || "",
+        ),
+      };
+    })
+    .filter((match) => match.home && match.away);
+}
+
+function setMobileHomeMatchPreviewSlide(index = 0) {
+  const count = mobileHomeMatchPreviewItems.length;
+  if (!count) {
+    mobileHomeMatchPreviewActiveIndex = 0;
+    renderMobileHomeMatchPreview();
+    return;
+  }
+  mobileHomeMatchPreviewActiveIndex = ((index % count) + count) % count;
+  renderMobileHomeMatchPreview();
+}
+
+function bindMobileHomeMatchPreviewGestures() {
+  if (!mobileHomeMatchPreview || mobileHomeMatchPreviewGestureBound) {
+    return;
+  }
+
+  mobileHomeMatchPreviewGestureBound = true;
+  const canSwipe = () => mobileHomeMatchPreviewItems.length > 1;
+  const commitSwipe = (deltaX = 0, deltaY = 0) => {
+    if (Math.abs(deltaX) < WC26_DAILY_MATCH_SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+    setMobileHomeMatchPreviewSlide(mobileHomeMatchPreviewActiveIndex + (deltaX < 0 ? 1 : -1));
+    pauseMobileHomeMatchPreviewAuto();
+  };
+
+  if (window.PointerEvent) {
+    mobileHomeMatchPreview.addEventListener("pointerdown", (event) => {
+      if (!canSwipe()) {
+        return;
+      }
+      mobileHomeMatchPreviewPointerGesture = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+      };
+    });
+
+    mobileHomeMatchPreview.addEventListener("pointermove", (event) => {
+      if (!mobileHomeMatchPreviewPointerGesture || mobileHomeMatchPreviewPointerGesture.pointerId !== event.pointerId) {
+        return;
+      }
+      mobileHomeMatchPreviewPointerGesture.lastX = event.clientX;
+      mobileHomeMatchPreviewPointerGesture.lastY = event.clientY;
+      const deltaX = event.clientX - mobileHomeMatchPreviewPointerGesture.startX;
+      const deltaY = event.clientY - mobileHomeMatchPreviewPointerGesture.startY;
+      if (Math.abs(deltaX) >= WC26_DAILY_MATCH_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY) && event.cancelable) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    const finishPointerGesture = (event) => {
+      if (!mobileHomeMatchPreviewPointerGesture || mobileHomeMatchPreviewPointerGesture.pointerId !== event.pointerId) {
+        return;
+      }
+      const deltaX = (event.clientX ?? mobileHomeMatchPreviewPointerGesture.lastX) - mobileHomeMatchPreviewPointerGesture.startX;
+      const deltaY = (event.clientY ?? mobileHomeMatchPreviewPointerGesture.lastY) - mobileHomeMatchPreviewPointerGesture.startY;
+      mobileHomeMatchPreviewPointerGesture = null;
+      commitSwipe(deltaX, deltaY);
+    };
+
+    window.addEventListener("pointerup", finishPointerGesture);
+    window.addEventListener("pointercancel", finishPointerGesture);
+    return;
+  }
+
+  mobileHomeMatchPreview.addEventListener("touchstart", (event) => {
+    if (!canSwipe() || !event.touches.length) {
+      return;
+    }
+    const touch = event.touches[0];
+    mobileHomeMatchPreviewTouchGesture = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+    };
+  }, { passive: true });
+
+  mobileHomeMatchPreview.addEventListener("touchmove", (event) => {
+    if (!mobileHomeMatchPreviewTouchGesture || !event.touches.length) {
+      return;
+    }
+    const touch = event.touches[0];
+    mobileHomeMatchPreviewTouchGesture.lastX = touch.clientX;
+    mobileHomeMatchPreviewTouchGesture.lastY = touch.clientY;
+    const deltaX = touch.clientX - mobileHomeMatchPreviewTouchGesture.startX;
+    const deltaY = touch.clientY - mobileHomeMatchPreviewTouchGesture.startY;
+    if (Math.abs(deltaX) >= WC26_DAILY_MATCH_SWIPE_THRESHOLD_PX && Math.abs(deltaX) > Math.abs(deltaY) && event.cancelable) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  const finishTouchGesture = () => {
+    if (!mobileHomeMatchPreviewTouchGesture) {
+      return;
+    }
+    const deltaX = mobileHomeMatchPreviewTouchGesture.lastX - mobileHomeMatchPreviewTouchGesture.startX;
+    const deltaY = mobileHomeMatchPreviewTouchGesture.lastY - mobileHomeMatchPreviewTouchGesture.startY;
+    mobileHomeMatchPreviewTouchGesture = null;
+    commitSwipe(deltaX, deltaY);
+  };
+
+  mobileHomeMatchPreview.addEventListener("touchend", finishTouchGesture, { passive: true });
+  mobileHomeMatchPreview.addEventListener("touchcancel", finishTouchGesture, { passive: true });
+}
+
+function renderMobileHomeMatchPreview() {
+  if (!mobileHomeMatchPreview || !mobileHomeMatchPreviewShell) {
+    return;
+  }
+
+  const nextItems = getMobileHomeMatchPreviewMatches();
+  const previousKey = mobileHomeMatchPreviewItems[mobileHomeMatchPreviewActiveIndex]?.key || "";
+  mobileHomeMatchPreviewItems = nextItems;
+
+  if (!mobileHomeMatchPreviewItems.length) {
+    mobileHomeMatchPreview.hidden = true;
+    mobileHomeMatchPreviewShell.replaceChildren();
+    mobileHomeMatchPreviewActiveIndex = 0;
+    stopMobileHomeMatchPreviewAuto();
+    return;
+  }
+
+  const preservedIndex = previousKey
+    ? mobileHomeMatchPreviewItems.findIndex((match) => match.key === previousKey)
+    : -1;
+  if (preservedIndex >= 0) {
+    mobileHomeMatchPreviewActiveIndex = preservedIndex;
+  } else if (mobileHomeMatchPreviewActiveIndex >= mobileHomeMatchPreviewItems.length) {
+    mobileHomeMatchPreviewActiveIndex = 0;
+  }
+
+  const activeMatch = mobileHomeMatchPreviewItems[mobileHomeMatchPreviewActiveIndex] || mobileHomeMatchPreviewItems[0];
+  const feature = createGroupAMatchFeature(
+    activeMatch,
+    mobileHomeMatchPreviewItems.length,
+    mobileHomeMatchPreviewActiveIndex,
+    (nextIndex) => {
+      setMobileHomeMatchPreviewSlide(nextIndex);
+      restartMobileHomeMatchPreviewAuto();
+    },
+  );
+  feature.classList.add("mobile-home-match-card");
+
+  mobileHomeMatchPreview.hidden = false;
+  mobileHomeMatchPreviewShell.replaceChildren(feature);
+  bindMobileHomeMatchPreviewGestures();
+  startMobileHomeMatchPreviewAuto();
 }
 
 function createDailyMatchSlide(match, index, total) {
@@ -1885,15 +2120,16 @@ function renderDailyMatchCarousel() {
     targetDate === todayKey ? "오늘 경기" : targetDate && targetDate > todayKey ? "다음 경기" : targetDate ? "최근 경기" : "경기 일정";
 
   if (!track || !empty || !controls || !dots) {
+    renderMobileHomeMatchPreview();
     return;
   }
 
   if (!allMatches.length && !dailyMatchSummaryRequested) {
     dailyMatchSummaryRequested = true;
-    runWhenBrowserIsIdle(() => {
+    window.setTimeout(() => {
       ensureScheduleSummaryBridgeLoaded();
       requestMatchMapBridgeSummary();
-    }, { desktopDelay: 900, tabletDelay: 2800, timeout: 3200 });
+    }, 0);
   }
 
   dailyMatchItems = allMatches.filter((match) => match.matchDate === targetDate);
@@ -1910,6 +2146,7 @@ function renderDailyMatchCarousel() {
     empty.textContent = "표시할 경기일정이 없습니다.";
     empty.hidden = false;
     controls.hidden = true;
+    renderMobileHomeMatchPreview();
     return;
   }
 
@@ -1922,6 +2159,7 @@ function renderDailyMatchCarousel() {
   controls.hidden = dailyMatchItems.length < 2;
   setDailyMatchSlide(0);
   startDailyMatchAuto();
+  renderMobileHomeMatchPreview();
 }
 
 function initDailyMatchCarousel() {
@@ -2070,7 +2308,9 @@ function initDailyMatchCarousel() {
       dailyMatchTodayKey = getLocalDateKey();
       renderDailyMatchCarousel();
     },
-    refresh: renderDailyMatchCarousel,
+    refresh() {
+      renderDailyMatchCarousel();
+    },
   };
 }
 
