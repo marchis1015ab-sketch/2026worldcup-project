@@ -147,7 +147,7 @@ const mobileHomeMatchPreview = document.getElementById("mobile-home-match-previe
 const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
-const WC26_BRIDGE_VERSION = "equipment-console-20260517-28";
+const WC26_BRIDGE_VERSION = "equipment-bridge-fix-20260518-01";
 window.__WC26_LOCAL_BUILD_ID = WC26_LOCAL_BUILD_ID;
 const WC26_GROUP_A_FLAGS = [
   { code: "mx", label: "멕시코" },
@@ -9823,6 +9823,50 @@ function syncEquipmentBridgeEmbeddedSkin() {
   queueEquipmentBridgeActionToolbarSync();
 }
 
+function markEquipmentBridgeReady(sectionId = equipmentBridgeSection, options = {}) {
+  equipmentBridgeReady = true;
+  equipmentBridgeFrameShell?.classList.add("is-ready");
+  if (equipmentBridgeLoading) {
+    equipmentBridgeLoading.textContent = "";
+  }
+  setEquipmentBridgeButtonState(sectionId || equipmentBridgeSection);
+  if (options.member) {
+    setEquipmentBridgeSelectedCrew(options.member);
+    setEquipmentBridgeMemberTabState(options.member);
+  }
+  syncEquipmentBridgeEmbeddedSkin();
+  queueEquipmentBridgeActionToolbarSync();
+  applyEquipmentBridgeSearchFilter();
+}
+
+function markEquipmentBridgeReadyFromDocument(sectionId = equipmentBridgeSection, options = {}) {
+  const legacyDocument = getEquipmentBridgeLegacyDocument();
+  const legacyBody = legacyDocument?.body;
+  if (!legacyBody) {
+    return false;
+  }
+  const hasEquipmentSurface =
+    Boolean(legacyDocument.getElementById("detailCol")) ||
+    Boolean(legacyDocument.getElementById("equipmentMenu")) ||
+    Boolean(legacyDocument.getElementById("equipmentSharedTab"));
+  if (!hasEquipmentSurface) {
+    return false;
+  }
+  markEquipmentBridgeReady(sectionId, options);
+  return true;
+}
+
+function queueEquipmentBridgeReadyFallback(sectionId = equipmentBridgeSection, options = {}, delays = [160, 420, 900, 1600]) {
+  delays.forEach((delay) => {
+    window.setTimeout(() => {
+      if (equipmentBridgeReady) {
+        return;
+      }
+      markEquipmentBridgeReadyFromDocument(sectionId, options);
+    }, delay);
+  });
+}
+
 function setEquipmentBridgeButtonState(sectionId = "equipment-summary") {
   const normalized = normalizeEquipmentBridgeSection(sectionId);
   equipmentBridgeButtons.forEach((button) => {
@@ -10277,6 +10321,9 @@ function setEquipmentBridgeSection(sectionId = "equipment-summary", options = {}
       ? String(options.member || equipmentBridgeSelectedCrew || "").trim()
       : "",
   );
+  queueEquipmentBridgeReadyFallback(equipmentBridgeSection, {
+    member: equipmentBridgeSection === "personal-summary" ? equipmentBridgeSelectedCrew : "",
+  });
 }
 
 function requestEquipmentBridgeSummary() {
@@ -14436,13 +14483,9 @@ function handleScheduleBridgeMessage(event) {
   }
 
   if (payload.type === WC26_EQUIPMENT_BRIDGE_MESSAGE.ready && isEquipmentBridgeSource) {
-    equipmentBridgeReady = true;
-    equipmentBridgeFrameShell?.classList.add("is-ready");
-    if (equipmentBridgeLoading) {
-      equipmentBridgeLoading.textContent = "legacy equipment bridge ready";
-    }
-    setEquipmentBridgeButtonState(payload.section || equipmentBridgeSection);
-    queueEquipmentBridgeActionToolbarSync();
+    markEquipmentBridgeReady(payload.section || equipmentBridgeSection, {
+      member: payload.member || equipmentBridgeSelectedCrew,
+    });
   }
 
   if (payload.type === WC26_STORAGE_BRIDGE_MESSAGE.ready && isStorageBridgeSource) {
@@ -15278,6 +15321,7 @@ function initEquipmentBridge() {
     window.setTimeout(() => {
       setEquipmentBridgeSection(equipmentBridgeSection, { member: equipmentBridgeSelectedCrew });
     }, 120);
+    queueEquipmentBridgeReadyFallback(equipmentBridgeSection, { member: equipmentBridgeSelectedCrew });
     queueBridgeSummaryBurst(requestEquipmentBridgeSummary);
   });
 }
