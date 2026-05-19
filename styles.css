@@ -10493,9 +10493,7 @@ body.archive-suit-modal-open {
       linear-gradient(180deg, rgba(4, 13, 24, 0.58), rgba(4, 13, 24, 0.66)),
       radial-gradient(circle at 10% 0%, rgba(103, 255, 216, 0.06), transparent 38%),
       radial-gradient(circle at 96% 100%, rgba(255, 116, 53, 0.06), transparent 42%);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
-      0 18px 36px rgba(0, 0, 0, 0.22);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   }
 
   body:not(.mobile-section-open) #view-dashboard {
@@ -10525,6 +10523,9 @@ body.archive-suit-modal-open {
       linear-gradient(90deg, rgba(12, 30, 46, 0.94), rgba(8, 24, 39, 0.88)),
       radial-gradient(circle at 0% 50%, rgba(103, 255, 216, 0.12), transparent 36%),
       radial-gradient(circle at 100% 50%, rgba(255, 116, 53, 0.1), transparent 42%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+      inset 0 -1px 0 rgba(255, 150, 81, 0.12);
   }
 
   body:not(.mobile-section-open) .ticker__label {
