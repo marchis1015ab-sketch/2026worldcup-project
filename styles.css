@@ -8442,6 +8442,10 @@ body.archive-suit-modal-open {
   gap: 6px;
 }
 
+.timeline-tooltip[hidden] {
+  display: none !important;
+}
+
 .timeline-tooltip__title {
   font-size: 12px;
   font-weight: 700;
