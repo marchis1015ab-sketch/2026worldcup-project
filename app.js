@@ -97,6 +97,7 @@ const matchSquadButtons = document.querySelectorAll("[data-match-squad-key]");
 const matchGroupToolbar = document.getElementById("match-group-stage-toolbar");
 const matchKnockoutToolbar = document.getElementById("match-knockout-stage-toolbar");
 const matchSquadToolbar = document.getElementById("match-squad-toolbar");
+const matchScheduleSwipeSurface = document.querySelector("#view-match-schedule .panel-body");
 const matchSquadEmptyShell = document.getElementById("match-squad-empty-shell");
 const matchGroupAFormShell = document.getElementById("match-group-a-form-shell");
 const matchGroupAFormStatus = document.getElementById("match-group-a-form-status");
@@ -260,6 +261,17 @@ const WC26_STADIUM_PRELOAD_CACHE = new Set();
 const WC26_STADIUM_WARNED_MISSING = new Set();
 const WC26_GROUP_A_AUTO_SLIDE_INTERVAL_MS = 7000;
 const WC26_GROUP_A_SWIPE_THRESHOLD_PX = 40;
+const WC26_MATCH_GROUP_KEYS = Object.freeze("ABCDEFGHIJKL".split(""));
+const WC26_MATCH_KNOCKOUT_STAGE_KEYS = Object.freeze([
+  "round32",
+  "round16",
+  "quarterfinal",
+  "semifinal",
+  "thirdPlaceMatch",
+  "final",
+]);
+const WC26_MATCH_SWIPE_THRESHOLD_PX = 50;
+const WC26_MATCH_SWIPE_LOCK_MS = 250;
 const GROUP_A_TEAM_META = {
   Mexico: { ko: "멕시코", flag: "mx" },
   "South Africa": { ko: "남아공", flag: "za" },
@@ -1230,6 +1242,10 @@ let matchGroupATouchGesture = null;
 let matchGroupAFeatureGestureBound = false;
 let matchGroupAFeatureIsAnimating = false;
 let matchGroupAFeaturePendingTransition = null;
+let matchScheduleSwipePointerGesture = null;
+let matchScheduleSwipeTouchGesture = null;
+let matchScheduleSwipeBound = false;
+let matchScheduleLastSwipeAt = 0;
 // [Z-TEST-START] 3위순위 임시 테스트
 let matchZThirdPlaceTestRefreshTimer = null;
 // [Z-TEST-END] 3위순위 임시 테스트
@@ -5745,9 +5761,224 @@ function normalizeMatchGroupKey(groupKey = "") {
 
 function normalizeKnockoutStage(stage = "") {
   const normalized = String(stage || "").trim();
-  return ["round32", "round16", "quarterfinal", "semifinal", "thirdPlaceMatch", "final"].includes(normalized)
+  return WC26_MATCH_KNOCKOUT_STAGE_KEYS.includes(normalized)
     ? normalized
     : "round32";
+}
+
+function hasValidMatchScheduleSelection() {
+  if (matchShellMode === "group-stage") {
+    return WC26_MATCH_GROUP_KEYS.includes(normalizeMatchGroupKey(matchBridgeGroupKey));
+  }
+  if (matchShellMode === "bracket") {
+    return WC26_MATCH_KNOCKOUT_STAGE_KEYS.includes(normalizeKnockoutStage(matchBridgeKnockoutStage));
+  }
+  return ["third-place-ranking", "squad"].includes(normalizeMatchShellMode(matchShellMode));
+}
+
+function restoreCurrentOrDefaultMatchScheduleSelection() {
+  if (!hasValidMatchScheduleSelection()) {
+    setMatchShellMode("group-stage", { groupKey: "A" });
+    return;
+  }
+
+  if (matchShellMode === "group-stage") {
+    setMatchShellMode("group-stage", { groupKey: matchBridgeGroupKey });
+    return;
+  }
+
+  if (matchShellMode === "bracket") {
+    setMatchShellMode("bracket", { knockoutStage: matchBridgeKnockoutStage });
+    return;
+  }
+
+  if (matchShellMode === "third-place-ranking") {
+    setMatchShellMode("third-place-ranking");
+    return;
+  }
+
+  setMatchShellMode("squad");
+}
+
+function isMobileMatchSwipeViewport() {
+  return window.innerWidth <= 767;
+}
+
+function isMatchScheduleSwipeInteractiveTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return Boolean(
+    target.closest(
+      [
+        "a",
+        "button",
+        "input",
+        "select",
+        "textarea",
+        "label",
+        "[role='button']",
+        "[contenteditable='']",
+        "[contenteditable='true']",
+        "#match-group-stage-toolbar",
+        "#match-knockout-stage-toolbar",
+        "#match-squad-toolbar",
+        "#match-group-a-form-matches",
+        ".group-a-feature-dots",
+      ].join(","),
+    ),
+  );
+}
+
+function canSwipeMatchSchedule(target = null) {
+  if (!matchScheduleSwipeSurface || !isMobileMatchSwipeViewport()) {
+    return false;
+  }
+  if (target && isMatchScheduleSwipeInteractiveTarget(target)) {
+    return false;
+  }
+  if (matchShellMode === "group-stage") {
+    return !matchGroupAFormShell?.hidden;
+  }
+  if (matchShellMode === "bracket") {
+    return !document.getElementById("match-tournament-shell")?.hidden &&
+      document.getElementById("match-tournament-root")?.dataset.view !== "board";
+  }
+  return false;
+}
+
+function getMatchScheduleSwipeDirection(deltaX = 0, deltaY = 0) {
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+  if (absX <= WC26_MATCH_SWIPE_THRESHOLD_PX || absX <= absY * 1.2) {
+    return 0;
+  }
+  return deltaX > 0 ? 1 : -1;
+}
+
+function commitMatchScheduleSwipe(deltaX = 0, deltaY = 0) {
+  if (!canSwipeMatchSchedule()) {
+    return false;
+  }
+  if (Date.now() - matchScheduleLastSwipeAt < WC26_MATCH_SWIPE_LOCK_MS) {
+    return false;
+  }
+
+  const direction = getMatchScheduleSwipeDirection(deltaX, deltaY);
+  if (!direction) {
+    return false;
+  }
+
+  if (matchShellMode === "group-stage") {
+    const currentIndex = WC26_MATCH_GROUP_KEYS.indexOf(normalizeMatchGroupKey(matchBridgeGroupKey));
+    const nextIndex = currentIndex + direction;
+    if (nextIndex < 0 || nextIndex >= WC26_MATCH_GROUP_KEYS.length) {
+      return false;
+    }
+    matchScheduleLastSwipeAt = Date.now();
+    setMatchShellMode("group-stage", { groupKey: WC26_MATCH_GROUP_KEYS[nextIndex] });
+    return true;
+  }
+
+  if (matchShellMode === "bracket") {
+    const currentIndex = WC26_MATCH_KNOCKOUT_STAGE_KEYS.indexOf(normalizeKnockoutStage(matchBridgeKnockoutStage));
+    const nextIndex = currentIndex + direction;
+    if (nextIndex < 0 || nextIndex >= WC26_MATCH_KNOCKOUT_STAGE_KEYS.length) {
+      return false;
+    }
+    matchScheduleLastSwipeAt = Date.now();
+    setMatchShellMode("bracket", { knockoutStage: WC26_MATCH_KNOCKOUT_STAGE_KEYS[nextIndex] });
+    return true;
+  }
+
+  return false;
+}
+
+function bindMatchScheduleSwipeGestures() {
+  if (!matchScheduleSwipeSurface || matchScheduleSwipeBound) {
+    return;
+  }
+  matchScheduleSwipeBound = true;
+
+  if ("PointerEvent" in window) {
+    matchScheduleSwipeSurface.addEventListener("pointerdown", (event) => {
+      if (!event.isPrimary || !canSwipeMatchSchedule(event.target)) {
+        return;
+      }
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      matchScheduleSwipePointerGesture = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+      };
+    });
+
+    window.addEventListener("pointermove", (event) => {
+      if (!matchScheduleSwipePointerGesture || matchScheduleSwipePointerGesture.pointerId !== event.pointerId) {
+        return;
+      }
+      matchScheduleSwipePointerGesture.lastX = event.clientX;
+      matchScheduleSwipePointerGesture.lastY = event.clientY;
+    });
+
+    const finishPointerGesture = (event) => {
+      if (!matchScheduleSwipePointerGesture || matchScheduleSwipePointerGesture.pointerId !== event.pointerId) {
+        return;
+      }
+      const deltaX = (event.clientX ?? matchScheduleSwipePointerGesture.lastX) - matchScheduleSwipePointerGesture.startX;
+      const deltaY = (event.clientY ?? matchScheduleSwipePointerGesture.lastY) - matchScheduleSwipePointerGesture.startY;
+      matchScheduleSwipePointerGesture = null;
+      commitMatchScheduleSwipe(deltaX, deltaY);
+    };
+
+    window.addEventListener("pointerup", finishPointerGesture);
+    window.addEventListener("pointercancel", finishPointerGesture);
+  }
+
+  matchScheduleSwipeSurface.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1 || !canSwipeMatchSchedule(event.target)) {
+      matchScheduleSwipeTouchGesture = null;
+      return;
+    }
+    const touch = event.touches[0];
+    matchScheduleSwipeTouchGesture = {
+      identifier: touch.identifier,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+    };
+  }, { passive: true });
+
+  matchScheduleSwipeSurface.addEventListener("touchmove", (event) => {
+    if (!matchScheduleSwipeTouchGesture) {
+      return;
+    }
+    const touch = Array.from(event.touches).find((item) => item.identifier === matchScheduleSwipeTouchGesture.identifier);
+    if (!touch) {
+      return;
+    }
+    matchScheduleSwipeTouchGesture.lastX = touch.clientX;
+    matchScheduleSwipeTouchGesture.lastY = touch.clientY;
+  }, { passive: true });
+
+  const finishTouchGesture = (event) => {
+    if (!matchScheduleSwipeTouchGesture) {
+      return;
+    }
+    const touch = Array.from(event.changedTouches).find((item) => item.identifier === matchScheduleSwipeTouchGesture.identifier);
+    const deltaX = (touch?.clientX ?? matchScheduleSwipeTouchGesture.lastX) - matchScheduleSwipeTouchGesture.startX;
+    const deltaY = (touch?.clientY ?? matchScheduleSwipeTouchGesture.lastY) - matchScheduleSwipeTouchGesture.startY;
+    matchScheduleSwipeTouchGesture = null;
+    commitMatchScheduleSwipe(deltaX, deltaY);
+  };
+
+  matchScheduleSwipeSurface.addEventListener("touchend", finishTouchGesture, { passive: true });
+  matchScheduleSwipeSurface.addEventListener("touchcancel", finishTouchGesture, { passive: true });
 }
 
 function normalizeSquadBridgeSection(sectionId = "") {
@@ -9480,13 +9711,13 @@ function setMatchShellMode(mode = "group-stage", options = {}) {
 
   if (options.groupKey) {
     matchBridgeGroupKey = normalizeMatchGroupKey(options.groupKey);
-  } else if (matchShellMode === "group-stage" && previousMode !== "group-stage") {
+  } else if (matchShellMode === "group-stage" && !WC26_MATCH_GROUP_KEYS.includes(normalizeMatchGroupKey(matchBridgeGroupKey))) {
     matchBridgeGroupKey = "A";
   }
 
   if (options.knockoutStage) {
     matchBridgeKnockoutStage = normalizeKnockoutStage(options.knockoutStage);
-  } else if (matchShellMode === "bracket" && previousMode !== "bracket") {
+  } else if (matchShellMode === "bracket" && !WC26_MATCH_KNOCKOUT_STAGE_KEYS.includes(normalizeKnockoutStage(matchBridgeKnockoutStage))) {
     matchBridgeKnockoutStage = "round32";
   }
 
@@ -15159,6 +15390,7 @@ function initScheduleBridge() {
 }
 
 function initMatchMapBridge() {
+  bindMatchScheduleSwipeGestures();
   matchBridgeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const nextSection = button.dataset.matchBridgeNav || "match-schedule";
@@ -15170,7 +15402,7 @@ function initMatchMapBridge() {
         setMatchShellMode("bracket");
         return;
       }
-      setMatchShellMode("group-stage", { groupKey: "A" });
+      setMatchShellMode("group-stage");
     });
   });
 
@@ -15181,7 +15413,7 @@ function initMatchMapBridge() {
         nextMode,
         text: button.textContent.trim(),
       });
-      setMatchShellMode(nextMode, nextMode === "group-stage" ? { groupKey: "A" } : {});
+      setMatchShellMode(nextMode);
     });
   });
 
@@ -15526,15 +15758,26 @@ function setMatchScheduleSection(sectionId) {
     setMatchShellMode("squad");
     return;
   }
-  if (normalized === "bracket" || normalized === "tournament") {
-    setMatchShellMode("bracket");
-    return;
-  }
   if (normalized === "third-place-ranking") {
     setMatchShellMode("third-place-ranking");
     return;
   }
-  setMatchShellMode("group-stage", { groupKey: "A" });
+  if (normalized === "bracket" || normalized === "tournament" || normalized === "match-schedule" || !normalized) {
+    restoreCurrentOrDefaultMatchScheduleSelection();
+    return;
+  }
+  if (normalized === "group-stage" || normalized === "group") {
+    setMatchShellMode("group-stage");
+    return;
+  }
+
+  const groupKeyMatch = normalized.match(/^([a-l])(?:조)?$/iu);
+  if (groupKeyMatch?.[1]) {
+    setMatchShellMode("group-stage", { groupKey: groupKeyMatch[1].toUpperCase() });
+    return;
+  }
+
+  setMatchShellMode("group-stage");
 }
 
 function setMapSection(sectionId) {
