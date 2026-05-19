@@ -1194,6 +1194,7 @@ let storageBridgeSummaryRenderKey = "";
 let archiveSuitMode = "view";
 let archiveSuitEditingId = "";
 let archiveSuitSelectedId = "";
+let archiveSuitGalleryModalState = { groupKey: "", index: 0 };
 let archiveSuitGalleryDiagnosticsSignature = "";
 let archiveSuitLegacyIndexedDbItems = [];
 let archiveSuitLegacyIndexedDbRawCount = 0;
@@ -4372,6 +4373,9 @@ function normalizeArchiveSuitLegacyGalleryItem(item = {}, fallbackIndex = 0, par
   const type = String(item.type || item.mediaType || "").toLowerCase();
   const isVideo = type === "video" || mimeType.toLowerCase().startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(fileName);
   const legacyId = `legacy-gallery-${rawId}`;
+  const uploadGroupId = String(
+    item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || parent.galleryBatchId || parent.uploadGroupId || parent.groupId || parent.batchId || "",
+  ).trim();
   return {
     id: legacyId,
     legacyId: rawId,
@@ -4384,6 +4388,7 @@ function normalizeArchiveSuitLegacyGalleryItem(item = {}, fallbackIndex = 0, par
     fileData: dataUrl || publicUrl,
     publicUrl,
     storagePath,
+    ...(uploadGroupId ? { uploadGroupId, galleryBatchId: uploadGroupId } : {}),
     createdAt: String(item.savedAt || item.createdAt || parent.savedAt || parent.createdAt || "").trim(),
     source: "legacy-gallery",
   };
@@ -4526,13 +4531,35 @@ function readArchiveSuitFile(file) {
   });
 }
 
+function getArchiveSuitFileUrl(item = {}) {
+  const directUrl = String(item.fileData || item.publicUrl || item.url || item.previewUrl || "").trim();
+  if (directUrl) return directUrl;
+  const storagePath = String(item.storagePath || item.path || "").trim();
+  return storagePath ? getSharedScheduleStoragePublicUrl(storagePath) : "";
+}
+
+function getArchiveSuitFileKind(item = {}) {
+  const fileType = String(item.fileType || item.mimeType || "").toLowerCase();
+  const fileName = String(item.fileName || "").toLowerCase();
+  const sourceUrl = getArchiveSuitFileUrl(item).split("?")[0].toLowerCase();
+  const matchesExtension = (pattern) => pattern.test(fileName) || pattern.test(sourceUrl);
+  if (fileType.startsWith("image/") || matchesExtension(/\.(jpg|jpeg|png|gif|webp|avif|bmp|svg)$/i)) return "image";
+  if (fileType.startsWith("video/") || matchesExtension(/\.(mp4|mov|m4v|webm|avi)$/i)) return "video";
+  if (fileType.startsWith("audio/") || matchesExtension(/\.(mp3|wav|ogg|m4a)$/i)) return "audio";
+  if (fileType === "application/pdf" || matchesExtension(/\.pdf$/i)) return "pdf";
+  if (fileType.startsWith("text/") || matchesExtension(/\.(txt|csv|json|md)$/i)) return "text";
+  return "file";
+}
+
 function renderArchiveSuitPreview(item = {}) {
   const safeName = escapeTimelineHtml(item.fileName || "첨부파일");
-  if (item.fileData && String(item.fileType || "").startsWith("image/")) {
-    return `<img class="archive-suit-item-preview" src="${item.fileData}" alt="${safeName}">`;
+  const fileUrl = getArchiveSuitFileUrl(item);
+  const fileKind = getArchiveSuitFileKind(item);
+  if (fileUrl && fileKind === "image") {
+    return `<img class="archive-suit-item-preview" src="${fileUrl}" alt="${safeName}" loading="lazy" decoding="async">`;
   }
-  if (item.fileData && String(item.fileType || "").startsWith("video/")) {
-    return `<video class="archive-suit-item-preview" src="${item.fileData}" controls></video>`;
+  if (fileUrl && fileKind === "video") {
+    return `<video class="archive-suit-item-preview" src="${fileUrl}" muted playsinline></video>`;
   }
   return `<div class="archive-suit-file-chip">${safeName}</div>`;
 }
@@ -4573,8 +4600,223 @@ function renderArchiveSuitPreviewPanel(item = null) {
   </aside>`;
 }
 
+function getArchiveSuitGalleryGroupKey(item = {}, index = 0) {
+  const key = String(item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "").trim();
+  return key || `single-${item.id || index}`;
+}
+
+function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery")) {
+  const groupMap = new Map();
+  items.forEach((item, index) => {
+    const groupKey = getArchiveSuitGalleryGroupKey(item, index);
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, {
+        groupKey,
+        items: [],
+        date: item.date || item.createdAt || "",
+        memo: item.memo || "",
+        title: item.memo || item.fileName || "갤러리 묶음",
+      });
+    }
+    const group = groupMap.get(groupKey);
+    group.items.push(item);
+    if (!group.memo && item.memo) group.memo = item.memo;
+    if (!group.date && (item.date || item.createdAt)) group.date = item.date || item.createdAt;
+    if (!group.title && (item.memo || item.fileName)) group.title = item.memo || item.fileName;
+  });
+  return [...groupMap.values()];
+}
+
+function renderArchiveSuitGalleryCard(group = {}, options = {}) {
+  const items = Array.isArray(group.items) ? group.items : [];
+  const firstItem = items[0] || {};
+  const id = escapeTimelineHtml(firstItem.id || "");
+  const groupKey = escapeTimelineHtml(group.groupKey || "");
+  const fileName = escapeTimelineHtml(firstItem.fileName || group.title || "갤러리 묶음");
+  const date = escapeTimelineHtml(group.date || firstItem.date || "");
+  const memoLine = escapeTimelineHtml(String(group.memo || firstItem.memo || "").split(/\r?\n/)[0] || "");
+  const fileCount = items.length;
+  const countText = fileCount > 1 ? `${fileCount}개 파일` : "1개 파일";
+  const selected = archiveSuitGalleryModalState.groupKey && group.groupKey === archiveSuitGalleryModalState.groupKey;
+  const deleteBox = options.deleteMode
+    ? `<label class="archive-suit-select" onclick="event.stopPropagation()"><input type="checkbox" data-archive-delete-item="${id}"><span>선택</span></label>`
+    : "";
+  const editButton = options.editMode ? `<button type="button" class="archive-suit-inline-btn" data-archive-edit-item="${id}">수정</button>` : "";
+  return `<article class="archive-suit-item archive-suit-gallery-card${selected ? " is-selected" : ""}" data-archive-gallery-group="${groupKey}" data-archive-item-id="${id}">
+    ${deleteBox}
+    <div class="archive-suit-item-media">${renderArchiveSuitPreview(firstItem)}</div>
+    <div class="archive-suit-item-body">
+      <div class="archive-suit-item-name">${fileName}</div>
+      <div class="archive-suit-item-meta">${[date, countText].filter(Boolean).join(" / ")}</div>
+      ${memoLine ? `<div class="archive-suit-item-memo">${memoLine}</div>` : ""}
+    </div>
+    ${editButton}
+  </article>`;
+}
+
+function renderArchiveSuitGalleryList(options = {}) {
+  const items = getArchiveSuitDisplayItems("gallery");
+  if (!items.length) {
+    return `<div class="archive-suit-empty">보관자료 없음</div>`;
+  }
+  const groups = getArchiveSuitGalleryGroups(items);
+  return `<div class="archive-suit-list archive-suit-gallery-grid">${groups.map((group) => renderArchiveSuitGalleryCard(group, options)).join("")}</div>`;
+}
+
+function getArchiveSuitGalleryGroupByKey(groupKey = "") {
+  const targetKey = String(groupKey || "").trim();
+  return getArchiveSuitGalleryGroups().find((group) => group.groupKey === targetKey) || null;
+}
+
+function ensureArchiveSuitGalleryModal() {
+  let modal = document.getElementById("archive-suit-gallery-modal");
+  if (modal) return modal;
+  modal = document.createElement("div");
+  modal.id = "archive-suit-gallery-modal";
+  modal.className = "archive-suit-gallery-modal";
+  modal.hidden = true;
+  modal.innerHTML = `<div class="archive-suit-gallery-modal__backdrop" data-archive-gallery-close></div>
+    <section class="archive-suit-gallery-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="archive-suit-gallery-modal-title">
+      <header class="archive-suit-gallery-modal__header">
+        <div>
+          <h3 id="archive-suit-gallery-modal-title" class="archive-suit-gallery-modal__title">갤러리 미리보기</h3>
+          <p class="archive-suit-gallery-modal__meta" data-archive-gallery-modal-meta></p>
+        </div>
+        <button type="button" class="archive-suit-gallery-modal__close" data-archive-gallery-close aria-label="닫기">×</button>
+      </header>
+      <div class="archive-suit-gallery-modal__stage" data-archive-gallery-modal-stage></div>
+      <div class="archive-suit-gallery-modal__nav">
+        <button type="button" class="archive-suit-inline-btn" data-archive-gallery-prev>이전</button>
+        <div class="archive-suit-gallery-modal__counter" data-archive-gallery-modal-counter></div>
+        <button type="button" class="archive-suit-inline-btn" data-archive-gallery-next>다음</button>
+      </div>
+      <div class="archive-suit-gallery-modal__thumbs" data-archive-gallery-modal-thumbs></div>
+    </section>`;
+  modal.addEventListener("click", (event) => {
+    if (event.target?.closest?.("[data-archive-gallery-close]")) {
+      closeArchiveSuitGalleryModal();
+      return;
+    }
+    const thumb = event.target?.closest?.("[data-archive-gallery-thumb]");
+    if (thumb) {
+      archiveSuitGalleryModalState.index = Number(thumb.dataset.archiveGalleryThumb || 0);
+      renderArchiveSuitGalleryModal();
+      return;
+    }
+    if (event.target?.closest?.("[data-archive-gallery-prev]")) {
+      moveArchiveSuitGalleryModal(-1);
+      return;
+    }
+    if (event.target?.closest?.("[data-archive-gallery-next]")) {
+      moveArchiveSuitGalleryModal(1);
+    }
+  });
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function renderArchiveSuitGalleryModal() {
+  const modal = ensureArchiveSuitGalleryModal();
+  const group = getArchiveSuitGalleryGroupByKey(archiveSuitGalleryModalState.groupKey);
+  const items = Array.isArray(group?.items) ? group.items : [];
+  if (!group || !items.length) {
+    closeArchiveSuitGalleryModal();
+    return;
+  }
+  const activeIndex = Math.min(Math.max(archiveSuitGalleryModalState.index, 0), items.length - 1);
+  archiveSuitGalleryModalState.index = activeIndex;
+  const item = items[activeIndex] || {};
+  const fileName = escapeTimelineHtml(item.fileName || "첨부파일");
+  const fileUrl = getArchiveSuitFileUrl(item);
+  const fileKind = getArchiveSuitFileKind(item);
+  const title = modal.querySelector("#archive-suit-gallery-modal-title");
+  const meta = modal.querySelector("[data-archive-gallery-modal-meta]");
+  const stage = modal.querySelector("[data-archive-gallery-modal-stage]");
+  const counter = modal.querySelector("[data-archive-gallery-modal-counter]");
+  const thumbs = modal.querySelector("[data-archive-gallery-modal-thumbs]");
+  const prev = modal.querySelector("[data-archive-gallery-prev]");
+  const next = modal.querySelector("[data-archive-gallery-next]");
+  if (title) title.textContent = item.fileName || group.title || "갤러리 미리보기";
+  if (meta) {
+    const fileSize = formatArchiveSuitFileSize(item.fileSize);
+    meta.textContent = [group.date || item.date || "", fileSize, item.memo || group.memo || ""].filter(Boolean).join(" / ");
+  }
+  if (stage) {
+    if (fileUrl && fileKind === "image") {
+      stage.innerHTML = `<img class="archive-suit-gallery-modal__media" src="${fileUrl}" alt="${fileName}" decoding="async">`;
+    } else if (fileUrl && fileKind === "video") {
+      stage.innerHTML = `<video class="archive-suit-gallery-modal__media" src="${fileUrl}" controls playsinline></video>`;
+    } else if (fileUrl && fileKind === "audio") {
+      stage.innerHTML = `<audio class="archive-suit-gallery-modal__audio" src="${fileUrl}" controls></audio>`;
+    } else if (fileUrl && (fileKind === "pdf" || fileKind === "text")) {
+      stage.innerHTML = `<iframe class="archive-suit-gallery-modal__frame" src="${fileUrl}" title="${fileName} 미리보기"></iframe>`;
+    } else {
+      stage.innerHTML = `<div class="archive-suit-gallery-modal__file">
+        <strong>${fileName}</strong>
+        ${fileUrl ? `<a class="archive-suit-download" href="${fileUrl}" target="_blank" rel="noopener" download="${fileName}">열기/다운로드</a>` : ""}
+      </div>`;
+    }
+  }
+  if (counter) counter.textContent = `${activeIndex + 1} / ${items.length}`;
+  if (prev) prev.disabled = activeIndex <= 0;
+  if (next) next.disabled = activeIndex >= items.length - 1;
+  if (thumbs) {
+    thumbs.innerHTML = items
+      .map((thumbItem, index) => {
+        const thumbName = escapeTimelineHtml(thumbItem.fileName || `파일 ${index + 1}`);
+        return `<button type="button" class="archive-suit-gallery-modal__thumb${index === activeIndex ? " is-active" : ""}" data-archive-gallery-thumb="${index}">
+          ${renderArchiveSuitPreview(thumbItem)}
+          <span>${thumbName}</span>
+        </button>`;
+      })
+      .join("");
+  }
+}
+
+function openArchiveSuitGalleryModal(groupKey = "") {
+  const group = getArchiveSuitGalleryGroupByKey(groupKey);
+  if (!group) return;
+  archiveSuitGalleryModalState = { groupKey: group.groupKey, index: 0 };
+  const modal = ensureArchiveSuitGalleryModal();
+  modal.hidden = false;
+  modal.classList.add("is-open");
+  document.body.classList.add("archive-suit-modal-open");
+  renderArchiveSuitGalleryModal();
+}
+
+function closeArchiveSuitGalleryModal() {
+  const modal = document.getElementById("archive-suit-gallery-modal");
+  if (modal) {
+    modal.classList.remove("is-open");
+    modal.hidden = true;
+    const title = modal.querySelector("#archive-suit-gallery-modal-title");
+    const meta = modal.querySelector("[data-archive-gallery-modal-meta]");
+    const stage = modal.querySelector("[data-archive-gallery-modal-stage]");
+    const counter = modal.querySelector("[data-archive-gallery-modal-counter]");
+    const thumbs = modal.querySelector("[data-archive-gallery-modal-thumbs]");
+    if (title) title.textContent = "갤러리 미리보기";
+    if (meta) meta.textContent = "";
+    if (stage) stage.replaceChildren();
+    if (counter) counter.textContent = "";
+    if (thumbs) thumbs.replaceChildren();
+  }
+  document.body?.classList?.remove("archive-suit-modal-open");
+  archiveSuitGalleryModalState = { groupKey: "", index: 0 };
+}
+
+function moveArchiveSuitGalleryModal(offset = 0) {
+  const group = getArchiveSuitGalleryGroupByKey(archiveSuitGalleryModalState.groupKey);
+  const count = Array.isArray(group?.items) ? group.items.length : 0;
+  if (!count) return;
+  archiveSuitGalleryModalState.index = Math.min(Math.max(archiveSuitGalleryModalState.index + offset, 0), count - 1);
+  renderArchiveSuitGalleryModal();
+}
+
 function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
   const normalized = normalizeStorageBridgeSection(tab);
+  if (normalized === "gallery" && !options.editMode && !options.deleteMode) {
+    return renderArchiveSuitGalleryList(options);
+  }
   const items = getArchiveSuitDisplayItems(normalized);
   if (!items.length) {
     return `<div class="archive-suit-empty">보관자료 없음</div>`;
@@ -4598,7 +4840,7 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
           <div class="archive-suit-item-name">${fileName}</div>
           <div class="archive-suit-item-meta">${[date, fileSize].filter(Boolean).join(" / ")}</div>
           ${memo ? `<div class="archive-suit-item-memo">${memo}</div>` : ""}
-          ${item.fileData ? `<a class="archive-suit-download" href="${item.fileData}" download="${fileName}">다운로드</a>` : ""}
+          ${getArchiveSuitFileUrl(item) ? `<a class="archive-suit-download" href="${getArchiveSuitFileUrl(item)}" download="${fileName}">다운로드</a>` : ""}
         </div>
         ${editButton}
       </article>`;
@@ -4612,9 +4854,10 @@ function renderArchiveSuitForm(tab = storageBridgeSection, item = null) {
   const date = escapeTimelineHtml(item?.date || getArchiveSuitToday());
   const memo = escapeTimelineHtml(item?.memo || "");
   const currentFile = item?.fileName ? `<div class="archive-suit-current-file">현재 파일: ${escapeTimelineHtml(item.fileName)}</div>` : "";
+  const multiple = normalized === "gallery" && !item ? " multiple" : "";
   return `<form class="archive-suit-form" data-archive-form="${normalized}" data-archive-edit-id="${escapeTimelineHtml(item?.id || "")}">
     <label class="archive-suit-field"><span>날짜</span><input type="date" data-archive-field="date" value="${date}"></label>
-    <label class="archive-suit-field archive-suit-field-wide"><span>파일 첨부</span><input type="file" data-archive-field="file" accept="${escapeTimelineHtml(meta.accept)}">${currentFile}</label>
+    <label class="archive-suit-field archive-suit-field-wide"><span>파일 첨부</span><input type="file" data-archive-field="file" accept="${escapeTimelineHtml(meta.accept)}"${multiple}>${currentFile}</label>
     <label class="archive-suit-field archive-suit-field-wide"><span>메모</span><textarea data-archive-field="memo" rows="4">${memo}</textarea></label>
     <div class="archive-suit-form-actions">
       <button type="button" class="archive-suit-inline-btn" data-archive-form-cancel>취소</button>
@@ -4652,6 +4895,10 @@ function renderArchiveSuitPanels() {
         </div>`;
       return;
     }
+    if (tab === "gallery") {
+      panel.innerHTML = renderArchiveSuitList(tab);
+      return;
+    }
     const items = getArchiveSuitDisplayItems(tab);
     const selected = items.find((item) => item.id === archiveSuitSelectedId) || null;
     panel.innerHTML = `<div class="archive-suit-view-grid">
@@ -4681,8 +4928,9 @@ async function saveArchiveSuitForm(form) {
   const editId = String(form?.dataset?.archiveEditId || "");
   const date = String(form?.querySelector('[data-archive-field="date"]')?.value || getArchiveSuitToday());
   const memo = String(form?.querySelector('[data-archive-field="memo"]')?.value || "").trim();
-  const file = form?.querySelector('[data-archive-field="file"]')?.files?.[0] || null;
-  const filePayload = await readArchiveSuitFile(file);
+  const fileInput = form?.querySelector('[data-archive-field="file"]');
+  const files = Array.from(fileInput?.files || []);
+  const filePayload = await readArchiveSuitFile(files[0] || null);
   const items = getArchiveSuitItems();
   if (editId) {
     const nextItems = items.map((item) => {
@@ -4697,19 +4945,26 @@ async function saveArchiveSuitForm(form) {
     });
     setArchiveSuitItems(nextItems);
   } else {
-    const newId = `archive-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    setArchiveSuitItems([
-      ...items,
-      {
+    const createdAt = new Date().toISOString();
+    const uploadGroupId = `archive-gallery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const payloads =
+      tab === "gallery" && files.length > 1
+        ? await Promise.all(files.map((file) => readArchiveSuitFile(file)))
+        : [filePayload];
+    const newItems = payloads.map((payload, index) => {
+      const newId = `archive-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+      return {
         id: newId,
         tab,
         date,
         memo,
-        ...(filePayload || {}),
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    archiveSuitSelectedId = newId;
+        ...(payload || {}),
+        ...(tab === "gallery" ? { uploadGroupId, galleryBatchId: uploadGroupId } : {}),
+        createdAt,
+      };
+    });
+    setArchiveSuitItems([...items, ...newItems]);
+    archiveSuitSelectedId = newItems[0]?.id || "";
   }
   setArchiveSuitMode("view", tab);
 }
@@ -4732,7 +4987,11 @@ function postStorageBridgeNavigation(sectionId = "document-storage") {
 }
 
 function setArchiveBridgeSection(sectionId = "document-storage") {
+  const previousSection = storageBridgeSection;
   storageBridgeSection = normalizeStorageBridgeSection(sectionId);
+  if (previousSection === "gallery" && storageBridgeSection !== "gallery") {
+    closeArchiveSuitGalleryModal();
+  }
   setStorageBridgeButtonState(storageBridgeSection);
   if (storageBridgeFrame) {
     postStorageBridgeNavigation(storageBridgeSection);
@@ -15647,6 +15906,14 @@ function initStorageBridge() {
       renderArchiveSuitPanels();
       return;
     }
+    const galleryGroup = event.target?.closest?.("[data-archive-gallery-group]");
+    if (galleryGroup && archiveSuitMode === "view") {
+      const interactive = event.target?.closest?.("a, button, input, select, textarea, label");
+      if (!interactive) {
+        openArchiveSuitGalleryModal(galleryGroup.dataset.archiveGalleryGroup || "");
+      }
+      return;
+    }
     const itemCard = event.target?.closest?.("[data-archive-item-id]");
     if (itemCard && archiveSuitMode === "view") {
       archiveSuitSelectedId = itemCard.dataset.archiveItemId || "";
@@ -15683,6 +15950,20 @@ function initStorageBridge() {
     }
     event.preventDefault();
     saveArchiveSuitForm(form);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeArchiveSuitGalleryModal();
+      return;
+    }
+    const modal = document.getElementById("archive-suit-gallery-modal");
+    if (!modal || modal.hidden) return;
+    if (event.key === "ArrowLeft") {
+      moveArchiveSuitGalleryModal(-1);
+    } else if (event.key === "ArrowRight") {
+      moveArchiveSuitGalleryModal(1);
+    }
   });
 
   if (!storageBridgeFrame) {
