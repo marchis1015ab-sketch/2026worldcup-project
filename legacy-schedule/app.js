@@ -8966,8 +8966,8 @@ function isLegacyDisposablePersonalTimelineEntry(dateKey='', name='', detail={},
   const cutoff=Number(cleanupCutoff||0);
   if(cutoff<=0) return false;
   const compareValue=getPersonalTimelineDetailExplicitTimestamp(detail);
-  if(compareValue<=0) return true;
-  return Number.isFinite(compareValue)&&compareValue>0&&compareValue<=cutoff;
+  if(compareValue>0) return false;
+  return true;
 }
 function keepOnlyOfficialPersonalTimelineState(state={}){
   const nextState=Object.create(null);
