@@ -10361,8 +10361,8 @@ body.archive-suit-modal-open {
     bottom: 1px;
     width: 100%;
     min-width: 0;
-    height: 22px;
-    min-height: 22px;
+    height: 26px;
+    min-height: 26px;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
@@ -10384,7 +10384,7 @@ body.archive-suit-modal-open {
     flex: 0 1 auto;
     gap: 3px;
     min-width: 0;
-    font-size: clamp(9.4px, 2.72vw, 10.6px);
+    font-size: 12px;
     line-height: 1.15;
     letter-spacing: -0.01em;
   }
@@ -10405,7 +10405,7 @@ body.archive-suit-modal-open {
     border-radius: 999px;
     background: rgba(103, 255, 216, 0.08);
     font-family: var(--body-font);
-    font-size: clamp(9.8px, 2.9vw, 11px);
+    font-size: 12px;
     line-height: 1.15;
     font-weight: 900;
     letter-spacing: -0.01em;
