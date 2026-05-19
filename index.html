@@ -1123,6 +1123,69 @@
 
     <script src="./app.js?v=bridge-target-fix-20260518-04"></script>
     <script src="./tournament-tab.js?v=20260517-22"></script>
+    <script>
+      (function () {
+        const viewMap = {
+          dashboard: "view-dashboard",
+          "match-schedule": "view-match-schedule",
+          schedule: "view-schedule",
+          "field-ops": "view-field-ops",
+          map: "view-map",
+          archive: "view-archive",
+          "broadcast-news": "view-broadcast-news",
+          operations: "view-operations",
+        };
+
+        function restoreMobileHashView() {
+          if (!window.matchMedia("(max-width: 767px)").matches) {
+            return;
+          }
+          const hash = String(window.location.hash || "").trim();
+          if (!hash.startsWith("#mobile-")) {
+            return;
+          }
+          const targetId = decodeURIComponent(hash.slice("#mobile-".length) || "").trim().toLowerCase();
+          const targetViewId = viewMap[targetId];
+          if (!targetViewId) {
+            return;
+          }
+          document.querySelectorAll(".dashboard-view").forEach((view) => {
+            const isTarget = view.id === targetViewId;
+            if (isTarget) {
+              view.removeAttribute("hidden");
+            } else {
+              view.setAttribute("hidden", "");
+            }
+            view.classList.toggle("is-active", isTarget);
+          });
+          document.body.classList.toggle("mobile-section-open", targetId !== "dashboard");
+          const backButton = document.getElementById("mobile-section-back");
+          if (backButton) {
+            if (targetId === "dashboard") {
+              backButton.setAttribute("hidden", "");
+            } else {
+              backButton.removeAttribute("hidden");
+            }
+          }
+        }
+
+        function restoreMobileHashViewRepeated() {
+          restoreMobileHashView();
+          let remaining = 12;
+          const timer = window.setInterval(() => {
+            restoreMobileHashView();
+            remaining -= 1;
+            if (remaining <= 0) {
+              window.clearInterval(timer);
+            }
+          }, 120);
+        }
+
+        window.addEventListener("load", restoreMobileHashViewRepeated);
+        window.addEventListener("hashchange", restoreMobileHashViewRepeated);
+        window.setTimeout(restoreMobileHashViewRepeated, 0);
+      })();
+    </script>
   </body>
 </html>
 

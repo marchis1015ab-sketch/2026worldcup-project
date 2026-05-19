@@ -1615,6 +1615,68 @@ const WC26_DAILY_MATCH_INTERVAL = 7000;
 const WC26_DAILY_MATCH_RESUME_DELAY = 12000;
 const WC26_LOCAL_TIME_ZONE = "America/New_York";
 const WC26_MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 767px)");
+const WC26_GROUP_A_PREVIEW_FALLBACK_MATCHES = Object.freeze([
+  {
+    number: "M1",
+    groupName: "A",
+    homeTeam: "Mexico",
+    awayTeam: "South Africa",
+    matchDate: "2026-06-12",
+    koreaTime: "04:00",
+    stadium: "Mexico City Stadium",
+    city: "Mexico City",
+  },
+  {
+    number: "M2",
+    groupName: "A",
+    homeTeam: "South Korea",
+    awayTeam: "Czechia",
+    matchDate: "2026-06-12",
+    koreaTime: "11:00",
+    stadium: "Estadio Guadalajara",
+    city: "Guadalajara",
+  },
+  {
+    number: "M25",
+    groupName: "A",
+    homeTeam: "Czechia",
+    awayTeam: "South Africa",
+    matchDate: "2026-06-19",
+    koreaTime: "01:00",
+    stadium: "Atlanta Stadium",
+    city: "Atlanta",
+  },
+  {
+    number: "M28",
+    groupName: "A",
+    homeTeam: "Mexico",
+    awayTeam: "South Korea",
+    matchDate: "2026-06-19",
+    koreaTime: "10:00",
+    stadium: "Estadio Guadalajara",
+    city: "Guadalajara",
+  },
+  {
+    number: "M53",
+    groupName: "A",
+    homeTeam: "Czechia",
+    awayTeam: "Mexico",
+    matchDate: "2026-06-25",
+    koreaTime: "10:00",
+    stadium: "Mexico City Stadium",
+    city: "Mexico City",
+  },
+  {
+    number: "M54",
+    groupName: "A",
+    homeTeam: "South Africa",
+    awayTeam: "South Korea",
+    matchDate: "2026-06-25",
+    koreaTime: "10:00",
+    stadium: "Estadio Monterrey",
+    city: "Monterrey",
+  },
+]);
 
 function getLocalDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -1685,7 +1747,12 @@ function getDailyMatchSource() {
     return directMatches;
   }
 
-  return [];
+  return WC26_GROUP_A_PREVIEW_FALLBACK_MATCHES.map((match) => ({
+    ...match,
+    date: match.matchDate,
+    localDate: match.matchDate,
+    localTime: convertGroupAKoreaTimeToLocal(match, match.koreaTime) || "--:--",
+  }));
 }
 
 function adaptDailyMatch(match) {
@@ -1896,7 +1963,7 @@ function getMobileHomeMatchPreviewMatches() {
     return [];
   }
 
-  return entries
+  const matches = entries
     .filter((entry) => entry.adaptedMatch.matchDate === targetDate)
     .map(({ rawMatch, adaptedMatch }) => {
       const stadiumName = sanitizeGroupAStadiumName(adaptedMatch.stadium, "경기장 미정");
@@ -1916,6 +1983,12 @@ function getMobileHomeMatchPreviewMatches() {
       };
     })
     .filter((match) => match.home && match.away);
+
+  if (matches.length) {
+    return matches;
+  }
+
+  return [];
 }
 
 function setMobileHomeMatchPreviewSlide(index = 0) {
@@ -3908,14 +3981,18 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
   if (!isMobileSectionViewport()) {
     document.body.classList.remove("mobile-section-open");
     if (mobileSectionBackButton) {
-      mobileSectionBackButton.hidden = true;
+      mobileSectionBackButton.setAttribute("hidden", "");
     }
     return;
   }
   const isHome = targetId === "dashboard";
   document.body.classList.toggle("mobile-section-open", !isHome);
   if (mobileSectionBackButton) {
-    mobileSectionBackButton.hidden = isHome;
+    if (isHome) {
+      mobileSectionBackButton.setAttribute("hidden", "");
+    } else {
+      mobileSectionBackButton.removeAttribute("hidden");
+    }
   }
   if (options.skipHistory) {
     return;
@@ -3939,6 +4016,17 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
   }
 }
 
+function refreshMobileScheduleTimelineIfNeeded(targetId = "") {
+  if (targetId !== "schedule" || !isMobileSectionViewport()) {
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      renderTimelineGantt({});
+    });
+  });
+}
+
 function setView(targetId, options = {}) {
   const selector = WC26_VIEW_MAP[targetId];
 
@@ -3954,11 +4042,16 @@ function setView(targetId, options = {}) {
 
   dashboardViews.forEach((view) => {
     const isNext = view === nextView;
-    view.hidden = !isNext;
+    if (isNext) {
+      view.removeAttribute("hidden");
+    } else {
+      view.setAttribute("hidden", "");
+    }
     view.classList.toggle("is-active", isNext);
   });
 
   syncMobileSectionUi(targetId, options);
+  refreshMobileScheduleTimelineIfNeeded(targetId);
 
   return true;
 }
@@ -4017,6 +4110,9 @@ function restoreDashboardViewOnPlainEntry() {
   const hash = String(window.location.hash || "").trim();
   const hasExplicitMobileSectionHash = hash.startsWith("#mobile-") && hash !== "#mobile-dashboard";
   if (hasExplicitMobileSectionHash && isMobileSectionViewport()) {
+    if (restoreMobileSectionFromHash()) {
+      return;
+    }
     return;
   }
 
@@ -4024,6 +4120,83 @@ function restoreDashboardViewOnPlainEntry() {
   clearNavActive();
   setView("dashboard", { skipHistory: true });
   highlightTargets(WC26_MENU_GROUPS.dashboard?.targetSelectors || []);
+}
+
+function restoreMobileSectionFromHash() {
+  if (!isMobileSectionViewport()) {
+    return false;
+  }
+  const hash = String(window.location.hash || "").trim();
+  if (!hash.startsWith("#mobile-") || hash === "#mobile-dashboard") {
+    return false;
+  }
+  const targetId = decodeURIComponent(hash.slice("#mobile-".length) || "").trim().toLowerCase();
+  const selector = WC26_VIEW_MAP[targetId];
+  const nextView = selector ? document.querySelector(selector) : null;
+  const defaultSectionMap = {
+    schedule: "all",
+    "match-schedule": "bracket",
+    "field-ops": "equipment-summary",
+    archive: "document",
+    map: "venue",
+    "broadcast-news": "broadcast",
+    operations: "official-links",
+  };
+  const sectionId = defaultSectionMap[targetId] || "main";
+  if (!nextView) {
+    return false;
+  }
+  dashboardViews.forEach((view) => {
+    const isNext = view === nextView;
+    if (isNext) {
+      view.removeAttribute("hidden");
+    } else {
+      view.setAttribute("hidden", "");
+    }
+    view.classList.toggle("is-active", isNext);
+  });
+  syncMobileSectionUi(targetId, { skipHistory: true });
+  refreshMobileScheduleTimelineIfNeeded(targetId);
+  closeAllGroups();
+  clearNavActive();
+  focusSection(targetId, sectionId);
+  highlightTargets(WC26_MENU_GROUPS[targetId]?.targetSelectors || []);
+  return true;
+}
+
+function forceMobileHashViewFallback() {
+  if (!isMobileSectionViewport()) {
+    return false;
+  }
+  const hash = String(window.location.hash || "").trim();
+  if (!hash.startsWith("#mobile-") || hash === "#mobile-dashboard") {
+    return false;
+  }
+  const targetId = decodeURIComponent(hash.slice("#mobile-".length) || "").trim().toLowerCase();
+  const selector = WC26_VIEW_MAP[targetId];
+  const nextView = selector ? document.querySelector(selector) : null;
+  if (!nextView) {
+    return false;
+  }
+  dashboardViews.forEach((view) => {
+    const isNext = view === nextView;
+    if (isNext) {
+      view.removeAttribute("hidden");
+    } else {
+      view.setAttribute("hidden", "");
+    }
+    view.classList.toggle("is-active", isNext);
+  });
+  document.body.classList.toggle("mobile-section-open", targetId !== "dashboard");
+  if (mobileSectionBackButton) {
+    if (targetId === "dashboard") {
+      mobileSectionBackButton.setAttribute("hidden", "");
+    } else {
+      mobileSectionBackButton.removeAttribute("hidden");
+    }
+  }
+  refreshMobileScheduleTimelineIfNeeded(targetId);
+  return true;
 }
 
 function syncMobileSectionViewportState() {
@@ -10985,7 +11158,7 @@ function normalizeEquipmentBridgeSearchText(value = "") {
 }
 
 function syncEquipmentBridgeSearchShell() {
-  const shouldShow = equipmentBridgeSection === "equipment-summary";
+  const shouldShow = equipmentBridgeSection === "equipment-summary" || equipmentBridgeSection === "personal-summary";
   if (equipmentBridgeSearchShell) {
     equipmentBridgeSearchShell.hidden = !shouldShow;
   }
@@ -17750,6 +17923,23 @@ window.addEventListener("popstate", (event) => {
   setView("dashboard", { skipHistory: true });
 });
 
+window.addEventListener("hashchange", () => {
+  if (restoreMobileSectionFromHash()) {
+    return;
+  }
+  if (forceMobileHashViewFallback()) {
+    return;
+  }
+  if (isMobileSectionViewport() && String(window.location.hash || "").trim() === "#mobile-dashboard") {
+    setView("dashboard", { skipHistory: true });
+  }
+});
+
+window.addEventListener("load", () => {
+  restoreMobileSectionFromHash();
+  forceMobileHashViewFallback();
+});
+
 WC26_MOBILE_MEDIA_QUERY?.addEventListener?.("change", () => {
   syncMobileSectionViewportState();
 });
@@ -17775,6 +17965,12 @@ startTopbarStatusTicker();
 refreshTimelineGanttFromLegacy();
 restoreDashboardViewOnPlainEntry();
 syncMobileSectionViewportState();
+restoreMobileSectionFromHash();
+forceMobileHashViewFallback();
+window.setTimeout(() => {
+  restoreMobileSectionFromHash();
+  forceMobileHashViewFallback();
+}, 0);
 
 
 

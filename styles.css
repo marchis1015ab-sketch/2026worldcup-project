@@ -10240,9 +10240,39 @@ body.archive-suit-modal-open {
     padding: 8px;
   }
 
-  body.mobile-section-open .detail-panel,
+  body.mobile-section-open .dashboard {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    margin-top: -1px;
+    padding: 0 8px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(180, 255, 246, 0.18);
+    border-top: 0;
+    border-radius: 0 0 24px 24px;
+    background:
+      linear-gradient(180deg, rgba(4, 13, 24, 0.58), rgba(4, 13, 24, 0.66)),
+      radial-gradient(circle at 10% 0%, rgba(103, 255, 216, 0.06), transparent 38%),
+      radial-gradient(circle at 96% 100%, rgba(255, 116, 53, 0.06), transparent 42%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  }
+
   body.mobile-section-open .dashboard-view:not([hidden]) {
-    min-height: calc(100dvh - 54px);
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  body.mobile-section-open .detail-panel {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
   }
 
   .sidebar-brand {
@@ -10432,7 +10462,294 @@ body.archive-suit-modal-open {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Background-only mode across all primary views: keeps the artwork visible without deleting UI layers. */
+body:has(.dashboard-view:not([hidden])) .shell-frame {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body:has(.dashboard-view:not([hidden])) .toast,
+body:has(.dashboard-view:not([hidden])) .timeline-tooltip,
+body:has(.dashboard-view:not([hidden])) .timeline-modal,
+body:has(.dashboard-view:not([hidden])) .archive-suit-gallery-modal {
+  display: none !important;
+}
+
+/* Main-page layer step 3: show only the shell-frame canvases over the background. */
+body:has(#view-dashboard.is-active:not([hidden])) .shell-frame {
+  opacity: 1;
+  pointer-events: none;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .sidebar,
+body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
+  visibility: visible;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .sidebar > * {
+  visibility: hidden;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview {
+  display: grid !important;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .sidebar .mobile-dashboard-menu {
+  display: grid !important;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) .topbar,
+body:has(#view-dashboard.is-active:not([hidden])) .quick-strip,
+body:has(#view-dashboard.is-active:not([hidden])) .ticker,
+body:has(#view-dashboard.is-active:not([hidden])) .dashboard-view:not(#view-dashboard) {
+  display: none !important;
+}
+
+body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard,
+body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard .dashboard-shell,
+body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Detail-page layer step 3: show only the active detail canvas over the background. */
+body:has(.dashboard-view.detail-shell:not([hidden])) .shell-frame {
+  opacity: 1;
+  pointer-events: none;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar,
+body:has(.dashboard-view.detail-shell:not([hidden])) .mobile-section-back,
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view[hidden],
+body:has(.dashboard-view.detail-shell:not([hidden])) #view-dashboard {
+  display: none !important;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .topbar {
+  display: none !important;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
+  display: block !important;
+  visibility: visible;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard {
+  visibility: visible;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar > * {
+  visibility: hidden;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar .sidebar-brand {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard > * {
+  visibility: hidden;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]),
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel {
+  visibility: visible;
+}
+
+body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel > * {
+  visibility: hidden;
+}
+
 @media (max-width: 430px) {
+  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame {
+    height: 670px;
+    max-height: 670px;
+    overflow: hidden;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar {
+    min-height: calc(670px - 16px);
+    height: calc(670px - 16px);
+    gap: 0;
+    border-radius: 24px;
+    box-shadow: none;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar::after {
+    inset: 10px;
+    border-radius: 20px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview {
+    margin-top: 14px;
+    margin-bottom: 0;
+    min-height: 329px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview-shell {
+    display: grid;
+    min-height: 100%;
+    height: 100%;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-match-feature {
+    min-height: 100%;
+    height: 100%;
+    gap: 8px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-matchup {
+    grid-template-columns: minmax(108px, 1fr) 44px minmax(108px, 1fr);
+    gap: 10px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-team {
+    gap: 6px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-flag {
+    width: 60px;
+    height: 39px;
+    border-radius: 11px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-team-name {
+    font-size: 13px;
+    line-height: 1.08;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-logo img {
+    width: 60px;
+    max-height: 60px;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-info {
+    display: grid;
+    justify-items: center;
+    align-items: start;
+    gap: 4px;
+    padding-top: 0;
+    text-align: center;
+    white-space: normal;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-info strong,
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-info span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-info strong {
+    order: -1;
+    font-size: 12px;
+    line-height: 1.15;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-info span {
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar #mobile-home-match-preview .group-a-feature-stadium-frame {
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    align-self: end;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar .mobile-dashboard-menu {
+    margin-top: 14px;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .shell-frame {
+    height: 670px;
+    max-height: 670px;
+    overflow: hidden;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    margin-top: 0;
+    padding: 0 8px 8px;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-height: 654px !important;
+    height: 654px !important;
+    padding: 8px 8px 10px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(180, 255, 246, 0.18) !important;
+    background:
+      linear-gradient(180deg, rgba(8, 22, 35, 0.76), rgba(4, 13, 24, 0.6)),
+      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.08), transparent 38%),
+      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.06), transparent 42%) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar::after {
+    display: block !important;
+    inset: 10px !important;
+    border-radius: 20px !important;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) {
+    display: block !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .detail-panel {
+    width: 100%;
+    max-width: 100%;
+    min-height: calc(670px - 16px);
+    height: calc(670px - 16px);
+    padding: 0;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .detail-panel::before {
+    display: none;
+  }
+
+  body:has(.dashboard-view.detail-shell:not([hidden])) .detail-panel::after {
+    display: none;
+  }
+
   html,
   body {
     scrollbar-width: none;
@@ -10472,9 +10789,10 @@ body.archive-suit-modal-open {
     width: 100%;
     max-width: 100%;
     min-height: 0;
-    height: auto;
+    height: 670px;
+    max-height: 670px;
     padding: 8px;
-    overflow-x: clip;
+    overflow: hidden;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -10570,5 +10888,876 @@ body.archive-suit-modal-open {
     font-weight: 650;
     letter-spacing: 0.01em;
     text-transform: none;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .ticker,
+  body:has(#view-dashboard.is-active:not([hidden])) .quick-strip {
+    display: none !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
+    position: absolute;
+    top: 94px;
+    left: 8px;
+    right: 8px;
+    z-index: 4;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard,
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard .dashboard-shell,
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard .dashboard-panel-grid {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-main-match,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-field-status,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-schedule,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-equipment,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert {
+    display: none !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard #panel-upcoming {
+    display: none !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .ticker {
+    display: grid !important;
+    position: fixed;
+    left: 17px;
+    right: 17px;
+    bottom: calc(100dvh - 670px + 17px);
+    z-index: 10;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    pointer-events: auto;
+  }
+
+  /* Mobile unified canvas: main and detail pages share the same outer frame and title header. */
+  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame,
+  body.mobile-section-open .shell-frame {
+    height: 670px !important;
+    max-height: 670px !important;
+    min-height: 0 !important;
+    padding: 8px !important;
+    overflow: hidden !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 654px !important;
+    height: 654px !important;
+    padding: 8px 8px 10px !important;
+    gap: 0;
+    border: 1px solid rgba(180, 255, 246, 0.18) !important;
+    border-radius: 24px;
+    overflow: hidden !important;
+    background:
+      linear-gradient(180deg, rgba(8, 22, 35, 0.76), rgba(4, 13, 24, 0.6)),
+      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.08), transparent 38%),
+      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.06), transparent 42%) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+    z-index: 2;
+  }
+
+  body.mobile-section-open .sidebar {
+    position: absolute !important;
+    top: 8px !important;
+    left: 8px !important;
+    width: 344px !important;
+    max-width: 344px !important;
+    min-height: 654px !important;
+    height: 654px !important;
+    padding: 8px 8px 10px !important;
+    gap: 0;
+    border: 0 !important;
+    border-radius: 24px;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    z-index: 2;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand,
+  body.mobile-section-open .sidebar .sidebar-brand {
+    border-radius: 16px !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar::after {
+    display: block;
+    inset: 10px;
+    border-radius: 20px;
+  }
+
+  body.mobile-section-open .shell-frame::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 344px;
+    height: 654px;
+    border: 1px solid rgba(180, 255, 246, 0.18);
+    border-radius: 24px;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body.mobile-section-open .shell-frame::after {
+    display: none !important;
+  }
+
+  body.mobile-section-open .sidebar::after {
+    display: none !important;
+  }
+
+  body.mobile-section-open .mobile-section-back {
+    display: none !important;
+  }
+
+  body.mobile-section-open .sidebar > * {
+    visibility: hidden;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand {
+    position: absolute !important;
+    top: 8px !important;
+    left: 8px !important;
+    width: 326px !important;
+    max-width: 326px !important;
+    height: 70px !important;
+    min-height: 70px !important;
+    display: grid !important;
+    pointer-events: auto;
+    visibility: visible;
+    grid-template-columns: 61.9062px 244.094px !important;
+    align-items: stretch;
+    gap: 8px;
+    min-height: 70px !important;
+    margin: 0 !important;
+    padding: 0 10px 0 0;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand::after {
+    display: none;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand *,
+  body.mobile-section-open .sidebar .sidebar-brand *::before,
+  body.mobile-section-open .sidebar .sidebar-brand *::after {
+    font-family: "Segoe UI Variable Text", "Malgun Gothic", sans-serif !important;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-image {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
+    border-radius: 12px;
+    object-fit: contain;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-copy {
+    display: block;
+    position: relative;
+    min-width: 0;
+    padding-block: 0;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-heading {
+    display: flex;
+    position: absolute;
+    top: 11px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    align-items: baseline;
+    gap: 2px;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-title-line,
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-title-line + .sidebar-brand-mobile-title-line {
+    min-width: 0;
+    font-family: "Bahnschrift SemiCondensed", "Arial Narrow", sans-serif !important;
+    font-size: 19px;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    white-space: nowrap;
+    word-break: keep-all;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-status {
+    display: flex;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 1px;
+    width: 100%;
+    min-width: 0;
+    height: 26px;
+    min-height: 26px;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-time-stack {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-time-row {
+    flex: 0 1 auto;
+    gap: 3px;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-time-label,
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-time-value {
+    min-width: 0;
+    font-size: inherit;
+    line-height: 1.15;
+  }
+
+  body.mobile-section-open .sidebar .sidebar-brand-mobile-dday {
+    flex: 0 0 auto;
+    align-self: center;
+    justify-self: auto;
+    padding: 2px 6px;
+    border: 1px solid rgba(103, 255, 216, 0.3);
+    border-radius: 999px;
+    background: rgba(103, 255, 216, 0.08);
+    color: #67ffd8;
+    font-family: "Segoe UI Variable Text", "Malgun Gothic", sans-serif;
+    font-size: 12px;
+    line-height: 13.8px;
+    font-weight: 900;
+    letter-spacing: -0.12px;
+    transform: none;
+  }
+
+  body.mobile-section-open .dashboard {
+    position: absolute !important;
+    top: 101px !important;
+    left: 17px !important;
+    right: 17px !important;
+    bottom: 16px !important;
+    z-index: 4;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    pointer-events: auto !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel-body.schedule-bridge-body {
+    display: contents !important;
+  }
+
+  body.mobile-section-open .dashboard-view[hidden],
+  body.mobile-section-open #view-dashboard {
+    display: none !important;
+  }
+
+  body.mobile-section-open .dashboard-view:not([hidden]) {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    visibility: visible !important;
+  }
+
+  body.mobile-section-open .detail-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    visibility: visible !important;
+  }
+
+  body.mobile-section-open .detail-panel::before {
+    display: none !important;
+  }
+
+  body.mobile-section-open .detail-panel::after {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel {
+    display: flex !important;
+    flex-direction: column;
+    gap: 14px;
+    padding: 5px;
+    box-sizing: border-box;
+    position: relative;
+    isolation: isolate;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel::before {
+    display: block !important;
+    content: "";
+    position: absolute;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(17, 43, 60, 0.9), rgba(19, 55, 74, 0.82)),
+      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.06), transparent 38%);
+    border: 1px solid rgba(180, 255, 246, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  body.mobile-section-open #view-schedule:not(:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"])) .panel__header {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .detail-panel {
+    gap: 14px;
+  }
+
+  body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .panel__header {
+    order: 2;
+    margin-top: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .schedule-bridge-body {
+    order: 1;
+    gap: 14px;
+  }
+
+  body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .timeline-gantt-shell {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel__header {
+    display: block !important;
+    min-height: 0 !important;
+    margin: 0 5px 5px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
+  }
+
+  body.mobile-section-open #view-schedule .panel__header > div:first-child {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel-head-actions {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: 100%;
+    margin: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-nav-group {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-action-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-nav-group .timeline-action-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-body {
+    display: contents;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    height: 100%;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-toolbar,
+  body.mobile-section-open #view-schedule #schedule-local-timeline-shell,
+  body.mobile-section-open #view-schedule #schedule-local-shared-shell,
+  body.mobile-section-open #view-schedule #schedule-local-personal-shell,
+  body.mobile-section-open #view-schedule #schedule-local-accumulated-shell,
+  body.mobile-section-open #view-schedule #schedule-bridge-frame-shell {
+    position: relative;
+    z-index: 1;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-toolbar {
+    display: flex !important;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0;
+    margin: 5px 5px 0;
+    scrollbar-width: none;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-name-cell {
+    justify-content: center;
+    text-align: center;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-name-cell strong {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-gantt-layout {
+    grid-template-columns: 84px max-content;
+    gap: 6px;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-date-area {
+    padding-right: 0;
+    box-sizing: border-box;
+  }
+
+  body.mobile-section-open #view-schedule .timeline-name-column {
+    width: 84px !important;
+  }
+
+  body.mobile-section-open #view-schedule #schedule-local-timeline-shell,
+  body.mobile-section-open #view-schedule #schedule-local-shared-shell,
+  body.mobile-section-open #view-schedule #schedule-local-personal-shell,
+  body.mobile-section-open #view-schedule #schedule-local-accumulated-shell,
+  body.mobile-section-open #view-schedule #schedule-bridge-frame-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-left: 5px;
+    margin-right: 5px;
+  }
+
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list {
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+    padding-top: 0;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-shared-shell .shared-schedule-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-shared-shell .shared-schedule-panel--list,
+  body.mobile-section-open #view-schedule .schedule-local-shared-shell .shared-schedule-panel--composer {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .personal-schedule-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .personal-schedule-panel--inline {
+    gap: 5px !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .shared-schedule-panel__head {
+    display: flex !important;
+    min-height: 0;
+    margin: -9px 0 0;
+    justify-content: flex-end;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .shared-schedule-panel__head > div:first-child,
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .shared-schedule-panel__title {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .shared-schedule-panel__actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin: 0 11px 0 0;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-personal-shell .personal-schedule-list {
+    gap: 5px !important;
+    padding-right: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .accumulated-schedule-panel,
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel--list,
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .accumulated-schedule-panel {
+    gap: 5px !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel__head {
+    display: flex !important;
+    min-height: 0;
+    margin: -9px 11px 0 0;
+    justify-content: flex-end;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel__head > div:first-child,
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel__title,
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel__copy {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .shared-schedule-panel__actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin: 0;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .accumulated-schedule-list {
+    gap: 5px !important;
+    padding-right: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-local-accumulated-shell .accumulated-schedule-group {
+    gap: 5px !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__head {
+    display: block !important;
+    min-height: 0;
+    margin: 0;
+  }
+
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__head > div:first-child,
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__title,
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__copy {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__actions {
+    display: flex !important;
+    width: 299px;
+    max-width: 299px;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    margin: -9px 17px 0 0;
+    margin-left: auto;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel > *,
+  body.mobile-section-open #view-schedule .panel__header,
+  body.mobile-section-open #view-schedule .panel__header *,
+  body.mobile-section-open #view-schedule .schedule-bridge-body,
+  body.mobile-section-open #view-schedule .schedule-bridge-body * {
+    visibility: visible !important;
+  }
+
+  body.mobile-section-open #view-field-ops .detail-panel {
+    display: flex !important;
+    flex-direction: column;
+    gap: 14px;
+    padding: 5px;
+    box-sizing: border-box;
+    position: relative;
+    isolation: isolate;
+  }
+
+  body.mobile-section-open #view-field-ops .detail-panel::before {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops .panel__header {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops .field-ops-body {
+    display: contents !important;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-body,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-topbar {
+    display: flex !important;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel {
+    display: contents !important;
+    position: relative;
+    z-index: 1;
+    gap: 8px;
+    min-height: 100%;
+    height: 100%;
+    margin: 0 5px;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-body {
+    display: contents !important;
+    gap: 8px;
+    min-height: 100%;
+    height: 100%;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-topbar {
+    position: relative;
+    align-items: stretch !important;
+    justify-content: flex-start;
+    gap: 5px;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-topbar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 326px;
+    height: 553px;
+    border: 1px solid rgba(180, 255, 246, 0.18);
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(31, 78, 102, 0.92), rgba(28, 84, 110, 0.84)),
+      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.1), transparent 38%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-toolbar,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-controls,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-member-tabs,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-frame-shell {
+    position: relative;
+    z-index: 1;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-toolbar {
+    display: flex !important;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 6px;
+    overflow-x: auto;
+    width: auto;
+    max-width: none;
+    margin: 5px 5px 0;
+    padding: 0;
+    align-self: stretch;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
+    scrollbar-width: none;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-controls {
+    width: auto;
+    margin: 0 5px;
+    justify-content: flex-end !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-search {
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: none;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-search-input {
+    min-height: 32px;
+    padding: 0 34px 0 12px;
+    font-size: 12px;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-action-toolbar {
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-action-button {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.1;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-member-tabs:not([hidden]) {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    margin: -9px 5px 0;
+    padding: 0;
+    scrollbar-width: none;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-member-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-member-tabs[hidden] {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-member-tab {
+    flex: 0 0 auto;
+    min-width: 76px;
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+    line-height: 1.1;
+    scroll-snap-align: start;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-frame-shell {
+    display: block !important;
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: -9px 5px 5px;
+    border-color: rgba(180, 255, 246, 0.22) !important;
+    background:
+      linear-gradient(180deg, rgba(16, 46, 66, 0.96), rgba(14, 39, 58, 0.92)),
+      radial-gradient(circle at 10% 0%, rgba(103, 255, 216, 0.08), transparent 34%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 14px 28px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  body.mobile-section-open #view-field-ops:has(#equipment-bridge-panel [data-equipment-bridge-nav="carnet"].is-active) #equipment-bridge-panel .equipment-bridge-frame-shell {
+    margin-top: -14px;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-frame-shell::after {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-loading,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel .schedule-bridge-frame {
+    border-radius: inherit;
+  }
+
+  body.mobile-section-open #view-field-ops .detail-panel > *,
+  body.mobile-section-open #view-field-ops .field-ops-body,
+  body.mobile-section-open #view-field-ops .field-ops-body *,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel,
+  body.mobile-section-open #view-field-ops #equipment-bridge-panel * {
+    visibility: visible !important;
   }
 }
