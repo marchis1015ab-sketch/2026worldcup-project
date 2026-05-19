@@ -10429,6 +10429,23 @@ body.archive-suit-modal-open {
 }
 
 @media (max-width: 430px) {
+  html,
+  body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  body:not(.mobile-section-open) .shell-frame::-webkit-scrollbar,
+  body:not(.mobile-section-open) .dashboard::-webkit-scrollbar,
+  body:not(.mobile-section-open) .ticker::-webkit-scrollbar,
+  body:not(.mobile-section-open) .ticker__track::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
   body:not(.mobile-section-open) .mobile-dashboard-menu {
     border-color: rgba(180, 255, 246, 0.3);
     background:
