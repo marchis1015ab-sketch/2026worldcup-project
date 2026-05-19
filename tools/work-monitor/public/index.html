@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WC26 Work Monitor</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar__title">
+          <h1>WC26 WORK MONITOR</h1>
+          <p id="project-root">Loading project root...</p>
+        </div>
+        <div class="topbar__meta">
+          <div class="meta-chip"><span>HEAD</span><strong id="head-hash">-</strong></div>
+          <div class="meta-chip"><span>BRANCH</span><strong id="branch-name">-</strong></div>
+          <button id="refresh-status-button" class="action-button action-button--primary" type="button">새로고침</button>
+        </div>
+        <div class="topbar__links">
+          <div>
+            <span class="label">Tablet</span>
+            <div id="tablet-urls" class="tag-list"></div>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard-layout">
+        <section class="preview-panel">
+          <div class="section-head">
+            <h2>Preview</h2>
+            <div class="toolbar">
+              <label for="viewport-preset">Viewport</label>
+              <select id="viewport-preset">
+                <option value="auto">Auto</option>
+                <option value="360x780">360 x 780</option>
+                <option value="390x844">390 x 844</option>
+                <option value="430x932">430 x 932</option>
+                <option value="768x900">768 x 900</option>
+                <option value="984x1092">984 x 1092</option>
+                <option value="pc-wide">PC Wide</option>
+              </select>
+              <button id="refresh-preview-button" class="action-button" type="button">iframe 새로고침</button>
+            </div>
+          </div>
+          <div class="preview-meta">
+            <span id="preview-status-pill" class="status-pill status-pill--warning">preview checking...</span>
+            <span id="preview-target-text">Target: http://127.0.0.1:5500/</span>
+          </div>
+          <div id="preview-frame-shell" class="preview-frame-shell" data-preset="auto">
+            <iframe id="preview-frame" src="/preview/" title="WC26 preview"></iframe>
+          </div>
+        </section>
+
+        <aside class="control-panel">
+          <section class="panel-card">
+            <div class="section-head">
+              <h2>Panel Controls</h2>
+              <span id="panel-count" class="counter">0</span>
+            </div>
+            <div class="control-grid">
+              <button id="toggle-outline-button" class="action-button" type="button">Outline OFF</button>
+              <button id="toggle-note-mode-button" class="action-button" type="button">메모 모드 OFF</button>
+              <button id="toggle-selected-visibility-button" class="action-button" type="button">선택 패널 hide/show</button>
+              <button id="show-all-button" class="action-button" type="button">전체 표시</button>
+              <button id="hide-all-button" class="action-button" type="button">전체 숨김</button>
+              <button id="peel-next-button" class="action-button" type="button">다음 패널 숨김</button>
+              <button id="peel-prev-button" class="action-button" type="button">이전 패널 복구</button>
+              <button id="assemble-start-button" class="action-button" type="button">하나씩 쌓기 시작</button>
+              <button id="assemble-next-button" class="action-button" type="button">다음 패널 표시</button>
+            </div>
+            <div class="sub-toolbar">
+              <span class="label">선택 패널 이동/크기</span>
+              <div class="control-grid control-grid--compact">
+                <button data-nudge="0,-5" class="action-button action-button--tiny" type="button">Up 5</button>
+                <button data-nudge="-5,0" class="action-button action-button--tiny" type="button">Left 5</button>
+                <button data-nudge="5,0" class="action-button action-button--tiny" type="button">Right 5</button>
+                <button data-nudge="0,5" class="action-button action-button--tiny" type="button">Down 5</button>
+                <button data-scale="0.05" class="action-button action-button--tiny" type="button">Scale +</button>
+                <button data-scale="-0.05" class="action-button action-button--tiny" type="button">Scale -</button>
+                <button id="reset-transform-button" class="action-button action-button--tiny" type="button">Reset</button>
+              </div>
+            </div>
+            <div id="selected-panel-summary" class="selected-panel-summary">선택된 패널이 없습니다.</div>
+            <div id="panel-list" class="panel-list"></div>
+          </section>
+
+          <section class="panel-card">
+            <div class="section-head">
+              <h2>메모 입력</h2>
+            </div>
+            <div id="pending-note-box" class="pending-note-box">
+              메모 모드를 켠 뒤 preview에서 패널을 눌러 메모 위치를 선택하세요.
+            </div>
+            <form id="note-form" class="note-form">
+              <label>
+                <span>타입</span>
+                <select id="note-type">
+                  <option value="remove">제거</option>
+                  <option value="replace">교체</option>
+                  <option value="move">이동</option>
+                  <option value="resize">크기조정</option>
+                  <option value="hide">숨김</option>
+                  <option value="add">추가</option>
+                  <option value="needs-check">확인필요</option>
+                  <option value="other">기타</option>
+                </select>
+              </label>
+              <label>
+                <span>메모</span>
+                <textarea id="note-text" rows="3" placeholder="예: 이 패널 모바일에서 숨김"></textarea>
+              </label>
+              <div class="control-grid control-grid--compact">
+                <button id="save-note-button" class="action-button action-button--primary" type="submit">메모 저장</button>
+                <button id="cancel-note-button" class="action-button" type="button">선택 취소</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel-card">
+            <div class="section-head">
+              <h2>메모 목록</h2>
+              <span id="notes-counter" class="counter">0</span>
+            </div>
+            <div id="notes-list" class="notes-list"></div>
+          </section>
+        </aside>
+      </main>
+
+      <section class="status-panel">
+        <div class="status-column">
+          <div class="section-head"><h2>Git Status</h2></div>
+          <pre id="git-status-text" class="code-block"></pre>
+          <div id="changed-files-list" class="stack-list"></div>
+        </div>
+        <div class="status-column">
+          <div class="section-head"><h2>Node Check</h2></div>
+          <div id="node-check-list" class="stack-list"></div>
+        </div>
+        <div class="status-column">
+          <div class="section-head"><h2>Risks</h2></div>
+          <div id="risk-list" class="stack-list"></div>
+        </div>
+        <div class="status-column">
+          <div class="section-head"><h2>Recent Commits</h2></div>
+          <div id="recent-commits-list" class="stack-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <script src="/dashboard.js"></script>
+  </body>
+</html>
