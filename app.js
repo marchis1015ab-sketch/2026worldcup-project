@@ -15098,6 +15098,10 @@ function renderAccumulatedScheduleShell() {
       const item = document.createElement("li");
       item.className = "accumulated-schedule-item";
       item.classList.toggle("is-ended", Boolean(entry.ended || isPersonalScheduleEntryEnded(entry.detail)));
+      item.dataset.accumulatedScheduleEntryKey = entry.key;
+      item.dataset.accumulatedScheduleDateKey = entry.dateKey;
+      item.dataset.accumulatedSchedulePerson = entry.name;
+      item.dataset.accumulatedScheduleEntryIndex = String(entry.entryIndex);
 
       const title = document.createElement("strong");
       title.className = "accumulated-schedule-item__title";
@@ -15107,13 +15111,86 @@ function renderAccumulatedScheduleShell() {
       meta.className = "accumulated-schedule-item__meta";
       meta.textContent = getAccumulatedScheduleEntryLine(entry);
 
-      item.append(title, meta);
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "accumulated-schedule-delete-button";
+      deleteButton.dataset.accumulatedScheduleDelete = "true";
+      deleteButton.dataset.accumulatedScheduleEntryKey = entry.key;
+      deleteButton.dataset.accumulatedScheduleDateKey = entry.dateKey;
+      deleteButton.dataset.accumulatedSchedulePerson = entry.name;
+      deleteButton.dataset.accumulatedScheduleEntryIndex = String(entry.entryIndex);
+      deleteButton.textContent = "삭제";
+
+      item.append(title, meta, deleteButton);
       list.appendChild(item);
     });
 
     section.append(heading, list);
     accumulatedScheduleList.appendChild(section);
   });
+}
+
+function findAccumulatedScheduleEntryFromAction(actionTarget) {
+  const entryKey = String(actionTarget?.dataset?.accumulatedScheduleEntryKey || "").trim();
+  const dateKey = String(actionTarget?.dataset?.accumulatedScheduleDateKey || "").trim();
+  const name = String(actionTarget?.dataset?.accumulatedSchedulePerson || "").trim();
+  const entryIndex = Number(actionTarget?.dataset?.accumulatedScheduleEntryIndex);
+  const matches = getAccumulatedPersonalScheduleEntries().filter((entry) => (
+    entry.key === entryKey &&
+    entry.dateKey === dateKey &&
+    entry.name === name &&
+    Number.isInteger(entryIndex) &&
+    entry.entryIndex === entryIndex
+  ));
+  return matches.length === 1 ? matches[0] : null;
+}
+
+async function handleAccumulatedScheduleEntryDelete(actionTarget) {
+  const entry = findAccumulatedScheduleEntryFromAction(actionTarget);
+  if (!entry) {
+    window.alert("삭제할 누적일정을 정확히 찾지 못했습니다.");
+    return false;
+  }
+  if (!window.confirm("이 누적일정을 삭제할까요?")) {
+    return false;
+  }
+
+  const syncWindow = await waitForScheduleBridgeFunction("deletePersonalTimelineDetailEntry");
+  if (typeof syncWindow?.deletePersonalTimelineDetailEntry !== "function") {
+    window.alert("누적일정 삭제 함수를 아직 불러오지 못했습니다.");
+    return false;
+  }
+
+  let didDelete = false;
+  try {
+    didDelete = Boolean(syncWindow.deletePersonalTimelineDetailEntry(entry.dateKey, entry.name, entry.entryIndex));
+    if (didDelete && typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+      await syncWindow.flushPendingSharedStateWritesWithRetry({
+        retries: 3,
+        delayMs: 700,
+        throwOnError: true,
+        context: {feature: "accumulated-schedule-delete", dateKey: entry.dateKey, name: entry.name},
+      });
+    }
+  } catch (error) {
+    console.error("[accumulated-schedule] delete failed", error);
+    window.alert("누적일정을 삭제하지 못했습니다.");
+    return false;
+  }
+
+  if (!didDelete) {
+    window.alert("누적일정을 삭제하지 못했습니다.");
+    return false;
+  }
+
+  renderPersonalScheduleList();
+  refreshAccumulatedScheduleFlow();
+  requestScheduleBridgeSummary();
+  requestEquipmentBridgeSummary();
+  queueBridgeSummaryBurst(requestScheduleBridgeSummary, [120, 360, 900]);
+  queueBridgeSummaryBurst(requestEquipmentBridgeSummary, [160, 420, 960]);
+  showToast("누적일정 1건이 삭제되었습니다.");
+  return true;
 }
 
 function renderAccumulatedScheduleShellIfActive() {
@@ -16148,6 +16225,26 @@ function initScheduleBridge() {
       }
       event.preventDefault();
       actionButton.click();
+    });
+    accumulatedScheduleList?.addEventListener("click", (event) => {
+      const deleteButton = event.target.closest("[data-accumulated-schedule-delete]");
+      if (!deleteButton || !accumulatedScheduleList.contains(deleteButton)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      void handleAccumulatedScheduleEntryDelete(deleteButton);
+    });
+    accumulatedScheduleList?.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) {
+        return;
+      }
+      const deleteButton = event.target.closest("[data-accumulated-schedule-delete]");
+      if (!deleteButton || !accumulatedScheduleList.contains(deleteButton)) {
+        return;
+      }
+      event.preventDefault();
+      deleteButton.click();
     });
     document.querySelectorAll("[data-personal-schedule-detail-close]").forEach((node) => {
       node.addEventListener("click", closePersonalScheduleDetailModal);
