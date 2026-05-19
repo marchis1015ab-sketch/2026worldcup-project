@@ -10339,16 +10339,16 @@ body.archive-suit-modal-open {
     width: 100%;
     min-width: 0;
     align-items: baseline;
-    gap: 4px;
+    gap: 2px;
   }
 
   body:not(.mobile-section-open) .sidebar-brand-mobile-title-line,
   body:not(.mobile-section-open) .sidebar-brand-mobile-title-line + .sidebar-brand-mobile-title-line {
     min-width: 0;
-    font-size: 18px;
+    font-size: 19px;
     line-height: 1;
     font-weight: 800;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.05em;
     white-space: nowrap;
     word-break: keep-all;
   }
