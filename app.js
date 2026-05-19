@@ -1,4 +1,15 @@
-﻿const navDirectButtons = document.querySelectorAll(".nav-direct");
+﻿if (typeof Element !== "undefined" && typeof Element.prototype.replaceChildren !== "function") {
+  Element.prototype.replaceChildren = function replaceChildrenFallback(...nodes) {
+    while (this.firstChild) {
+      this.removeChild(this.firstChild);
+    }
+    nodes.forEach((node) => {
+      this.appendChild(node instanceof Node ? node : document.createTextNode(String(node)));
+    });
+  };
+}
+
+const navDirectButtons = document.querySelectorAll(".nav-direct");
 const navToggleButtons = document.querySelectorAll(".nav-toggle");
 const navGroups = document.querySelectorAll(".nav-group");
 const navSubItems = document.querySelectorAll(".nav-subitem");
@@ -4106,6 +4117,27 @@ function goToDashboardHome(options = {}) {
   highlightTargets(WC26_MENU_GROUPS.dashboard?.targetSelectors || []);
 }
 
+function getMobileHashTargetId() {
+  const hash = String(window.location.hash || "").trim();
+  if (!hash.startsWith("#mobile-")) {
+    return "";
+  }
+  return decodeURIComponent(hash.slice("#mobile-".length) || "").trim().toLowerCase();
+}
+
+function getDefaultSectionForMobileHashTarget(targetId = "") {
+  const defaultSectionMap = {
+    schedule: "all",
+    "match-schedule": "bracket",
+    "field-ops": "equipment-summary",
+    archive: "document",
+    map: "venue",
+    "broadcast-news": "broadcast",
+    operations: "official-links",
+  };
+  return defaultSectionMap[targetId] || "main";
+}
+
 function restoreDashboardViewOnPlainEntry() {
   const hash = String(window.location.hash || "").trim();
   const hasExplicitMobileSectionHash = hash.startsWith("#mobile-") && hash !== "#mobile-dashboard";
@@ -4113,6 +4145,9 @@ function restoreDashboardViewOnPlainEntry() {
     if (restoreMobileSectionFromHash()) {
       return;
     }
+    return;
+  }
+  if (hasExplicitMobileSectionHash && restoreDesktopSectionFromMobileHash()) {
     return;
   }
 
@@ -4130,19 +4165,10 @@ function restoreMobileSectionFromHash() {
   if (!hash.startsWith("#mobile-") || hash === "#mobile-dashboard") {
     return false;
   }
-  const targetId = decodeURIComponent(hash.slice("#mobile-".length) || "").trim().toLowerCase();
+  const targetId = getMobileHashTargetId();
   const selector = WC26_VIEW_MAP[targetId];
   const nextView = selector ? document.querySelector(selector) : null;
-  const defaultSectionMap = {
-    schedule: "all",
-    "match-schedule": "bracket",
-    "field-ops": "equipment-summary",
-    archive: "document",
-    map: "venue",
-    "broadcast-news": "broadcast",
-    operations: "official-links",
-  };
-  const sectionId = defaultSectionMap[targetId] || "main";
+  const sectionId = getDefaultSectionForMobileHashTarget(targetId);
   if (!nextView) {
     return false;
   }
@@ -4157,6 +4183,25 @@ function restoreMobileSectionFromHash() {
   });
   syncMobileSectionUi(targetId, { skipHistory: true });
   refreshMobileScheduleTimelineIfNeeded(targetId);
+  closeAllGroups();
+  clearNavActive();
+  focusSection(targetId, sectionId);
+  highlightTargets(WC26_MENU_GROUPS[targetId]?.targetSelectors || []);
+  return true;
+}
+
+function restoreDesktopSectionFromMobileHash() {
+  if (isMobileSectionViewport()) {
+    return false;
+  }
+  const targetId = getMobileHashTargetId();
+  if (!targetId || targetId === "dashboard") {
+    return false;
+  }
+  const sectionId = getDefaultSectionForMobileHashTarget(targetId);
+  if (!setView(targetId, { skipHistory: true })) {
+    return false;
+  }
   closeAllGroups();
   clearNavActive();
   focusSection(targetId, sectionId);
@@ -17930,6 +17975,9 @@ window.addEventListener("hashchange", () => {
   if (forceMobileHashViewFallback()) {
     return;
   }
+  if (restoreDesktopSectionFromMobileHash()) {
+    return;
+  }
   if (isMobileSectionViewport() && String(window.location.hash || "").trim() === "#mobile-dashboard") {
     setView("dashboard", { skipHistory: true });
   }
@@ -17938,6 +17986,7 @@ window.addEventListener("hashchange", () => {
 window.addEventListener("load", () => {
   restoreMobileSectionFromHash();
   forceMobileHashViewFallback();
+  restoreDesktopSectionFromMobileHash();
 });
 
 WC26_MOBILE_MEDIA_QUERY?.addEventListener?.("change", () => {
@@ -17967,9 +18016,11 @@ restoreDashboardViewOnPlainEntry();
 syncMobileSectionViewportState();
 restoreMobileSectionFromHash();
 forceMobileHashViewFallback();
+restoreDesktopSectionFromMobileHash();
 window.setTimeout(() => {
   restoreMobileSectionFromHash();
   forceMobileHashViewFallback();
+  restoreDesktopSectionFromMobileHash();
 }, 0);
 
 
