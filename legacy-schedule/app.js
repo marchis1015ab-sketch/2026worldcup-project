@@ -2391,6 +2391,72 @@ function createDocumentStoragePath(file={}){
 function getDocumentStorageSupabaseUrl(){
   return String(SHARED_STATE_SYNC_SUPABASE_URL||window.APP_CONFIG?.supabaseUrl||'').trim();
 }
+function getSupabaseCompatibilityStorage(){
+  if(typeof window==='undefined'||!window.localStorage) return null;
+  try{
+    const probe='__wc26_supabase_compat_probe__';
+    window.localStorage.setItem(probe, '1');
+    window.localStorage.removeItem(probe);
+    return window.localStorage;
+  }catch(error){
+    return null;
+  }
+}
+function readSupabaseCompatibilityMode(storageKey='', fallback=''){
+  const storage=getSupabaseCompatibilityStorage();
+  if(!storage) return fallback;
+  try{
+    return String(storage.getItem(storageKey)||'').trim()||fallback;
+  }catch(error){
+    return fallback;
+  }
+}
+function writeSupabaseCompatibilityMode(storageKey='', value=''){
+  const storage=getSupabaseCompatibilityStorage();
+  if(!storage||!storageKey) return;
+  const normalized=String(value||'').trim();
+  try{
+    if(normalized){
+      storage.setItem(storageKey, normalized);
+    }else{
+      storage.removeItem(storageKey);
+    }
+  }catch(error){}
+}
+function getDocumentsTableSchemaMode(){
+  if(!documentsTableSchemaMode){
+    documentsTableSchemaMode=readSupabaseCompatibilityMode(DOCUMENTS_TABLE_SCHEMA_MODE_STORAGE_KEY, 'missing');
+  }
+  return documentsTableSchemaMode;
+}
+function setDocumentsTableSchemaMode(mode='unknown'){
+  documentsTableSchemaMode=String(mode||'unknown').trim()||'unknown';
+  writeSupabaseCompatibilityMode(DOCUMENTS_TABLE_SCHEMA_MODE_STORAGE_KEY, documentsTableSchemaMode);
+}
+function getFileStorageTableSchemaMode(){
+  if(!fileStorageTableSchemaMode){
+    fileStorageTableSchemaMode=readSupabaseCompatibilityMode(FILE_STORAGE_TABLE_SCHEMA_MODE_STORAGE_KEY, 'legacy');
+  }
+  return fileStorageTableSchemaMode;
+}
+function setFileStorageTableSchemaMode(mode='enhanced'){
+  fileStorageTableSchemaMode=String(mode||'enhanced').trim()||'enhanced';
+  writeSupabaseCompatibilityMode(FILE_STORAGE_TABLE_SCHEMA_MODE_STORAGE_KEY, fileStorageTableSchemaMode);
+}
+function isSupabaseMissingTableError(error){
+  const code=String(error?.code||'').trim().toUpperCase();
+  const message=String(error?.message||'').trim();
+  return code==='42P01'
+    || code==='PGRST205'
+    || /could not find the table/i.test(message)
+    || /schema cache/i.test(message);
+}
+function isSupabaseMissingColumnError(error, tableName=''){
+  const code=String(error?.code||'').trim().toUpperCase();
+  const message=String(error?.message||'').trim();
+  const normalizedTableName=String(tableName||'').trim();
+  return code==='42703' && (!normalizedTableName || message.includes(`${normalizedTableName}.`));
+}
 function logDocumentStorageError(error, context={}){
   const source=error&&typeof error==='object' ? error : {};
   console.error('[document-storage] failed', {
@@ -2569,6 +2635,22 @@ function clearEquipmentCarnetFetchCache(){
   equipmentCarnetFetchCache=null;
   equipmentCarnetFetchPromise=null;
 }
+async function fetchEquipmentCarnetEntriesFromStorageFallback(client, reason='fallback'){
+  try{
+    const fallbackEntries=await fetchEquipmentCarnetEntriesFromStorageList(client);
+    equipmentCarnetFetchCache={fetchedAt:Date.now(), entries:sanitizeEquipmentCarnetEntries(fallbackEntries)};
+    if(reason){
+      legacyDebugLog('[document-storage] fallback source', {
+        reason,
+        itemCount:equipmentCarnetFetchCache.entries.length
+      });
+    }
+    return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
+  }catch(listError){
+    console.warn('[document-storage] storage list fallback failed.', listError);
+    return null;
+  }
+}
 function isDocumentStorageDeletedLikeFlag(value){
   if(value===true) return true;
   const text=String(value??'').trim().toLowerCase();
@@ -2686,22 +2768,22 @@ async function fetchEquipmentCarnetEntriesFromSupabase(){
   }
   if(equipmentCarnetFetchPromise) return equipmentCarnetFetchPromise;
   equipmentCarnetFetchPromise=(async ()=>{
+  if(getDocumentsTableSchemaMode()==='missing'){
+    return fetchEquipmentCarnetEntriesFromStorageFallback(client, 'documents-table-missing-cache');
+  }
   const {data, error}=await client
     .from(DOCUMENTS_TABLE)
     .select(DOCUMENTS_TABLE_SELECT_COLUMNS)
     .order('uploaded_at', {ascending:false})
     .limit(200);
   if(error){
-    console.info('[document-storage] documents table load failed; falling back to storage list.', error);
-    try{
-      const fallbackEntries=await fetchEquipmentCarnetEntriesFromStorageList(client);
-      equipmentCarnetFetchCache={fetchedAt:Date.now(), entries:sanitizeEquipmentCarnetEntries(fallbackEntries)};
-      return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
-    }catch(listError){
-      console.warn('[document-storage] storage list fallback failed.', listError);
-      return null;
+    if(isSupabaseMissingTableError(error)){
+      setDocumentsTableSchemaMode('missing');
     }
+    console.info('[document-storage] documents table load failed; falling back to storage list.', error);
+    return fetchEquipmentCarnetEntriesFromStorageFallback(client, 'documents-table-query-error');
   }
+  setDocumentsTableSchemaMode('available');
   equipmentCarnetFetchCache={fetchedAt:Date.now(), entries:sanitizeEquipmentCarnetEntries(data||[])};
   return equipmentCarnetFetchCache.entries.map(entry=>({...entry}));
   })().finally(()=>{
@@ -2813,10 +2895,16 @@ async function uploadDocumentFile(file, memo=''){
     .single();
   if(insertError){
     logDocumentStorageError(insertError, {storagePath});
-    if(insertError.code!=='42P01'){
+    const isMissingTable=isSupabaseMissingTableError(insertError);
+    if(isMissingTable){
+      setDocumentsTableSchemaMode('missing');
+    }
+    if(!isMissingTable){
       throw insertError;
     }
     console.warn('[document-storage] documents table is missing; using storage list/local cache fallback.');
+  }else{
+    setDocumentsTableSchemaMode('available');
   }
   legacyDebugLog('[document-storage] upload success', {
     bucketName:DOCUMENT_STORAGE_BUCKET,
@@ -2842,8 +2930,15 @@ async function removeEquipmentCarnetDocuments(entries=[]){
   }
   if(ids.length){
     const {error:deleteError}=await client.from(DOCUMENTS_TABLE).delete().in('id', ids);
-    if(deleteError&&deleteError.code!=='42P01') throw deleteError;
-    if(deleteError) console.warn('[document-storage] documents table delete skipped.', deleteError);
+    if(deleteError&&!isSupabaseMissingTableError(deleteError)) throw deleteError;
+    if(deleteError){
+      if(isSupabaseMissingTableError(deleteError)){
+        setDocumentsTableSchemaMode('missing');
+      }
+      console.warn('[document-storage] documents table delete skipped.', deleteError);
+    }else{
+      setDocumentsTableSchemaMode('available');
+    }
   }
 }
 async function deleteSelectedDocuments(){
@@ -3460,6 +3555,32 @@ function clearEquipmentFileStorageFetchCache(){
   equipmentFileStorageFetchCache=null;
   equipmentFileStorageFetchPromise=null;
 }
+async function fetchEquipmentFileStorageEntriesFromStorageFallback(client, reason='fallback'){
+  try{
+    const fallbackEntries=await fetchEquipmentFileStorageEntriesFromStorageList(client);
+    equipmentFileStorageFetchCache={fetchedAt:Date.now(), entries:sortEquipmentFileStorageEntries(fallbackEntries)};
+    if(reason){
+      legacyDebugLog('[file-storage] fallback source', {
+        reason,
+        itemCount:equipmentFileStorageFetchCache.entries.length
+      });
+    }
+    return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
+  }catch(listError){
+    console.warn('[file-storage] storage list fallback failed.', listError);
+    return null;
+  }
+}
+async function fetchEquipmentFileStorageTableRows(client, schemaMode='enhanced'){
+  const selectColumns=schemaMode==='legacy'
+    ? FILE_STORAGE_TABLE_LEGACY_SELECT_COLUMNS
+    : FILE_STORAGE_TABLE_SELECT_COLUMNS;
+  return client
+    .from(FILE_STORAGE_TABLE)
+    .select(selectColumns)
+    .order('uploaded_at', {ascending:false})
+    .limit(200);
+}
 function createFileStoragePath(file={}){
   const originalName=file?.name||'file';
   const ext=String(originalName).includes('.')
@@ -3524,22 +3645,25 @@ async function fetchEquipmentFileStorageEntriesFromSupabase(){
   }
   if(equipmentFileStorageFetchPromise) return equipmentFileStorageFetchPromise;
   equipmentFileStorageFetchPromise=(async ()=>{
-  const {data, error}=await client
-    .from(FILE_STORAGE_TABLE)
-    .select(FILE_STORAGE_TABLE_SELECT_COLUMNS)
-    .order('uploaded_at', {ascending:false})
-    .limit(200);
-  if(error){
-    console.info('[file-storage] table load failed; falling back to storage list.', error);
-    try{
-      const fallbackEntries=await fetchEquipmentFileStorageEntriesFromStorageList(client);
-      equipmentFileStorageFetchCache={fetchedAt:Date.now(), entries:sortEquipmentFileStorageEntries(fallbackEntries)};
-      return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
-    }catch(listError){
-      console.warn('[file-storage] storage list fallback failed.', listError);
-      return null;
-    }
+  const preferredMode=getFileStorageTableSchemaMode();
+  if(preferredMode==='missing'){
+    return fetchEquipmentFileStorageEntriesFromStorageFallback(client, 'file-storage-table-missing-cache');
   }
+  let activeMode=preferredMode==='legacy' ? 'legacy' : 'enhanced';
+  let {data, error}=await fetchEquipmentFileStorageTableRows(client, activeMode);
+  if(error&&activeMode==='enhanced'&&isSupabaseMissingColumnError(error, FILE_STORAGE_TABLE)){
+    setFileStorageTableSchemaMode('legacy');
+    activeMode='legacy';
+    ({data, error}=await fetchEquipmentFileStorageTableRows(client, activeMode));
+  }
+  if(error){
+    if(isSupabaseMissingTableError(error)){
+      setFileStorageTableSchemaMode('missing');
+    }
+    console.info('[file-storage] table load failed; falling back to storage list.', error);
+    return fetchEquipmentFileStorageEntriesFromStorageFallback(client, 'file-storage-table-query-error');
+  }
+  setFileStorageTableSchemaMode(activeMode);
   equipmentFileStorageFetchCache={fetchedAt:Date.now(), entries:sortEquipmentFileStorageEntries((data||[]).map(normalizeEquipmentFileStorageEntry).filter(Boolean))};
   return equipmentFileStorageFetchCache.entries.map(entry=>({...entry}));
   })().finally(()=>{
@@ -3624,8 +3748,15 @@ async function uploadFileStorageItem(file, title=''){
     .single();
   if(insertError){
     logFileStorageError(insertError, {storagePath});
-    if(insertError.code!=='42P01') throw insertError;
-    console.warn('[file-storage] file_storage_items table is missing; using storage list/local cache fallback.');
+    const isMissingTable=isSupabaseMissingTableError(insertError);
+    if(isMissingTable){
+      setFileStorageTableSchemaMode('missing');
+      console.warn('[file-storage] file_storage_items table is missing; using storage list/local cache fallback.');
+    }else{
+      throw insertError;
+    }
+  }else{
+    setFileStorageTableSchemaMode(getFileStorageTableSchemaMode()==='enhanced' ? 'enhanced' : 'legacy');
   }
   legacyDebugLog('[file-storage] upload success', {
     bucketName:FILE_STORAGE_BUCKET,
@@ -3653,8 +3784,15 @@ async function removeEquipmentFileStorageFiles(entries=[]){
   }
   if(ids.length){
     const {error:deleteError}=await client.from(FILE_STORAGE_TABLE).delete().in('id', ids);
-    if(deleteError&&deleteError.code!=='42P01') throw deleteError;
-    if(deleteError) console.warn('[file-storage] table delete skipped.', deleteError);
+    if(deleteError&&!isSupabaseMissingTableError(deleteError)) throw deleteError;
+    if(deleteError){
+      if(isSupabaseMissingTableError(deleteError)){
+        setFileStorageTableSchemaMode('missing');
+      }
+      console.warn('[file-storage] table delete skipped.', deleteError);
+    }else{
+      setFileStorageTableSchemaMode(getFileStorageTableSchemaMode()==='enhanced' ? 'enhanced' : 'legacy');
+    }
   }
 }
 async function deleteSelectedFileStorageItems(){
@@ -8018,7 +8156,10 @@ const SHARED_STATE_INITIAL_FETCH_KEYS = SHARED_STATE_SYNC_KEYS.filter(key=>!SHAR
 const SHARED_STATE_INITIAL_FETCH_KEY_SET = new Set(SHARED_STATE_INITIAL_FETCH_KEYS);
 const SCHEDULES_TABLE_SELECT_COLUMNS = 'id,title,assignee,date,start_date,end_date,time,start_time,end_time,city,location,tvu,memo,created_at';
 const DOCUMENTS_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,file_size,storage_path,public_url,uploaded_at,memo,uploader,created_at,preview_data,original_data,deleted,removed,hidden,is_deleted,deleted_at,removed_at,hidden_at';
+const FILE_STORAGE_TABLE_LEGACY_SELECT_COLUMNS = 'id,file_name,file_type,file_size,storage_path,public_url,uploaded_at,uploader';
 const FILE_STORAGE_TABLE_SELECT_COLUMNS = 'id,title,file_name,file_type,mime_type,file_size,storage_path,public_url,uploaded_at,uploader,created_at,preview_data,original_data';
+const DOCUMENTS_TABLE_SCHEMA_MODE_STORAGE_KEY = '__wc26_documents_table_schema_mode_v1__';
+const FILE_STORAGE_TABLE_SCHEMA_MODE_STORAGE_KEY = '__wc26_file_storage_table_schema_mode_v1__';
 let sharedStateSyncClient = null;
 let sharedStateSyncChannel = null;
 let sharedStateRealtimeFetchTimerId = null;
@@ -8207,7 +8348,9 @@ let sharedStateSyncInitStarted = false;
 let hasInitializedNewsProgrammingPersistence = false;
 let schedulesLoadPromise = null;
 let schedulesLoadedRangeKey = '';
-let schedulesSchemaMode = 'enhanced';
+let schedulesSchemaMode = 'legacy';
+let documentsTableSchemaMode = '';
+let fileStorageTableSchemaMode = '';
 const sharedStateValueCache = new Map();
 const sharedStateValueFetchPromises = new Map();
 const SHARED_STATE_VALUE_CACHE_TTL_MS = 15000;
@@ -9283,7 +9426,7 @@ async function fetchSchedulesWithPreferredSchema(supabaseClient, requestedDateKe
     const enhancedResult=await supabaseClient
       .from(SCHEDULES_TABLE)
       .select(SCHEDULES_TABLE_SELECT_COLUMNS)
-      .or(`(${buildScheduleRangeFilter(requestedDateKey, preloadDays)})`)
+      .or(buildScheduleRangeFilter(requestedDateKey, preloadDays))
       .order('created_at', { ascending: false })
       .limit(200);
     if(!enhancedResult.error){
