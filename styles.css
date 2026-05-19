@@ -10305,7 +10305,7 @@ body.archive-suit-modal-open {
     grid-template-columns: clamp(58px, 17.2vw, 66px) minmax(0, 1fr);
     align-items: stretch;
     gap: 8px;
-    min-height: clamp(58px, 17.2vw, 66px);
+    min-height: 70px;
     padding: 0 10px 0 0;
   }
 
