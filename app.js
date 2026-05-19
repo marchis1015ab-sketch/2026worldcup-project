@@ -4962,6 +4962,15 @@ function updateTemporaryGalleryGroupSelection(input) {
   syncTemporaryGalleryGroupToolSelectionCount();
 }
 
+function collectTemporaryGalleryGroupSelectedKeysFromDom() {
+  document.querySelectorAll("[data-temporary-gallery-group-select]:checked").forEach((input) => {
+    decodeTemporaryGalleryGroupItemKeys(input.dataset.temporaryGalleryGroupItemKeys || "").forEach((key) => {
+      temporaryGalleryGroupToolSelectedKeys.add(key);
+    });
+  });
+  return [...temporaryGalleryGroupToolSelectedKeys].filter(Boolean);
+}
+
 function handleTemporaryGalleryGroupClear() {
   temporaryGalleryGroupToolSelectedKeys.clear();
   document.querySelectorAll("[data-temporary-gallery-group-select]").forEach((input) => {
@@ -4971,7 +4980,7 @@ function handleTemporaryGalleryGroupClear() {
 }
 
 function handleTemporaryGalleryGroupSave() {
-  const selectedKeys = [...temporaryGalleryGroupToolSelectedKeys].filter(Boolean);
+  const selectedKeys = collectTemporaryGalleryGroupSelectedKeysFromDom();
   if (selectedKeys.length < 2) {
     window.alert("묶을 사진을 2개 이상 선택해주세요.");
     return;
@@ -16397,6 +16406,15 @@ function initStorageBridge() {
       setArchiveSuitItems(getArchiveSuitItems().filter((item) => !ids.includes(item.id)));
       setArchiveSuitMode("view", storageBridgeSection);
     }
+  });
+
+  storageBridgeFrameShell?.addEventListener("change", (event) => {
+    const temporaryGroupSelect = event.target?.closest?.("[data-temporary-gallery-group-select]");
+    if (!temporaryGroupSelect) {
+      return;
+    }
+    event.stopPropagation();
+    updateTemporaryGalleryGroupSelection(temporaryGroupSelect);
   });
 
   storageBridgeFrameShell?.addEventListener("submit", (event) => {
