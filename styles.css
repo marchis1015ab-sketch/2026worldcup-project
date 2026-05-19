@@ -10453,6 +10453,7 @@ body.archive-suit-modal-open {
     min-height: 0;
     height: auto;
     padding: 8px;
+    overflow-x: clip;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -10463,6 +10464,7 @@ body.archive-suit-modal-open {
     border: 1px solid rgba(180, 255, 246, 0.18);
     border-bottom: 0;
     border-radius: 24px 24px 0 0;
+    overflow: hidden;
     background:
       linear-gradient(180deg, rgba(8, 22, 35, 0.76), rgba(4, 13, 24, 0.6)),
       radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.08), transparent 38%),
@@ -10485,7 +10487,7 @@ body.archive-suit-modal-open {
     min-height: 0;
     margin-top: -1px;
     padding: 0 8px 8px;
-    overflow: visible;
+    overflow: hidden;
     border: 1px solid rgba(180, 255, 246, 0.18);
     border-top: 0;
     border-radius: 0 0 24px 24px;
@@ -10517,6 +10519,8 @@ body.archive-suit-modal-open {
     height: 58px;
     margin-inline: auto;
     grid-template-columns: minmax(0, 1fr);
+    overflow: hidden;
+    contain: paint;
     border-color: rgba(180, 255, 246, 0.3);
     border-radius: 18px;
     background:
@@ -10534,6 +10538,8 @@ body.archive-suit-modal-open {
 
   body:not(.mobile-section-open) .ticker__track {
     min-width: 0;
+    overflow: hidden;
+    contain: paint;
     padding-inline: 2px;
   }
 
