@@ -1332,8 +1332,10 @@ const WC26_PERSONAL_SCHEDULE_FALLBACK_OPTIONS = {
   업무내용: ["대표팀 취재", "남아공 취재", "멕시코 취재", "체코 취재", "일본 취재", "외곽 취재", "라이브 연결", "밀착 카메라", "인터뷰"],
 };
 const WC26_LEGACY_TIMELINE_STORAGE_KEYS = {
+  timeline: "worldcup-guide-timeline-assignments-v1",
   shared: "worldcup-guide-personal-timeline-shared-v1",
   details: "worldcup-guide-personal-timeline-details-v1",
+  deleted: "worldcup-guide-personal-timeline-details-deleted-v1",
 };
 const WC26_SHARED_SCHEDULE_BACKUP_PREFIX = "worldcup-guide-personal-timeline-shared-v1_backup_before_dedupe_";
 const WC26_SHARED_SCHEDULE_SNAPSHOT_KEY = "wc26_new_suit_shared_schedule_snapshot_v1";
@@ -14272,11 +14274,40 @@ function rerenderActiveScheduleLocalShell() {
 function shouldRefreshScheduleLocalShell(changedKeys = []) {
   const changed = new Set((Array.isArray(changedKeys) ? changedKeys : []).map((key) => String(key || "").trim()));
   return (
+    changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.timeline) ||
     changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) ||
     changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.details) ||
-    changed.has("worldcup-guide-personal-timeline-details-deleted-v1") ||
-    changed.has("worldcup-guide-timeline-assignments-v1")
+    changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted)
   );
+}
+
+function getScheduleLocalStateFetchKeys(sectionId = scheduleBridgeSection) {
+  if (sectionId === "shared") {
+    return [WC26_LEGACY_TIMELINE_STORAGE_KEYS.timeline, WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared];
+  }
+  if (sectionId === "personal" || sectionId === "accumulated") {
+    return [
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.timeline,
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
+    ];
+  }
+  return [];
+}
+
+function requestScheduleLocalStateSync(sectionId = scheduleBridgeSection) {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  const fetchKeys = getScheduleLocalStateFetchKeys(sectionId);
+  if (!fetchKeys.length || typeof syncWindow?.fetchSharedStateSnapshot !== "function") {
+    return;
+  }
+  Promise.resolve(syncWindow.fetchSharedStateSnapshot(fetchKeys, { markInitial: false }))
+    .then(() => {
+      rerenderActiveScheduleLocalShell();
+      refreshTimelineGanttFromLegacy();
+    })
+    .catch(() => undefined);
 }
 
 function getAccumulatedPersonalScheduleEntries() {
@@ -14574,17 +14605,20 @@ function setScheduleBridgeSection(sectionId = "all") {
     window.setTimeout(() => {
       ensureScheduleSummaryBridgeLoaded();
     }, 0);
+    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("shared"), [120, 420, 1100, 2200]);
     return;
   }
   if (scheduleBridgeSection === "personal") {
     ensureScheduleSummaryBridgeLoaded();
     renderPersonalScheduleShell();
+    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("personal"), [120, 420, 1100, 2200]);
     return;
   }
   if (scheduleBridgeSection === "accumulated") {
     ensureScheduleSummaryBridgeLoaded();
     renderAccumulatedScheduleShell();
     refreshAccumulatedScheduleFlow();
+    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("accumulated"), [120, 420, 1100, 2200]);
     return;
   }
   postScheduleBridgeNavigation(scheduleBridgeSection);
