@@ -14120,6 +14120,14 @@ async function handlePersonalScheduleRowDelete(row) {
       entry.name,
       Number.isInteger(rowEntryIndex) ? rowEntryIndex : entry.entryIndex,
     ));
+    if (didDelete && typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+      await syncWindow.flushPendingSharedStateWritesWithRetry({
+        retries: 3,
+        delayMs: 700,
+        throwOnError: true,
+        context: {feature: "personal-schedule-delete", dateKey, name},
+      });
+    }
   } catch (_error) {
     didDelete = false;
   }
