@@ -1195,6 +1195,8 @@ let archiveSuitMode = "view";
 let archiveSuitEditingId = "";
 let archiveSuitSelectedId = "";
 let archiveSuitGalleryModalState = { groupKey: "", index: 0 };
+let archiveSuitGalleryGroupsCacheKey = "";
+let archiveSuitGalleryGroupsCache = [];
 let archiveSuitGalleryDiagnosticsSignature = "";
 let archiveSuitLegacyIndexedDbItems = [];
 let archiveSuitLegacyIndexedDbRawCount = 0;
@@ -4376,12 +4378,31 @@ function normalizeArchiveSuitLegacyGalleryItem(item = {}, fallbackIndex = 0, par
   const uploadGroupId = String(
     item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || parent.galleryBatchId || parent.uploadGroupId || parent.groupId || parent.batchId || "",
   ).trim();
+  const sourceId = String(parent.sourceId || parent.id || item.sourceId || "").trim();
+  const scheduleId = String(parent.scheduleId || item.scheduleId || "").trim();
+  const timelineId = String(parent.timelineId || item.timelineId || "").trim();
+  const entryId = String(parent.entryId || item.entryId || "").trim();
+  const relatedKey = String(parent.relatedKey || item.relatedKey || "").trim();
+  const title = String(item.title || parent.title || "").trim();
+  const note = String(item.note || parent.note || "").trim();
+  const description = String(item.description || parent.description || "").trim();
+  const caption = String(item.caption || parent.caption || "").trim();
   return {
     id: legacyId,
     legacyId: rawId,
     tab: "gallery",
     date: String(item.capturedDate || item.shootDate || item.date || parent.capturedDate || parent.shootDate || parent.date || "").trim(),
+    dayKey: String(item.dayKey || parent.dayKey || "").trim(),
     memo: String(item.memo || parent.memo || parent.title || "").trim(),
+    ...(sourceId ? { sourceId } : {}),
+    ...(scheduleId ? { scheduleId } : {}),
+    ...(timelineId ? { timelineId } : {}),
+    ...(entryId ? { entryId } : {}),
+    ...(relatedKey ? { relatedKey } : {}),
+    ...(title ? { title } : {}),
+    ...(note ? { note } : {}),
+    ...(description ? { description } : {}),
+    ...(caption ? { caption } : {}),
     fileName: fileName || "gallery",
     fileType: mimeType || (isVideo ? "video/*" : "image/*"),
     fileSize: Number(item.fileSize || parent.fileSize || 0),
@@ -4600,12 +4621,95 @@ function renderArchiveSuitPreviewPanel(item = null) {
   </aside>`;
 }
 
+function normalizeArchiveSuitGalleryGroupToken(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .slice(0, 160);
+}
+
+function getArchiveSuitGalleryDateKey(item = {}) {
+  const directDate = String(item.dayKey || item.date || item.capturedDate || item.shootDate || "").trim();
+  if (directDate) return directDate.slice(0, 10);
+  const createdAt = String(item.createdAt || item.savedAt || item.updatedAt || "").trim();
+  return /^\d{4}-\d{2}-\d{2}/.test(createdAt) ? createdAt.slice(0, 10) : "";
+}
+
+function getArchiveSuitGalleryTextKey(item = {}) {
+  return normalizeArchiveSuitGalleryGroupToken(
+    item.memo || item.note || item.description || item.title || item.caption || item.taskName || item.workName || "",
+  );
+}
+
+function getArchiveSuitGalleryRelatedKey(item = {}) {
+  const relatedFields = ["sourceId", "scheduleId", "timelineId", "entryId", "relatedKey"];
+  for (const field of relatedFields) {
+    const value = normalizeArchiveSuitGalleryGroupToken(item[field]);
+    if (value) {
+      return `${field}:${value}`;
+    }
+  }
+  return "";
+}
+
+function getArchiveSuitGalleryStoragePrefix(item = {}) {
+  const rawPath = String(item.storagePath || item.path || item.publicUrl || item.fileData || "").trim();
+  if (!rawPath || rawPath.startsWith("data:")) return "";
+  let normalizedPath = rawPath;
+  try {
+    normalizedPath = new URL(rawPath).pathname;
+  } catch (_error) {
+    normalizedPath = rawPath;
+  }
+  const segments = normalizedPath
+    .replace(/\\/g, "/")
+    .split("?")[0]
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length < 3) return "";
+  segments.pop();
+  const prefix = segments.join("/");
+  const genericPrefixes = new Set(["gallery", "images", "uploads", WC26_TIMELINE_GALLERY_STORAGE_BUCKET]);
+  return segments.length > 1 && !genericPrefixes.has(prefix.toLowerCase()) ? normalizeArchiveSuitGalleryGroupToken(prefix) : "";
+}
+
+function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
+  return items
+    .map((item, index) =>
+      [
+        item.id || index,
+        item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "",
+        getArchiveSuitGalleryRelatedKey(item),
+        getArchiveSuitGalleryDateKey(item),
+        getArchiveSuitGalleryTextKey(item),
+        getArchiveSuitGalleryStoragePrefix(item),
+        item.fileName || "",
+        item.storagePath || item.publicUrl || "",
+      ].join("~"),
+    )
+    .join("|");
+}
+
 function getArchiveSuitGalleryGroupKey(item = {}, index = 0) {
-  const key = String(item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "").trim();
-  return key || `single-${item.id || index}`;
+  const explicitKey = normalizeArchiveSuitGalleryGroupToken(item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "");
+  if (explicitKey) return `batch:${explicitKey}`;
+  const relatedKey = getArchiveSuitGalleryRelatedKey(item);
+  if (relatedKey) return `related:${relatedKey}`;
+  const dateKey = getArchiveSuitGalleryDateKey(item);
+  const textKey = getArchiveSuitGalleryTextKey(item);
+  if (dateKey && textKey) return `date-text:${dateKey}:${textKey}`;
+  const storagePrefix = getArchiveSuitGalleryStoragePrefix(item);
+  if (dateKey && storagePrefix) return `date-path:${dateKey}:${storagePrefix}`;
+  return `single-${item.id || index}`;
 }
 
 function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery")) {
+  const cacheKey = buildArchiveSuitGalleryGroupsCacheKey(items);
+  if (cacheKey && cacheKey === archiveSuitGalleryGroupsCacheKey) {
+    return archiveSuitGalleryGroupsCache;
+  }
   const groupMap = new Map();
   items.forEach((item, index) => {
     const groupKey = getArchiveSuitGalleryGroupKey(item, index);
@@ -4624,7 +4728,10 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
     if (!group.date && (item.date || item.createdAt)) group.date = item.date || item.createdAt;
     if (!group.title && (item.memo || item.fileName)) group.title = item.memo || item.fileName;
   });
-  return [...groupMap.values()];
+  const groups = [...groupMap.values()];
+  archiveSuitGalleryGroupsCacheKey = cacheKey;
+  archiveSuitGalleryGroupsCache = groups;
+  return groups;
 }
 
 function renderArchiveSuitGalleryCard(group = {}, options = {}) {
