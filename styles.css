@@ -10325,7 +10325,7 @@ body.archive-suit-modal-open {
     flex-direction: column;
     justify-content: center;
     gap: 6px;
-    padding-block: 7px;
+    padding-block: 5px;
   }
 
   body:not(.mobile-section-open) .sidebar-brand-mobile-heading {
@@ -10351,6 +10351,7 @@ body.archive-suit-modal-open {
     display: flex;
     width: 100%;
     min-width: 0;
+    min-height: 18px;
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
@@ -10373,7 +10374,7 @@ body.archive-suit-modal-open {
     gap: 3px;
     min-width: 0;
     font-size: clamp(9.4px, 2.72vw, 10.6px);
-    line-height: 1;
+    line-height: 1.15;
     letter-spacing: -0.01em;
   }
 
@@ -10381,7 +10382,7 @@ body.archive-suit-modal-open {
   body:not(.mobile-section-open) .sidebar-brand-mobile-time-value {
     min-width: 0;
     font-size: inherit;
-    line-height: 1;
+    line-height: 1.15;
   }
 
   body:not(.mobile-section-open) .sidebar-brand-mobile-dday {
@@ -10394,7 +10395,7 @@ body.archive-suit-modal-open {
     background: rgba(103, 255, 216, 0.08);
     font-family: var(--body-font);
     font-size: clamp(9.8px, 2.9vw, 11px);
-    line-height: 1;
+    line-height: 1.15;
     font-weight: 900;
     letter-spacing: -0.01em;
     transform: none;
