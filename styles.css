@@ -10527,52 +10527,54 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   box-shadow: none !important;
 }
 
-/* Detail-page layer step 3: show only the active detail canvas over the background. */
-body:has(.dashboard-view.detail-shell:not([hidden])) .shell-frame {
-  opacity: 1;
-  pointer-events: none;
-}
+@media (max-width: 430px) {
+  /* Detail-page layer step 3: show only the active detail canvas over the background. */
+  body:has(.dashboard-view.detail-shell:not([hidden])) .shell-frame {
+    opacity: 1;
+    pointer-events: none;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar,
-body:has(.dashboard-view.detail-shell:not([hidden])) .mobile-section-back,
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view[hidden],
-body:has(.dashboard-view.detail-shell:not([hidden])) #view-dashboard {
-  display: none !important;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar,
+  body:has(.dashboard-view.detail-shell:not([hidden])) .mobile-section-back,
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view[hidden],
+  body:has(.dashboard-view.detail-shell:not([hidden])) #view-dashboard {
+    display: none !important;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .topbar {
-  display: none !important;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .topbar {
+    display: none !important;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
-  display: block !important;
-  visibility: visible;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
+    display: block !important;
+    visibility: visible;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard {
-  visibility: visible;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard {
+    visibility: visible;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar > * {
-  visibility: hidden;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar > * {
+    visibility: hidden;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar .sidebar-brand {
-  pointer-events: auto;
-  visibility: visible;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .sidebar .sidebar-brand {
+    pointer-events: auto;
+    visibility: visible;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard > * {
-  visibility: hidden;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard > * {
+    visibility: hidden;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]),
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel {
-  visibility: visible;
-}
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]),
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel {
+    visibility: visible;
+  }
 
-body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel > * {
-  visibility: hidden;
+  body:has(.dashboard-view.detail-shell:not([hidden])) .dashboard-view.detail-shell:not([hidden]) .detail-panel > * {
+    visibility: hidden;
+  }
 }
 
 @media (max-width: 430px) {
