@@ -1025,6 +1025,7 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
 `;
 const ARCHIVE_SUIT_STORAGE_KEY = "wc26-archive-suit-items-v1";
 const ARCHIVE_SUIT_DELETED_STORAGE_KEY = "wc26-archive-suit-deleted-v1";
+const ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY = "worldcup-guide-gallery-manual-groups-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_KEYS = ["galleryData", "galleryItems", "worldcup-gallery-items-v1", "worldcup_timeline_gallery_v1"];
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY = "worldcup-guide-gallery-deleted-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_WINDOW_KEY = "__worldcupGuideTimelineGallery__";
@@ -1197,6 +1198,7 @@ let archiveSuitSelectedId = "";
 let archiveSuitGalleryModalState = { groupKey: "", index: 0 };
 let archiveSuitGalleryGroupsCacheKey = "";
 let archiveSuitGalleryGroupsCache = [];
+const temporaryGalleryGroupToolSelectedKeys = new Set();
 let archiveSuitGalleryDiagnosticsSignature = "";
 let archiveSuitLegacyIndexedDbItems = [];
 let archiveSuitLegacyIndexedDbRawCount = 0;
@@ -4684,7 +4686,110 @@ function getArchiveSuitGalleryStoragePrefix(item = {}) {
   return segments.length > 1 && !genericPrefixes.has(prefix.toLowerCase()) ? normalizeArchiveSuitGalleryGroupToken(prefix) : "";
 }
 
+function isGalleryGroupToolEnabled() {
+  try {
+    return new URLSearchParams(window.location.search).get("galleryGroupTool") === "1";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function normalizeArchiveSuitManualGroupsState(rawState = {}) {
+  const groups = rawState && typeof rawState === "object" && rawState.groups && typeof rawState.groups === "object"
+    ? rawState.groups
+    : {};
+  const itemToGroup =
+    rawState && typeof rawState === "object" && rawState.itemToGroup && typeof rawState.itemToGroup === "object"
+      ? rawState.itemToGroup
+      : {};
+  const normalizedGroups = {};
+  Object.values(groups).forEach((group) => {
+    if (!group || typeof group !== "object") return;
+    const id = String(group.id || "").trim();
+    if (!id) return;
+    const itemKeys = Array.isArray(group.itemKeys)
+      ? [...new Set(group.itemKeys.map((key) => String(key || "").trim()).filter(Boolean))]
+      : [];
+    if (!itemKeys.length) return;
+    normalizedGroups[id] = {
+      id,
+      title: String(group.title || "").trim(),
+      memo: String(group.memo || "").trim(),
+      createdAt: group.createdAt || new Date().toISOString(),
+      updatedAt: group.updatedAt || group.createdAt || new Date().toISOString(),
+      itemKeys,
+    };
+  });
+  const normalizedItemToGroup = {};
+  Object.entries(itemToGroup).forEach(([itemKey, groupId]) => {
+    const normalizedItemKey = String(itemKey || "").trim();
+    const normalizedGroupId = String(groupId || "").trim();
+    if (normalizedItemKey && normalizedGroups[normalizedGroupId]?.itemKeys.includes(normalizedItemKey)) {
+      normalizedItemToGroup[normalizedItemKey] = normalizedGroupId;
+    }
+  });
+  Object.values(normalizedGroups).forEach((group) => {
+    group.itemKeys.forEach((itemKey) => {
+      normalizedItemToGroup[itemKey] = group.id;
+    });
+  });
+  return { groups: normalizedGroups, itemToGroup: normalizedItemToGroup };
+}
+
+function getArchiveSuitManualGroupsState() {
+  try {
+    return normalizeArchiveSuitManualGroupsState(
+      JSON.parse(window.localStorage?.getItem(ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY) || "{}"),
+    );
+  } catch (_error) {
+    return normalizeArchiveSuitManualGroupsState({});
+  }
+}
+
+function setArchiveSuitManualGroupsState(nextState = {}) {
+  const normalizedState = normalizeArchiveSuitManualGroupsState(nextState);
+  try {
+    window.localStorage?.setItem(ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY, JSON.stringify(normalizedState));
+  } catch (_error) {
+    window.alert("수동 묶음 정보를 저장하지 못했습니다. 브라우저 저장 공간을 확인해주세요.");
+  }
+  archiveSuitGalleryGroupsCacheKey = "";
+  archiveSuitGalleryGroupsCache = [];
+  return normalizedState;
+}
+
+function getArchiveSuitManualGroupItemKey(item = {}) {
+  const storagePath = String(item.storagePath || item.path || "").trim();
+  if (storagePath) return `storage:${storagePath}`;
+  const publicUrl = String(item.publicUrl || item.url || item.fileData || "").trim();
+  if (publicUrl && !publicUrl.startsWith("data:")) return `url:${publicUrl}`;
+  const fileName = String(item.fileName || item.name || "").trim();
+  const createdAt = String(item.createdAt || item.uploadedAt || item.date || item.timestamp || "").trim();
+  if (fileName && createdAt) return `file:${fileName}::${createdAt}`;
+  const id = String(item.id || item.legacyId || item.key || "").trim();
+  if (id) return `id:${id}`;
+  return "";
+}
+
+function getArchiveSuitGalleryBatchKey(item = {}) {
+  return normalizeArchiveSuitGalleryGroupToken(item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "");
+}
+
+function getArchiveSuitManualGroupForItem(item = {}, manualState = getArchiveSuitManualGroupsState()) {
+  const itemKey = getArchiveSuitManualGroupItemKey(item);
+  const groupId = itemKey ? manualState.itemToGroup?.[itemKey] : "";
+  return groupId && manualState.groups?.[groupId] ? manualState.groups[groupId] : null;
+}
+
+function getArchiveSuitManualGroupsSignature(manualState = getArchiveSuitManualGroupsState()) {
+  return Object.values(manualState.groups || {})
+    .map((group) => `${group.id}:${group.updatedAt}:${(group.itemKeys || []).join(",")}`)
+    .sort()
+    .join("|");
+}
+
 function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
+  const manualSignature = getArchiveSuitManualGroupsSignature();
   return items
     .map((item, index) =>
       [
@@ -4699,12 +4804,14 @@ function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
         item.storagePath || item.publicUrl || "",
       ].join("~"),
     )
-    .join("|");
+    .join("|") + `::manual:${manualSignature}`;
 }
 
-function getArchiveSuitGalleryGroupKey(item = {}, index = 0) {
-  const explicitKey = normalizeArchiveSuitGalleryGroupToken(item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "");
+function getArchiveSuitGalleryGroupKey(item = {}, index = 0, manualState = getArchiveSuitManualGroupsState()) {
+  const explicitKey = getArchiveSuitGalleryBatchKey(item);
   if (explicitKey) return `batch:${explicitKey}`;
+  const manualGroup = getArchiveSuitManualGroupForItem(item, manualState);
+  if (manualGroup?.id) return `manual:${normalizeArchiveSuitGalleryGroupToken(manualGroup.id)}`;
   const relatedKey = getArchiveSuitGalleryRelatedKey(item);
   if (relatedKey) return `related:${relatedKey}`;
   const dateKey = getArchiveSuitGalleryDateKey(item);
@@ -4720,9 +4827,11 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
   if (cacheKey && cacheKey === archiveSuitGalleryGroupsCacheKey) {
     return archiveSuitGalleryGroupsCache;
   }
+  const manualState = getArchiveSuitManualGroupsState();
   const groupMap = new Map();
   items.forEach((item, index) => {
-    const groupKey = getArchiveSuitGalleryGroupKey(item, index);
+    const groupKey = getArchiveSuitGalleryGroupKey(item, index, manualState);
+    const manualGroup = groupKey.startsWith("manual:") ? getArchiveSuitManualGroupForItem(item, manualState) : null;
     if (!groupMap.has(groupKey)) {
       groupMap.set(groupKey, {
         groupKey,
@@ -4730,8 +4839,9 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
         date: item.date || item.createdAt || "",
         dateKey: getArchiveSuitGalleryDateKey(item),
         sortTime: getArchiveSuitGallerySortTime(item),
-        memo: item.memo || "",
-        title: item.memo || item.fileName || "갤러리 묶음",
+        memo: manualGroup?.memo || item.memo || "",
+        title: manualGroup?.title || item.memo || item.fileName || "갤러리 묶음",
+        manualGroupId: manualGroup?.id || "",
       });
     }
     const group = groupMap.get(groupKey);
@@ -4786,29 +4896,185 @@ function renderArchiveSuitGalleryDateSections(groups = []) {
     .join("");
 }
 
+function getTemporaryGalleryGroupCardItemKeys(group = {}) {
+  return [...new Set((Array.isArray(group.items) ? group.items : []).map(getArchiveSuitManualGroupItemKey).filter(Boolean))];
+}
+
+function getTemporaryGalleryGroupSelectedCount() {
+  return temporaryGalleryGroupToolSelectedKeys.size;
+}
+
+function renderTemporaryGalleryGroupControls() {
+  if (!isGalleryGroupToolEnabled() || storageBridgeSection !== "gallery" || archiveSuitMode !== "view") {
+    return "";
+  }
+  const selectedCount = getTemporaryGalleryGroupSelectedCount();
+  return `<section class="temporary-gallery-group-tool" data-temporary-gallery-group-tool>
+    <div class="temporary-gallery-group-tool__header">
+      <div>
+        <strong>임시 사진 묶기 도구</strong>
+        <p>선택한 갤러리 사진/카드를 별도 manual grouping key에 저장합니다.</p>
+      </div>
+      <span data-temporary-gallery-group-selected-count>${selectedCount}개 선택</span>
+    </div>
+    <div class="temporary-gallery-group-tool__form">
+      <label>
+        <span>묶음 이름</span>
+        <input type="text" data-temporary-gallery-group-title placeholder="묶음 이름 입력">
+      </label>
+      <label>
+        <span>묶음 메모</span>
+        <textarea data-temporary-gallery-group-memo rows="2" placeholder="메모 입력"></textarea>
+      </label>
+      <div class="temporary-gallery-group-tool__actions">
+        <button type="button" class="archive-suit-inline-btn" data-temporary-gallery-group-save>선택 사진 묶기</button>
+        <button type="button" class="archive-suit-inline-btn" data-temporary-gallery-group-clear>선택 해제</button>
+      </div>
+    </div>
+  </section>`;
+}
+
+function syncTemporaryGalleryGroupToolSelectionCount() {
+  const count = getTemporaryGalleryGroupSelectedCount();
+  document.querySelectorAll("[data-temporary-gallery-group-selected-count]").forEach((node) => {
+    node.textContent = `${count}개 선택`;
+  });
+}
+
+function decodeTemporaryGalleryGroupItemKeys(rawValue = "") {
+  try {
+    const parsed = JSON.parse(decodeURIComponent(String(rawValue || "")));
+    return Array.isArray(parsed) ? parsed.map((key) => String(key || "").trim()).filter(Boolean) : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function updateTemporaryGalleryGroupSelection(input) {
+  const keys = decodeTemporaryGalleryGroupItemKeys(input?.dataset?.temporaryGalleryGroupItemKeys || "");
+  keys.forEach((key) => {
+    if (input.checked) {
+      temporaryGalleryGroupToolSelectedKeys.add(key);
+    } else {
+      temporaryGalleryGroupToolSelectedKeys.delete(key);
+    }
+  });
+  syncTemporaryGalleryGroupToolSelectionCount();
+}
+
+function handleTemporaryGalleryGroupClear() {
+  temporaryGalleryGroupToolSelectedKeys.clear();
+  document.querySelectorAll("[data-temporary-gallery-group-select]").forEach((input) => {
+    input.checked = false;
+  });
+  syncTemporaryGalleryGroupToolSelectionCount();
+}
+
+function handleTemporaryGalleryGroupSave() {
+  const selectedKeys = [...temporaryGalleryGroupToolSelectedKeys].filter(Boolean);
+  if (selectedKeys.length < 2) {
+    window.alert("묶을 사진을 2개 이상 선택해주세요.");
+    return;
+  }
+  const tool = document.querySelector("[data-temporary-gallery-group-tool]");
+  const title = String(tool?.querySelector("[data-temporary-gallery-group-title]")?.value || "").trim();
+  const memo = String(tool?.querySelector("[data-temporary-gallery-group-memo]")?.value || "").trim();
+  if (!title) {
+    window.alert("묶음 이름을 입력해주세요.");
+    return;
+  }
+  const now = new Date().toISOString();
+  const groupId = `manual-gallery-group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const state = getArchiveSuitManualGroupsState();
+  Object.values(state.groups).forEach((group) => {
+    group.itemKeys = group.itemKeys.filter((itemKey) => !selectedKeys.includes(itemKey));
+    group.updatedAt = now;
+    if (!group.itemKeys.length) {
+      delete state.groups[group.id];
+    }
+  });
+  selectedKeys.forEach((itemKey) => {
+    delete state.itemToGroup[itemKey];
+  });
+  state.groups[groupId] = {
+    id: groupId,
+    title,
+    memo,
+    createdAt: now,
+    updatedAt: now,
+    itemKeys: selectedKeys,
+  };
+  selectedKeys.forEach((itemKey) => {
+    state.itemToGroup[itemKey] = groupId;
+  });
+  setArchiveSuitManualGroupsState(state);
+  temporaryGalleryGroupToolSelectedKeys.clear();
+  renderArchiveSuitPanels();
+}
+
+function handleTemporaryGalleryGroupRelease(groupId = "") {
+  const targetGroupId = String(groupId || "").trim();
+  if (!targetGroupId) return;
+  if (!window.confirm("이 수동 묶음만 해제할까요? 원본 사진 파일은 삭제되지 않습니다.")) {
+    return;
+  }
+  const state = getArchiveSuitManualGroupsState();
+  const group = state.groups[targetGroupId];
+  if (!group) return;
+  (group.itemKeys || []).forEach((itemKey) => {
+    if (state.itemToGroup[itemKey] === targetGroupId) {
+      delete state.itemToGroup[itemKey];
+    }
+  });
+  delete state.groups[targetGroupId];
+  setArchiveSuitManualGroupsState(state);
+  temporaryGalleryGroupToolSelectedKeys.clear();
+  renderArchiveSuitPanels();
+}
+
+function initTemporaryGalleryGroupTool() {
+  if (!isGalleryGroupToolEnabled()) {
+    temporaryGalleryGroupToolSelectedKeys.clear();
+  }
+}
+
 function renderArchiveSuitGalleryCard(group = {}, options = {}) {
   const items = Array.isArray(group.items) ? group.items : [];
   const firstItem = items[0] || {};
   const id = escapeTimelineHtml(firstItem.id || "");
   const groupKey = escapeTimelineHtml(group.groupKey || "");
-  const fileName = escapeTimelineHtml(firstItem.fileName || group.title || "갤러리 묶음");
+  const fileName = escapeTimelineHtml(group.title || firstItem.fileName || "갤러리 묶음");
   const date = escapeTimelineHtml(group.date || firstItem.date || "");
   const memoLine = escapeTimelineHtml(String(group.memo || firstItem.memo || "").split(/\r?\n/)[0] || "");
   const fileCount = items.length;
   const countText = fileCount > 1 ? `${fileCount}개 파일` : "1개 파일";
   const selected = archiveSuitGalleryModalState.groupKey && group.groupKey === archiveSuitGalleryModalState.groupKey;
+  const toolEnabled = isGalleryGroupToolEnabled() && storageBridgeSection === "gallery" && archiveSuitMode === "view" && !options.editMode && !options.deleteMode;
+  const manualItemKeys = getTemporaryGalleryGroupCardItemKeys(group);
+  const selectChecked = manualItemKeys.length > 0 && manualItemKeys.every((key) => temporaryGalleryGroupToolSelectedKeys.has(key));
+  const selectBox = toolEnabled && manualItemKeys.length
+    ? `<label class="temporary-gallery-group-card-select" onclick="event.stopPropagation()">
+        <input type="checkbox" data-temporary-gallery-group-select data-temporary-gallery-group-item-keys="${escapeTimelineHtml(encodeURIComponent(JSON.stringify(manualItemKeys)))}"${selectChecked ? " checked" : ""}>
+        <span>선택</span>
+      </label>`
+    : "";
+  const releaseButton = toolEnabled && group.manualGroupId
+    ? `<button type="button" class="temporary-gallery-group-release" data-temporary-gallery-group-release="${escapeTimelineHtml(group.manualGroupId)}" onclick="event.stopPropagation()">이 묶음 해제</button>`
+    : "";
   const deleteBox = options.deleteMode
     ? `<label class="archive-suit-select" onclick="event.stopPropagation()"><input type="checkbox" data-archive-delete-item="${id}"><span>선택</span></label>`
     : "";
   const editButton = options.editMode ? `<button type="button" class="archive-suit-inline-btn" data-archive-edit-item="${id}">수정</button>` : "";
   return `<article class="archive-suit-item archive-suit-gallery-card${selected ? " is-selected" : ""}" data-archive-gallery-group="${groupKey}" data-archive-item-id="${id}">
     ${deleteBox}
+    ${selectBox}
     <div class="archive-suit-item-media">${renderArchiveSuitPreview(firstItem)}</div>
     <div class="archive-suit-item-body">
       <div class="archive-suit-item-name">${fileName}</div>
       <div class="archive-suit-item-meta">${[date, countText].filter(Boolean).join(" / ")}</div>
       ${memoLine ? `<div class="archive-suit-item-memo">${memoLine}</div>` : ""}
     </div>
+    ${releaseButton}
     ${editButton}
   </article>`;
 }
@@ -4822,7 +5088,7 @@ function renderArchiveSuitGalleryList(options = {}) {
   if (options.editMode || options.deleteMode) {
     return `<div class="archive-suit-list archive-suit-gallery-grid">${groups.map((group) => renderArchiveSuitGalleryCard(group, options)).join("")}</div>`;
   }
-  return `<div class="archive-suit-gallery-date-sections">${renderArchiveSuitGalleryDateSections(groups)}</div>`;
+  return `${renderTemporaryGalleryGroupControls()}<div class="archive-suit-gallery-date-sections">${renderArchiveSuitGalleryDateSections(groups)}</div>`;
 }
 
 function getArchiveSuitGalleryGroupByKey(groupKey = "") {
@@ -16013,6 +16279,7 @@ function initStorageBridge() {
   if (!storageBridgeButtons.length) {
     return;
   }
+  initTemporaryGalleryGroupTool();
 
   storageBridgeButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -16060,6 +16327,33 @@ function initStorageBridge() {
   });
 
   storageBridgeFrameShell?.addEventListener("click", (event) => {
+    const temporaryGroupSelect = event.target?.closest?.("[data-temporary-gallery-group-select]");
+    if (temporaryGroupSelect) {
+      event.stopPropagation();
+      updateTemporaryGalleryGroupSelection(temporaryGroupSelect);
+      return;
+    }
+    const temporaryGroupSave = event.target?.closest?.("[data-temporary-gallery-group-save]");
+    if (temporaryGroupSave) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleTemporaryGalleryGroupSave();
+      return;
+    }
+    const temporaryGroupClear = event.target?.closest?.("[data-temporary-gallery-group-clear]");
+    if (temporaryGroupClear) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleTemporaryGalleryGroupClear();
+      return;
+    }
+    const temporaryGroupRelease = event.target?.closest?.("[data-temporary-gallery-group-release]");
+    if (temporaryGroupRelease) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleTemporaryGalleryGroupRelease(temporaryGroupRelease.dataset.temporaryGalleryGroupRelease || "");
+      return;
+    }
     const editButton = event.target?.closest?.("[data-archive-edit-item]");
     if (editButton) {
       event.stopPropagation();
