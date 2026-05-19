@@ -4630,10 +4630,19 @@ function normalizeArchiveSuitGalleryGroupToken(value = "") {
 }
 
 function getArchiveSuitGalleryDateKey(item = {}) {
-  const directDate = String(item.dayKey || item.date || item.capturedDate || item.shootDate || "").trim();
+  const directDate = String(item.dayKey || item.date || item.capturedDate || item.shootDate || item.uploadedAt || item.timestamp || "").trim();
   if (directDate) return directDate.slice(0, 10);
   const createdAt = String(item.createdAt || item.savedAt || item.updatedAt || "").trim();
   return /^\d{4}-\d{2}-\d{2}/.test(createdAt) ? createdAt.slice(0, 10) : "";
+}
+
+function getArchiveSuitGallerySortTime(item = {}) {
+  const candidates = [item.uploadedAt, item.timestamp, item.createdAt, item.savedAt, item.updatedAt, item.date, item.dayKey];
+  for (const value of candidates) {
+    const parsed = Date.parse(String(value || ""));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
 }
 
 function getArchiveSuitGalleryTextKey(item = {}) {
@@ -4683,6 +4692,7 @@ function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
         item.galleryBatchId || item.uploadGroupId || item.groupId || item.batchId || "",
         getArchiveSuitGalleryRelatedKey(item),
         getArchiveSuitGalleryDateKey(item),
+        getArchiveSuitGallerySortTime(item),
         getArchiveSuitGalleryTextKey(item),
         getArchiveSuitGalleryStoragePrefix(item),
         item.fileName || "",
@@ -4718,6 +4728,8 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
         groupKey,
         items: [],
         date: item.date || item.createdAt || "",
+        dateKey: getArchiveSuitGalleryDateKey(item),
+        sortTime: getArchiveSuitGallerySortTime(item),
         memo: item.memo || "",
         title: item.memo || item.fileName || "갤러리 묶음",
       });
@@ -4726,12 +4738,52 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
     group.items.push(item);
     if (!group.memo && item.memo) group.memo = item.memo;
     if (!group.date && (item.date || item.createdAt)) group.date = item.date || item.createdAt;
+    if (!group.dateKey) group.dateKey = getArchiveSuitGalleryDateKey(item);
+    group.sortTime = Math.max(Number(group.sortTime || 0), getArchiveSuitGallerySortTime(item));
     if (!group.title && (item.memo || item.fileName)) group.title = item.memo || item.fileName;
   });
   const groups = [...groupMap.values()];
   archiveSuitGalleryGroupsCacheKey = cacheKey;
   archiveSuitGalleryGroupsCache = groups;
   return groups;
+}
+
+function getArchiveSuitGallerySectionKey(group = {}) {
+  return String(group.dateKey || getArchiveSuitGalleryDateKey(group.items?.[0] || {}) || "").trim();
+}
+
+function renderArchiveSuitGalleryDateSections(groups = []) {
+  const sortedGroups = [...groups].sort((left, right) => {
+    const leftDate = getArchiveSuitGallerySectionKey(left);
+    const rightDate = getArchiveSuitGallerySectionKey(right);
+    if (leftDate && rightDate && leftDate !== rightDate) return rightDate.localeCompare(leftDate);
+    if (leftDate && !rightDate) return -1;
+    if (!leftDate && rightDate) return 1;
+    return Number(right.sortTime || 0) - Number(left.sortTime || 0);
+  });
+  const sections = new Map();
+  sortedGroups.forEach((group) => {
+    const sectionKey = getArchiveSuitGallerySectionKey(group) || "undated";
+    if (!sections.has(sectionKey)) {
+      sections.set(sectionKey, []);
+    }
+    sections.get(sectionKey).push(group);
+  });
+  return [...sections.entries()]
+    .map(([sectionKey, sectionGroups]) => {
+      const label = sectionKey === "undated" ? "날짜 미지정" : sectionKey;
+      const countText = `${sectionGroups.length}개 카드`;
+      return `<section class="archive-suit-gallery-date-section" data-archive-gallery-date-section="${escapeTimelineHtml(sectionKey)}">
+        <div class="archive-suit-gallery-date-header">
+          <h4>${escapeTimelineHtml(label)}</h4>
+          <span>${escapeTimelineHtml(countText)}</span>
+        </div>
+        <div class="archive-suit-list archive-suit-gallery-grid">
+          ${sectionGroups.map((group) => renderArchiveSuitGalleryCard(group)).join("")}
+        </div>
+      </section>`;
+    })
+    .join("");
 }
 
 function renderArchiveSuitGalleryCard(group = {}, options = {}) {
@@ -4767,7 +4819,10 @@ function renderArchiveSuitGalleryList(options = {}) {
     return `<div class="archive-suit-empty">보관자료 없음</div>`;
   }
   const groups = getArchiveSuitGalleryGroups(items);
-  return `<div class="archive-suit-list archive-suit-gallery-grid">${groups.map((group) => renderArchiveSuitGalleryCard(group, options)).join("")}</div>`;
+  if (options.editMode || options.deleteMode) {
+    return `<div class="archive-suit-list archive-suit-gallery-grid">${groups.map((group) => renderArchiveSuitGalleryCard(group, options)).join("")}</div>`;
+  }
+  return `<div class="archive-suit-gallery-date-sections">${renderArchiveSuitGalleryDateSections(groups)}</div>`;
 }
 
 function getArchiveSuitGalleryGroupByKey(groupKey = "") {

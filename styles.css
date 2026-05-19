@@ -5634,6 +5634,40 @@ body::after {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
+#view-archive .archive-suit-gallery-date-sections {
+  display: grid;
+  gap: 22px;
+}
+
+#view-archive .archive-suit-gallery-date-section {
+  display: grid;
+  gap: 12px;
+}
+
+#view-archive .archive-suit-gallery-date-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid rgba(93, 242, 255, 0.14);
+}
+
+#view-archive .archive-suit-gallery-date-header h4 {
+  margin: 0;
+  color: #ecfbff;
+  font-size: 0.96rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+#view-archive .archive-suit-gallery-date-header span {
+  flex: 0 0 auto;
+  color: rgba(222, 244, 248, 0.64);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 #view-archive .archive-suit-item {
   display: grid;
   grid-template-columns: auto 80px minmax(0, 1fr) auto;
@@ -5999,6 +6033,12 @@ body.archive-suit-modal-open {
   #view-archive .archive-suit-view-grid,
   #view-archive .archive-suit-item {
     grid-template-columns: 1fr;
+  }
+
+  #view-archive .archive-suit-gallery-date-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 
   .archive-suit-gallery-modal {
