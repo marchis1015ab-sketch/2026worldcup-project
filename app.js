@@ -1281,6 +1281,7 @@ const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   summary: "WC26_LEGACY_SCHEDULE_SUMMARY",
   navigate: "wc26:legacy-schedule-navigate",
 };
+const WC26_SHARED_STATE_APPLIED_MESSAGE = "wc26:legacy-shared-state-applied";
 const WC26_EQUIPMENT_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-equipment-ready",
   summary: "WC26_LEGACY_EQUIPMENT_SUMMARY",
@@ -14254,6 +14255,30 @@ function renderPersonalScheduleShellIfActive() {
   renderPersonalScheduleShell();
 }
 
+function rerenderActiveScheduleLocalShell() {
+  if (scheduleBridgeSection === "shared") {
+    renderSharedScheduleShellIfActive();
+    return;
+  }
+  if (scheduleBridgeSection === "personal") {
+    renderPersonalScheduleShellIfActive();
+    return;
+  }
+  if (scheduleBridgeSection === "accumulated") {
+    renderAccumulatedScheduleShellIfActive();
+  }
+}
+
+function shouldRefreshScheduleLocalShell(changedKeys = []) {
+  const changed = new Set((Array.isArray(changedKeys) ? changedKeys : []).map((key) => String(key || "").trim()));
+  return (
+    changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) ||
+    changed.has(WC26_LEGACY_TIMELINE_STORAGE_KEYS.details) ||
+    changed.has("worldcup-guide-personal-timeline-details-deleted-v1") ||
+    changed.has("worldcup-guide-timeline-assignments-v1")
+  );
+}
+
 function getAccumulatedPersonalScheduleEntries() {
   return getPersonalScheduleEntries()
     .slice()
@@ -14645,6 +14670,8 @@ function handleScheduleBridgeMessage(event) {
   const payload = event?.data;
   const isVisibleBridgeSource =
     Boolean(scheduleBridgeFrame?.contentWindow) && event?.source === scheduleBridgeFrame.contentWindow;
+  const isSummaryBridgeSource =
+    Boolean(scheduleBridgeSyncFrame?.contentWindow) && event?.source === scheduleBridgeSyncFrame.contentWindow;
   const isStorageBridgeSource =
     Boolean(storageBridgeFrame?.contentWindow) && event?.source === storageBridgeFrame.contentWindow;
   const isMediaBridgeSource =
@@ -14653,6 +14680,14 @@ function handleScheduleBridgeMessage(event) {
     Boolean(equipmentBridgeFrame?.contentWindow) && event?.source === equipmentBridgeFrame.contentWindow;
 
   if (!payload || typeof payload !== "object") {
+    return;
+  }
+
+  if (payload.type === WC26_SHARED_STATE_APPLIED_MESSAGE && isSummaryBridgeSource) {
+    if (shouldRefreshScheduleLocalShell(payload.changedKeys)) {
+      rerenderActiveScheduleLocalShell();
+      refreshTimelineGanttFromLegacy();
+    }
     return;
   }
 
@@ -14981,7 +15016,7 @@ function handleScheduleBridgeMessage(event) {
 
     scheduleBridgeSummaryRenderKey = renderKey;
     applyScheduleBridgeSummary(normalizedSummary);
-    renderSharedScheduleShellIfActive();
+    rerenderActiveScheduleLocalShell();
     queueScheduleLegacyHudSkin([0, 140]);
   }
 
@@ -15135,6 +15170,7 @@ function tryApplyDirectBridgeSummary(getterName, applySummary, patch = {}) {
 
 function requestScheduleBridgeSummary() {
   if (tryApplyDirectBridgeSummary("getWC26LegacyScheduleSummary", applyScheduleBridgeSummary)) {
+    rerenderActiveScheduleLocalShell();
     return;
   }
   scheduleBridgeSyncFrame?.contentWindow?.postMessage(

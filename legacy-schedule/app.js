@@ -8660,6 +8660,19 @@ function rerenderVisibleSharedStateViews(changedKeys=[]){
   }
   updateMobileHeaderReportBoardVisibility();
 }
+function notifyParentSharedStateApplied(changedKeys=[]){
+  if(typeof window==='undefined'||!window.parent||window.parent===window) return;
+  const keys=Array.isArray(changedKeys)
+    ? changedKeys.map(key=>String(key||'').trim()).filter(Boolean)
+    : [];
+  if(!keys.length) return;
+  try{
+    window.parent.postMessage({
+      type:'wc26:legacy-shared-state-applied',
+      changedKeys:keys
+    }, '*');
+  }catch(_error){}
+}
 function disableSharedStateSync(error){
   if(sharedStateSyncDisabled) return;
   sharedStateSyncDisabled=true;
@@ -9099,6 +9112,7 @@ function applySharedStateSnapshot(rows=[]){
   if(!changedKeys.length) return;
   resetSharedStateSyncCaches(changedKeys);
   rerenderVisibleSharedStateViews(changedKeys);
+  notifyParentSharedStateApplied(changedKeys);
 }
 function normalizeSharedStateFetchKeys(storageKeys=[]){
   const source=Array.isArray(storageKeys)&&storageKeys.length ? storageKeys : SHARED_STATE_INITIAL_FETCH_KEYS;

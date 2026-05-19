@@ -1,32 +1,49 @@
-$expectedPath = "C:\Users\Jnote\Desktop\2026worldcup-project"
-$currentPath = (Get-Location).Path
+$approvedPaths = @(
+  "C:\Users\Jnote\Desktop\2026worldcup-project",
+  "C:\Users\march\OneDrive\Desktop\2026worldcup-project"
+)
 
-Write-Host "Expected:" $expectedPath
+$expectedRemote = "https://github.com/marchis1015ab-sketch/2026worldcup-project.git"
+$currentPath = (Get-Location).Path
+$currentBranch = (git branch --show-current).Trim()
+$currentRemote = (git remote get-url origin 2>$null | Select-Object -First 1).Trim()
+
+Write-Host "Approved:" ($approvedPaths -join ", ")
 Write-Host "Current :" $currentPath
 
-if ($currentPath -ne $expectedPath) {
-  Write-Host "ERROR: 현재 경로가 운영 기준 폴더가 아닙니다. 작업 중단."
+if ($approvedPaths -notcontains $currentPath) {
+  Write-Host "ERROR: Current path is not an approved project root. Stop."
   exit 1
 }
 
 if (!(Test-Path ".\.git")) {
-  Write-Host "ERROR: .git 폴더가 없습니다. 작업 중단."
+  Write-Host "ERROR: .git directory is missing. Stop."
   exit 1
 }
 
 if (!(Test-Path ".\.vercel\project.json")) {
-  Write-Host "ERROR: .vercel/project.json이 없습니다. 새 Vercel 프로젝트 생성 위험. 작업 중단."
+  Write-Host "ERROR: .vercel/project.json is missing. Stop."
+  exit 1
+}
+
+if ($currentRemote -ne $expectedRemote) {
+  Write-Host "ERROR: origin remote does not match the approved repository. Stop."
+  exit 1
+}
+
+if ($currentBranch -ne "main") {
+  Write-Host "ERROR: Current branch is not main. Stop."
   exit 1
 }
 
 if (!(Test-Path ".\index.html")) {
-  Write-Host "ERROR: index.html이 없습니다. 작업 중단."
+  Write-Host "ERROR: index.html is missing. Stop."
   exit 1
 }
 
 if (!(Test-Path ".\app.js")) {
-  Write-Host "ERROR: app.js가 없습니다. 작업 중단."
+  Write-Host "ERROR: app.js is missing. Stop."
   exit 1
 }
 
-Write-Host "OK: 운영 기준 폴더 확인 완료."
+Write-Host "OK: Approved project root verified."
