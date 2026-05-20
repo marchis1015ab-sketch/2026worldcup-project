@@ -203,6 +203,33 @@ const WC26_STADIUM_IMAGE_ALIASES = Object.freeze({
   "BC Place": "BC Place Vancouver",
   "New York/New Jersey Stadium": "New York New Jersey Stadium",
   "New York-New Jersey Stadium": "New York New Jersey Stadium",
+  "Mercedes-Benz Stadium": "Atlanta Stadium",
+  "Gillette Stadium": "Boston Stadium",
+  "AT&T Stadium": "Dallas Stadium",
+  "NRG Stadium": "Houston Stadium",
+  "Arrowhead Stadium": "Kansas City Stadium",
+  "SoFi Stadium": "Los Angeles Stadium",
+  "Estadio Azteca": "Mexico City Stadium",
+  "Estadio Banorte": "Mexico City Stadium",
+  "Hard Rock Stadium": "Miami Stadium",
+  "MetLife Stadium": "New York New Jersey Stadium",
+  "Lincoln Financial Field": "Philadelphia Stadium",
+  "Levi's Stadium": "San Francisco Bay Area Stadium",
+  "Levi’s Stadium": "San Francisco Bay Area Stadium",
+  "Lumen Field": "Seattle Stadium",
+  "BMO Field": "Toronto Stadium",
+  Atlanta: "Atlanta Stadium",
+  Boston: "Boston Stadium",
+  Dallas: "Dallas Stadium",
+  Houston: "Houston Stadium",
+  "Kansas City": "Kansas City Stadium",
+  "Los Angeles": "Los Angeles Stadium",
+  "Mexico City": "Mexico City Stadium",
+  Miami: "Miami Stadium",
+  Philadelphia: "Philadelphia Stadium",
+  Seattle: "Seattle Stadium",
+  Toronto: "Toronto Stadium",
+  Vancouver: "BC Place Vancouver",
 });
 const WC26_STADIUM_DETAILS = Object.freeze({
   "Atlanta Stadium": { city: "Atlanta", countryKey: "usa", countryLabel: "미국", note: "Mercedes-Benz Stadium" },
@@ -1034,6 +1061,57 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
   }
 }
 `;
+const WC26_MEDIA_BRIDGE_DESKTOP_STYLE_ID = "wc26-media-bridge-desktop-style";
+const WC26_MEDIA_BRIDGE_DESKTOP_CSS = `
+@media (min-width: 560px) {
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active #detailCol {
+    padding: 4px 0 0 !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-card-row {
+    gap: 12px !important;
+    margin: 0 !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-card.broadcast-suit-card {
+    min-height: 0 !important;
+    border: 1px solid rgba(93, 242, 255, 0.28) !important;
+    border-radius: 16px !important;
+    background:
+      linear-gradient(145deg, rgba(4, 16, 28, 0.94), rgba(1, 7, 14, 0.92)),
+      radial-gradient(circle at 12% 0%, rgba(93, 242, 255, 0.14), transparent 38%) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.024), 0 12px 26px rgba(0, 0, 0, 0.2) !important;
+    overflow: hidden !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-card.broadcast-suit-card .news-programming-time {
+    border: 1px solid rgba(93, 242, 255, 0.36) !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, rgba(0, 211, 255, 0.2), rgba(7, 20, 35, 0.92)) !important;
+    color: #effcff !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-card.broadcast-suit-card .news-programming-card-title {
+    color: #f6fdff !important;
+    line-height: 1.08 !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .news-programming-card.broadcast-suit-card .broadcast-suit-fixed-memo {
+    border: 1px solid rgba(93, 242, 255, 0.18) !important;
+    border-radius: 12px !important;
+    background: rgba(2, 9, 18, 0.76) !important;
+    color: rgba(213, 235, 242, 0.8) !important;
+  }
+
+  body.wc26-media-bridge-embedded.media-bridge-broadcast-active .broadcast-suit-fixed-actions .section-title-action-btn {
+    min-height: 32px !important;
+    border-radius: 999px !important;
+    border-color: rgba(93, 242, 255, 0.24) !important;
+    background: rgba(7, 18, 31, 0.9) !important;
+    color: #effcff !important;
+  }
+}
+`;
 const ARCHIVE_SUIT_STORAGE_KEY = "wc26-archive-suit-items-v1";
 const ARCHIVE_SUIT_DELETED_STORAGE_KEY = "wc26-archive-suit-deleted-v1";
 const ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY = "worldcup-guide-gallery-manual-groups-v1";
@@ -1547,7 +1625,7 @@ WC26_MENU_GROUPS.operations = {
 };
 
 const WC26_QUICK_ACTION_TARGETS = {
-  "quick-timeline": { target: "schedule", section: "all" },
+  "quick-timeline": { target: "schedule", section: "shared" },
   "quick-schedule": { target: "schedule", section: "personal" },
   "quick-equipment": { target: "field-ops", section: "equipment-summary" },
   "quick-map": { target: "map", section: "map" },
@@ -4656,6 +4734,99 @@ function getArchiveSuitLegacyGalleryItems() {
   return imported.filter((item) => !deleted.has(item.id) && !deleted.has(item.legacyId));
 }
 
+function getArchiveSuitLegacyBridgeWindow() {
+  return storageBridgeFrame?.contentWindow || getScheduleBridgeSyncWindow() || null;
+}
+
+function normalizeArchiveSuitLegacyStorageItem(item = {}, tab = "document-storage", fallbackIndex = 0) {
+  const storagePath = String(item.storagePath || item.storage_path || item.path || "").trim();
+  const publicUrl = String(item.publicUrl || item.public_url || item.downloadUrl || item.url || "").trim();
+  const originalData = String(item.originalData || item.original_data || "").trim();
+  const fileName = String(
+    item.fileName ||
+      item.file_name ||
+      item.displayName ||
+      item.display_name ||
+      item.title ||
+      storagePath.split("/").pop() ||
+      `${tab}-${fallbackIndex + 1}`,
+  ).trim();
+  if (!fileName && !storagePath && !publicUrl && !originalData) {
+    return null;
+  }
+  const rawId =
+    String(item.id || item.sourceId || "").trim() ||
+    storagePath ||
+    publicUrl ||
+    `${tab}-${fileName}-${fallbackIndex + 1}`;
+  const fileData = publicUrl || (originalData.startsWith("data:") ? originalData : "");
+  return {
+    id: `legacy-${tab}-${rawId}`,
+    legacyId: rawId,
+    tab,
+    date: String(item.date || item.uploadedAt || item.createdAt || item.savedAt || "").trim().slice(0, 10),
+    memo: String(item.memo || item.note || item.description || "").trim(),
+    fileName: fileName || "archive",
+    fileType: String(item.fileType || item.mimeType || item.contentType || "").trim(),
+    fileSize: Number(item.fileSize || item.size || 0),
+    fileData,
+    publicUrl,
+    storagePath,
+    createdAt: String(item.createdAt || item.uploadedAt || item.savedAt || "").trim(),
+    source: `legacy-${tab}`,
+  };
+}
+
+function getArchiveSuitLegacyStorageItems(tab = "document-storage") {
+  const legacyWindow = getArchiveSuitLegacyBridgeWindow();
+  const getterName = tab === "file-storage" ? "getEquipmentFileStorageEntries" : "getEquipmentCarnetEntries";
+  const getter = legacyWindow?.[getterName];
+  if (typeof getter !== "function") {
+    return [];
+  }
+  try {
+    const entries = getter.call(legacyWindow);
+    return (Array.isArray(entries) ? entries : [])
+      .map((entry, index) => normalizeArchiveSuitLegacyStorageItem(entry, tab, index))
+      .filter(Boolean);
+  } catch (_error) {
+    return [];
+  }
+}
+
+function refreshArchiveSuitLegacyStorageData() {
+  return waitForScheduleBridgeFunction("getWC26LegacyStorageSummary", 5000).then((legacyWindow) => {
+    if (!legacyWindow) {
+      return;
+    }
+    const tasks = [];
+    if (typeof legacyWindow.refreshEquipmentCarnetEntriesFromSupabase === "function") {
+      tasks.push(Promise.resolve(legacyWindow.refreshEquipmentCarnetEntriesFromSupabase({ forceRender: false })));
+    }
+    if (typeof legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase === "function") {
+      tasks.push(Promise.resolve(legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase({ forceRender: false })));
+    }
+    if (!tasks.length) {
+      if (typeof legacyWindow.loadEquipmentCarnetEntries === "function") {
+        try {
+          legacyWindow.loadEquipmentCarnetEntries();
+        } catch (_error) {
+          // Ignore legacy cache read failures.
+        }
+      }
+      if (typeof legacyWindow.loadEquipmentFileStorageEntries === "function") {
+        try {
+          legacyWindow.loadEquipmentFileStorageEntries();
+        } catch (_error) {
+          // Ignore legacy cache read failures.
+        }
+      }
+      return;
+    }
+    return Promise.allSettled(tasks).then(() => undefined);
+  });
+}
+
 function collectArchiveSuitLegacyGalleryCandidates() {
   const rawCounts = {};
   const rawSources = {};
@@ -4725,7 +4896,12 @@ function getArchiveSuitDisplayItems(tab = storageBridgeSection) {
   const normalized = normalizeStorageBridgeSection(tab);
   const deleted = getArchiveSuitDeletedIdsSet();
   const ownItems = getArchiveSuitItems().filter((item) => normalizeStorageBridgeSection(item.tab) === normalized);
-  const source = normalized === "gallery" ? [...ownItems, ...getArchiveSuitLegacyGalleryItems()] : ownItems;
+  const source =
+    normalized === "gallery"
+      ? [...ownItems, ...getArchiveSuitLegacyGalleryItems()]
+      : normalized === "document-storage" || normalized === "file-storage"
+        ? [...ownItems, ...getArchiveSuitLegacyStorageItems(normalized)]
+        : ownItems;
   const seen = new Set();
   return source.filter((item) => {
     if (deleted.has(item.id) || deleted.has(item.legacyId)) return false;
@@ -5644,12 +5820,26 @@ function postStorageBridgeNavigation(sectionId = "document-storage") {
 function setArchiveBridgeSection(sectionId = "document-storage") {
   const previousSection = storageBridgeSection;
   storageBridgeSection = normalizeStorageBridgeSection(sectionId);
+  ensureScheduleSummaryBridgeLoaded();
   if (previousSection === "gallery" && storageBridgeSection !== "gallery") {
     closeArchiveSuitGalleryModal();
   }
   setStorageBridgeButtonState(storageBridgeSection);
   if (storageBridgeFrame) {
     postStorageBridgeNavigation(storageBridgeSection);
+  }
+  const shouldRefreshLegacyStorage =
+    storageBridgeSection === "document-storage" || storageBridgeSection === "file-storage";
+  if (shouldRefreshLegacyStorage) {
+    refreshArchiveSuitLegacyStorageData().then(() => {
+      if (storageBridgeSection !== normalizeStorageBridgeSection(sectionId)) {
+        return;
+      }
+      renderArchiveSuitPanels();
+      requestStorageBridgeSummary();
+    });
+  } else {
+    renderArchiveSuitPanels();
   }
 }
 
@@ -6282,6 +6472,9 @@ function applyMediaBridgeSummary(summary = {}) {
   const hasSummaryData = hasMediaBridgeSummaryData(mediaBridgeSummaryState);
 
   syncMediaBridgeUi();
+  if (mediaBridgeSection === "worldcup-news" && mediaBridgeSummaryState.newsCount > 0) {
+    queueMediaBridgeReadyFallback("worldcup-news");
+  }
 
   if (meta) {
     meta.textContent = "";
@@ -7520,6 +7713,7 @@ function syncMediaBridgeEmbeddedSkin() {
   legacyDocument.body.classList.add("wc26-media-bridge-embedded");
   legacyDocument.body.setAttribute("data-media-skin", "newsuit-20260518-01");
   ensureEmbeddedBridgeStyle(legacyDocument, WC26_MEDIA_BRIDGE_MOBILE_STYLE_ID, WC26_MEDIA_BRIDGE_MOBILE_CSS);
+  ensureEmbeddedBridgeStyle(legacyDocument, WC26_MEDIA_BRIDGE_DESKTOP_STYLE_ID, WC26_MEDIA_BRIDGE_DESKTOP_CSS);
   legacyDocument.body.classList.toggle("media-bridge-broadcast-active", mediaBridgeSection === "broadcast-schedule");
   legacyDocument.body.classList.toggle("media-bridge-news-active", mediaBridgeSection === "worldcup-news");
   const detailCol = legacyDocument.getElementById("detailCol");
@@ -13714,6 +13908,18 @@ function readSharedScheduleGroups() {
     });
   }
 
+  try {
+    const selectedDateKey = String(syncWindow.getWC26LegacyScheduleSummary?.()?.selectedDate || "").trim();
+    if (selectedDateKey && typeof syncWindow.getPersonalTimelineSharedEntries === "function") {
+      const selectedEntries = syncWindow.getPersonalTimelineSharedEntries(selectedDateKey) || [];
+      if (Array.isArray(selectedEntries) && selectedEntries.length) {
+        dateKeys.add(selectedDateKey);
+      }
+    }
+  } catch (_error) {
+    // Best-effort only: keep available local/shared fallbacks if the direct summary lookup fails.
+  }
+
   const rawEntries = flattenSharedScheduleState(rawState);
   const fallbackGroups = readSharedScheduleFallbackGroups();
   const fallbackEntries = flattenSharedScheduleGroups(fallbackGroups);
@@ -15766,6 +15972,11 @@ function initScheduleBridge() {
       window.setTimeout(() => {
         syncScheduleBridgeSummaryFromStorage();
         refreshTimelineGanttFromLegacy();
+        renderArchiveSuitPanels();
+        requestStorageBridgeSummary();
+        if (mediaBridgeSection === "worldcup-news") {
+          requestMediaBridgeSummary();
+        }
       }, delay);
     });
   });

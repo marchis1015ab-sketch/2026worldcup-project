@@ -201,16 +201,8 @@ body::after {
 }
 
 .sidebar-brand::after {
-  content: "";
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 8px;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(103, 255, 216, 0.7), rgba(86, 183, 255, 0.48), rgba(255, 116, 53, 0.46));
-  opacity: 0.7;
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
 .sidebar-brand-image {
@@ -10468,10 +10460,10 @@ body:has(.dashboard-view:not([hidden])) .shell-frame {
   pointer-events: none;
 }
 
-body:has(.dashboard-view:not([hidden])) .toast,
-body:has(.dashboard-view:not([hidden])) .timeline-tooltip,
-body:has(.dashboard-view:not([hidden])) .timeline-modal,
-body:has(.dashboard-view:not([hidden])) .archive-suit-gallery-modal {
+body:has(#view-dashboard.is-active:not([hidden])) .toast,
+body:has(#view-dashboard.is-active:not([hidden])) .timeline-tooltip,
+body:has(#view-dashboard.is-active:not([hidden])) .timeline-modal,
+body:has(#view-dashboard.is-active:not([hidden])) .archive-suit-gallery-modal {
   display: none !important;
 }
 
@@ -12054,13 +12046,15 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
 
   body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert .main-stadium-photo-side {
     width: 100%;
-    height: auto;
+    height: 100%;
     max-width: none;
     min-width: 0;
     max-inline-size: 208px;
     aspect-ratio: 209 / 154;
     justify-self: start;
     align-self: start;
+    align-items: stretch;
+    justify-content: stretch;
     overflow: hidden;
   }
 
@@ -12074,7 +12068,8 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert .main-stadium-info-side {
     min-width: 0;
     max-width: 100%;
-    padding: 8px 10px;
+    justify-content: flex-start;
+    padding: 10px 10px 8px;
     gap: 6px;
   }
 
