@@ -2590,6 +2590,7 @@ const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78b
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
 const WC26_TIMELINE_DATE_CELL_WIDTH = 52;
 const WC26_TIMELINE_DATE_GAP = 6;
+const WC26_TIMELINE_HISTORY_DESKTOP_MIN_WIDTH = 1025;
 const WC26_NEWS_BROADCASTERS = ["KBS", "MBC", "SBS"];
 const WC26_CITY_TIMEZONE_MAP = {
   과달라하라: "America/Mexico_City",
@@ -2995,6 +2996,22 @@ function getTimelineBlockColor(name = "") {
   return WC26_TIMELINE_COLORS[(memberIndex >= 0 ? memberIndex : 0) % WC26_TIMELINE_COLORS.length];
 }
 
+function buildStableTimelineBlockId(rawBlock = {}, fallbackIndex = 0) {
+  const seed = [
+    String(rawBlock.name || "").trim(),
+    String(rawBlock.startDate || "").trim(),
+    String(rawBlock.endDate || "").trim(),
+    String(rawBlock.place || "").trim(),
+    String(rawBlock.memo || "").trim(),
+  ].join("::");
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(index);
+    hash |= 0;
+  }
+  return `timeline-block-${Math.abs(hash).toString(36)}-${fallbackIndex + 1}`;
+}
+
 function sanitizeTimelineBlock(rawBlock = {}, index = 0) {
   if (!rawBlock || typeof rawBlock !== "object") {
     return null;
@@ -3009,14 +3026,19 @@ function sanitizeTimelineBlock(rawBlock = {}, index = 0) {
   if (startDate > endDate) {
     return null;
   }
+  const rawUpdatedAt = String(rawBlock.updatedAt || rawBlock.createdAt || "").trim();
+  const rawCreatedAt = String(rawBlock.createdAt || rawUpdatedAt || "").trim();
+  const normalizedUpdatedAt = rawUpdatedAt || rawCreatedAt || new Date().toISOString();
+  const normalizedCreatedAt = rawCreatedAt || normalizedUpdatedAt;
   return {
-    id: String(rawBlock.id || `timeline-block-${index + 1}`),
+    id: String(rawBlock.id || buildStableTimelineBlockId(rawBlock, index)).trim(),
     name,
     startDate,
     endDate,
     place,
     memo: String(rawBlock.memo || "").trim(),
-    updatedAt: String(rawBlock.updatedAt || new Date().toISOString()),
+    createdAt: normalizedCreatedAt,
+    updatedAt: normalizedUpdatedAt,
   };
 }
 
@@ -3632,6 +3654,7 @@ function refreshTimelineGanttFromLegacy(options = {}) {
   }
   bridgeLoadState.timelineRangeKey = rangeKey;
   renderTimelineGantt(summary);
+  renderDesktopTimelineHistory();
 }
 
 function syncScheduleTimelineShellVisibility() {
@@ -3654,6 +3677,7 @@ function syncScheduleTimelineShellVisibility() {
   if (scheduleBridgeFrameShell) {
     scheduleBridgeFrameShell.hidden = isTimelineSection || isSharedSection || isPersonalSection || isAccumulatedSection;
   }
+  renderDesktopTimelineHistory();
 }
 
 function populateTimelineEntryNameOptions() {
@@ -3697,6 +3721,7 @@ function openTimelineEntryModal(block = null) {
     timelineEntryMemoInput.value = block?.memo || "";
   }
   timelineEntryModal.hidden = false;
+  renderDesktopTimelineHistory();
 }
 
 function closeTimelineEntryModal() {
@@ -3777,13 +3802,26 @@ function upsertTimelineBlockFromModal() {
     return;
   }
   const nextBlocks = loadTimelineBlocks();
+  const existingBlock = nextBlocks.find((block) => String(block.id) === id);
   const nextBlock = {
-    id: id || `timeline-block-${Date.now()}`,
+    id:
+      id ||
+      buildStableTimelineBlockId(
+        {
+          name,
+          startDate,
+          endDate,
+          place,
+          memo,
+        },
+        nextBlocks.length,
+      ),
     name,
     startDate,
     endDate,
     place,
     memo,
+    createdAt: String(existingBlock?.createdAt || existingBlock?.updatedAt || new Date().toISOString()),
     updatedAt: new Date().toISOString(),
   };
   const existingIndex = nextBlocks.findIndex((block) => String(block.id) === nextBlock.id);
@@ -3796,6 +3834,7 @@ function upsertTimelineBlockFromModal() {
   closeTimelineEntryModal();
   renderTimelineManageList();
   refreshTimelineGanttFromLegacy({ force: true });
+  renderDesktopTimelineHistory();
 }
 
 function deleteTimelineBlockById(id = "") {
@@ -3807,6 +3846,7 @@ function deleteTimelineBlockById(id = "") {
   saveTimelineBlocks(blocks);
   renderTimelineManageList();
   refreshTimelineGanttFromLegacy({ force: true });
+  renderDesktopTimelineHistory();
 }
 
 function handleTimelineNavButton(button, event = null) {
@@ -3836,6 +3876,7 @@ function handleTimelineNavButton(button, event = null) {
 }
 
 function initTimelineEditor() {
+  ensureTimelineHistoryShell();
   populateTimelineEntryNameOptions();
   document.addEventListener(
     "touchstart",
@@ -3893,6 +3934,19 @@ function initTimelineEditor() {
     node.addEventListener("click", closeTimelineManageModal);
   });
   timelineEntrySaveButton?.addEventListener("click", upsertTimelineBlockFromModal);
+  document.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const saveButton = target?.closest?.("[data-timeline-history-save]");
+    if (!(saveButton instanceof HTMLElement)) {
+      return;
+    }
+    const card = saveButton.closest("[data-timeline-history-id]");
+    if (!(card instanceof HTMLElement)) {
+      return;
+    }
+    event.preventDefault();
+    saveTimelineHistoryEntryById(saveButton.dataset.timelineHistorySave || card.dataset.timelineHistoryId || "", card);
+  });
   document.addEventListener("click", (event) => {
     if (Date.now() < timelineIgnoreDocumentClickUntil) {
       return;
@@ -5061,6 +5115,85 @@ function renderArchiveSuitPreview(item = {}) {
   return `<div class="archive-suit-file-chip">${safeName}</div>`;
 }
 
+function buildArchiveSuitPreviewAttachment(item = {}) {
+  return {
+    fileName: String(item.fileName || "첨부파일").trim() || "첨부파일",
+    fileType: String(item.fileType || item.mimeType || "").trim(),
+    publicUrl: String(item.publicUrl || item.url || "").trim(),
+    previewUrl: getArchiveSuitFileUrl(item),
+    originalData: String(item.fileData || item.originalData || "").trim(),
+    dataUrl: String(item.fileData || item.originalData || "").trim(),
+    storagePath: String(item.storagePath || item.path || "").trim(),
+  };
+}
+
+function openArchiveSuitItemPreview(item = {}) {
+  if (!sharedScheduleFilePreviewModal || !sharedScheduleFilePreviewBody) {
+    return;
+  }
+  const fileName = String(item.fileName || "첨부파일").trim() || "첨부파일";
+  const kind = getArchiveSuitFileKind(item);
+  const url = getArchiveSuitFileUrl(item);
+  const attachment = buildArchiveSuitPreviewAttachment(item);
+
+  if (sharedScheduleFilePreviewTitle) {
+    sharedScheduleFilePreviewTitle.textContent = fileName;
+  }
+  if (sharedScheduleFilePreviewType) {
+    sharedScheduleFilePreviewType.textContent = `${getArchiveSuitTabLabel(item.tab || storageBridgeSection)} 미리보기`;
+  }
+  sharedScheduleFilePreviewBody.replaceChildren();
+  renderSharedScheduleFilePreviewActions(fileName, url);
+
+  if (kind === "image" && url) {
+    const image = document.createElement("img");
+    image.className = "shared-schedule-file-preview-image";
+    image.src = url;
+    image.alt = fileName;
+    image.loading = "lazy";
+    image.decoding = "async";
+    sharedScheduleFilePreviewBody.appendChild(image);
+  } else if (kind === "video" && url) {
+    const video = document.createElement("video");
+    video.className = "shared-schedule-file-preview-video";
+    video.src = url;
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    sharedScheduleFilePreviewBody.appendChild(video);
+  } else if (kind === "audio" && url) {
+    const audio = document.createElement("audio");
+    audio.className = "shared-schedule-file-preview-audio";
+    audio.src = url;
+    audio.controls = true;
+    sharedScheduleFilePreviewBody.appendChild(audio);
+  } else if (kind === "pdf" && url) {
+    const frame = document.createElement("iframe");
+    frame.className = "shared-schedule-file-preview-frame";
+    frame.src = url;
+    frame.title = fileName;
+    sharedScheduleFilePreviewBody.appendChild(frame);
+  } else if (["excel", "csv"].includes(kind)) {
+    renderSharedScheduleSpreadsheetPreview(url, fileName, kind, attachment);
+  } else if (kind === "text") {
+    renderSharedScheduleTextPreview(url, fileName, kind, attachment);
+  } else {
+    sharedScheduleFilePreviewBody.appendChild(
+      createSharedScheduleFileFallback({
+        fileName,
+        kind,
+        url,
+        message: "미리보기를 불러올 수 없습니다.",
+      }),
+    );
+  }
+
+  sharedScheduleFilePreviewModal.hidden = false;
+  window.requestAnimationFrame(() => {
+    sharedScheduleFilePreviewModal.classList.add("is-open");
+  });
+}
+
 function renderArchiveSuitPreviewPanel(item = null) {
   if (!item) {
     return `<aside class="archive-suit-preview-panel">
@@ -5744,6 +5877,19 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
         ? `<label class="archive-suit-select" onclick="event.stopPropagation()"><input type="checkbox" data-archive-delete-item="${id}"><span>선택</span></label>`
         : "";
       const editButton = options.editMode ? `<button type="button" class="archive-suit-inline-btn" data-archive-edit-item="${id}">수정</button>` : "";
+      const previewButton =
+        !options.editMode && !options.deleteMode
+          ? `<button type="button" class="archive-suit-inline-btn" data-archive-preview-item="${id}">미리보기</button>`
+          : "";
+      const downloadUrl = getArchiveSuitFileUrl(item);
+      const actions =
+        previewButton || downloadUrl
+          ? `<div class="archive-suit-item-actions">${previewButton}${
+              downloadUrl
+                ? `<a class="archive-suit-download archive-suit-inline-btn" href="${downloadUrl}" download="${fileName}">다운로드</a>`
+                : ""
+            }</div>`
+          : "";
       return `<article class="archive-suit-item${selected ? " is-selected" : ""}" data-archive-item-id="${id}">
         ${deleteBox}
         <div class="archive-suit-item-media">${renderArchiveSuitPreview(item)}</div>
@@ -5751,7 +5897,7 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
           <div class="archive-suit-item-name">${fileName}</div>
           <div class="archive-suit-item-meta">${[date, fileSize].filter(Boolean).join(" / ")}</div>
           ${memo ? `<div class="archive-suit-item-memo">${memo}</div>` : ""}
-          ${getArchiveSuitFileUrl(item) ? `<a class="archive-suit-download" href="${getArchiveSuitFileUrl(item)}" download="${fileName}">다운로드</a>` : ""}
+          ${actions}
         </div>
         ${editButton}
       </article>`;
@@ -5810,12 +5956,7 @@ function renderArchiveSuitPanels() {
       panel.innerHTML = renderArchiveSuitList(tab);
       return;
     }
-    const items = getArchiveSuitDisplayItems(tab);
-    const selected = items.find((item) => item.id === archiveSuitSelectedId) || null;
-    panel.innerHTML = `<div class="archive-suit-view-grid">
-      ${renderArchiveSuitList(tab)}
-      ${renderArchiveSuitPreviewPanel(selected)}
-    </div>`;
+    panel.innerHTML = renderArchiveSuitList(tab);
   });
 }
 
@@ -12913,11 +13054,26 @@ function getSharedSchedulePreviewFailureMessage(error) {
   return "파싱 실패";
 }
 
-function renderSharedScheduleTextPreview(url = "", fileName = "", kind = "text") {
+function renderSharedScheduleTextPreview(url = "", fileName = "", kind = "text", attachment = {}) {
   if (!sharedScheduleFilePreviewBody) {
     return;
   }
-  if (!url) {
+  const rawData = String(attachment?.originalData || attachment?.dataUrl || "").trim();
+  const embeddedText = (() => {
+    if (!rawData) {
+      return "";
+    }
+    if (!rawData.startsWith("data:")) {
+      return rawData;
+    }
+    try {
+      const buffer = dataUrlToSharedScheduleArrayBuffer(rawData);
+      return buffer ? new TextDecoder("utf-8").decode(buffer) : "";
+    } catch (_error) {
+      return "";
+    }
+  })();
+  if (!url && !embeddedText) {
     sharedScheduleFilePreviewBody.appendChild(
       createSharedScheduleFileFallback({ fileName, kind, message: "파일 URL이 없어 텍스트 미리보기를 열 수 없습니다." }),
     );
@@ -12928,6 +13084,10 @@ function renderSharedScheduleTextPreview(url = "", fileName = "", kind = "text")
   pre.className = "shared-schedule-file-preview-text";
   pre.textContent = "미리보기 로딩 중...";
   sharedScheduleFilePreviewBody.appendChild(pre);
+  if (embeddedText) {
+    pre.textContent = embeddedText.slice(0, 12000) || "표시할 텍스트가 없습니다.";
+    return;
+  }
 
   fetchSharedSchedulePreviewResource(url)
     .then((response) => response.text())
@@ -13359,7 +13519,7 @@ function openSharedScheduleAttachmentPreview(attachment = {}) {
   } else if (["excel", "csv"].includes(kind)) {
     renderSharedScheduleSpreadsheetPreview(url, fileName, kind, attachment);
   } else if (kind === "text") {
-    renderSharedScheduleTextPreview(url, fileName, kind);
+    renderSharedScheduleTextPreview(url, fileName, kind, attachment);
   } else {
     sharedScheduleFilePreviewBody.appendChild(createSharedScheduleFileFallback({ fileName, kind, url }));
   }
@@ -13382,6 +13542,150 @@ function closeSharedScheduleAttachmentPreview() {
       sharedScheduleFilePreviewActions?.replaceChildren();
     }
   }, 180);
+}
+
+function isDesktopTimelineHistoryViewport() {
+  return window.innerWidth >= WC26_TIMELINE_HISTORY_DESKTOP_MIN_WIDTH;
+}
+
+function ensureTimelineHistoryShell() {
+  if (!scheduleLocalTimelineShell) {
+    return null;
+  }
+  let shell = document.getElementById("schedule-timeline-history-shell");
+  if (shell) {
+    return shell;
+  }
+  shell = document.createElement("section");
+  shell.className = "timeline-history-shell";
+  shell.id = "schedule-timeline-history-shell";
+  shell.hidden = true;
+  shell.setAttribute("aria-label", "PC 일정현황 작성기록");
+  shell.innerHTML = `
+    <div class="timeline-history-head">
+      <div>
+        <h4 class="timeline-history-title">작성기록</h4>
+        <p class="timeline-history-copy">PC에서만 수정 가능합니다.</p>
+      </div>
+    </div>
+    <div class="timeline-history-list" id="schedule-timeline-history-list"></div>
+  `;
+  scheduleLocalTimelineShell.appendChild(shell);
+  return shell;
+}
+
+function formatTimelineHistoryTimestamp(value = "") {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "기록 시각 없음";
+  }
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) {
+    return normalized;
+  }
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function getTimelineHistoryBlocks() {
+  return loadTimelineBlocks()
+    .slice()
+    .sort((a, b) => {
+      const updatedDiff = Date.parse(String(b.updatedAt || "")) - Date.parse(String(a.updatedAt || ""));
+      if (updatedDiff) {
+        return updatedDiff;
+      }
+      return String(a.startDate || "").localeCompare(String(b.startDate || ""));
+    });
+}
+
+function renderDesktopTimelineHistory() {
+  const shell = ensureTimelineHistoryShell();
+  const list = document.getElementById("schedule-timeline-history-list");
+  if (!shell || !list) {
+    return;
+  }
+  const shouldRender = isDesktopTimelineHistoryViewport() && scheduleBridgeSection === "all";
+  if (!shouldRender) {
+    shell.hidden = true;
+    list.replaceChildren();
+    return;
+  }
+  shell.hidden = false;
+  const blocks = getTimelineHistoryBlocks();
+  if (!blocks.length) {
+    list.innerHTML = '<p class="timeline-history-empty">작성된 타임라인 기록이 없습니다.</p>';
+    return;
+  }
+  list.innerHTML = blocks
+    .map((block) => {
+      const id = escapeTimelineHtml(block.id || "");
+      const contentValue = escapeTimelineHtml(block.place || "");
+      const memoValue = escapeTimelineHtml(block.memo || "");
+      const createdAt = escapeTimelineHtml(formatTimelineHistoryTimestamp(block.createdAt || block.updatedAt || ""));
+      const updatedAt = escapeTimelineHtml(formatTimelineHistoryTimestamp(block.updatedAt || block.createdAt || ""));
+      const period = escapeTimelineHtml(formatTimelineBlockPeriod(block.startDate, block.endDate));
+      const name = escapeTimelineHtml(block.name || "");
+      return `<article class="timeline-history-card" data-timeline-history-id="${id}">
+        <div class="timeline-history-card__head">
+          <div>
+            <strong class="timeline-history-card__title">${name}</strong>
+            <p class="timeline-history-card__meta">${period}</p>
+          </div>
+          <div class="timeline-history-card__stamp">
+            <span>작성 ${createdAt}</span>
+            <span>수정 ${updatedAt}</span>
+          </div>
+        </div>
+        <label class="timeline-history-field">
+          <span>작성 내용</span>
+          <input type="text" data-timeline-history-place value="${contentValue}" maxlength="60">
+        </label>
+        <label class="timeline-history-field">
+          <span>메모</span>
+          <textarea data-timeline-history-memo rows="3" maxlength="300">${memoValue}</textarea>
+        </label>
+        <div class="timeline-history-card__actions">
+          <button type="button" class="timeline-history-save" data-timeline-history-save="${id}">수정 반영</button>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
+function saveTimelineHistoryEntryById(id = "", card = null) {
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId || !(card instanceof HTMLElement)) {
+    return;
+  }
+  const place = String(card.querySelector("[data-timeline-history-place]")?.value || "").trim();
+  const memo = String(card.querySelector("[data-timeline-history-memo]")?.value || "").trim();
+  if (!place) {
+    showToast("작성 내용을 입력해주세요.");
+    return;
+  }
+  const nextBlocks = loadTimelineBlocks().map((block) => {
+    if (String(block.id) !== normalizedId) {
+      return block;
+    }
+    return {
+      ...block,
+      place,
+      memo,
+      createdAt: String(block.createdAt || block.updatedAt || new Date().toISOString()),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  saveTimelineBlocks(nextBlocks);
+  refreshTimelineGanttFromLegacy({ force: true });
+  renderTimelineManageList();
+  showToast("작성기록을 반영했습니다.");
 }
 
 function normalizeSharedScheduleAttachments(attachments = []) {
@@ -16984,6 +17288,18 @@ function initStorageBridge() {
       renderArchiveSuitPanels();
       return;
     }
+    const previewButton = event.target?.closest?.("[data-archive-preview-item]");
+    if (previewButton && archiveSuitMode === "view") {
+      event.preventDefault();
+      event.stopPropagation();
+      const item = getArchiveSuitDisplayItems(storageBridgeSection).find(
+        (entry) => String(entry.id) === String(previewButton.dataset.archivePreviewItem || "").trim(),
+      );
+      if (item) {
+        openArchiveSuitItemPreview(item);
+      }
+      return;
+    }
     const galleryGroup = event.target?.closest?.("[data-archive-gallery-group]");
     if (galleryGroup && archiveSuitMode === "view") {
       const interactive = event.target?.closest?.("a, button, input, select, textarea, label");
@@ -16994,8 +17310,16 @@ function initStorageBridge() {
     }
     const itemCard = event.target?.closest?.("[data-archive-item-id]");
     if (itemCard && archiveSuitMode === "view") {
-      archiveSuitSelectedId = itemCard.dataset.archiveItemId || "";
-      renderArchiveSuitPanels();
+      const interactive = event.target?.closest?.("a, button, input, select, textarea, label");
+      if (!interactive) {
+        const item = getArchiveSuitDisplayItems(storageBridgeSection).find(
+          (entry) => String(entry.id) === String(itemCard.dataset.archiveItemId || "").trim(),
+        );
+        if (item) {
+          archiveSuitSelectedId = item.id || "";
+          openArchiveSuitItemPreview(item);
+        }
+      }
       return;
     }
     if (event.target?.closest?.("[data-archive-form-cancel]") || event.target?.closest?.("[data-archive-delete-cancel]")) {
