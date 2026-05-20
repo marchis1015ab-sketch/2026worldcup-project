@@ -11763,3 +11763,125 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     visibility: visible !important;
   }
 }
+
+@media (min-width: 1025px) {
+  /* Desktop rescue lock: keep mobile/tablet rules intact while preventing the 1280px compact stack on PC. */
+  html,
+  body {
+    overflow: hidden;
+  }
+
+  .shell-frame {
+    height: 100vh;
+    min-height: 0;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .sidebar {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  .dashboard {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .dashboard-shell {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) var(--quick-height) var(--ticker-height);
+  }
+
+  .dashboard-panel-grid {
+    min-height: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+  }
+
+  #panel-main-match {
+    grid-column: 1 / span 2;
+    grid-row: 1 / span 2;
+  }
+
+  #panel-field-status {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  #panel-upcoming {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  #panel-schedule {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  #panel-equipment {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  #panel-ops-alert {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .hero-layout {
+    grid-template-columns: minmax(0, 2.05fr) minmax(290px, 0.9fr);
+  }
+
+  .hero-side-stack {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quick-strip {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .top-right-meta {
+    grid-template-columns: minmax(168px, 1.12fr) minmax(132px, 0.88fr);
+  }
+
+  .top-right-meta .dday-panel {
+    grid-column: auto;
+  }
+
+  .ticker {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .ticker__label {
+    justify-content: center;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field-equipment-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .personal-equipment-tabs {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .squad-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tournament-panel {
+    grid-column: span 2;
+  }
+}
