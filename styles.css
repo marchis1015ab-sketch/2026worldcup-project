@@ -6840,6 +6840,19 @@ body.archive-suit-modal-open {
   letter-spacing: -0.02em;
 }
 
+@media (min-width: 1025px) {
+  .timeline-name-cell:not(.timeline-name-cell--head) {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .timeline-name-cell:not(.timeline-name-cell--head) strong {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+}
+
 .timeline-name-cell--head,
 .timeline-gantt-cell--head {
   justify-content: center;
