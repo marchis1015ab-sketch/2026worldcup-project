@@ -2590,7 +2590,6 @@ const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78b
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
 const WC26_TIMELINE_DATE_CELL_WIDTH = 52;
 const WC26_TIMELINE_DATE_GAP = 6;
-const WC26_TIMELINE_HISTORY_DESKTOP_MIN_WIDTH = 1025;
 const WC26_NEWS_BROADCASTERS = ["KBS", "MBC", "SBS"];
 const WC26_CITY_TIMEZONE_MAP = {
   과달라하라: "America/Mexico_City",
@@ -3654,7 +3653,6 @@ function refreshTimelineGanttFromLegacy(options = {}) {
   }
   bridgeLoadState.timelineRangeKey = rangeKey;
   renderTimelineGantt(summary);
-  renderDesktopTimelineHistory();
 }
 
 function syncScheduleTimelineShellVisibility() {
@@ -3677,7 +3675,6 @@ function syncScheduleTimelineShellVisibility() {
   if (scheduleBridgeFrameShell) {
     scheduleBridgeFrameShell.hidden = isTimelineSection || isSharedSection || isPersonalSection || isAccumulatedSection;
   }
-  renderDesktopTimelineHistory();
 }
 
 function populateTimelineEntryNameOptions() {
@@ -3721,7 +3718,6 @@ function openTimelineEntryModal(block = null) {
     timelineEntryMemoInput.value = block?.memo || "";
   }
   timelineEntryModal.hidden = false;
-  renderDesktopTimelineHistory();
 }
 
 function closeTimelineEntryModal() {
@@ -3834,7 +3830,6 @@ function upsertTimelineBlockFromModal() {
   closeTimelineEntryModal();
   renderTimelineManageList();
   refreshTimelineGanttFromLegacy({ force: true });
-  renderDesktopTimelineHistory();
 }
 
 function deleteTimelineBlockById(id = "") {
@@ -3846,7 +3841,6 @@ function deleteTimelineBlockById(id = "") {
   saveTimelineBlocks(blocks);
   renderTimelineManageList();
   refreshTimelineGanttFromLegacy({ force: true });
-  renderDesktopTimelineHistory();
 }
 
 function handleTimelineNavButton(button, event = null) {
@@ -3876,7 +3870,6 @@ function handleTimelineNavButton(button, event = null) {
 }
 
 function initTimelineEditor() {
-  ensureTimelineHistoryShell();
   populateTimelineEntryNameOptions();
   document.addEventListener(
     "touchstart",
@@ -3934,19 +3927,6 @@ function initTimelineEditor() {
     node.addEventListener("click", closeTimelineManageModal);
   });
   timelineEntrySaveButton?.addEventListener("click", upsertTimelineBlockFromModal);
-  document.addEventListener("click", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    const saveButton = target?.closest?.("[data-timeline-history-save]");
-    if (!(saveButton instanceof HTMLElement)) {
-      return;
-    }
-    const card = saveButton.closest("[data-timeline-history-id]");
-    if (!(card instanceof HTMLElement)) {
-      return;
-    }
-    event.preventDefault();
-    saveTimelineHistoryEntryById(saveButton.dataset.timelineHistorySave || card.dataset.timelineHistoryId || "", card);
-  });
   document.addEventListener("click", (event) => {
     if (Date.now() < timelineIgnoreDocumentClickUntil) {
       return;
@@ -13542,150 +13522,6 @@ function closeSharedScheduleAttachmentPreview() {
       sharedScheduleFilePreviewActions?.replaceChildren();
     }
   }, 180);
-}
-
-function isDesktopTimelineHistoryViewport() {
-  return window.innerWidth >= WC26_TIMELINE_HISTORY_DESKTOP_MIN_WIDTH;
-}
-
-function ensureTimelineHistoryShell() {
-  if (!scheduleLocalTimelineShell) {
-    return null;
-  }
-  let shell = document.getElementById("schedule-timeline-history-shell");
-  if (shell) {
-    return shell;
-  }
-  shell = document.createElement("section");
-  shell.className = "timeline-history-shell";
-  shell.id = "schedule-timeline-history-shell";
-  shell.hidden = true;
-  shell.setAttribute("aria-label", "PC 일정현황 작성기록");
-  shell.innerHTML = `
-    <div class="timeline-history-head">
-      <div>
-        <h4 class="timeline-history-title">작성기록</h4>
-        <p class="timeline-history-copy">PC에서만 수정 가능합니다.</p>
-      </div>
-    </div>
-    <div class="timeline-history-list" id="schedule-timeline-history-list"></div>
-  `;
-  scheduleLocalTimelineShell.appendChild(shell);
-  return shell;
-}
-
-function formatTimelineHistoryTimestamp(value = "") {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return "기록 시각 없음";
-  }
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
-    return normalized;
-  }
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-}
-
-function getTimelineHistoryBlocks() {
-  return loadTimelineBlocks()
-    .slice()
-    .sort((a, b) => {
-      const updatedDiff = Date.parse(String(b.updatedAt || "")) - Date.parse(String(a.updatedAt || ""));
-      if (updatedDiff) {
-        return updatedDiff;
-      }
-      return String(a.startDate || "").localeCompare(String(b.startDate || ""));
-    });
-}
-
-function renderDesktopTimelineHistory() {
-  const shell = ensureTimelineHistoryShell();
-  const list = document.getElementById("schedule-timeline-history-list");
-  if (!shell || !list) {
-    return;
-  }
-  const shouldRender = isDesktopTimelineHistoryViewport() && scheduleBridgeSection === "all";
-  if (!shouldRender) {
-    shell.hidden = true;
-    list.replaceChildren();
-    return;
-  }
-  shell.hidden = false;
-  const blocks = getTimelineHistoryBlocks();
-  if (!blocks.length) {
-    list.innerHTML = '<p class="timeline-history-empty">작성된 타임라인 기록이 없습니다.</p>';
-    return;
-  }
-  list.innerHTML = blocks
-    .map((block) => {
-      const id = escapeTimelineHtml(block.id || "");
-      const contentValue = escapeTimelineHtml(block.place || "");
-      const memoValue = escapeTimelineHtml(block.memo || "");
-      const createdAt = escapeTimelineHtml(formatTimelineHistoryTimestamp(block.createdAt || block.updatedAt || ""));
-      const updatedAt = escapeTimelineHtml(formatTimelineHistoryTimestamp(block.updatedAt || block.createdAt || ""));
-      const period = escapeTimelineHtml(formatTimelineBlockPeriod(block.startDate, block.endDate));
-      const name = escapeTimelineHtml(block.name || "");
-      return `<article class="timeline-history-card" data-timeline-history-id="${id}">
-        <div class="timeline-history-card__head">
-          <div>
-            <strong class="timeline-history-card__title">${name}</strong>
-            <p class="timeline-history-card__meta">${period}</p>
-          </div>
-          <div class="timeline-history-card__stamp">
-            <span>작성 ${createdAt}</span>
-            <span>수정 ${updatedAt}</span>
-          </div>
-        </div>
-        <label class="timeline-history-field">
-          <span>작성 내용</span>
-          <input type="text" data-timeline-history-place value="${contentValue}" maxlength="60">
-        </label>
-        <label class="timeline-history-field">
-          <span>메모</span>
-          <textarea data-timeline-history-memo rows="3" maxlength="300">${memoValue}</textarea>
-        </label>
-        <div class="timeline-history-card__actions">
-          <button type="button" class="timeline-history-save" data-timeline-history-save="${id}">수정 반영</button>
-        </div>
-      </article>`;
-    })
-    .join("");
-}
-
-function saveTimelineHistoryEntryById(id = "", card = null) {
-  const normalizedId = String(id || "").trim();
-  if (!normalizedId || !(card instanceof HTMLElement)) {
-    return;
-  }
-  const place = String(card.querySelector("[data-timeline-history-place]")?.value || "").trim();
-  const memo = String(card.querySelector("[data-timeline-history-memo]")?.value || "").trim();
-  if (!place) {
-    showToast("작성 내용을 입력해주세요.");
-    return;
-  }
-  const nextBlocks = loadTimelineBlocks().map((block) => {
-    if (String(block.id) !== normalizedId) {
-      return block;
-    }
-    return {
-      ...block,
-      place,
-      memo,
-      createdAt: String(block.createdAt || block.updatedAt || new Date().toISOString()),
-      updatedAt: new Date().toISOString(),
-    };
-  });
-  saveTimelineBlocks(nextBlocks);
-  refreshTimelineGanttFromLegacy({ force: true });
-  renderTimelineManageList();
-  showToast("작성기록을 반영했습니다.");
 }
 
 function normalizeSharedScheduleAttachments(attachments = []) {
