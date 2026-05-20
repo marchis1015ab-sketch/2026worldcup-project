@@ -11064,7 +11064,7 @@ function ensureEquipmentBridgeShell() {
         <iframe
           class="schedule-bridge-frame"
           id="equipment-bridge-frame"
-          data-src="./legacy-schedule/?v=${WC26_BRIDGE_VERSION}"
+          data-src="./legacy-schedule/index.html?v=${WC26_BRIDGE_VERSION}"
           src=""
           title="legacy equipment bridge"
           loading="lazy"
@@ -17224,12 +17224,12 @@ function normalizeMainStadiumCarouselItem(stadium = {}, index = 0) {
   const city = String(stadium.city || stadium.location || "").trim();
   const key = String(stadium.key || title || city || `stadium-${index + 1}`).trim();
   const canonicalImagePath = resolveWC26StadiumImagePath(title || city || key, "");
-  const stadiumImage = String(
+  const stadiumImage = normalizeMapStadiumText(
     canonicalImagePath ||
       stadium.imagePath ||
       stadium.stadiumImage ||
       stadium.image,
-  ).trim();
+  );
   const caption = title || city || `경기장 ${index + 1}`;
   const countryKey = normalizeMapStadiumCountryValue(stadium.countryKey || stadium.country || "");
   const countryLabel = countryKey === "canada" ? "Canada" : countryKey === "usa" ? "USA" : countryKey === "mexico" ? "Mexico" : "";
@@ -17287,8 +17287,13 @@ function collectMainStadiumCarouselItems({ summary = null, directItems = [] } = 
     directItems.forEach((item, index) => pushItem(item, index));
   }
 
-  const currentStadium = summary && typeof summary === "object" ? summary.currentStadium || {} : window.WC26_CURRENT_STADIUM || {};
-  if (currentStadium && typeof currentStadium === "object") {
+  const currentStadium = summary && typeof summary === "object" ? summary.currentStadium || null : window.WC26_CURRENT_STADIUM || null;
+  const hasCurrentStadiumData =
+    currentStadium &&
+    typeof currentStadium === "object" &&
+    [currentStadium.title, currentStadium.stadiumName, currentStadium.city, currentStadium.imagePath, currentStadium.stadiumImage]
+      .some((value) => normalizeMapStadiumText(value));
+  if (hasCurrentStadiumData) {
     pushItem(
       {
         key: currentStadium.key,

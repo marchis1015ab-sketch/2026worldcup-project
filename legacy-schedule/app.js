@@ -18175,6 +18175,31 @@ updateHeaderReportBoard();
 startHeaderTimeTicker();
 ensureMobileHistoryGuard();
 if(typeof window!=='undefined'){
+  Object.assign(window, {
+    readTimelineAssignmentsRaw,
+    readPersonalTimelineSharedRaw,
+    writePersonalTimelineSharedRaw,
+    getPersonalTimelineSharedEntries,
+    saveCommonScheduleWithAttachment,
+    deletePersonalTimelineSharedEntryAt,
+    getPersonalTimelineDetailEntries,
+    getPersonalTimelineDetailEntryFieldValue,
+    getPersonalTimelineTaskReportLabel,
+    getPersonalTimelineOptionLabel,
+    savePersonalTimelinePersonRow,
+    deletePersonalTimelineDetailEntry,
+    endPersonalTimelineDetailEntry,
+    reloadPersonalTimelineDetailSelectionsFromStorage,
+    readPersonalTimelineDetailsRaw,
+    buildPersonalTimelineReportText,
+    getPersonalTimelineSummaryReportsForDate,
+    renderPersonalTimelinePersonRow,
+    resolveScheduleCityContext,
+    buildWorldCupTimeInfo,
+    getTodayTimelineKey,
+    fetchSharedStateSnapshot,
+    flushPendingSharedStateWritesWithRetry
+  });
   window.initMap=initMap;
   document.addEventListener('DOMContentLoaded', initAccessMode);
   document.addEventListener('DOMContentLoaded', initializeNewsProgrammingPersistence);
