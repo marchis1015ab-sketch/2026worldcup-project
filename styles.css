@@ -12038,7 +12038,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert .main-stadium-random-slide {
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(96px, 0.8fr);
-    align-items: start;
+    align-items: center;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -12052,7 +12052,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     max-inline-size: 208px;
     aspect-ratio: 209 / 154;
     justify-self: start;
-    align-self: start;
+    align-self: center;
     align-items: stretch;
     justify-content: stretch;
     overflow: hidden;
@@ -12067,9 +12067,11 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
 
   body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert .main-stadium-info-side {
     min-width: 0;
+    height: 100%;
     max-width: 100%;
-    justify-content: flex-start;
-    padding: 10px 10px 8px;
+    align-self: stretch;
+    justify-content: center;
+    padding: 8px 10px;
     gap: 6px;
   }
 
@@ -12098,6 +12100,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
 
   /* Let the desktop side menu sit directly under the logo instead of staying pinned to the bottom. */
   body:has(#view-dashboard.is-active:not([hidden])) .sidebar .side-nav {
+    display: block !important;
     position: relative !important;
     inset: auto !important;
     left: auto !important;
@@ -12105,8 +12108,8 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     top: auto !important;
     bottom: auto !important;
     width: 100%;
-    margin-top: 8px;
+    margin-top: 0;
     max-height: none;
-    overflow: visible;
+    overflow: auto;
   }
 }

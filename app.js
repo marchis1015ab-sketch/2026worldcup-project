@@ -318,6 +318,86 @@ const GROUP_A_TEAM_META = {
   Czechia: { ko: "체코", flag: "cz" },
   "Czech Republic": { ko: "체코", flag: "cz" },
 };
+const WC26_TEAM_NAME_KO_LOOKUP = Object.freeze({
+  mexico: "멕시코",
+  southafrica: "남아공",
+  southkorea: "대한민국",
+  korearepublic: "대한민국",
+  republicofkorea: "대한민국",
+  korea: "대한민국",
+  czechia: "체코",
+  czechrepublic: "체코",
+  canada: "캐나다",
+  bosniaandherzegovina: "보스니아헤르체고비나",
+  qatar: "카타르",
+  switzerland: "스위스",
+  brazil: "브라질",
+  morocco: "모로코",
+  haiti: "아이티",
+  scotland: "스코틀랜드",
+  unitedstates: "미국",
+  usa: "미국",
+  paraguay: "파라과이",
+  australia: "호주",
+  turkey: "튀르키예",
+  turkiye: "튀르키예",
+  germany: "독일",
+  curacao: "퀴라소",
+  ivorycoast: "코트디부아르",
+  cotedivoire: "코트디부아르",
+  ecuador: "에콰도르",
+  netherlands: "네덜란드",
+  japan: "일본",
+  sweden: "스웨덴",
+  tunisia: "튀니지",
+  belgium: "벨기에",
+  egypt: "이집트",
+  iran: "이란",
+  newzealand: "뉴질랜드",
+  spain: "스페인",
+  capeverde: "카보베르데",
+  caboverde: "카보베르데",
+  saudiarabia: "사우디아라비아",
+  uruguay: "우루과이",
+  france: "프랑스",
+  senegal: "세네갈",
+  iraq: "이라크",
+  norway: "노르웨이",
+  argentina: "아르헨티나",
+  algeria: "알제리",
+  austria: "오스트리아",
+  jordan: "요르단",
+  portugal: "포르투갈",
+  congodr: "콩고민주공화국",
+  drcongo: "콩고민주공화국",
+  democraticrepublicofthecongo: "콩고민주공화국",
+  uzbekistan: "우즈베키스탄",
+  colombia: "콜롬비아",
+  england: "잉글랜드",
+  croatia: "크로아티아",
+  ghana: "가나",
+  panama: "파나마",
+});
+
+function normalizeWC26TeamNameKey(value = "") {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, "");
+}
+
+function resolveWC26TeamDisplayKo(teamName = "") {
+  const normalizedTeamName = String(teamName || "").trim();
+  if (!normalizedTeamName) {
+    return "";
+  }
+  if (GROUP_A_TEAM_META[normalizedTeamName]?.ko) {
+    return GROUP_A_TEAM_META[normalizedTeamName].ko;
+  }
+  return WC26_TEAM_NAME_KO_LOOKUP[normalizeWC26TeamNameKey(normalizedTeamName)] || "";
+}
+
 const WC26_DYNAMIC_TEAM_META = new Map(
   Object.entries(GROUP_A_TEAM_META).map(([teamName, meta]) => [
     String(teamName || "").trim(),
@@ -8224,8 +8304,9 @@ function rememberGroupTeamMeta(teamName = "", meta = {}) {
     return;
   }
   const currentMeta = WC26_DYNAMIC_TEAM_META.get(normalizedTeamName) || GROUP_A_TEAM_META[normalizedTeamName] || {};
+  const resolvedKoLabel = resolveWC26TeamDisplayKo(normalizedTeamName);
   const nextMeta = {
-    ko: String(meta?.ko || currentMeta?.ko || normalizedTeamName).trim() || normalizedTeamName,
+    ko: String(meta?.ko || currentMeta?.ko || resolvedKoLabel || normalizedTeamName).trim() || normalizedTeamName,
     flag: String(meta?.flag || currentMeta?.flag || "").trim().toLowerCase(),
   };
   WC26_DYNAMIC_TEAM_META.set(normalizedTeamName, nextMeta);
@@ -8249,7 +8330,13 @@ function rememberGroupTeamMetasFromMatches(matches = []) {
 
 function getGroupATeamMeta(teamName = "") {
   const normalized = String(teamName || "").trim();
-  return WC26_DYNAMIC_TEAM_META.get(normalized) || GROUP_A_TEAM_META[normalized] || { ko: normalized || "팀 미정", flag: "" };
+  return (
+    WC26_DYNAMIC_TEAM_META.get(normalized) ||
+    GROUP_A_TEAM_META[normalized] || {
+      ko: resolveWC26TeamDisplayKo(normalized) || normalized || "팀 미정",
+      flag: "",
+    }
+  );
 }
 
 function createGroupATeamCell(teamName = "") {
@@ -8313,7 +8400,7 @@ function createGroupAMatchTeam(teamName = "", side = "home") {
     image.draggable = false;
     team.append(image);
   }
-  team.append(createGroupAElement("strong", "group-a-feature-team-name", teamName || meta.ko || "Team"));
+  team.append(createGroupAElement("strong", "group-a-feature-team-name", meta.ko || teamName || "Team"));
   return team;
 }
 
@@ -8455,7 +8542,7 @@ function updateGroupAMatchTeam(teamNode, teamName = "", side = "home") {
     label = createGroupAElement("strong", "group-a-feature-team-name");
     teamNode.append(label);
   }
-  label.textContent = teamName || meta.ko || "Team";
+  label.textContent = meta.ko || teamName || "Team";
   teamNode.className = `group-a-feature-team group-a-feature-team--${side}`;
 }
 
