@@ -1121,7 +1121,18 @@
     <div class="toast" id="toast-shell" role="status" aria-live="polite"></div>
     <div class="timeline-tooltip" id="timeline-tooltip-shell" hidden aria-hidden="true"></div>
 
-    <script src="./app.js?v=bridge-target-fix-20260518-04"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      window.APP_CONFIG = {
+        supabaseUrl: "https://dwujummgbntrtvmldqmz.supabase.co",
+        supabaseAnonKey: "sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l",
+        supabaseCloudEnabled: true,
+        supabaseRealtimeEnabled: false,
+        googleMapsApiKey: "",
+      };
+    </script>
+    <script src="./supabase-client.js?v=new-suit-shared-state-20260521-01"></script>
+    <script src="./app.js?v=new-suit-shared-state-20260521-01"></script>
     <script src="./tournament-tab.js?v=20260517-22"></script>
     <script>
       (function () {

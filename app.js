@@ -1764,6 +1764,11 @@ const WC26_KOREA_ROSTER = [
 ];
 
 const WC26_OPS_MEMO_STORAGE_KEY = "wc26_new_suit_ops_memo_pad_v1";
+const WC26_SHARED_STATE_TABLE = "shared_state";
+const WC26_NEW_SUIT_SHARED_STATE_KEYS = Object.freeze([
+  WC26_OPS_MEMO_STORAGE_KEY,
+  "wc26_new_suit_timeline_blocks_v1",
+]);
 
 const WC26_STAGE_LABELS = {
   group: "조별리그",
@@ -2589,6 +2594,12 @@ const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
+let wc26NewSuitSharedStateClient = null;
+let wc26NewSuitSharedStateReady = false;
+let wc26NewSuitSharedStatePollingTimer = null;
+let wc26NewSuitSharedStateChannel = null;
+const wc26NewSuitSharedStatePendingWrites = new Map();
+const wc26NewSuitSharedStateWriteGuards = new Map();
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_DATE_MEMO_KIND = "dateMemo";
@@ -3236,6 +3247,225 @@ function backupTimelineBlocksBeforeWrite() {
   }
 }
 
+function getNewSuitSharedStateClient() {
+  if (wc26NewSuitSharedStateClient) {
+    return wc26NewSuitSharedStateClient;
+  }
+  if (window.supabaseClient) {
+    wc26NewSuitSharedStateClient = window.supabaseClient;
+    return wc26NewSuitSharedStateClient;
+  }
+  const url = String(window.APP_CONFIG?.supabaseUrl || "").trim();
+  const key = String(window.APP_CONFIG?.supabaseAnonKey || "").trim();
+  if (!url || !key || !window.supabase?.createClient) {
+    return null;
+  }
+  wc26NewSuitSharedStateClient = window.supabase.createClient(url, key);
+  window.supabaseClient = wc26NewSuitSharedStateClient;
+  return wc26NewSuitSharedStateClient;
+}
+
+function getLocalStorageRaw(storageKey = "") {
+  try {
+    return window.localStorage?.getItem(storageKey) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function setLocalStorageRaw(storageKey = "", raw = "") {
+  try {
+    window.localStorage?.setItem(storageKey, String(raw || ""));
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function getEntryTimeValue(entry = {}) {
+  const source = String(entry?.updatedAt || entry?.createdAt || "").trim();
+  const parsed = Date.parse(source);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function mergeTimelineBlockLists(localRaw = "", remoteRaw = "") {
+  const merged = new Map();
+  [...parseTimelineBlocksFromRaw(remoteRaw), ...parseTimelineBlocksFromRaw(localRaw)].forEach((block) => {
+    const key = String(block.id || "").trim() || getTimelineBlockDedupeKey(block);
+    if (!key) {
+      return;
+    }
+    const current = merged.get(key);
+    if (!current || getEntryTimeValue(block) >= getEntryTimeValue(current)) {
+      merged.set(key, block);
+    }
+  });
+  return JSON.stringify(Array.from(merged.values()));
+}
+
+function parseOpsMemoEntriesFromRaw(raw = "") {
+  try {
+    const parsed = JSON.parse(String(raw || "").trim() || "[]");
+    return Array.isArray(parsed)
+      ? parsed
+          .map((entry, index) => ({
+            id: String(entry?.id || `ops-memo-${index + 1}`).trim(),
+            text: String(entry?.text || "").trim(),
+            createdAt: String(entry?.createdAt || entry?.updatedAt || "").trim(),
+            updatedAt: String(entry?.updatedAt || entry?.createdAt || "").trim(),
+          }))
+          .filter((entry) => entry.id && entry.text)
+      : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function mergeOpsMemoLists(localRaw = "", remoteRaw = "") {
+  const merged = new Map();
+  [...parseOpsMemoEntriesFromRaw(remoteRaw), ...parseOpsMemoEntriesFromRaw(localRaw)].forEach((entry) => {
+    const current = merged.get(entry.id);
+    if (!current || getEntryTimeValue(entry) >= getEntryTimeValue(current)) {
+      merged.set(entry.id, entry);
+    }
+  });
+  return JSON.stringify(
+    Array.from(merged.values()).sort((left, right) => getEntryTimeValue(right) - getEntryTimeValue(left)),
+  );
+}
+
+function mergeNewSuitSharedStateRaw(storageKey = "", localRaw = "", remoteRaw = "") {
+  if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
+    return mergeTimelineBlockLists(localRaw, remoteRaw);
+  }
+  if (storageKey === WC26_OPS_MEMO_STORAGE_KEY) {
+    return mergeOpsMemoLists(localRaw, remoteRaw);
+  }
+  return String(remoteRaw || localRaw || "");
+}
+
+function rerenderNewSuitSharedStateKey(storageKey = "") {
+  if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
+    renderTimelineGantt({});
+    renderTimelineManageList();
+    return;
+  }
+  if (storageKey === WC26_OPS_MEMO_STORAGE_KEY) {
+    renderOpsMemoPad();
+  }
+}
+
+async function fetchNewSuitSharedStateRows(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS) {
+  const client = getNewSuitSharedStateClient();
+  if (!client) {
+    return [];
+  }
+  const keys = Array.from(new Set(storageKeys.map((key) => String(key || "").trim()).filter(Boolean)));
+  if (!keys.length) {
+    return [];
+  }
+  const { data, error } = await client
+    .from(WC26_SHARED_STATE_TABLE)
+    .select("state_key,state_value,updated_at")
+    .in("state_key", keys);
+  if (error) {
+    console.warn("[new-suit shared_state] fetch failed", error);
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+async function flushNewSuitSharedStateWrites() {
+  const client = getNewSuitSharedStateClient();
+  if (!client || !wc26NewSuitSharedStatePendingWrites.size) {
+    return;
+  }
+  const pendingRows = Array.from(wc26NewSuitSharedStatePendingWrites.entries()).map(([state_key, state_value]) => ({
+    state_key,
+    state_value,
+    updated_at: new Date().toISOString(),
+  }));
+  wc26NewSuitSharedStatePendingWrites.clear();
+  const { error } = await client
+    .from(WC26_SHARED_STATE_TABLE)
+    .upsert(pendingRows, { onConflict: "state_key" });
+  if (error) {
+    pendingRows.forEach((row) => wc26NewSuitSharedStatePendingWrites.set(row.state_key, row.state_value));
+    console.warn("[new-suit shared_state] write failed", error);
+  }
+}
+
+function scheduleNewSuitSharedStateWrite(storageKey = "", raw = "") {
+  if (!WC26_NEW_SUIT_SHARED_STATE_KEYS.includes(storageKey)) {
+    return;
+  }
+  wc26NewSuitSharedStatePendingWrites.set(storageKey, String(raw || ""));
+  wc26NewSuitSharedStateWriteGuards.set(storageKey, Date.now() + 2500);
+  window.setTimeout(flushNewSuitSharedStateWrites, 120);
+}
+
+async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS) {
+  const rows = await fetchNewSuitSharedStateRows(storageKeys);
+  const remoteByKey = new Map(rows.map((row) => [String(row?.state_key || "").trim(), String(row?.state_value ?? "")]));
+  storageKeys.forEach((storageKey) => {
+    const localRaw = getLocalStorageRaw(storageKey);
+    const remoteRaw = remoteByKey.get(storageKey) || "";
+    const mergedRaw = mergeNewSuitSharedStateRaw(storageKey, localRaw, remoteRaw);
+    if (mergedRaw !== localRaw) {
+      setLocalStorageRaw(storageKey, mergedRaw);
+      rerenderNewSuitSharedStateKey(storageKey);
+    }
+    if (mergedRaw !== remoteRaw) {
+      scheduleNewSuitSharedStateWrite(storageKey, mergedRaw);
+    }
+  });
+}
+
+function applyNewSuitSharedStateRemoteRow(row = {}) {
+  const storageKey = String(row?.state_key || "").trim();
+  if (!WC26_NEW_SUIT_SHARED_STATE_KEYS.includes(storageKey)) {
+    return;
+  }
+  const guardUntil = Number(wc26NewSuitSharedStateWriteGuards.get(storageKey) || 0);
+  if (guardUntil > Date.now()) {
+    return;
+  }
+  const localRaw = getLocalStorageRaw(storageKey);
+  const remoteRaw = String(row?.state_value ?? "");
+  const mergedRaw = mergeNewSuitSharedStateRaw(storageKey, localRaw, remoteRaw);
+  if (mergedRaw !== localRaw) {
+    setLocalStorageRaw(storageKey, mergedRaw);
+    rerenderNewSuitSharedStateKey(storageKey);
+  }
+}
+
+function initNewSuitSharedStateSync() {
+  if (wc26NewSuitSharedStateReady) {
+    return;
+  }
+  wc26NewSuitSharedStateReady = true;
+  hydrateNewSuitSharedState();
+  window.addEventListener("focus", () => hydrateNewSuitSharedState());
+  wc26NewSuitSharedStatePollingTimer = window.setInterval(() => hydrateNewSuitSharedState(), 15000);
+
+  const client = getNewSuitSharedStateClient();
+  if (!client?.channel) {
+    return;
+  }
+  try {
+    wc26NewSuitSharedStateChannel = client
+      .channel("wc26-new-suit-shared-state")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: WC26_SHARED_STATE_TABLE },
+        (payload) => applyNewSuitSharedStateRemoteRow(payload?.new || {}),
+      )
+      .subscribe();
+  } catch (_error) {
+    wc26NewSuitSharedStateChannel = null;
+  }
+}
+
 function loadTimelineBlocks() {
   const raw = (() => {
     try {
@@ -3287,7 +3517,9 @@ function saveTimelineBlocks(blocks = []) {
     : [];
   try {
     backupTimelineBlocksBeforeWrite();
-    window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(normalizedBlocks));
+    const raw = JSON.stringify(normalizedBlocks);
+    window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, raw);
+    scheduleNewSuitSharedStateWrite(WC26_TIMELINE_STORAGE_KEY, raw);
   } catch (_error) {
     showToast("일정현황 저장에 실패했습니다.");
   }
@@ -7059,20 +7291,16 @@ function renderOperationStatusSummary() {
 }
 
 function loadOpsMemoEntries() {
-  try {
-    const raw = window.localStorage.getItem(WC26_OPS_MEMO_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (_error) {
-    return [];
-  }
+  return parseOpsMemoEntriesFromRaw(getLocalStorageRaw(WC26_OPS_MEMO_STORAGE_KEY));
 }
 
 function saveOpsMemoEntries(entries = []) {
   try {
-    window.localStorage.setItem(WC26_OPS_MEMO_STORAGE_KEY, JSON.stringify(entries));
+    const raw = JSON.stringify(parseOpsMemoEntriesFromRaw(JSON.stringify(entries)));
+    window.localStorage.setItem(WC26_OPS_MEMO_STORAGE_KEY, raw);
+    scheduleNewSuitSharedStateWrite(WC26_OPS_MEMO_STORAGE_KEY, raw);
   } catch (_error) {
-    // localStorage persistence is best-effort only.
+    showToast("운영 메모 저장에 실패했습니다.");
   }
 }
 
@@ -18765,6 +18993,7 @@ WC26_MOBILE_MEDIA_QUERY?.addEventListener?.("change", () => {
 });
 
 initDailyMatchCarousel();
+initNewSuitSharedStateSync();
 initAccumulatedTicker();
 initTimelineEditor();
 initScheduleBridge();

@@ -91,14 +91,21 @@ Supabase is reachable. Latest observed shared state writes include:
 - `worldcup-guide-news-programming-v1`: `2026-05-20T22:14:19.511+00:00`
 - `worldcup-guide-timeline-assignments-v2`: `2026-05-20T22:03:08.422+00:00`
 
-But the new main screen has local-only storage keys:
+At the time of the incident, the new main screen had local-only storage keys:
 
 - `wc26_new_suit_timeline_blocks_v1`
 - `wc26_new_suit_ops_memo_pad_v1`
 
-Those are written directly to browser `localStorage` in `app.js`. They are not currently synchronized to Supabase. That means entries typed into those new-screen areas on the home PC can be visible at home, survive a page refresh at home, and still not appear on the company PC.
+Those were written directly to browser `localStorage` in `app.js`. They were not synchronized to Supabase. That means entries typed into those new-screen areas on the home PC could be visible at home, survive a page refresh at home, and still not appear on the company PC.
 
-This is not a Vercel failure. It is a storage-design gap: those particular data areas are local browser data, not shared server data.
+This was not a Vercel failure. It was a storage-design gap: those particular data areas were local browser data, not shared server data.
+
+Follow-up fix:
+
+- Root `index.html` now loads the Supabase client and `APP_CONFIG`.
+- `app.js` now syncs `wc26_new_suit_timeline_blocks_v1` and `wc26_new_suit_ops_memo_pad_v1` through Supabase `shared_state`.
+- Existing browser localStorage data is merged with server data on load, focus, and periodic refresh.
+- Local writes still update the screen immediately, then flush to `shared_state`.
 
 ## Prevention
 
