@@ -11885,3 +11885,66 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     grid-column: span 2;
   }
 }
+
+@media (min-width: 1025px) {
+  /* Desktop layer restore: overrides the temporary background-only/mobile layer hides on PC only. */
+  body:has(.dashboard-view:not([hidden])) .shell-frame,
+  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar,
+  body:has(#view-dashboard.is-active:not([hidden])) .dashboard,
+  body:has(#view-dashboard.is-active:not([hidden])) .sidebar > *,
+  body:has(#view-dashboard.is-active:not([hidden])) .dashboard > * {
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .mobile-dashboard-menu,
+  body:has(#view-dashboard.is-active:not([hidden])) #mobile-home-match-preview {
+    display: none !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .topbar {
+    display: flex !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .ticker {
+    display: grid !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) .quick-strip {
+    display: grid !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard,
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard.dashboard-shell,
+  body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: initial;
+    overflow: hidden !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard.dashboard-shell,
+  body:has(#view-dashboard.is-active:not([hidden])) #view-dashboard .dashboard-panel-grid {
+    display: grid !important;
+  }
+
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-main-match,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-field-status,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-upcoming,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-schedule,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-equipment,
+  body:has(#view-dashboard.is-active:not([hidden])) #panel-ops-alert {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
