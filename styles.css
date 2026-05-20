@@ -6889,6 +6889,11 @@ body.archive-suit-modal-open {
   margin-bottom: 4px;
 }
 
+.timeline-gantt-date-label {
+  display: block;
+  line-height: 1;
+}
+
 .timeline-date-body {
   grid-auto-rows: 42px;
   position: relative;
@@ -7028,6 +7033,35 @@ body.archive-suit-modal-open {
 }
 
 @media (min-width: 1025px) {
+  .timeline-gantt-cell--date-trigger {
+    cursor: pointer;
+  }
+
+  .timeline-gantt-cell--head.timeline-gantt-cell--date-trigger {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 4px;
+  }
+
+  .timeline-gantt-cell--date-trigger:focus-visible {
+    outline: 2px solid rgba(255, 93, 122, 0.58);
+    outline-offset: 2px;
+  }
+
+  .timeline-date-has-memo {
+    border-color: rgba(255, 93, 122, 0.46);
+    box-shadow: inset 0 0 0 1px rgba(255, 93, 122, 0.2);
+  }
+
+  .timeline-date-memo-mark {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #ff5d7a;
+    box-shadow: 0 0 0 3px rgba(255, 93, 122, 0.18);
+  }
+
   #timeline-entry-modal .timeline-modal__dialog,
   #timeline-manage-modal .timeline-modal__dialog {
     max-height: calc(100vh - 48px);
@@ -7046,6 +7080,17 @@ body.archive-suit-modal-open {
   #timeline-entry-modal .timeline-modal__actions,
   #timeline-manage-modal .timeline-modal__actions {
     flex: 0 0 auto;
+  }
+
+  .timeline-date-memo-modal__dialog {
+    width: min(440px, calc(100vw - 32px));
+  }
+
+  .timeline-date-memo-modal__date {
+    margin: 4px 0 0;
+    color: var(--text-sub);
+    font-size: 11px;
+    line-height: 1.3;
   }
 }
 

@@ -1449,6 +1449,10 @@ let timelineResizeTimer = null;
 let activeTimelineTooltipId = "";
 let timelineLastTouchToggleAt = 0;
 let timelineIgnoreDocumentClickUntil = 0;
+let timelineDateMemoModal = null;
+let timelineDateMemoDateLabel = null;
+let timelineDateMemoInput = null;
+let timelineDateMemoSaveButton = null;
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -2587,6 +2591,8 @@ const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
+const WC26_TIMELINE_DATE_MEMO_KIND = "dateMemo";
+const WC26_TIMELINE_DATE_MEMO_LABEL = "날짜 메모";
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
 const WC26_TIMELINE_DATE_CELL_WIDTH = 52;
 const WC26_TIMELINE_DATE_GAP = 6;
@@ -2997,7 +3003,9 @@ function getTimelineBlockColor(name = "") {
 
 function buildStableTimelineBlockId(rawBlock = {}, fallbackIndex = 0) {
   const seed = [
+    String(rawBlock.kind || rawBlock.type || "").trim(),
     String(rawBlock.name || "").trim(),
+    String(rawBlock.dateKey || "").trim(),
     String(rawBlock.startDate || "").trim(),
     String(rawBlock.endDate || "").trim(),
     String(rawBlock.place || "").trim(),
@@ -3015,6 +3023,31 @@ function sanitizeTimelineBlock(rawBlock = {}, index = 0) {
   if (!rawBlock || typeof rawBlock !== "object") {
     return null;
   }
+  const kind = String(rawBlock.kind || rawBlock.type || "").trim() || "member";
+  if (kind === WC26_TIMELINE_DATE_MEMO_KIND) {
+    const dateKey = String(rawBlock.dateKey || rawBlock.startDate || rawBlock.endDate || "").slice(0, 10);
+    const memo = String(rawBlock.memo || "").trim();
+    if (!dateKey || !memo) {
+      return null;
+    }
+    const rawUpdatedAt = String(rawBlock.updatedAt || rawBlock.createdAt || "").trim();
+    const rawCreatedAt = String(rawBlock.createdAt || rawUpdatedAt || "").trim();
+    const normalizedUpdatedAt = rawUpdatedAt || rawCreatedAt || new Date().toISOString();
+    const normalizedCreatedAt = rawCreatedAt || normalizedUpdatedAt;
+    return {
+      id: String(rawBlock.id || `date-memo-${dateKey}` || buildStableTimelineBlockId(rawBlock, index)).trim(),
+      kind: WC26_TIMELINE_DATE_MEMO_KIND,
+      type: WC26_TIMELINE_DATE_MEMO_KIND,
+      name: WC26_TIMELINE_DATE_MEMO_LABEL,
+      dateKey,
+      startDate: dateKey,
+      endDate: dateKey,
+      place: "",
+      memo,
+      createdAt: normalizedCreatedAt,
+      updatedAt: normalizedUpdatedAt,
+    };
+  }
   const name = String(rawBlock.name || "").trim();
   const startDate = String(rawBlock.startDate || "").slice(0, 10);
   const endDate = String(rawBlock.endDate || "").slice(0, 10);
@@ -3031,6 +3064,7 @@ function sanitizeTimelineBlock(rawBlock = {}, index = 0) {
   const normalizedCreatedAt = rawCreatedAt || normalizedUpdatedAt;
   return {
     id: String(rawBlock.id || buildStableTimelineBlockId(rawBlock, index)).trim(),
+    kind: "member",
     name,
     startDate,
     endDate,
@@ -3083,6 +3117,9 @@ function parseTimelineBlocksFromRaw(raw = "") {
 }
 
 function getTimelineBlockDedupeKey(block = {}) {
+  if (String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND) {
+    return [WC26_TIMELINE_DATE_MEMO_KIND, String(block.dateKey || block.startDate || "").trim(), String(block.memo || "").trim()].join("::");
+  }
   return [
     String(block.name || "").trim(),
     String(block.startDate || "").trim(),
@@ -3207,19 +3244,25 @@ function loadTimelineBlocks() {
       return "";
     }
   })();
+  const rawText = String(raw || "").trim();
+  const hasPersistedRaw = rawText.length > 0;
+  let rawParseFailed = false;
   const blocks = parseTimelineBlocksFromRaw(raw);
   try {
-    const parsedRaw = JSON.parse(String(raw || "").trim() || "[]");
+    const parsedRaw = JSON.parse(rawText || "[]");
     if (Array.isArray(parsedRaw) && parsedRaw.length !== blocks.length) {
       backupTimelineBlocksBeforeWrite();
       window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(blocks));
       window.sessionStorage?.setItem(`${WC26_TIMELINE_BACKUP_PREFIX}_personal_generated_removed_${WC26_BRIDGE_VERSION}`, String(parsedRaw.length - blocks.length));
     }
   } catch (_error) {
-    // Invalid raw storage is handled by the parsed block fallback below.
+    rawParseFailed = hasPersistedRaw;
   }
   if (blocks.length) {
     return restoreMissingLeeJuwonTimelineBlocks(blocks);
+  }
+  if (hasPersistedRaw && !rawParseFailed) {
+    return [];
   }
 
   const backupRaw = getLatestTimelineBackupRaw();
@@ -3251,6 +3294,162 @@ function saveTimelineBlocks(blocks = []) {
   return normalizedBlocks;
 }
 
+function isDesktopTimelineDateMemoViewport() {
+  return Boolean(window.matchMedia?.("(min-width: 1025px)").matches);
+}
+
+function getTimelineDateMemoEntry(dateKey = "") {
+  const normalizedDateKey = String(dateKey || "").slice(0, 10);
+  if (!normalizedDateKey) {
+    return null;
+  }
+  return (
+    loadTimelineBlocks().find(
+      (block) =>
+        String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND &&
+        String(block.dateKey || block.startDate || "").slice(0, 10) === normalizedDateKey,
+    ) || null
+  );
+}
+
+function getTimelineDateMemoMap(dates = []) {
+  const allowedKeys = new Set((Array.isArray(dates) ? dates : []).map((dateKey) => String(dateKey || "").slice(0, 10)).filter(Boolean));
+  const memoMap = new Map();
+  loadTimelineBlocks().forEach((block) => {
+    if (String(block.kind || block.type || "").trim() !== WC26_TIMELINE_DATE_MEMO_KIND) {
+      return;
+    }
+    const dateKey = String(block.dateKey || block.startDate || "").slice(0, 10);
+    if (!dateKey) {
+      return;
+    }
+    if (allowedKeys.size && !allowedKeys.has(dateKey)) {
+      return;
+    }
+    memoMap.set(dateKey, block);
+  });
+  return memoMap;
+}
+
+function buildTimelineDateMemoModal() {
+  if (timelineDateMemoModal) {
+    return timelineDateMemoModal;
+  }
+  const modal = document.createElement("div");
+  modal.className = "timeline-modal timeline-date-memo-modal";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="timeline-modal__backdrop" data-timeline-date-memo-close></div>
+    <div class="timeline-modal__dialog timeline-date-memo-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="timeline-date-memo-title">
+      <div class="timeline-modal__header">
+        <div>
+          <h3 class="timeline-modal__title" id="timeline-date-memo-title">날짜 메모</h3>
+          <p class="timeline-date-memo-modal__date" id="timeline-date-memo-date"></p>
+        </div>
+        <button type="button" class="timeline-modal__close" data-timeline-date-memo-close aria-label="닫기">×</button>
+      </div>
+      <div class="timeline-modal__body">
+        <label class="timeline-modal__field">
+          <span>메모 입력</span>
+          <textarea id="timeline-date-memo-input" rows="5" maxlength="400" placeholder="날짜 메모를 입력하세요."></textarea>
+        </label>
+      </div>
+      <div class="timeline-modal__actions">
+        <button type="button" class="timeline-modal__button timeline-modal__button--ghost" data-timeline-date-memo-close>취소</button>
+        <button type="button" class="timeline-modal__button" id="timeline-date-memo-save">저장</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  timelineDateMemoModal = modal;
+  timelineDateMemoDateLabel = modal.querySelector("#timeline-date-memo-date");
+  timelineDateMemoInput = modal.querySelector("#timeline-date-memo-input");
+  timelineDateMemoSaveButton = modal.querySelector("#timeline-date-memo-save");
+  modal.querySelectorAll("[data-timeline-date-memo-close]").forEach((node) => {
+    node.addEventListener("click", closeTimelineDateMemoModal);
+  });
+  timelineDateMemoSaveButton?.addEventListener("click", saveTimelineDateMemoFromModal);
+  return modal;
+}
+
+function openTimelineDateMemoModal(dateKey = "") {
+  if (!isDesktopTimelineDateMemoViewport()) {
+    return;
+  }
+  const normalizedDateKey = String(dateKey || "").slice(0, 10);
+  if (!normalizedDateKey) {
+    return;
+  }
+  const modal = buildTimelineDateMemoModal();
+  const existingMemo = getTimelineDateMemoEntry(normalizedDateKey);
+  modal.dataset.dateKey = normalizedDateKey;
+  if (timelineDateMemoDateLabel) {
+    timelineDateMemoDateLabel.textContent = `${normalizedDateKey} (${formatTimelineGanttDateLabel(normalizedDateKey)})`;
+  }
+  if (timelineDateMemoInput) {
+    timelineDateMemoInput.value = existingMemo?.memo || "";
+  }
+  modal.hidden = false;
+  window.setTimeout(() => {
+    timelineDateMemoInput?.focus();
+    timelineDateMemoInput?.select();
+  }, 0);
+}
+
+function closeTimelineDateMemoModal() {
+  if (timelineDateMemoModal) {
+    timelineDateMemoModal.hidden = true;
+  }
+}
+
+function saveTimelineDateMemoFromModal() {
+  const normalizedDateKey = String(timelineDateMemoModal?.dataset.dateKey || "").slice(0, 10);
+  if (!normalizedDateKey) {
+    closeTimelineDateMemoModal();
+    return;
+  }
+  const memo = String(timelineDateMemoInput?.value || "").trim();
+  const blocks = loadTimelineBlocks();
+  const existingEntries = blocks.filter(
+    (block) =>
+      String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND &&
+      String(block.dateKey || block.startDate || "").slice(0, 10) === normalizedDateKey,
+  );
+  const existingEntry = existingEntries[0] || null;
+  const nextBlocks = blocks.filter(
+    (block) =>
+      !(
+        String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND &&
+        String(block.dateKey || block.startDate || "").slice(0, 10) === normalizedDateKey
+      ),
+  );
+  if (!memo) {
+    if (existingEntries.length) {
+      saveTimelineBlocks(nextBlocks);
+    }
+    closeTimelineDateMemoModal();
+    refreshTimelineGanttFromLegacy({ force: true });
+    return;
+  }
+  const nextEntry = {
+    id: String(existingEntry?.id || `date-memo-${normalizedDateKey}`),
+    kind: WC26_TIMELINE_DATE_MEMO_KIND,
+    type: WC26_TIMELINE_DATE_MEMO_KIND,
+    dateKey: normalizedDateKey,
+    startDate: normalizedDateKey,
+    endDate: normalizedDateKey,
+    name: WC26_TIMELINE_DATE_MEMO_LABEL,
+    place: "",
+    memo,
+    createdAt: String(existingEntry?.createdAt || existingEntry?.updatedAt || new Date().toISOString()),
+    updatedAt: new Date().toISOString(),
+  };
+  nextBlocks.push(nextEntry);
+  saveTimelineBlocks(nextBlocks);
+  closeTimelineDateMemoModal();
+  refreshTimelineGanttFromLegacy({ force: true });
+}
+
 function hideTimelineTooltip() {
   activeTimelineTooltipId = "";
   if (!timelineTooltipShell) {
@@ -3270,9 +3469,10 @@ function renderTimelineTooltipContent(block = {}) {
     hideTimelineTooltip();
     return;
   }
+  const isDateMemo = String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND;
   const title = escapeTimelineHtml(block.name || "");
   const period = escapeTimelineHtml(formatTimelineBlockPeriod(block.startDate, block.endDate));
-  const place = escapeTimelineHtml(block.place || "");
+  const place = escapeTimelineHtml(isDateMemo ? WC26_TIMELINE_DATE_MEMO_LABEL : block.place || "");
   const safeMemo = escapeTimelineHtml(memo);
   timelineTooltipShell.innerHTML = `
     <div class="timeline-tooltip__title">${title}</div>
@@ -3408,6 +3608,53 @@ function toggleTimelineTooltipFromElement(blockElement) {
   showTimelineTooltip(block, blockElement);
 }
 
+function bindTimelineDateMemoTooltip(cellElement, memoEntry = null) {
+  if (!(cellElement instanceof HTMLElement)) {
+    return;
+  }
+  const normalizedDateKey = String(cellElement.dataset.dateKey || "").slice(0, 10);
+  const memo = String(memoEntry?.memo || "").trim();
+  if (!normalizedDateKey) {
+    return;
+  }
+  cellElement.title = "";
+  if (!memo) {
+    cellElement.addEventListener("mouseenter", hideTimelineTooltip);
+    cellElement.addEventListener("focus", hideTimelineTooltip);
+    return;
+  }
+  const tooltipPayload = {
+    id: String(memoEntry?.id || `date-memo-${normalizedDateKey}`),
+    kind: WC26_TIMELINE_DATE_MEMO_KIND,
+    name: `${formatTimelineGanttDateLabel(normalizedDateKey)} 메모`,
+    startDate: normalizedDateKey,
+    endDate: normalizedDateKey,
+    place: WC26_TIMELINE_DATE_MEMO_LABEL,
+    memo,
+  };
+  cellElement.addEventListener("mouseenter", () => {
+    if (window.matchMedia?.("(hover: hover)").matches) {
+      showTimelineTooltip(tooltipPayload, cellElement);
+    }
+  });
+  cellElement.addEventListener("mousemove", () => {
+    if (!timelineTooltipShell?.hidden && activeTimelineTooltipId === tooltipPayload.id) {
+      positionTimelineTooltip(cellElement.getBoundingClientRect());
+    }
+  });
+  cellElement.addEventListener("mouseleave", () => {
+    if (window.matchMedia?.("(hover: hover)").matches) {
+      hideTimelineTooltip();
+    }
+  });
+  cellElement.addEventListener("focus", () => {
+    if (isDesktopTimelineDateMemoViewport()) {
+      showTimelineTooltip(tooltipPayload, cellElement);
+    }
+  });
+  cellElement.addEventListener("blur", hideTimelineTooltip);
+}
+
 function getTimelineGanttHosts() {
   return [
     {
@@ -3492,6 +3739,9 @@ function buildTimelineBlocksFromLegacySummary(dates = [], summary = {}) {
 function buildTimelineBlocksByName(dates = [], summary = {}) {
   const rows = buildTimelineBlocksFromLegacySummary(dates, summary);
   loadTimelineBlocks().forEach((block, index) => {
+    if (String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND) {
+      return;
+    }
     const normalizedName = String(block.name || "").trim();
     if (!rows.has(normalizedName)) {
       rows.set(normalizedName, []);
@@ -3526,7 +3776,12 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   }
   host.empty.hidden = true;
   host.scroller.hidden = false;
-  const renderKey = JSON.stringify({ dates, rows });
+  const dateMemoMap = getTimelineDateMemoMap(dates);
+  const renderKey = JSON.stringify({
+    dates,
+    rows,
+    dateMemos: Array.from(dateMemoMap.values()).map((entry) => [entry.dateKey, entry.memo, entry.updatedAt]),
+  });
   if (host.grid.dataset.renderKey === renderKey) {
     return;
   }
@@ -3558,9 +3813,18 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   dateHeader.style.gridTemplateColumns = `repeat(${dates.length}, ${WC26_TIMELINE_DATE_CELL_WIDTH}px)`;
   dateHeader.style.width = `${gridWidth}px`;
   dates.forEach((dateKey) => {
+    const dateMemoEntry = dateMemoMap.get(dateKey) || null;
     const cell = document.createElement("div");
-    cell.className = "timeline-gantt-cell timeline-gantt-cell--head";
-    cell.textContent = formatTimelineGanttDateLabel(dateKey);
+    cell.className = `timeline-gantt-cell timeline-gantt-cell--head timeline-gantt-cell--date-trigger${dateMemoEntry ? " timeline-date-has-memo" : ""}`;
+    cell.dataset.dateKey = dateKey;
+    cell.setAttribute("role", "button");
+    cell.setAttribute("tabindex", "0");
+    cell.setAttribute("aria-label", `${dateKey} 날짜 메모 ${dateMemoEntry ? "수정" : "작성"}`);
+    cell.innerHTML = `
+      <span class="timeline-gantt-date-label">${escapeTimelineHtml(formatTimelineGanttDateLabel(dateKey))}</span>
+      ${dateMemoEntry ? '<span class="timeline-date-memo-mark" aria-hidden="true"></span>' : ""}
+    `;
+    bindTimelineDateMemoTooltip(cell, dateMemoEntry);
     dateHeader.appendChild(cell);
   });
 
@@ -3570,10 +3834,16 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   dateBody.style.width = `${gridWidth}px`;
 
   rows.forEach((row, rowIndex) => {
-    dates.forEach(() => {
+    dates.forEach((dateKey) => {
+      const dateMemoEntry = dateMemoMap.get(dateKey) || null;
       const cell = document.createElement("div");
-      cell.className = "timeline-gantt-cell timeline-gantt-cell--body";
+      cell.className = "timeline-gantt-cell timeline-gantt-cell--body timeline-gantt-cell--date-trigger";
+      cell.dataset.dateKey = dateKey;
+      cell.setAttribute("role", "button");
+      cell.setAttribute("tabindex", "-1");
+      cell.setAttribute("aria-label", `${dateKey} 날짜 메모 ${dateMemoEntry ? "수정" : "작성"}`);
       cell.style.gridRow = `${rowIndex + 1}`;
+      bindTimelineDateMemoTooltip(cell, dateMemoEntry);
       dateBody.appendChild(cell);
     });
 
@@ -3736,7 +4006,9 @@ function renderTimelineManageList() {
   if (!timelineManageList) {
     return;
   }
-  const blocks = loadTimelineBlocks().sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
+  const blocks = loadTimelineBlocks()
+    .filter((block) => String(block.kind || block.type || "").trim() !== WC26_TIMELINE_DATE_MEMO_KIND)
+    .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)));
   if (!blocks.length) {
     timelineManageList.innerHTML = '<p class="timeline-manage-item-meta">저장된 일정현황 항목이 없습니다.</p>';
     return;
@@ -3928,11 +4200,44 @@ function initTimelineEditor() {
   });
   timelineEntrySaveButton?.addEventListener("click", upsertTimelineBlockFromModal);
   document.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const dateTrigger = target?.closest(".timeline-gantt-cell--date-trigger[data-date-key]");
+    if (!(dateTrigger instanceof HTMLElement)) {
+      return;
+    }
+    if (!isDesktopTimelineDateMemoViewport()) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    timelineIgnoreDocumentClickUntil = Date.now() + 200;
+    openTimelineDateMemoModal(String(dateTrigger.dataset.dateKey || ""));
+  });
+  document.addEventListener("keydown", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (event.key === "Escape" && timelineDateMemoModal && !timelineDateMemoModal.hidden) {
+      closeTimelineDateMemoModal();
+      return;
+    }
+    if (!isDesktopTimelineDateMemoViewport()) {
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    const dateTrigger = target?.closest(".timeline-gantt-cell--date-trigger[data-date-key]");
+    if (!(dateTrigger instanceof HTMLElement)) {
+      return;
+    }
+    event.preventDefault();
+    openTimelineDateMemoModal(String(dateTrigger.dataset.dateKey || ""));
+  });
+  document.addEventListener("click", (event) => {
     if (Date.now() < timelineIgnoreDocumentClickUntil) {
       return;
     }
     const target = event.target instanceof HTMLElement ? event.target : null;
-    if (target?.closest(".timeline-gantt-block")) {
+    if (target?.closest(".timeline-gantt-block") || target?.closest(".timeline-gantt-cell--date-trigger")) {
       return;
     }
     hideTimelineTooltip();
@@ -3969,6 +4274,9 @@ function initTimelineEditor() {
     }
     if (target.closest("[data-timeline-nav]")) {
       event.stopPropagation();
+      return;
+    }
+    if (target.closest(".timeline-gantt-cell--date-trigger")) {
       return;
     }
     const quickTimelineButton = document.getElementById("quick-timeline");
