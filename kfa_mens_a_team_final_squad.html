@@ -1,0 +1,429 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Korea Men's National Team Final Squad</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --surface: #fffdf8;
+      --line: #d6c8ae;
+      --text: #1f1a14;
+      --muted: #6a5d50;
+      --accent: #bf1730;
+      --accent-soft: #f3d7dd;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, #f8e5bf 0, transparent 28%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(191, 23, 48, 0.96), rgba(136, 11, 28, 0.96));
+      color: #fff;
+      padding: 32px;
+      border-radius: 24px;
+      box-shadow: 0 18px 40px rgba(92, 22, 31, 0.18);
+    }
+
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 6px 0;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin: 24px 0 0;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .card {
+      margin-top: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 14px 30px rgba(77, 57, 37, 0.08);
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+      background: #fff;
+    }
+
+    thead th {
+      background: #f0e6d3;
+      color: #30261d;
+      text-align: left;
+      padding: 14px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eadfca;
+      vertical-align: middle;
+      font-size: 14px;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fffaf0;
+    }
+
+    tbody tr:hover {
+      background: #fff3df;
+    }
+
+    .photo-cell {
+      width: 104px;
+    }
+
+    .photo-cell img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 16px;
+      display: block;
+      border: 2px solid var(--accent-soft);
+      background: #f2ede3;
+    }
+
+    .en-name {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .source {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .source a {
+      color: var(--accent);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        padding: 20px 14px 36px;
+      }
+
+      .hero,
+      .card {
+        border-radius: 18px;
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>2026-05-16 Final Squad</h1>
+      <p>Rebuilt from the KFA final squad article dated May 16, 2026.</p>
+      <p>Article: Son Heungmin included, with Lee Gihyuk and Lee Donggyeong as surprise additions.</p>
+      <div class="stats">
+        <div class="stat"><strong>26</strong><span>Total</span></div>
+        <div class="stat"><strong>3</strong><span>GK</span></div>
+        <div class="stat"><strong>10</strong><span>DF</span></div>
+        <div class="stat"><strong>10</strong><span>MF</span></div>
+        <div class="stat"><strong>3</strong><span>FW</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Squad Table</h2>
+      <p>Photo and player profile data come from KFA player pages. Club names follow the May 16 final squad article.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Photo</th>
+              <th>Name</th>
+              <th>English Name</th>
+              <th>Position</th>
+              <th>Birth</th>
+              <th>Size</th>
+              <th>Club</th>
+            </tr>
+          </thead>
+          <tbody>
+        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/GK_조현우.jpg" alt="조현우 photo" /></td>
+          <td>조현우</td>
+          <td class="en-name">JO Hyeonwoo</td>
+          <td>GK</td>
+          <td>1991.09.25</td>
+          <td>189Cm / 75Kg</td>
+          <td>Ulsan HD</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/GK_김승규.jpg" alt="김승규 photo" /></td>
+          <td>김승규</td>
+          <td class="en-name">KIM Seunggyu</td>
+          <td>GK</td>
+          <td>1990.09.30</td>
+          <td>187Cm / 84Kg</td>
+          <td>FC Tokyo</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/GK_송범근.jpg" alt="송범근 photo" /></td>
+          <td>송범근</td>
+          <td class="en-name">SONG Bumkeun</td>
+          <td>GK</td>
+          <td>1997.10.15</td>
+          <td>194Cm / 88Kg</td>
+          <td>Jeonbuk Hyundai</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_김민재.jpg" alt="김민재 photo" /></td>
+          <td>김민재</td>
+          <td class="en-name">KIM Minjae</td>
+          <td>DF</td>
+          <td>1996.11.15</td>
+          <td>190Cm / 88Kg</td>
+          <td>Bayern Munich</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_조유민.jpg" alt="조유민 photo" /></td>
+          <td>조유민</td>
+          <td class="en-name">CHO Yumin</td>
+          <td>DF</td>
+          <td>1996.11.17</td>
+          <td>182Cm / 70Kg</td>
+          <td>Sharjah</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_이한범.jpg" alt="이한범 photo" /></td>
+          <td>이한범</td>
+          <td class="en-name">LEE Hanbeom</td>
+          <td>DF</td>
+          <td>2002.06.17</td>
+          <td>188Cm / 72Kg</td>
+          <td>Midtjylland</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_김태현.jpg" alt="김태현 photo" /></td>
+          <td>김태현</td>
+          <td class="en-name">KIM Taehyun</td>
+          <td>DF</td>
+          <td>1996.12.19</td>
+          <td>175Cm / 71Kg</td>
+          <td>Kashima Antlers</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_박진섭.jpg" alt="박진섭 photo" /></td>
+          <td>박진섭</td>
+          <td class="en-name">PARK Jinseob</td>
+          <td>DF</td>
+          <td>1995.10.23</td>
+          <td>182Cm / 75Kg</td>
+          <td>Zhejiang FC</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_이기혁.jpg" alt="이기혁 photo" /></td>
+          <td>이기혁</td>
+          <td class="en-name">LEE Gihyuk</td>
+          <td>DF</td>
+          <td>2000.07.07</td>
+          <td>184Cm / 72Kg</td>
+          <td>Gangwon FC</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_이태석.jpg" alt="이태석 photo" /></td>
+          <td>이태석</td>
+          <td class="en-name">LEE Taeseok</td>
+          <td>DF</td>
+          <td>2002.07.28</td>
+          <td>174Cm / 61Kg</td>
+          <td>Austria Wien</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_설영우.jpg" alt="설영우 photo" /></td>
+          <td>설영우</td>
+          <td class="en-name">SEOL Youngwoo</td>
+          <td>DF</td>
+          <td>1998.12.05</td>
+          <td>180Cm / 72Kg</td>
+          <td>Zvezda</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_옌스_카스트로프.jpg" alt="옌스 카스트로프 photo" /></td>
+          <td>옌스 카스트로프</td>
+          <td class="en-name">CASTROP Jens</td>
+          <td>DF</td>
+          <td>2003.07.29</td>
+          <td>Cm / Kg</td>
+          <td>Monchengladbach</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/DF_김문환.jpg" alt="김문환 photo" /></td>
+          <td>김문환</td>
+          <td class="en-name">KIM Moonhwan</td>
+          <td>DF</td>
+          <td>1995.08.01</td>
+          <td>173Cm / 64Kg</td>
+          <td>Daejeon Hana</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_양현준.jpg" alt="양현준 photo" /></td>
+          <td>양현준</td>
+          <td class="en-name">YANG Hyun Jun</td>
+          <td>MF</td>
+          <td>2002.05.25</td>
+          <td>179Cm / 73Kg</td>
+          <td>Celtic</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_백승호.jpg" alt="백승호 photo" /></td>
+          <td>백승호</td>
+          <td class="en-name">PAIK Seung Ho</td>
+          <td>MF</td>
+          <td>1997.03.17</td>
+          <td>182Cm / 72Kg</td>
+          <td>Birmingham City</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_황인범.jpg" alt="황인범 photo" /></td>
+          <td>황인범</td>
+          <td class="en-name">HWANG Inbeom</td>
+          <td>MF</td>
+          <td>1996.09.20</td>
+          <td>177Cm / 70Kg</td>
+          <td>Feyenoord</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_김진규.jpg" alt="김진규 photo" /></td>
+          <td>김진규</td>
+          <td class="en-name">KIM Jingyu</td>
+          <td>MF</td>
+          <td>1997.02.24</td>
+          <td>177Cm / 68Kg</td>
+          <td>Jeonbuk Hyundai</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_배준호.jpg" alt="배준호 photo" /></td>
+          <td>배준호</td>
+          <td class="en-name">BAE Junho</td>
+          <td>MF</td>
+          <td>2003.08.21</td>
+          <td>180Cm / 70Kg</td>
+          <td>Stoke City</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_엄지성.jpg" alt="엄지성 photo" /></td>
+          <td>엄지성</td>
+          <td class="en-name">EOM Jisung</td>
+          <td>MF</td>
+          <td>2002.05.09</td>
+          <td>174Cm / 64Kg</td>
+          <td>Swansea City</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_황희찬.jpg" alt="황희찬 photo" /></td>
+          <td>황희찬</td>
+          <td class="en-name">HWANG Heechan</td>
+          <td>MF</td>
+          <td>1996.01.26</td>
+          <td>177Cm / 77Kg</td>
+          <td>Wolverhampton</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_이동경.jpg" alt="이동경 photo" /></td>
+          <td>이동경</td>
+          <td class="en-name">LEE Donggyeong</td>
+          <td>MF</td>
+          <td>1997.09.20</td>
+          <td>175Cm / 68Kg</td>
+          <td>Ulsan HD</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_이재성.jpg" alt="이재성 photo" /></td>
+          <td>이재성</td>
+          <td class="en-name">LEE Jaesung</td>
+          <td>MF</td>
+          <td>1992.08.10</td>
+          <td>180Cm / 70Kg</td>
+          <td>Mainz</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/MF_이강인.jpg" alt="이강인 photo" /></td>
+          <td>이강인</td>
+          <td class="en-name">LEE Kangin</td>
+          <td>MF</td>
+          <td>2001.02.19</td>
+          <td>174Cm / 72Kg</td>
+          <td>Paris Saint-Germain</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/FW_오현규.jpg" alt="오현규 photo" /></td>
+          <td>오현규</td>
+          <td class="en-name">OH Hyeongyu</td>
+          <td>FW</td>
+          <td>2001.04.12</td>
+          <td>183Cm / 72Kg</td>
+          <td>Besiktas</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/FW_손흥민.jpg" alt="손흥민 photo" /></td>
+          <td>손흥민</td>
+          <td class="en-name">SON Heungmin</td>
+          <td>FW</td>
+          <td>1992.07.08</td>
+          <td>183Cm / 78Kg</td>
+          <td>LA FC</td>
+        </tr>        <tr>
+          <td class="photo-cell"><img src="kfa-assets/mens-a-team-20260516-final/FW_조규성.jpg" alt="조규성 photo" /></td>
+          <td>조규성</td>
+          <td class="en-name">CHO Guesung</td>
+          <td>FW</td>
+          <td>1998.01.25</td>
+          <td>189Cm / 82Kg</td>
+          <td>Midtjylland</td>
+        </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="source">
+        Sources:
+        <a href="https://www.kfa.or.kr/layer_popup/popup_live.php?act=news_tv_detail&idx=27972&div_code=news">https://www.kfa.or.kr/layer_popup/popup_live.php?act=news_tv_detail&idx=27972&div_code=news</a>,
+        <a href="https://www.kfa.or.kr/national/?act=nt_man">https://www.kfa.or.kr/national/?act=nt_man</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

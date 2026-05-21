@@ -1,0 +1,316 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<base href="/legacy-schedule/" />
+  <title>2026 북중미 월드컵 취재 스테이션</title>
+
+<link rel="icon" type="image/png" sizes="32x32" href="images/app-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="images/app-icon.png">
+<link rel="apple-touch-icon" href="images/app-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="images/app-icon.png">
+<link rel="manifest" href="manifest.json">
+
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const shouldUseLocalStadiumOnly =
+    params.get("summaryBridge") === "1" || params.get("localStadiumOnly") === "1";
+  if (!shouldUseLocalStadiumOnly) {
+    return;
+  }
+
+  const shouldBlockWikimediaImage = (value = "") =>
+    /(?:commons\.wikimedia\.org\/wiki\/Special:FilePath|upload\.wikimedia\.org|commons\.wikimedia\.org\/w\/index\.php)/i.test(
+      String(value || "").trim(),
+    );
+
+  const clearBlockedImageSource = (image) => {
+    if (!(image instanceof HTMLImageElement)) {
+      return;
+    }
+    if (!image.dataset.wc26BlockedExternalSrc) {
+      image.dataset.wc26BlockedExternalSrc = image.getAttribute("src") || "";
+    }
+    if (!image.dataset.wc26BlockedExternalSrcset) {
+      image.dataset.wc26BlockedExternalSrcset = image.getAttribute("srcset") || "";
+    }
+    image.removeAttribute("src");
+    image.removeAttribute("srcset");
+  };
+
+  const srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src");
+  if (srcDescriptor?.set) {
+    Object.defineProperty(HTMLImageElement.prototype, "src", {
+      configurable: true,
+      enumerable: srcDescriptor.enumerable,
+      get: srcDescriptor.get,
+      set(value) {
+        if (shouldBlockWikimediaImage(value)) {
+          clearBlockedImageSource(this);
+          return value;
+        }
+        return srcDescriptor.set.call(this, value);
+      },
+    });
+  }
+
+  const originalSetAttribute = HTMLImageElement.prototype.setAttribute;
+  HTMLImageElement.prototype.setAttribute = function (name, value) {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if ((normalizedName === "src" || normalizedName === "srcset") && shouldBlockWikimediaImage(value)) {
+      clearBlockedImageSource(this);
+      return;
+    }
+    return originalSetAttribute.call(this, name, value);
+  };
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+      document.querySelectorAll("img").forEach((image) => {
+        const src = image.getAttribute("src") || "";
+        const srcset = image.getAttribute("srcset") || "";
+        if (shouldBlockWikimediaImage(src) || shouldBlockWikimediaImage(srcset)) {
+          clearBlockedImageSource(image);
+        }
+      });
+    },
+    { once: true },
+  );
+})();
+</script>
+
+  <meta property="og:title" content="2026 북중미 월드컵 취재 스테이션" />
+  <meta property="og:description" content="월드컵 취재 관련 정보와 일정, 장비 현황을 확인하세요." />
+  <meta property="og:image" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/images/thumbnail.png" />
+  <meta property="og:url" content="https://marchis1015ab-sketch.github.io/2026worldcup-project/" />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="./styles.css?v=squad-detail-remove-20260518-01" />
+  <link rel="stylesheet" href="./bridge.css" />
+  <meta name="deploy-version" content="newsuit-bridge-target-fix-20260518">
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-main">
+      <div class="header-copy">
+        <p class="header-kicker">FIFA WORLD CUP 2026</p>
+        <h1>2026 북중미 월드컵 취재 스테이션</h1>
+        <p class="header-slogan">짜릿하게 다채롭게 월드컵은 JTBC</p>
+      </div>
+      <div class="header-side">
+        <div class="header-time-guide">
+          <div id="headerLocalTimePlace" class="header-time-guide-place">에스타디오 과달라하라</div>
+          <div class="header-time-guide-row">
+            <span id="headerLocalTimeLabel" class="header-time-guide-label">현지시각</span>
+            <span id="headerLocalTime" class="header-time-guide-value">--:--</span>
+          </div>
+          <div class="header-time-guide-row">
+            <span class="header-time-guide-label">한국시각</span>
+            <span id="headerKoreaTime" class="header-time-guide-value">--:--</span>
+          </div>
+        </div>
+        <div id="headerCountdown" class="header-countdown" aria-label="월드컵 개막 디데이">
+          <span class="header-countdown-number">00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content-shell">
+    <div class="content-main">
+      <div id="headerReportBoard" class="header-report-board" aria-live="polite">
+        <div class="header-report-board-label">
+          <span class="header-report-board-label-title">업무 현황</span>
+          <span id="headerReportBoardMeta" class="header-report-board-label-meta">4월 5일</span>
+        </div>
+        <div class="header-report-board-lines">
+          <div class="header-report-board-window">
+            <div id="headerScheduleBoardTrack" class="header-report-board-track"></div>
+          </div>
+          <div class="header-report-board-window header-report-board-window-secondary">
+            <div id="headerNoticeBoardTrack" class="header-report-board-track"></div>
+          </div>
+        </div>
+      </div>
+      <div id="mobileSubviewBar" class="mobile-subview-bar hidden">
+        <button type="button" class="mobile-subview-back" onclick="goBackMobileSubview()">뒤로가기</button>
+        <span id="mobileSubviewTitle" class="mobile-subview-title">메뉴</span>
+        <div class="mobile-subview-actions">
+          <button type="button" id="mobileSpecialReportToggleBtn" class="section-title-action-btn news-programming-special-toggle mobile-subview-special-btn hidden" aria-expanded="false" onclick="toggleNewsProgrammingSpecialComposer()">특보</button>
+        </div>
+      </div>
+      <div class="container">
+        <div id="desktopTabPane" class="desktop-tab-pane">
+    <div class="sidebar">
+      <div id="personalTimelineMenu" class="menu" onclick="togglePersonalTimeline()">일정현황</div>
+      <div id="equipmentMenu" class="menu" onclick="toggleEquipment()">장비현황</div>
+      <div id="bracketMenu" class="menu" onclick="toggleBracket()">월드컵 대진표</div>
+      <div id="groupASquadMenu" class="menu" onclick="toggleGroupASquads()">선수단</div>
+      <div id="mexicoStadiumMenu" class="menu" onclick="toggleMexicoStadium()">경기장</div>
+      <div id="mapMenu" class="menu" onclick="toggleMapPanel()">MAP</div>
+      <div id="newsProgrammingMenu" class="menu" onclick="toggleNewsProgramming()">방송편성</div>
+      <div id="newsMenu" class="menu" onclick="toggleMain()">지상파 월드컵 뉴스</div>
+    </div>
+
+    <div id="newsTabStack" class="tab-stack hidden">
+      <div id="newsCol" class="column hidden">
+        <div id="newsYearTabs" class="tab-row primary-tab-row">
+          <div class="item news-year-item" onclick="showNewsYear('2026', this)" aria-label="2026 북중미 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2026.png" alt="2026 북중미 월드컵 로고"></span></div>
+          <div class="item news-year-item" onclick="showNewsYear('2022', this)" aria-label="2022 카타르 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2022.png" alt="2022 카타르 월드컵 로고"></span></div>
+          <div class="item news-year-item" onclick="showNewsYear('2018', this)" aria-label="2018 러시아 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2018.png" alt="2018 러시아 월드컵 로고"></span></div>
+          <div class="item news-year-item" onclick="showNewsYear('2014', this)" aria-label="2014 브라질 월드컵"><span class="news-year-frame"><img class="news-year-logo" src="assets/news-year-2014.png" alt="2014 브라질 월드컵 로고"></span></div>
+          <div id="newsExportBar" class="news-export-bar">
+            <button type="button" class="section-title-action-btn export-action-btn news-export-btn" onclick="exportAllExcel()">전체 내보내기</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="newsBroadcasterCol" class="column hidden">
+        <div class="item broadcaster-item broadcaster-item-kbs" onclick="activateBroadcaster(this, 'KBS')" aria-label="KBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-kbs" src="assets/news-ci-kbs-clean.png" alt="KBS 로고"></span></div>
+        <div class="item broadcaster-item broadcaster-item-mbc" onclick="activateBroadcaster(this, 'MBC')" aria-label="MBC"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-mbc" src="assets/news-ci-mbc-clean.png" alt="MBC 로고"></span></div>
+        <div class="item broadcaster-item broadcaster-item-sbs" onclick="activateBroadcaster(this, 'SBS')" aria-label="SBS"><span class="broadcaster-frame"><img class="broadcaster-logo broadcaster-ci broadcaster-ci-sbs" src="assets/news-ci-sbs-clean.png" alt="SBS 로고"></span></div>
+      </div>
+    </div>
+
+    <div id="bracketTabStack" class="tab-stack hidden">
+      <div id="bracketStageCol" class="column hidden">
+        <div id="bracketStageTabs" class="tab-row primary-tab-row stage-tabs">
+          <div class="item" onclick="showBracketStage('group', this)">조별리그</div>
+          <div class="item" onclick="showBracketStage('thirdPlaceRanking', this)">조별 3위 랭킹</div>
+          <div class="item" onclick="showBracketStage('round32', this)">32강</div>
+          <div class="item" onclick="showBracketStage('round16', this)">16강</div>
+          <div class="item" onclick="showBracketStage('quarterfinal', this)">8강</div>
+          <div class="item" onclick="showBracketStage('semifinal', this)">4강</div>
+          <div class="item" onclick="showBracketStage('final', this)">결승</div>
+        </div>
+      </div>
+
+      <div id="groupCol" class="column hidden">
+        <div class="item" onclick="showGroup('A', this)">Group A</div>
+        <div class="item" onclick="showGroup('B', this)">Group B</div>
+        <div class="item" onclick="showGroup('C', this)">Group C</div>
+        <div class="item" onclick="showGroup('D', this)">Group D</div>
+        <div class="item" onclick="showGroup('E', this)">Group E</div>
+        <div class="item" onclick="showGroup('F', this)">Group F</div>
+        <div class="item" onclick="showGroup('G', this)">Group G</div>
+        <div class="item" onclick="showGroup('H', this)">Group H</div>
+        <div class="item" onclick="showGroup('I', this)">Group I</div>
+        <div class="item" onclick="showGroup('J', this)">Group J</div>
+        <div class="item" onclick="showGroup('K', this)">Group K</div>
+        <div class="item" onclick="showGroup('L', this)">Group L</div>
+      </div>
+    </div>
+
+    <div id="groupASquadCol" class="column hidden">
+      <div id="groupASquadTabs" class="tab-row primary-tab-row">
+        <div class="item squad-country-tab squad-country-korea" onclick="showGroupASquad('korea', this)">대한민국</div>
+        <div class="item squad-country-tab squad-country-mexico" onclick="showGroupASquad('mexico', this)">멕시코</div>
+        <div class="item squad-country-tab squad-country-south-africa" onclick="showGroupASquad('southAfrica', this)">남아공</div>
+        <div class="item squad-country-tab squad-country-czech" onclick="showGroupASquad('czech', this)">체코</div>
+      </div>
+    </div>
+
+      <div id="equipmentUserCol" class="column hidden">
+        <div class="equipment-user-slot equipment-user-slot-shared">
+          <div id="equipmentSharedTab" class="item" onclick="showEquipmentShared(this)">장비종합현황</div>
+          <div class="equipment-user-note equipment-user-note-shared">
+            <span class="equipment-user-note-text">
+              <span class="equipment-user-tvu" data-tvu="1번">TVU 1번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="15번">TVU 15번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="16번">TVU 16번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="17번">TVU 17번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="18번">TVU 18번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+              <span class="equipment-user-tvu" data-tvu="19번">TVU 19번<span class="equipment-user-bulb" aria-hidden="true"></span></span>
+            </span>
+          </div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="박재현" onclick="showEquipmentPersonal('박재현', this)"><span class="equipment-user-name">박재현</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="장후원" onclick="showEquipmentPersonal('장후원', this)"><span class="equipment-user-name">장후원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="정상원" onclick="showEquipmentPersonal('정상원', this)"><span class="equipment-user-name">정상원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="이주원" onclick="showEquipmentPersonal('이주원', this)"><span class="equipment-user-name">이주원</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="김진광" onclick="showEquipmentPersonal('김진광', this)"><span class="equipment-user-name">김진광</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot">
+          <div class="item equipment-user-person-item" data-user="정재우" onclick="showEquipmentPersonal('정재우', this)"><span class="equipment-user-name">정재우</span><span class="equipment-user-current-wrap"><span class="equipment-user-current-tvu"></span><span class="equipment-user-status">사용중</span></span></div>
+        </div>
+        <div class="equipment-user-slot equipment-user-slot-carnet">
+          <div id="equipmentCarnetTab" class="item" onclick="showEquipmentCarnet(this)">문서보관</div>
+        </div>
+        <div class="equipment-user-slot equipment-user-slot-file-storage">
+          <div id="equipmentFileStorageTab" class="item" onclick="showEquipmentFileStorage(this)">파일 보관</div>
+        </div>
+      </div>
+
+    <div id="mexicoStadiumTabStack" class="tab-stack hidden">
+      <div id="mexicoStadiumCol" class="column hidden">
+        <div id="mexicoStadiumTabs" class="tab-row primary-tab-row">
+          <div class="item" onclick="showMexicoStadium('akron', this)">Guadalajara Stadium [과달라하라]</div>
+          <div class="item" onclick="showMexicoStadium('bbva', this)">에스타디오 BBVA [멕시코시티]</div>
+          <div class="item" onclick="showMexicoStadium('mexicoCityStadium', this)">멕시코시티 스타디움 [멕시코시티]</div>
+          <div class="item" onclick="showMexicoStadium('laStadium', this)">LA 스타디움 [로스앤젤레스]</div>
+          <div class="item" onclick="showMexicoStadium('seattleStadium', this)">시애틀 스타디움 [시애틀]</div>
+          <div class="item" onclick="showMexicoStadium('bostonStadium', this)">보스턴 스타디움 [보스턴]</div>
+        </div>
+      </div>
+
+      <div id="mexicoStadiumSectionCol" class="column hidden">
+        <div class="item" onclick="showMexicoStadiumSection('route', this)">경기장 내부동선</div>
+        <div class="item" onclick="showMexicoStadiumSection('conferenceRoom', this)">컨퍼런스 룸</div>
+        <div class="item" onclick="showMexicoStadiumSection('mixedZone', this)">mixed zone</div>
+        <div class="item" onclick="showMexicoStadiumSection('ground', this)">그라운드</div>
+        <div class="item" onclick="showMexicoStadiumSection('shooting', this)">powerade zone</div>
+        <div class="item" onclick="showMexicoStadiumSection('playerArrival', this)">선수도착</div>
+      </div>
+    </div>
+
+    <div id="detailCol" class="table-column hidden">
+      <div class="section-title-row programming-detail-title-row">
+        <h2 id="detailTitle" class="section-title">상세 보기</h2>
+        <div id="detailTitleActions" class="section-title-actions"></div>
+      </div>
+      <div id="detailSubtitle" class="section-subtitle"></div>
+      <div class="table-card"><table id="detailTable" class="data-table"></table></div>
+    </div>
+  </div>
+</div>
+<div id="file-preview-modal" class="file-preview-modal" aria-hidden="true">
+  <div class="file-preview-content" role="dialog" aria-modal="true" aria-label="파일 미리보기">
+    <button id="file-preview-close" type="button">닫기</button>
+    <div id="file-preview-body" class="file-preview-body"></div>
+  </div>
+</div>
+<div id="timelineGalleryModalMount"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+window.APP_CONFIG = {
+  supabaseUrl: 'https://dwujummgbntrtvmldqmz.supabase.co',
+  supabaseAnonKey: 'sb_publishable_LlbUjDMb1BFXZtuBuNqVcg_DM0MTX8l',
+  supabaseCloudEnabled: true,
+  supabaseRealtimeEnabled: false,
+  googleMapsApiKey: ''
+};
+</script>
+<script src="supabase-client.js?v=media-news-20260518-01"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./app.js?v=bridge-target-fix-20260518-04"></script>
+  <script src="./bridge.js?v=bridge-target-fix-20260518-04"></script>
+</body>
+</html>
+
+

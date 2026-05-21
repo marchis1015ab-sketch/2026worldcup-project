@@ -1,0 +1,105 @@
+body.wc26-legacy-schedule-bridge {
+  overflow: hidden;
+  background: #04101a;
+}
+
+body.wc26-legacy-schedule-bridge #deploy-version-badge,
+body.wc26-legacy-schedule-bridge .header,
+body.wc26-legacy-schedule-bridge .sidebar,
+body.wc26-legacy-schedule-bridge #headerReportBoard,
+body.wc26-legacy-schedule-bridge #mobileSubviewBar,
+body.wc26-legacy-schedule-bridge #newsTabStack,
+body.wc26-legacy-schedule-bridge #bracketTabStack,
+body.wc26-legacy-schedule-bridge #groupASquadCol,
+body.wc26-legacy-schedule-bridge #equipmentUserCol,
+body.wc26-legacy-schedule-bridge #mexicoStadiumTabStack,
+body.wc26-legacy-schedule-bridge #newsCol,
+body.wc26-legacy-schedule-bridge #newsBroadcasterCol,
+body.wc26-legacy-schedule-bridge #bracketStageCol,
+body.wc26-legacy-schedule-bridge #groupCol,
+body.wc26-legacy-schedule-bridge #mexicoStadiumCol,
+body.wc26-legacy-schedule-bridge #mexicoStadiumSectionCol {
+  display: none !important;
+}
+
+body.wc26-legacy-schedule-bridge .page,
+body.wc26-legacy-schedule-bridge .content-shell,
+body.wc26-legacy-schedule-bridge .content-main,
+body.wc26-legacy-schedule-bridge .container,
+body.wc26-legacy-schedule-bridge #desktopTabPane,
+body.wc26-legacy-schedule-bridge #detailCol,
+body.wc26-legacy-schedule-bridge .table-card,
+body.wc26-legacy-schedule-bridge .personal-timeline-card,
+body.wc26-legacy-schedule-bridge .timeline-card {
+  height: 100vh !important;
+  min-height: 0 !important;
+}
+
+body.wc26-legacy-schedule-bridge .page,
+body.wc26-legacy-schedule-bridge .content-shell,
+body.wc26-legacy-schedule-bridge .content-main {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+body.wc26-legacy-schedule-bridge .container {
+  display: block !important;
+}
+
+body.wc26-legacy-schedule-bridge #detailCol {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+body.wc26-legacy-schedule-bridge .table-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body.wc26-legacy-schedule-bridge .personal-timeline-card,
+body.wc26-legacy-schedule-bridge .timeline-card {
+  padding: 12px !important;
+  border-radius: 0 !important;
+}
+
+body.wc26-legacy-schedule-bridge .personal-timeline-list {
+  height: calc(100vh - 92px) !important;
+  padding: 0 8px 24px !important;
+  overflow: auto !important;
+}
+
+body.wc26-legacy-schedule-bridge .personal-timeline-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="shared"] .personal-timeline-columns,
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="personal"] .personal-timeline-columns,
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="accumulated"] .personal-timeline-columns {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="shared"] .personal-timeline-column-personal {
+  display: none !important;
+}
+
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="personal"] .personal-timeline-column-shared {
+  display: none !important;
+}
+
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="accumulated"] .personal-timeline-column-shared,
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="accumulated"] .personal-timeline-person-tabs,
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="accumulated"] .personal-timeline-person-row {
+  display: none !important;
+}
+
+body.wc26-legacy-schedule-bridge[data-wc26-legacy-section="accumulated"] .personal-timeline-summary-section {
+  margin-top: 0 !important;
+}
