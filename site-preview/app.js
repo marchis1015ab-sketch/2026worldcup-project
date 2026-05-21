@@ -5269,6 +5269,19 @@ function getArchiveSuitMobileBadgeLabel(tab = storageBridgeSection, item = {}) {
   return "문서";
 }
 
+function getArchiveSuitDesktopTypeLabel(item = {}, tab = storageBridgeSection) {
+  const normalized = normalizeStorageBridgeSection(tab);
+  if (normalized === "document-storage") return "문서";
+  if (normalized === "gallery") return getArchiveSuitFileKind(item) === "video" ? "영상" : "이미지";
+  const fileKind = getArchiveSuitFileKind(item);
+  if (fileKind === "image") return "이미지";
+  if (fileKind === "video") return "영상";
+  if (fileKind === "audio") return "오디오";
+  if (fileKind === "pdf") return "PDF";
+  if (fileKind === "text") return "텍스트";
+  return "파일";
+}
+
 function renderArchiveSuitInlineDetail(item = {}, tab = storageBridgeSection) {
   const fileType = String(item.fileType || "").toLowerCase();
   const fileName = escapeTimelineHtml(item.fileName || "첨부파일");
@@ -5987,6 +6000,7 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
   }
   const items = sortArchiveSuitItemsForMobile(normalized, getArchiveSuitDisplayItems(normalized));
   const useMobileDocumentLayout = isArchiveSuitMobileDocumentLayout(normalized, options);
+  const useDesktopDocumentLayout = normalized === "document-storage" && !useMobileDocumentLayout;
   const mobileHeader = "";
   if (!items.length) {
     return `${mobileHeader}${useMobileDocumentLayout ? renderArchiveSuitMobileEmptyState(normalized) : `<div class="archive-suit-empty">보관자료 없음</div>`}`;
@@ -5994,6 +6008,8 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
   const listClassName =
     normalized === "file-storage" && !useMobileDocumentLayout
       ? "archive-suit-list archive-suit-file-grid"
+      : useDesktopDocumentLayout
+        ? "archive-suit-list archive-suit-document-list"
       : "archive-suit-list";
   return `${mobileHeader}<div class="${listClassName}">${items
     .map((item) => {
@@ -6002,6 +6018,8 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
       const memo = escapeTimelineHtml(item.memo || "");
       const fileName = escapeTimelineHtml(item.fileName || "첨부파일");
       const fileSize = escapeTimelineHtml(formatArchiveSuitFileSize(item.fileSize));
+      const fileUrl = getArchiveSuitFileUrl(item);
+      const typeLabel = escapeTimelineHtml(getArchiveSuitDesktopTypeLabel(item, normalized));
       const selected = archiveSuitSelectedId && item.id === archiveSuitSelectedId;
       const deleteBox = options.deleteMode
         ? `<label class="archive-suit-select" onclick="event.stopPropagation()"><input type="checkbox" data-archive-delete-item="${id}"><span>선택</span></label>`
@@ -6025,15 +6043,30 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
           ${selected ? renderArchiveSuitInlineDetail(item, normalized) : ""}
         </article>`;
       }
+      if (useDesktopDocumentLayout) {
+        return `<article class="archive-suit-item archive-suit-item--document-row" data-archive-item-id="${id}">
+          ${deleteBox}
+          <div class="archive-suit-document-row__main">
+            <div class="archive-suit-document-row__name">${fileName}</div>
+            <div class="archive-suit-document-row__meta">${[typeLabel, date, fileSize].filter(Boolean).join(" / ")}</div>
+            ${memo ? `<div class="archive-suit-document-row__memo">${memo}</div>` : ""}
+          </div>
+          <div class="archive-suit-document-row__actions">
+            ${fileUrl ? `<a class="archive-suit-inline-btn archive-suit-inline-btn--link" href="${fileUrl}" target="_blank" rel="noopener" download="${fileName}" onclick="event.stopPropagation()">열기</a>` : ""}
+            ${editButton}
+          </div>
+        </article>`;
+      }
       const desktopCardClass = normalized === "file-storage" ? " archive-suit-file-card" : "";
+      const metaParts = normalized === "file-storage" ? [typeLabel, date, fileSize] : [date, fileSize];
       return `<article class="archive-suit-item${desktopCardClass}${selected ? " is-selected" : ""}" data-archive-item-id="${id}">
         ${deleteBox}
         <div class="archive-suit-item-media">${renderArchiveSuitPreview(item)}</div>
         <div class="archive-suit-item-body">
           <div class="archive-suit-item-name">${fileName}</div>
-          <div class="archive-suit-item-meta">${[date, fileSize].filter(Boolean).join(" / ")}</div>
+          <div class="archive-suit-item-meta">${metaParts.filter(Boolean).join(" / ")}</div>
           ${memo ? `<div class="archive-suit-item-memo">${memo}</div>` : ""}
-          ${getArchiveSuitFileUrl(item) ? `<a class="archive-suit-download" href="${getArchiveSuitFileUrl(item)}" download="${fileName}">다운로드</a>` : ""}
+          ${fileUrl ? `<a class="archive-suit-download" href="${fileUrl}" target="_blank" rel="noopener" download="${fileName}" onclick="event.stopPropagation()">열기/다운로드</a>` : ""}
         </div>
         ${editButton}
       </article>`;
@@ -6106,16 +6139,11 @@ function renderArchiveSuitPanels() {
       panel.innerHTML = renderArchiveSuitList(tab);
       return;
     }
-    const items = getArchiveSuitDisplayItems(tab);
-    const selected = items.find((item) => item.id === archiveSuitSelectedId) || null;
     if (isArchiveSuitMobileDocumentLayout(tab)) {
       panel.innerHTML = renderArchiveSuitList(tab);
       return;
     }
-    panel.innerHTML = `<div class="archive-suit-view-grid">
-      ${renderArchiveSuitList(tab)}
-      ${renderArchiveSuitPreviewPanel(selected)}
-    </div>`;
+    panel.innerHTML = renderArchiveSuitList(tab);
   });
 }
 

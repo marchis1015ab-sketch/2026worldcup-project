@@ -5657,6 +5657,10 @@ body::after {
   align-content: start;
 }
 
+#view-archive .archive-suit-document-list {
+  gap: 10px;
+}
+
 #view-archive .archive-suit-gallery-grid {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
@@ -5781,6 +5785,40 @@ body::after {
   cursor: pointer;
 }
 
+#view-archive .archive-suit-item--document-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  cursor: default;
+}
+
+#view-archive .archive-suit-document-row__main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+#view-archive .archive-suit-document-row__name {
+  color: #ecfbff;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+#view-archive .archive-suit-document-row__meta,
+#view-archive .archive-suit-document-row__memo {
+  color: rgba(222, 244, 248, 0.72);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+#view-archive .archive-suit-document-row__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 #view-archive .archive-suit-gallery-card {
   position: relative;
   grid-template-columns: 1fr;
@@ -5883,6 +5921,10 @@ body::after {
 
 #view-archive .archive-suit-file-card .archive-suit-download {
   justify-self: start;
+}
+
+#view-archive .archive-suit-inline-btn--link {
+  text-decoration: none;
 }
 
 #view-archive .archive-suit-file-chip {
