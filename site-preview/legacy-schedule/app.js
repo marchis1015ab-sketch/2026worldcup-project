@@ -8107,6 +8107,7 @@ const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimeli
 const PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY = '__worldcupGuidePersonalTimelineDetailsCleanupAt_20260506__';
 const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-deleted-v1';
 const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetailsDeleted__';
+const PERSONAL_TIMELINE_STATE_SEED_PATH = '../personal-timeline-state-seed.json';
 const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY = 'worldcup-guide-gallery-deleted-v1';
@@ -8365,6 +8366,7 @@ let hasLoadedTimelineSavedAssignments = false;
 let hasLoadedPersonalTimelineSharedEntries = false;
 let hasLoadedPersonalTimelineDetailSelections = false;
 let lastPersonalTimelineDetailsSource = 'empty';
+let personalTimelineStateSeedRestorePromise = null;
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
@@ -10456,6 +10458,42 @@ function writePersonalTimelineDetailsRaw(raw){
   scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw);
   if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
+function ensurePersonalTimelineStateSeedRestored(){
+  if(personalTimelineStateSeedRestorePromise) return personalTimelineStateSeedRestorePromise;
+  const needsDeleted=!readPersonalTimelineDeletedKeysRaw();
+  if(!needsDeleted) return Promise.resolve(false);
+  personalTimelineStateSeedRestorePromise=fetch(PERSONAL_TIMELINE_STATE_SEED_PATH, {cache:'no-store'})
+    .then(response=>response.ok ? response.json() : null)
+    .catch(()=>null)
+    .then(seed=>{
+      if(!seed||typeof seed!=='object') return false;
+      let restored=false;
+      if(needsDeleted&&!readPersonalTimelineDeletedKeysRaw()){
+        const seededDeletedKeys=Array.isArray(seed.deletedKeys) ? seed.deletedKeys : [];
+        const seededDeletedRaw=buildPersonalTimelineDeletedKeysRaw(seededDeletedKeys);
+        if(seededDeletedRaw){
+          writePersonalTimelineDeletedKeysRaw(seededDeletedRaw);
+          restored=true;
+        }
+      }
+      if(restored){
+        hasLoadedPersonalTimelineDetailSelections=false;
+        loadPersonalTimelineDetailSelections();
+        updateHeaderTimes();
+        updateHeaderReportBoard();
+        updateEquipmentSharedTvuIndicators();
+        if(currentTimelineView==='personal'){
+          renderTimelineSchedule(currentTimelineView);
+        }
+        notifyWc26LegacyScheduleSummaryChanged('detail-seed-restore');
+      }
+      return restored;
+    })
+    .finally(()=>{
+      personalTimelineStateSeedRestorePromise=null;
+    });
+  return personalTimelineStateSeedRestorePromise;
+}
 function readHeaderReportBoardRecentRaw(){
   const storages=getTimelineStorageAreas();
   for(const storage of storages){
@@ -10718,6 +10756,7 @@ function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
 function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
   hasLoadedPersonalTimelineDetailSelections = true;
+  ensurePersonalTimelineStateSeedRestored();
   clearLegacyPersonalTimelineDetailCaches();
   setSharedStateLocalRaw(
     PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY,
@@ -15023,6 +15062,7 @@ function refreshPersonalTimelineDayView(list, view){
 }
 function renderPersonalTimelineSchedule(view){
   resetPersonalTimelineEndEditorState();
+  ensurePersonalTimelineStateSeedRestored();
   setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey||getTodayTimelineKey());
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
@@ -18236,7 +18276,3 @@ updateMobileHeaderReportBoardVisibility();
 if(typeof document!=='undefined'&&document.readyState!=='loading'){
   initAccessMode();
 }
-
-
-
-

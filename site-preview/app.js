@@ -1460,6 +1460,7 @@ let timelineResizeTimer = null;
 let activeTimelineTooltipId = "";
 let timelineLastTouchToggleAt = 0;
 let timelineIgnoreDocumentClickUntil = 0;
+let timelineSeedRestorePromise = null;
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -2596,6 +2597,7 @@ const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
+const WC26_TIMELINE_SEED_PATH = "timeline-blocks-seed.json";
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
@@ -3190,13 +3192,7 @@ function backupTimelineBlocksBeforeWrite() {
 }
 
 function loadTimelineBlocks() {
-  const raw = (() => {
-    try {
-      return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
-    } catch (_error) {
-      return "";
-    }
-  })();
+  const raw = readTimelineBlocksRaw();
   const blocks = parseTimelineBlocksFromRaw(raw);
   try {
     const parsedRaw = JSON.parse(String(raw || "").trim() || "[]");
@@ -3223,6 +3219,55 @@ function loadTimelineBlocks() {
     return backupBlocks;
   }
   return [];
+}
+
+function readTimelineBlocksRaw() {
+  try {
+    return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function ensureTimelineBlocksSeedRestored() {
+  if (timelineSeedRestorePromise) {
+    return timelineSeedRestorePromise;
+  }
+  const raw = readTimelineBlocksRaw();
+  if (String(raw || "").trim()) {
+    return Promise.resolve(loadTimelineBlocks());
+  }
+  if (parseTimelineBlocksFromRaw(getLatestTimelineBackupRaw()).length) {
+    return Promise.resolve(loadTimelineBlocks());
+  }
+  timelineSeedRestorePromise = fetch(WC26_TIMELINE_SEED_PATH, { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : []))
+    .catch(() => [])
+    .then((seedItems) => {
+      const currentRaw = readTimelineBlocksRaw();
+      if (String(currentRaw || "").trim()) {
+        return loadTimelineBlocks();
+      }
+      const normalizedSeedBlocks = (Array.isArray(seedItems) ? seedItems : [])
+        .map((block, index) => sanitizeTimelineBlock(block, index))
+        .filter(Boolean)
+        .filter((block) => !isLikelyTimelineSampleBlock(block));
+      if (!normalizedSeedBlocks.length) {
+        return [];
+      }
+      try {
+        window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(normalizedSeedBlocks));
+      } catch (_error) {
+        // Rendering can still use the seed blocks below even if persistence fails.
+      }
+      bridgeLoadState.timelineRangeKey = "";
+      refreshTimelineGanttFromLegacy({ force: true });
+      return normalizedSeedBlocks;
+    })
+    .finally(() => {
+      timelineSeedRestorePromise = null;
+    });
+  return timelineSeedRestorePromise;
 }
 
 function saveTimelineBlocks(blocks = []) {
@@ -3610,6 +3655,9 @@ function renderTimelineGantt(summary = {}) {
 }
 
 function refreshTimelineGanttFromLegacy(options = {}) {
+  if (!String(readTimelineBlocksRaw() || "").trim()) {
+    ensureTimelineBlocksSeedRestored();
+  }
   const force = Boolean(options?.force);
   const syncWindow = getScheduleBridgeSyncWindow();
   const getter = syncWindow?.getWC26LegacyTimelineGanttSummary;
