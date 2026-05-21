@@ -12703,7 +12703,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body:has(#view-dashboard.is-active:not([hidden])) .side-nav {
     display: grid !important;
     align-content: start;
-    gap: 8px;
+    gap: 11px;
     position: absolute;
     left: 16px;
     right: 16px;
@@ -12714,8 +12714,8 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   }
 
   body:has(#view-dashboard.is-active:not([hidden])) .menu__item {
-    min-height: 42px;
-    padding-block: 8px;
+    min-height: 46px;
+    padding: 9px 12px;
   }
 
   body:has(#view-dashboard.is-active:not([hidden])) #panel-equipment,
@@ -12852,7 +12852,9 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
 
   /* Let the desktop side menu sit directly under the logo instead of staying pinned to the bottom. */
   body:has(#view-dashboard.is-active:not([hidden])) .sidebar .side-nav {
-    display: block !important;
+    display: grid !important;
+    align-content: start;
+    gap: 11px;
     position: relative !important;
     inset: auto !important;
     left: auto !important;
