@@ -1453,6 +1453,7 @@ let timelineDateMemoModal = null;
 let timelineDateMemoDateLabel = null;
 let timelineDateMemoInput = null;
 let timelineDateMemoSaveButton = null;
+let timelineDateMemoDeleteButton = null;
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -3588,7 +3589,7 @@ function buildTimelineDateMemoModal() {
       </div>
       <div class="timeline-modal__actions">
         <button type="button" class="timeline-modal__button" id="timeline-date-memo-save">저장</button>
-        <button type="button" class="timeline-modal__button timeline-modal__button--ghost" data-timeline-date-memo-close>취소</button>
+        <button type="button" class="timeline-modal__button timeline-modal__button--danger" id="timeline-date-memo-delete">삭제</button>
       </div>
     </div>
   `;
@@ -3597,10 +3598,12 @@ function buildTimelineDateMemoModal() {
   timelineDateMemoDateLabel = modal.querySelector("#timeline-date-memo-date");
   timelineDateMemoInput = modal.querySelector("#timeline-date-memo-input");
   timelineDateMemoSaveButton = modal.querySelector("#timeline-date-memo-save");
+  timelineDateMemoDeleteButton = modal.querySelector("#timeline-date-memo-delete");
   modal.querySelectorAll("[data-timeline-date-memo-close]").forEach((node) => {
     node.addEventListener("click", closeTimelineDateMemoModal);
   });
   timelineDateMemoSaveButton?.addEventListener("click", saveTimelineDateMemoFromModal);
+  timelineDateMemoDeleteButton?.addEventListener("click", deleteTimelineDateMemoFromModal);
   return modal;
 }
 
@@ -3678,6 +3681,27 @@ function saveTimelineDateMemoFromModal() {
   };
   nextBlocks.push(nextEntry);
   saveTimelineBlocks(nextBlocks);
+  closeTimelineDateMemoModal();
+  refreshTimelineGanttFromLegacy({ force: true });
+}
+
+function deleteTimelineDateMemoFromModal() {
+  const normalizedDateKey = String(timelineDateMemoModal?.dataset.dateKey || "").slice(0, 10);
+  if (!normalizedDateKey) {
+    closeTimelineDateMemoModal();
+    return;
+  }
+  const blocks = loadTimelineBlocks();
+  const nextBlocks = blocks.filter(
+    (block) =>
+      !(
+        String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND &&
+        String(block.dateKey || block.startDate || "").slice(0, 10) === normalizedDateKey
+      ),
+  );
+  if (nextBlocks.length !== blocks.length) {
+    saveTimelineBlocks(nextBlocks);
+  }
   closeTimelineDateMemoModal();
   refreshTimelineGanttFromLegacy({ force: true });
 }

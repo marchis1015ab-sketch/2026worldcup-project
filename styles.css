@@ -8428,6 +8428,12 @@ body.archive-suit-modal-open {
   color: var(--text-sub);
 }
 
+.timeline-modal__button--danger {
+  border-color: rgba(255, 122, 146, 0.28);
+  color: #ffb3c0;
+  background: rgba(48, 13, 24, 0.88);
+}
+
 .timeline-modal__body {
   display: grid;
   gap: 12px;
