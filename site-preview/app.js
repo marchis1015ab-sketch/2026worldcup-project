@@ -1460,7 +1460,7 @@ let timelineResizeTimer = null;
 let activeTimelineTooltipId = "";
 let timelineLastTouchToggleAt = 0;
 let timelineIgnoreDocumentClickUntil = 0;
-let timelineSeedRestorePromise = null;
+let activeTimelineDateMemoKey = "";
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -2597,7 +2597,7 @@ const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
-const WC26_TIMELINE_SEED_PATH = "timeline-blocks-seed.json";
+const WC26_TIMELINE_DATE_MEMO_STORAGE_KEY = "wc26_new_suit_timeline_date_memos_v1";
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
@@ -2956,6 +2956,17 @@ function formatTimelineGanttDateLabel(dateKey = "") {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function formatTimelineMemoDateLabel(dateKey = "") {
+  if (!dateKey) {
+    return "";
+  }
+  const date = new Date(`${dateKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return dateKey;
+  }
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
 function shiftTimelineDateKey(dateKey = "", offset = 0) {
   if (!dateKey) {
     return "";
@@ -3192,7 +3203,13 @@ function backupTimelineBlocksBeforeWrite() {
 }
 
 function loadTimelineBlocks() {
-  const raw = readTimelineBlocksRaw();
+  const raw = (() => {
+    try {
+      return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
+    } catch (_error) {
+      return "";
+    }
+  })();
   const blocks = parseTimelineBlocksFromRaw(raw);
   try {
     const parsedRaw = JSON.parse(String(raw || "").trim() || "[]");
@@ -3221,55 +3238,6 @@ function loadTimelineBlocks() {
   return [];
 }
 
-function readTimelineBlocksRaw() {
-  try {
-    return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
-  } catch (_error) {
-    return "";
-  }
-}
-
-function ensureTimelineBlocksSeedRestored() {
-  if (timelineSeedRestorePromise) {
-    return timelineSeedRestorePromise;
-  }
-  const raw = readTimelineBlocksRaw();
-  if (String(raw || "").trim()) {
-    return Promise.resolve(loadTimelineBlocks());
-  }
-  if (parseTimelineBlocksFromRaw(getLatestTimelineBackupRaw()).length) {
-    return Promise.resolve(loadTimelineBlocks());
-  }
-  timelineSeedRestorePromise = fetch(WC26_TIMELINE_SEED_PATH, { cache: "no-store" })
-    .then((response) => (response.ok ? response.json() : []))
-    .catch(() => [])
-    .then((seedItems) => {
-      const currentRaw = readTimelineBlocksRaw();
-      if (String(currentRaw || "").trim()) {
-        return loadTimelineBlocks();
-      }
-      const normalizedSeedBlocks = (Array.isArray(seedItems) ? seedItems : [])
-        .map((block, index) => sanitizeTimelineBlock(block, index))
-        .filter(Boolean)
-        .filter((block) => !isLikelyTimelineSampleBlock(block));
-      if (!normalizedSeedBlocks.length) {
-        return [];
-      }
-      try {
-        window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(normalizedSeedBlocks));
-      } catch (_error) {
-        // Rendering can still use the seed blocks below even if persistence fails.
-      }
-      bridgeLoadState.timelineRangeKey = "";
-      refreshTimelineGanttFromLegacy({ force: true });
-      return normalizedSeedBlocks;
-    })
-    .finally(() => {
-      timelineSeedRestorePromise = null;
-    });
-  return timelineSeedRestorePromise;
-}
-
 function saveTimelineBlocks(blocks = []) {
   const normalizedBlocks = Array.isArray(blocks)
     ? blocks
@@ -3286,8 +3254,87 @@ function saveTimelineBlocks(blocks = []) {
   return normalizedBlocks;
 }
 
+function loadTimelineDateMemos() {
+  try {
+    const raw = String(window.localStorage?.getItem(WC26_TIMELINE_DATE_MEMO_STORAGE_KEY) || "").trim();
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return Object.entries(parsed).reduce((acc, [dateKey, memo]) => {
+      const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+      const normalizedMemo = String(memo || "").trim();
+      if (normalizedDateKey && normalizedMemo) {
+        acc[normalizedDateKey] = normalizedMemo;
+      }
+      return acc;
+    }, {});
+  } catch (_error) {
+    return {};
+  }
+}
+
+function saveTimelineDateMemos(memos = {}) {
+  const normalized = Object.entries(memos || {}).reduce((acc, [dateKey, memo]) => {
+    const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+    const normalizedMemo = String(memo || "").trim();
+    if (normalizedDateKey && normalizedMemo) {
+      acc[normalizedDateKey] = normalizedMemo;
+    }
+    return acc;
+  }, {});
+  try {
+    window.localStorage?.setItem(WC26_TIMELINE_DATE_MEMO_STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
+  } catch (_error) {
+    showToast("날짜 메모 저장에 실패했습니다.");
+    return normalized;
+  }
+}
+
+function getTimelineDateMemo(dateKey = "") {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  if (!normalizedDateKey) {
+    return "";
+  }
+  return String(loadTimelineDateMemos()[normalizedDateKey] || "").trim();
+}
+
+function setTimelineDateMemo(dateKey = "", memo = "") {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  if (!normalizedDateKey) {
+    return false;
+  }
+  const memos = loadTimelineDateMemos();
+  const normalizedMemo = String(memo || "").trim();
+  if (normalizedMemo) {
+    memos[normalizedDateKey] = normalizedMemo;
+  } else {
+    delete memos[normalizedDateKey];
+  }
+  saveTimelineDateMemos(memos);
+  return true;
+}
+
+function buildTimelineDateMemoTooltipModel(dateKey = "", memo = "") {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  const normalizedMemo = String(memo || "").trim();
+  return {
+    id: `date-memo:${normalizedDateKey}`,
+    name: formatTimelineMemoDateLabel(normalizedDateKey),
+    startDate: normalizedDateKey,
+    endDate: normalizedDateKey,
+    place: "날짜 메모",
+    memo: normalizedMemo,
+  };
+}
+
 function hideTimelineTooltip() {
   activeTimelineTooltipId = "";
+  activeTimelineDateMemoKey = "";
   if (!timelineTooltipShell) {
     return;
   }
@@ -3349,6 +3396,149 @@ function showTimelineTooltip(block = {}, anchorElement = null) {
   timelineTooltipShell.hidden = false;
   timelineTooltipShell.setAttribute("aria-hidden", "false");
   positionTimelineTooltip(anchorElement.getBoundingClientRect());
+}
+
+function showTimelineDateMemoTooltip(dateKey = "", anchorElement = null) {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  const memo = getTimelineDateMemo(normalizedDateKey);
+  if (!memo || !(anchorElement instanceof HTMLElement)) {
+    hideTimelineTooltip();
+    return;
+  }
+  activeTimelineDateMemoKey = normalizedDateKey;
+  showTimelineTooltip(buildTimelineDateMemoTooltipModel(normalizedDateKey, memo), anchorElement);
+}
+
+function syncTimelineDateMemoCells(dateKey = "") {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  if (!normalizedDateKey) {
+    return;
+  }
+  const memo = getTimelineDateMemo(normalizedDateKey);
+  document.querySelectorAll(`.timeline-gantt-cell--head[data-timeline-date-key="${normalizedDateKey}"]`).forEach((cell) => {
+    cell.setAttribute("aria-label", `${formatTimelineMemoDateLabel(normalizedDateKey)} 날짜 메모 ${memo ? "수정" : "작성"}`);
+    if (memo) {
+      cell.classList.add("timeline-gantt-cell--date-memoed");
+      cell.dataset.timelineDateMemo = memo;
+    } else {
+      cell.classList.remove("timeline-gantt-cell--date-memoed");
+      delete cell.dataset.timelineDateMemo;
+    }
+  });
+}
+
+function ensureTimelineDateMemoModal() {
+  let modal = document.getElementById("timeline-date-memo-modal");
+  if (modal) {
+    return modal;
+  }
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `
+      <div class="timeline-modal timeline-date-memo-modal" id="timeline-date-memo-modal" hidden>
+        <div class="timeline-modal__backdrop" data-timeline-date-memo-close></div>
+        <div class="timeline-modal__dialog timeline-date-memo-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="timeline-date-memo-title">
+          <div class="timeline-modal__header">
+            <h3 class="timeline-modal__title" id="timeline-date-memo-title">날짜 메모</h3>
+            <button type="button" class="timeline-modal__close" data-timeline-date-memo-close aria-label="닫기">×</button>
+          </div>
+          <div class="timeline-modal__body">
+            <p class="timeline-date-memo-modal__date" id="timeline-date-memo-date"></p>
+            <label class="timeline-modal__field">
+              <span>메모 입력</span>
+              <textarea id="timeline-date-memo-input" rows="4" maxlength="300" placeholder="이 날짜 메모를 입력하세요"></textarea>
+            </label>
+          </div>
+          <div class="timeline-modal__actions timeline-date-memo-modal__actions">
+            <button type="button" class="timeline-modal__button" id="timeline-date-memo-save">저장</button>
+            <button type="button" class="timeline-modal__button timeline-date-memo-modal__delete" id="timeline-date-memo-delete">삭제</button>
+          </div>
+        </div>
+      </div>
+    `
+  );
+  modal = document.getElementById("timeline-date-memo-modal");
+  modal?.querySelectorAll("[data-timeline-date-memo-close]").forEach((node) => {
+    node.addEventListener("click", closeTimelineDateMemoModal);
+  });
+  document.getElementById("timeline-date-memo-save")?.addEventListener("click", saveTimelineDateMemoFromModal);
+  document.getElementById("timeline-date-memo-delete")?.addEventListener("click", deleteTimelineDateMemoFromModal);
+  document.getElementById("timeline-date-memo-input")?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeTimelineDateMemoModal();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      saveTimelineDateMemoFromModal();
+    }
+  });
+  return modal;
+}
+
+function openTimelineDateMemoModal(dateKey = "") {
+  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
+  if (!normalizedDateKey) {
+    return;
+  }
+  const modal = ensureTimelineDateMemoModal();
+  const dateNode = document.getElementById("timeline-date-memo-date");
+  const input = document.getElementById("timeline-date-memo-input");
+  if (modal) {
+    modal.dataset.timelineDateKey = normalizedDateKey;
+    modal.removeAttribute("hidden");
+  }
+  if (dateNode) {
+    dateNode.textContent = formatTimelineMemoDateLabel(normalizedDateKey);
+  }
+  if (input) {
+    input.value = getTimelineDateMemo(normalizedDateKey);
+    window.requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  }
+}
+
+function closeTimelineDateMemoModal() {
+  const modal = document.getElementById("timeline-date-memo-modal");
+  const input = document.getElementById("timeline-date-memo-input");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    delete modal.dataset.timelineDateKey;
+  }
+  if (input) {
+    input.value = "";
+  }
+}
+
+function saveTimelineDateMemoFromModal() {
+  const modal = document.getElementById("timeline-date-memo-modal");
+  const input = document.getElementById("timeline-date-memo-input");
+  const dateKey = String(modal?.dataset.timelineDateKey || "").trim().slice(0, 10);
+  const memo = String(input?.value || "").trim();
+  if (!dateKey) {
+    return;
+  }
+  if (!memo) {
+    showToast("메모를 입력해주세요.");
+    return;
+  }
+  setTimelineDateMemo(dateKey, memo);
+  syncTimelineDateMemoCells(dateKey);
+  closeTimelineDateMemoModal();
+  hideTimelineTooltip();
+}
+
+function deleteTimelineDateMemoFromModal() {
+  const modal = document.getElementById("timeline-date-memo-modal");
+  const dateKey = String(modal?.dataset.timelineDateKey || "").trim().slice(0, 10);
+  if (!dateKey) {
+    return;
+  }
+  setTimelineDateMemo(dateKey, "");
+  syncTimelineDateMemoCells(dateKey);
+  closeTimelineDateMemoModal();
+  hideTimelineTooltip();
 }
 
 function bindTimelineBlockTooltip(blockElement, block = {}) {
@@ -3593,9 +3783,40 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   dateHeader.style.gridTemplateColumns = `repeat(${dates.length}, ${WC26_TIMELINE_DATE_CELL_WIDTH}px)`;
   dateHeader.style.width = `${gridWidth}px`;
   dates.forEach((dateKey) => {
+    const memo = getTimelineDateMemo(dateKey);
     const cell = document.createElement("div");
     cell.className = "timeline-gantt-cell timeline-gantt-cell--head";
     cell.textContent = formatTimelineGanttDateLabel(dateKey);
+    cell.dataset.timelineDateKey = dateKey;
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-label", `${formatTimelineMemoDateLabel(dateKey)} 날짜 메모 ${memo ? "수정" : "작성"}`);
+    if (memo) {
+      cell.classList.add("timeline-gantt-cell--date-memoed");
+      cell.dataset.timelineDateMemo = memo;
+    }
+    cell.addEventListener("mouseenter", () => {
+      if (!cell.dataset.timelineDateMemo) {
+        return;
+      }
+      showTimelineDateMemoTooltip(dateKey, cell);
+    });
+    cell.addEventListener("mouseleave", () => {
+      if (activeTimelineDateMemoKey === dateKey) {
+        hideTimelineTooltip();
+      }
+    });
+    cell.addEventListener("focus", () => {
+      if (!cell.dataset.timelineDateMemo) {
+        return;
+      }
+      showTimelineDateMemoTooltip(dateKey, cell);
+    });
+    cell.addEventListener("blur", () => {
+      if (activeTimelineDateMemoKey === dateKey) {
+        hideTimelineTooltip();
+      }
+    });
     dateHeader.appendChild(cell);
   });
 
@@ -3655,9 +3876,6 @@ function renderTimelineGantt(summary = {}) {
 }
 
 function refreshTimelineGanttFromLegacy(options = {}) {
-  if (!String(readTimelineBlocksRaw() || "").trim()) {
-    ensureTimelineBlocksSeedRestored();
-  }
   const force = Boolean(options?.force);
   const syncWindow = getScheduleBridgeSyncWindow();
   const getter = syncWindow?.getWC26LegacyTimelineGanttSummary;
@@ -3929,6 +4147,33 @@ function initTimelineEditor() {
     if (navButton instanceof HTMLElement) {
       handleTimelineNavButton(navButton, event);
     }
+  }, { capture: true });
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const dateCell = target?.closest(".timeline-gantt-cell--head[data-timeline-date-key]");
+    if (!(dateCell instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest("[data-timeline-nav]")) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    hideTimelineTooltip();
+    openTimelineDateMemoModal(String(dateCell.dataset.timelineDateKey || "").trim());
+  }, { capture: true });
+  document.addEventListener("keydown", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const dateCell = target?.closest(".timeline-gantt-cell--head[data-timeline-date-key]");
+    if (!(dateCell instanceof HTMLElement)) {
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    hideTimelineTooltip();
+    openTimelineDateMemoModal(String(dateCell.dataset.timelineDateKey || "").trim());
   }, { capture: true });
   timelineActionButtons.forEach((button) => {
     button.addEventListener("click", () => {

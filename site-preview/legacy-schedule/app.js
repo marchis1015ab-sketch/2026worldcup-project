@@ -8107,7 +8107,6 @@ const PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimeli
 const PERSONAL_TIMELINE_DETAILS_CLEANUP_MARKER_KEY = '__worldcupGuidePersonalTimelineDetailsCleanupAt_20260506__';
 const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY = 'worldcup-guide-personal-timeline-details-deleted-v1';
 const PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_WINDOW_NAME_KEY = '__worldcupGuidePersonalTimelineDetailsDeleted__';
-const PERSONAL_TIMELINE_STATE_SEED_PATH = '../personal-timeline-state-seed.json';
 const TIMELINE_GALLERY_STORAGE_KEY = 'galleryData';
 const TIMELINE_GALLERY_WINDOW_NAME_KEY = '__worldcupGuideTimelineGallery__';
 const TIMELINE_GALLERY_DELETED_IDS_STORAGE_KEY = 'worldcup-guide-gallery-deleted-v1';
@@ -8366,7 +8365,6 @@ let hasLoadedTimelineSavedAssignments = false;
 let hasLoadedPersonalTimelineSharedEntries = false;
 let hasLoadedPersonalTimelineDetailSelections = false;
 let lastPersonalTimelineDetailsSource = 'empty';
-let personalTimelineStateSeedRestorePromise = null;
 let squadPhotoHydrationVersion = 0;
 let timelineDates = null;
 let timelineMonthGroups = null;
@@ -10458,42 +10456,6 @@ function writePersonalTimelineDetailsRaw(raw){
   scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw);
   if(sharedStateSyncReady) void flushPendingSharedStateWrites();
 }
-function ensurePersonalTimelineStateSeedRestored(){
-  if(personalTimelineStateSeedRestorePromise) return personalTimelineStateSeedRestorePromise;
-  const needsDeleted=!readPersonalTimelineDeletedKeysRaw();
-  if(!needsDeleted) return Promise.resolve(false);
-  personalTimelineStateSeedRestorePromise=fetch(PERSONAL_TIMELINE_STATE_SEED_PATH, {cache:'no-store'})
-    .then(response=>response.ok ? response.json() : null)
-    .catch(()=>null)
-    .then(seed=>{
-      if(!seed||typeof seed!=='object') return false;
-      let restored=false;
-      if(needsDeleted&&!readPersonalTimelineDeletedKeysRaw()){
-        const seededDeletedKeys=Array.isArray(seed.deletedKeys) ? seed.deletedKeys : [];
-        const seededDeletedRaw=buildPersonalTimelineDeletedKeysRaw(seededDeletedKeys);
-        if(seededDeletedRaw){
-          writePersonalTimelineDeletedKeysRaw(seededDeletedRaw);
-          restored=true;
-        }
-      }
-      if(restored){
-        hasLoadedPersonalTimelineDetailSelections=false;
-        loadPersonalTimelineDetailSelections();
-        updateHeaderTimes();
-        updateHeaderReportBoard();
-        updateEquipmentSharedTvuIndicators();
-        if(currentTimelineView==='personal'){
-          renderTimelineSchedule(currentTimelineView);
-        }
-        notifyWc26LegacyScheduleSummaryChanged('detail-seed-restore');
-      }
-      return restored;
-    })
-    .finally(()=>{
-      personalTimelineStateSeedRestorePromise=null;
-    });
-  return personalTimelineStateSeedRestorePromise;
-}
 function readHeaderReportBoardRecentRaw(){
   const storages=getTimelineStorageAreas();
   for(const storage of storages){
@@ -10756,7 +10718,6 @@ function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
 function loadPersonalTimelineDetailSelections(){
   if(hasLoadedPersonalTimelineDetailSelections) return;
   hasLoadedPersonalTimelineDetailSelections = true;
-  ensurePersonalTimelineStateSeedRestored();
   clearLegacyPersonalTimelineDetailCaches();
   setSharedStateLocalRaw(
     PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY,
@@ -12924,6 +12885,11 @@ function getTimelineCellTitle(person, date, index, dateKey){
   const label=getTimelineLabel(person, dateKey);
   return label ? `${person} · ${getTimelineLabelWithRange(person, index, label)}` : `${person} · ${formatTimelineDate(date)}`;
 }
+function getTimelineMemoPreview(label=''){
+  const text=String(label||'').trim().replace(/\s+/g, ' ');
+  if(!text) return '';
+  return text.length>14 ? `${text.slice(0, 14)}…` : text;
+}
 function getPersonalTimelinePhase(date){
   const today=getKstDateParts();
   const todayUtc=toUtcFromKstDateParts(today.year, today.month, today.day);
@@ -15062,7 +15028,6 @@ function refreshPersonalTimelineDayView(list, view){
 }
 function renderPersonalTimelineSchedule(view){
   resetPersonalTimelineEndEditorState();
-  ensurePersonalTimelineStateSeedRestored();
   setPersonalTimelineViewDateKey(currentPersonalTimelineDateKey||getTodayTimelineKey());
   const detailCol=document.getElementById('detailCol');
   const detailTable=document.getElementById('detailTable');
@@ -15306,18 +15271,24 @@ function renderTimelineDayCell(row, date, index){
   const dayClasses=getTimelineDayClasses(date);
   if(dayClasses) classes.push(dayClasses);
   let content='';
-  const displayLabel=label?getTimelineLabelWithRange(person, index, label):'';
+  const isMemoRow=row.type==='person';
+  const displayLabel=label?(isMemoRow ? label : getTimelineLabelWithRange(person, index, label)):'';
   const dataLabel=displayLabel?` data-label="${escapeHtml(displayLabel)}"`:'';
   if(label){
     classes.push('filled');
-    const previousLabel=index>0?getTimelineLabel(person, formatTimelineKey(dates[index-1])):'';
-    if(previousLabel!==label){
-      const span=getTimelineSegmentSpan(person, index, label);
-      classes.push('segment-start');
-      content=`<span class="timeline-entry-label" style="width:calc(${span} * var(--timeline-cell-size) + ${Math.max(span-1, 0)}px)">${escapeHtml(displayLabel)}</span>`;
+    if(isMemoRow){
+      classes.push('memo-filled');
+      content=`<span class="timeline-day-memo-dot" aria-hidden="true"></span><span class="timeline-day-memo-preview">${escapeHtml(getTimelineMemoPreview(label))}</span>`;
+    }else{
+      const previousLabel=index>0?getTimelineLabel(person, formatTimelineKey(dates[index-1])):'';
+      if(previousLabel!==label){
+        const span=getTimelineSegmentSpan(person, index, label);
+        classes.push('segment-start');
+        content=`<span class="timeline-entry-label" style="width:calc(${span} * var(--timeline-cell-size) + ${Math.max(span-1, 0)}px)">${escapeHtml(displayLabel)}</span>`;
+      }
     }
   }
-  return `<td class="${classes.join(' ')}" data-person="${escapeHtml(person)}" data-index="${index}" data-date="${dateKey}" title="${escapeHtml(getTimelineCellTitle(person, date, index, dateKey))}"${dataLabel}>${content}</td>`;
+  return `<td class="${classes.join(' ')}" data-person="${escapeHtml(person)}" data-row-type="${escapeHtml(row.type)}" data-index="${index}" data-date="${dateKey}" title="${escapeHtml(getTimelineCellTitle(person, date, index, dateKey))}"${dataLabel}>${content}</td>`;
 }
 function renderTimelineRow(row){
   const dates=getTimelineDates();
@@ -15351,7 +15322,7 @@ function updateTimelineSelection(targetCell){
 }
 function ensureTimelineModal(){
   if(document.getElementById('timelineModal')) return;
-  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">일정 입력</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="선택한 날짜 구간의 일정을 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>파일 첨부</span><input id="timelineModalFile" type="file" data-ios-photo-choice="true" accept="image/*,application/pdf,.csv,.xls,.xlsx,.txt,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="clearTimelineSelectionEntries()">지우기</button><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button></div></div></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div id="timelineModal" class="timeline-modal hidden"><div class="timeline-modal-backdrop" onclick="closeTimelineModal()"></div><div class="timeline-modal-panel" role="dialog" aria-modal="true" aria-labelledby="timelineModalTitle"><div class="timeline-modal-header"><h3 id="timelineModalTitle">날짜 메모</h3><button type="button" class="timeline-modal-close" onclick="closeTimelineModal()" aria-label="닫기">×</button></div><p id="timelineModalMeta" class="timeline-modal-meta"></p><textarea id="timelineModalInput" class="timeline-modal-input" placeholder="이 날짜 메모를 입력하세요"></textarea><div id="timelineModalMedia" class="timeline-modal-media hidden"><label class="timeline-modal-upload"><span>파일 첨부</span><input id="timelineModalFile" type="file" data-ios-photo-choice="true" accept="image/*,application/pdf,.csv,.xls,.xlsx,.txt,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip" multiple></label><div id="timelineModalMediaList" class="timeline-modal-media-list"></div></div><div class="timeline-modal-actions"><button type="button" class="timeline-modal-btn" onclick="closeTimelineModal()">취소</button><button type="button" class="timeline-modal-btn primary" onclick="saveTimelineSelection()">저장</button><button type="button" class="timeline-modal-btn danger" onclick="clearTimelineSelectionEntries()">삭제</button></div></div></div>`);
   const modal=document.getElementById('timelineModal');
   const input=document.getElementById('timelineModalInput');
   const fileInput=document.getElementById('timelineModalFile');
@@ -15401,10 +15372,13 @@ function openTimelineModal(){
   if(title){
     title.textContent=pendingTimelineSelection.mode==='shared'
       ? (pendingTimelineSelection.sharedAction==='edit' ? '공용 일정 수정' : '공용 일정 작성')
-      : '일정 입력';
+      : '날짜 메모';
   }
   meta.textContent=`${pendingTimelineSelection.person} | ${getTimelineRangeLabel(pendingTimelineSelection.dates)}`;
   input.value=typeof pendingTimelineSelection.initialText==='string' ? pendingTimelineSelection.initialText : (labels.length===1?labels[0]:'');
+  input.placeholder=pendingTimelineSelection.mode==='shared'
+    ? '선택한 날짜 구간의 일정을 입력하세요'
+    : '이 날짜 메모를 입력하세요';
   if(pendingTimelineSelection.mode==='shared'){
     pendingTimelineSelection.mediaItems=(pendingTimelineSelection.mediaItems||[]).map(item=>({...item}));
   }
@@ -15414,6 +15388,21 @@ function openTimelineModal(){
   syncMobileHistoryState();
   input.focus();
   input.select();
+}
+function openTimelineDayMemoModal(cell){
+  if(!requireEditAccess()) return;
+  if(!cell) return;
+  if(String(cell.dataset.rowType||'')!=='person') return;
+  const person=String(cell.dataset.person||'').trim();
+  const dateKey=String(cell.dataset.date||'').trim();
+  if(!person||!dateKey) return;
+  pendingTimelineSelection={
+    person,
+    dates:[dateKey],
+    cells:[cell],
+    initialText:getTimelineLabel(person, dateKey)
+  };
+  openTimelineModal();
 }
 function getTimelineScrollState(){
   const timelineCard=document.querySelector('.timeline-card');
@@ -18056,25 +18045,17 @@ function renderTimelineSchedule(viewKey='personal'){
   detailTable.innerHTML=`${renderCache.timelineHeader}<tbody>${bodyRows}</tbody>`;
   ensureTimelineExportButton();
   applyMobileTimelineAStructure();
-  detailTable.onmousedown=event=>{
+  detailTable.onclick=event=>{
     const cell=event.target.closest('.timeline-day-cell');
-    if(!cell||event.button!==0) return;
+    if(!cell) return;
     event.preventDefault();
     hideTimelineTooltip();
     closeTimelineModal();
     cancelTimelineSelection();
-    isTimelinePainting=true;
-    timelineSelectionPerson=cell.dataset.person;
-    timelineSelectionStartIndex=Number(cell.dataset.index);
-    timelineSelectionEndIndex=Number(cell.dataset.index);
-    updateTimelineSelection(cell);
+    openTimelineDayMemoModal(cell);
   };
   detailTable.onmouseover=event=>{
     const cell=event.target.closest('.timeline-day-cell');
-    if(isTimelinePainting){
-      updateTimelineSelection(cell);
-      return;
-    }
     if(cell?.dataset.label){
       showTimelineTooltip(cell);
     }else{
@@ -18089,7 +18070,7 @@ function renderTimelineSchedule(viewKey='personal'){
     }
   };
   detailTable.onmouseleave=()=>{
-    if(!isTimelinePainting) hideTimelineTooltip();
+    hideTimelineTooltip();
   };
   detailTable.ondragstart=()=>false;
   document.onmouseup=stopTimelinePaint;
