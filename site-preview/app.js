@@ -1374,6 +1374,11 @@ let archiveSuitLegacyIndexedDbRawCount = 0;
 let archiveSuitLegacyIndexedDbSource = "pending";
 let archiveSuitLegacyIndexedDbReady = false;
 let archiveSuitLegacyIndexedDbPromise = null;
+let archiveSuitLegacyBridgeGalleryItems = [];
+let archiveSuitLegacyBridgeGalleryCount = 0;
+let archiveSuitLegacyBridgeGallerySource = "pending";
+let archiveSuitLegacyBridgeGalleryReady = false;
+let archiveSuitLegacyBridgeGalleryPromise = null;
 let mediaBridgeReady = false;
 let mediaBridgeSection = "broadcast-schedule";
 let mediaBridgeSummaryRenderKey = "";
@@ -4743,6 +4748,35 @@ function ensureArchiveSuitLegacyIndexedDbGalleryItems() {
   return archiveSuitLegacyIndexedDbPromise;
 }
 
+function ensureArchiveSuitLegacyBridgeGalleryItems() {
+  if (archiveSuitLegacyBridgeGalleryReady || archiveSuitLegacyBridgeGalleryPromise) return archiveSuitLegacyBridgeGalleryPromise;
+  archiveSuitLegacyBridgeGalleryPromise = waitForScheduleBridgeFunction("getWC26LegacyTimelineGallerySummaryEntries", 5000)
+    .then((legacyWindow) => {
+      const getter = legacyWindow?.getWC26LegacyTimelineGallerySummaryEntries;
+      const entries = typeof getter === "function" ? getter.call(legacyWindow) : [];
+      archiveSuitLegacyBridgeGalleryItems = (Array.isArray(entries) ? entries : [])
+        .map((entry, index) => normalizeArchiveSuitLegacyGalleryItem(entry, index))
+        .filter(Boolean);
+      archiveSuitLegacyBridgeGalleryCount = archiveSuitLegacyBridgeGalleryItems.length;
+      archiveSuitLegacyBridgeGallerySource = archiveSuitLegacyBridgeGalleryItems.length ? "legacyBridge" : "empty";
+      archiveSuitGalleryDiagnosticsSignature = "";
+      if (storageBridgeSection === "gallery" && archiveSuitPanels.length) {
+        renderArchiveSuitPanels();
+      }
+    })
+    .catch((error) => {
+      archiveSuitLegacyBridgeGallerySource = "error";
+      archiveSuitLegacyBridgeGalleryCount = 0;
+      archiveSuitLegacyBridgeGalleryItems = [];
+      console.warn("[archive-gallery-import] legacy bridge read failed", error);
+    })
+    .finally(() => {
+      archiveSuitLegacyBridgeGalleryReady = true;
+      archiveSuitLegacyBridgeGalleryPromise = null;
+    });
+  return archiveSuitLegacyBridgeGalleryPromise;
+}
+
 function parseArchiveSuitDeletedIdsRaw(raw = "") {
   if (!raw) return [];
   try {
@@ -4859,14 +4893,18 @@ function extractArchiveSuitLegacyGalleryItems(entry = {}, entryIndex = 0) {
 
 function getArchiveSuitLegacyGalleryItems() {
   const deleted = getArchiveSuitDeletedIdsSet();
-  const imported = [...archiveSuitLegacyIndexedDbItems];
+  const imported = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems];
   ARCHIVE_SUIT_LEGACY_GALLERY_KEYS.forEach((key) => {
     const { raw } = getArchiveSuitLegacyGalleryRawByKey(key);
     parseArchiveSuitGalleryRaw(raw).forEach((entry, index) => {
       imported.push(...extractArchiveSuitLegacyGalleryItems(entry, index));
     });
   });
-  return imported.filter((item) => !deleted.has(item.id) && !deleted.has(item.legacyId));
+  const visibleImported = imported.filter((item) => !deleted.has(item.id) && !deleted.has(item.legacyId));
+  if (!visibleImported.length && imported.length && deleted.size) {
+    return imported;
+  }
+  return visibleImported;
 }
 
 function getArchiveSuitLegacyBridgeWindow() {
@@ -4965,7 +5003,7 @@ function refreshArchiveSuitLegacyStorageData() {
 function collectArchiveSuitLegacyGalleryCandidates() {
   const rawCounts = {};
   const rawSources = {};
-  const candidates = [...archiveSuitLegacyIndexedDbItems];
+  const candidates = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems];
   ARCHIVE_SUIT_LEGACY_GALLERY_KEYS.forEach((key) => {
     const { raw, source } = getArchiveSuitLegacyGalleryRawByKey(key);
     const parsed = parseArchiveSuitGalleryRaw(raw);
@@ -4977,6 +5015,8 @@ function collectArchiveSuitLegacyGalleryCandidates() {
   });
   rawCounts.indexedDB = archiveSuitLegacyIndexedDbRawCount;
   rawSources.indexedDB = archiveSuitLegacyIndexedDbSource;
+  rawCounts.legacyBridge = archiveSuitLegacyBridgeGalleryCount;
+  rawSources.legacyBridge = archiveSuitLegacyBridgeGallerySource;
   return { rawCounts, rawSources, candidates };
 }
 
@@ -5911,7 +5951,11 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
   if (!items.length) {
     return `${mobileHeader}${useMobileDocumentLayout ? renderArchiveSuitMobileEmptyState(normalized) : `<div class="archive-suit-empty">보관자료 없음</div>`}`;
   }
-  return `${mobileHeader}<div class="archive-suit-list">${items
+  const listClassName =
+    normalized === "file-storage" && !useMobileDocumentLayout
+      ? "archive-suit-list archive-suit-file-grid"
+      : "archive-suit-list";
+  return `${mobileHeader}<div class="${listClassName}">${items
     .map((item) => {
       const id = escapeTimelineHtml(item.id || "");
       const date = escapeTimelineHtml(item.date || "");
@@ -5941,7 +5985,8 @@ function renderArchiveSuitList(tab = storageBridgeSection, options = {}) {
           ${selected ? renderArchiveSuitInlineDetail(item, normalized) : ""}
         </article>`;
       }
-      return `<article class="archive-suit-item${selected ? " is-selected" : ""}" data-archive-item-id="${id}">
+      const desktopCardClass = normalized === "file-storage" ? " archive-suit-file-card" : "";
+      return `<article class="archive-suit-item${desktopCardClass}${selected ? " is-selected" : ""}" data-archive-item-id="${id}">
         ${deleteBox}
         <div class="archive-suit-item-media">${renderArchiveSuitPreview(item)}</div>
         <div class="archive-suit-item-body">
@@ -5991,6 +6036,7 @@ function renderArchiveSuitPanels() {
     const tab = normalizeStorageBridgeSection(panel.dataset.archiveSuitPanel || "document-storage");
     if (panel.hidden) return;
     if (tab === "gallery") {
+      ensureArchiveSuitLegacyBridgeGalleryItems();
       ensureArchiveSuitLegacyIndexedDbGalleryItems();
       logArchiveSuitGalleryDiagnostics();
     }

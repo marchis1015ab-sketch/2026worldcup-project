@@ -11639,6 +11639,7 @@ function notifyWc26LegacyStorageSummaryChanged(reason=''){
 if(typeof window!=='undefined'){
   window.WC26_LEGACY_STORAGE_SUMMARY_DIRTY_EVENT=WC26_LEGACY_STORAGE_SUMMARY_DIRTY_EVENT;
   window.getWC26LegacyStorageSummary=buildWc26LegacyStorageSummary;
+  window.getWC26LegacyTimelineGallerySummaryEntries=getWc26LegacyTimelineGallerySummaryEntries;
   window.notifyWC26LegacyStorageSummaryChanged=notifyWc26LegacyStorageSummaryChanged;
 }
 const WC26_LEGACY_MEDIA_SUMMARY_DIRTY_EVENT='wc26:legacy-media-summary-dirty';
@@ -18235,7 +18236,6 @@ updateMobileHeaderReportBoardVisibility();
 if(typeof document!=='undefined'&&document.readyState!=='loading'){
   initAccessMode();
 }
-
 
 
 
