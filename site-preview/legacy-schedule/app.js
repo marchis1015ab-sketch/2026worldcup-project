@@ -840,6 +840,7 @@ let newsProgrammingSpecialEntries = [];
 let isNewsProgrammingDeleteMode = false;
 const selectedNewsProgrammingDeleteIds = new Set();
 let currentNewsProgrammingSpecialForm = {
+  editId:'',
   date:getTodayTimelineKey(),
   timeKey:'',
   status:'본방',
@@ -7489,6 +7490,80 @@ function buildNewsProgrammingTimeLabel(item={}){
   const normalizedLabel=label||`현지 ${localTime}`;
   return `<span class="news-programming-time-text">${escapeHtml(normalizedLabel)}</span>`;
 }
+function getNewsProgrammingCardClockText(item={}){
+  if(!hasNewsProgrammingTimelineTime(item)){
+    return '현지 미정 / 한국 미정';
+  }
+  const timeLabel=stripWc26LegacyOpsHtml(buildNewsProgrammingTimeLabel(item));
+  return String(timeLabel||'').trim()||'현지 미정 / 한국 미정';
+}
+function getNewsProgrammingTimelineItems(dateKey=''){
+  loadNewsProgrammingState();
+  const activeDateKey=String(dateKey||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey();
+  const fixedItems=buildBaseNewsProgrammingSchedules(activeDateKey);
+  const timedSpecialItems=newsProgrammingSpecialEntries.filter(item=>
+    String(item?.date||'').trim()===activeDateKey&&hasNewsProgrammingTimelineTime(item)
+  );
+  return [...fixedItems, ...timedSpecialItems].sort((a, b)=>{
+    const sortDiff=getNewsProgrammingSortValue(a).localeCompare(getNewsProgrammingSortValue(b));
+    if(sortDiff!==0) return sortDiff;
+    const specialOrderDiff=Number(Boolean(a.isSpecialEntry))-Number(Boolean(b.isSpecialEntry));
+    if(specialOrderDiff!==0) return specialOrderDiff;
+    return Number(a.createdAt||0)-Number(b.createdAt||0);
+  });
+}
+function getNewsProgrammingLeadState(items=[], dateKey=''){
+  if(!Array.isArray(items)||!items.length) return {leadIndex:-1, state:'standby'};
+  const currentSort=getNewsProgrammingCurrentSortValue(dateKey);
+  if(!currentSort){
+    return {leadIndex:0, state:'standby'};
+  }
+  let leadIndex=-1;
+  items.forEach((item, index)=>{
+    if(getNewsProgrammingSortValue(item)<=currentSort){
+      leadIndex=index;
+    }
+  });
+  if(leadIndex>=0){
+    return {leadIndex, state:'onair'};
+  }
+  return {leadIndex:0, state:'standby'};
+}
+function getNewsProgrammingFollowingItems(items=[], leadIndex=-1, count=3){
+  if(!Array.isArray(items)||!items.length||leadIndex<0) return [];
+  const result=[];
+  for(let offset=1; offset<items.length&&result.length<count; offset+=1){
+    result.push(items[(leadIndex+offset)%items.length]);
+  }
+  return result;
+}
+function getNewsProgrammingSpecialShelfItems(dateKey=''){
+  loadNewsProgrammingState();
+  const activeDateKey=String(dateKey||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey();
+  return newsProgrammingSpecialEntries
+    .filter(item=>{
+      const itemDate=String(item?.date||'').trim();
+      return itemDate!==activeDateKey||!hasNewsProgrammingTimelineTime(item);
+    })
+    .sort((a, b)=>{
+      const currentDateWeight=String(a?.date||'').trim()===activeDateKey ? 0 : 1;
+      const nextDateWeight=String(b?.date||'').trim()===activeDateKey ? 0 : 1;
+      if(currentDateWeight!==nextDateWeight) return currentDateWeight-nextDateWeight;
+      if(String(a?.date||'').trim()!==String(b?.date||'').trim()){
+        return String(b?.date||'').localeCompare(String(a?.date||'').trim());
+      }
+      return Number(a?.createdAt||0)-Number(b?.createdAt||0);
+    });
+}
+function getNewsProgrammingSpecialTimeKey(dateKey='', localTime=''){
+  const normalizedDate=String(dateKey||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey();
+  const hourMatch=String(localTime||'').trim().match(/^(\d{1,2}):\d{2}$/);
+  if(!hourMatch) return '';
+  return getNewsProgrammingTimeOptionKey({
+    date:normalizedDate,
+    localHour:Number(hourMatch[1])
+  });
+}
 function clearNewsProgrammingDeleteMode(){
   isNewsProgrammingDeleteMode=false;
   selectedNewsProgrammingDeleteIds.clear();
@@ -7533,6 +7608,7 @@ function setNewsProgrammingSpecialField(field='', value=''){
 }
 function resetNewsProgrammingSpecialForm(){
   currentNewsProgrammingSpecialForm={
+    editId:'',
     date:getActiveNewsProgrammingDateKey(),
     timeKey:'',
     status:'본방',
@@ -7544,6 +7620,11 @@ function resetNewsProgrammingSpecialForm(){
 function submitNewsProgrammingSpecialEntry(){
   clearNewsProgrammingDeleteMode();
   loadNewsProgrammingState();
+  const editingId=String(currentNewsProgrammingSpecialForm.editId||'').trim();
+  const editingIndex=editingId
+    ? newsProgrammingSpecialEntries.findIndex(item=>String(item?.id||'').trim()===editingId)
+    : -1;
+  const existingEntry=editingIndex>=0 ? newsProgrammingSpecialEntries[editingIndex] : null;
   const selectedFormDate=String(currentNewsProgrammingSpecialForm.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey();
   const selectedTimeKey=String(currentNewsProgrammingSpecialForm.timeKey||'').trim();
   const selectedTimeOption=selectedTimeKey ? getNewsProgrammingTimeOptions(selectedFormDate).find(option=>option.key===selectedTimeKey) : null;
@@ -7551,8 +7632,8 @@ function submitNewsProgrammingSpecialEntry(){
   const normalizedStatus=String(currentNewsProgrammingSpecialForm.status||'본방').trim()==='생방' ? '생방' : '본방';
   const normalizedTitle=String(currentNewsProgrammingSpecialForm.title||'').trim()||'특보 편성';
   const normalizedMemo=String(currentNewsProgrammingSpecialForm.memo||'').trim();
-  newsProgrammingSpecialEntries.push({
-    id:`news-programming-special-${Date.now()}`,
+  const nextEntry={
+    id:editingId||`news-programming-special-${Date.now()}`,
     date:normalizedDate,
     localDayOffset:Number(selectedTimeOption?.localDayOffset)||0,
     localTime:String(selectedTimeOption?.localTime||'').trim(),
@@ -7562,8 +7643,13 @@ function submitNewsProgrammingSpecialEntry(){
     status:normalizedStatus,
     memo:normalizedMemo,
     isSpecialEntry:true,
-    createdAt:Date.now()
-  });
+    createdAt:Number(existingEntry?.createdAt)||Date.now()
+  };
+  if(editingIndex>=0){
+    newsProgrammingSpecialEntries.splice(editingIndex, 1, nextEntry);
+  }else{
+    newsProgrammingSpecialEntries.push(nextEntry);
+  }
   resetNewsProgrammingSpecialForm();
   saveNewsProgrammingState();
   refreshTicker();
@@ -7601,12 +7687,56 @@ function clearNewsProgrammingSpecialForm(){
 function openNewsProgrammingSpecialComposer(){
   clearNewsProgrammingDeleteMode();
   loadNewsProgrammingState();
-  if(!String(currentNewsProgrammingSpecialForm.date||'').trim()){
+  if(String(currentNewsProgrammingSpecialForm.editId||'').trim()||!isNewsProgrammingSpecialComposerOpen){
+    resetNewsProgrammingSpecialForm();
+  }else if(!String(currentNewsProgrammingSpecialForm.date||'').trim()){
     currentNewsProgrammingSpecialForm.date=getActiveNewsProgrammingDateKey();
   }
   currentNewsProgrammingSpecialForm.title=String(currentNewsProgrammingSpecialForm.title||'방송특보');
+  currentNewsProgrammingSpecialForm.editId='';
   isNewsProgrammingSpecialComposerOpen=true;
   isNewsProgrammingSpecialTimeMenuOpen=false;
+  rerenderNewsProgrammingPanelIfActive();
+}
+function openNewsProgrammingSpecialEditor(entryId=''){
+  clearNewsProgrammingDeleteMode();
+  loadNewsProgrammingState();
+  const normalizedId=String(entryId||'').trim();
+  const targetEntry=newsProgrammingSpecialEntries.find(item=>String(item?.id||'').trim()===normalizedId);
+  if(!targetEntry){
+    openNewsProgrammingSpecialComposer();
+    return;
+  }
+  currentNewsProgrammingSpecialForm={
+    editId:normalizedId,
+    date:String(targetEntry.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey(),
+    timeKey:getNewsProgrammingSpecialTimeKey(targetEntry.date, targetEntry.localTime),
+    status:String(targetEntry.status||'본방').trim()==='생방' ? '생방' : '본방',
+    title:String(targetEntry.title||'특보 편성').trim()||'특보 편성',
+    memo:String(targetEntry.memo||'').trim()
+  };
+  isNewsProgrammingSpecialComposerOpen=true;
+  isNewsProgrammingSpecialTimeMenuOpen=false;
+  rerenderNewsProgrammingPanelIfActive();
+}
+function deleteNewsProgrammingSpecialEntry(entryId=''){
+  if(!requireEditAccess()) return;
+  clearNewsProgrammingDeleteMode();
+  loadNewsProgrammingState();
+  const normalizedId=String(entryId||'').trim();
+  if(!normalizedId) return;
+  const targetEntry=newsProgrammingSpecialEntries.find(item=>String(item?.id||'').trim()===normalizedId);
+  if(!targetEntry) return;
+  if(!confirm(`"${targetEntry.title||'특보 편성'}" 카드를 삭제할까요?`)){
+    return;
+  }
+  newsProgrammingSpecialEntries=newsProgrammingSpecialEntries.filter(item=>String(item?.id||'').trim()!==normalizedId);
+  if(String(currentNewsProgrammingSpecialForm.editId||'').trim()===normalizedId){
+    resetNewsProgrammingSpecialForm();
+    isNewsProgrammingSpecialComposerOpen=false;
+  }
+  saveNewsProgrammingState();
+  refreshTicker();
   rerenderNewsProgrammingPanelIfActive();
 }
 function setNewsProgrammingMemoDraft(itemId='', value=''){
@@ -7676,6 +7806,50 @@ function clearNewsProgrammingMemo(itemId=''){
 function getNewsProgrammingEntryId(item={}){
   return String(item?.id||'').trim();
 }
+function renderNewsProgrammingStructuredCard(item={}, options={}){
+  const {
+    badgeLabel='',
+    badgeClass='is-standby',
+    isLead=false,
+    isEmpty=false,
+    emptyCopy='편성 카드 대기 중입니다.',
+    emptyAction='special'
+  }=options||{};
+  const cardClasses=[
+    'news-programming-card',
+    'broadcast-suit-card',
+    'broadcast-suit-card--structured',
+    isLead ? 'broadcast-suit-card--lead' : 'broadcast-suit-card--secondary',
+    item?.isSpecialEntry ? 'is-special-entry' : '',
+    isEmpty ? 'broadcast-suit-card--empty' : ''
+  ].filter(Boolean).join(' ');
+  const timeText=isEmpty ? '현지 미정 / 한국 미정' : getNewsProgrammingCardClockText(item);
+  const titleText=isEmpty ? '편성 없음' : String(item?.title||'프로그램').trim()||'프로그램';
+  const programKey=getNewsProgrammingProgramKey(item?.programKey||item?.title);
+  const savedMemo=item?.isSpecialEntry
+    ? String(item?.memo||'').trim()
+    : String(currentNewsProgrammingSavedMemos[programKey]||'').trim();
+  const draftMemo=String(currentNewsProgrammingMemoDrafts[programKey]??savedMemo??'');
+  const isMemoEditing=!isEmpty&&!item?.isSpecialEntry&&currentNewsProgrammingMemoEditingKey===programKey;
+  const entryId=getNewsProgrammingEntryId(item);
+  let footerHtml='';
+  if(isEmpty){
+    const actionHtml=emptyAction==='special'
+      ? '<div class="broadcast-suit-card-actions"><button type="button" class="section-title-action-btn" onclick="openNewsProgrammingSpecialComposer()">작성</button><button type="button" class="section-title-action-btn delete" disabled aria-disabled="true">삭제</button></div>'
+      : '<div class="broadcast-suit-card-actions"><button type="button" class="section-title-action-btn" disabled aria-disabled="true">작성</button><button type="button" class="section-title-action-btn delete" disabled aria-disabled="true">삭제</button></div>';
+    footerHtml=`<div class="broadcast-suit-card-bottom"><p class="broadcast-suit-card-note">${escapeHtml(emptyCopy)}</p>${actionHtml}</div>`;
+  }else if(item?.isSpecialEntry){
+    footerHtml=`<div class="broadcast-suit-card-bottom"><p class="broadcast-suit-card-note">${escapeHtml(savedMemo||'특보 메모 없음')}</p><div class="broadcast-suit-card-actions"><button type="button" class="section-title-action-btn" onclick='openNewsProgrammingSpecialEditor(${JSON.stringify(entryId)})'>작성</button><button type="button" class="section-title-action-btn delete" onclick='deleteNewsProgrammingSpecialEntry(${JSON.stringify(entryId)})'>삭제</button></div></div>`;
+  }else if(isMemoEditing){
+    footerHtml=`<div class="broadcast-suit-card-bottom is-editing"><div class="broadcast-suit-card-note-field"><textarea class="simple-form-input simple-form-textarea news-programming-memo-input" data-program="${escapeHtml(programKey)}" placeholder="운영 메모를 입력하세요" oninput='setNewsProgrammingMemoDraft(${JSON.stringify(programKey)}, this.value)'>${escapeHtml(draftMemo)}</textarea></div><div class="broadcast-suit-card-actions"><button type="button" class="section-title-action-btn" onclick='saveNewsProgrammingMemo(${JSON.stringify(programKey)})'>저장</button><button type="button" class="section-title-action-btn" onclick="cancelNewsProgrammingMemoEdit()">취소</button><button type="button" class="section-title-action-btn delete" onclick='clearNewsProgrammingMemo(${JSON.stringify(programKey)})'>삭제</button></div></div>`;
+  }else{
+    footerHtml=`<div class="broadcast-suit-card-bottom"><p class="broadcast-suit-card-note">${escapeHtml(savedMemo||'운영 메모 없음')}</p><div class="broadcast-suit-card-actions"><button type="button" class="section-title-action-btn" onclick='beginNewsProgrammingMemoEdit(${JSON.stringify(programKey)})'>작성</button><button type="button" class="section-title-action-btn delete" onclick='clearNewsProgrammingMemo(${JSON.stringify(programKey)})'>삭제</button></div></div>`;
+  }
+  const badgeHtml=String(badgeLabel||'').trim()
+    ? `<span class="broadcast-suit-card-badge ${escapeHtml(badgeClass)}">${escapeHtml(badgeLabel)}</span>`
+    : '';
+  return `<article class="${cardClasses}"><div class="broadcast-suit-card-topline"><span class="broadcast-suit-card-clock">${escapeHtml(timeText)}</span>${badgeHtml}</div><h4 class="broadcast-suit-card-title">${escapeHtml(titleText)}</h4>${footerHtml}</article>`;
+}
 function isNewsProgrammingDeleteAllowed(item={}){
   return Boolean(item?.isSpecialEntry&&getNewsProgrammingEntryId(item));
 }
@@ -7724,10 +7898,11 @@ function renderNewsProgrammingSpecialComposer(){
   const selectedTimeKey=String(currentNewsProgrammingSpecialForm.timeKey||'').trim();
   const selectedTimeOption=selectedTimeKey ? timeOptions.find(option=>option.key===selectedTimeKey) : null;
   const selectedTimeLabel=selectedTimeOption ? getNewsProgrammingTimeOptionLabel(selectedTimeOption) : '시간 미정';
+  const isEditing=Boolean(String(currentNewsProgrammingSpecialForm.editId||'').trim());
   const selectedStatus=String(currentNewsProgrammingSpecialForm.status||'본방').trim()==='생방' ? '생방' : '본방';
   const titleValue=String(currentNewsProgrammingSpecialForm.title||'');
   const memoValue=String(currentNewsProgrammingSpecialForm.memo||'');
-  return `<div class="broadcast-suit-special-modal" role="presentation"><button type="button" class="broadcast-suit-special-modal-backdrop" aria-label="특보 작성 닫기" onclick="toggleNewsProgrammingSpecialComposer(false)"></button><section class="news-programming-special-panel" role="dialog" aria-modal="true" aria-label="특보 카드 작성 창"><div class="news-programming-special-panel-header"><h4 class="news-programming-special-panel-title">특보 카드 작성</h4><button type="button" class="section-title-action-btn" onclick="toggleNewsProgrammingSpecialComposer(false)">닫기</button></div><div class="news-programming-special-form"><label class="simple-form-field news-programming-special-field"><span class="simple-form-label">날짜</span><input type="date" class="simple-form-input news-programming-special-date" value="${escapeHtml(selectedDate)}" onchange="setNewsProgrammingSpecialField('date', this.value)"></label><div class="simple-form-field news-programming-special-field"><span class="simple-form-label">시간</span><div class="news-programming-time-picker"><button type="button" class="news-programming-time-picker-trigger${isNewsProgrammingSpecialTimeMenuOpen?' is-open':''}" aria-expanded="${isNewsProgrammingSpecialTimeMenuOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialTimeMenu()"><span class="news-programming-time-picker-label">${escapeHtml(selectedTimeLabel)}</span><span class="news-programming-time-picker-arrow">▾</span></button>${isNewsProgrammingSpecialTimeMenuOpen?`<div class="news-programming-time-picker-menu" role="listbox" aria-label="특보 시간 선택"><button type="button" class="news-programming-time-picker-option${!selectedTimeOption?' is-selected':''}" onclick="selectNewsProgrammingSpecialTime('')">시간 미정</button>${timeOptions.map(option=>`<button type="button" class="news-programming-time-picker-option${selectedTimeOption&&option.key===selectedTimeOption.key?' is-selected':''}" onclick="selectNewsProgrammingSpecialTime('${escapeHtml(option.key)}')">${escapeHtml(getNewsProgrammingTimeOptionLabel(option))}</button>`).join('')}</div>`:''}</div></div><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">제목</span><input type="text" class="simple-form-input" value="${escapeHtml(titleValue)}" placeholder="방송특보" oninput="setNewsProgrammingSpecialField('title', this.value)"></label><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea news-programming-special-textarea" placeholder="특보 메모를 입력하세요" oninput="setNewsProgrammingSpecialField('memo', this.value)">${escapeHtml(memoValue)}</textarea></label></div><div class="news-programming-special-actions"><button type="button" class="section-title-action-btn" onclick="submitNewsProgrammingSpecialEntry()">작성</button><button type="button" class="section-title-action-btn delete" onclick="clearNewsProgrammingSpecialForm()">삭제</button></div></section></div>`;
+  return `<div class="broadcast-suit-special-modal" role="presentation"><button type="button" class="broadcast-suit-special-modal-backdrop" aria-label="특보 작성 닫기" onclick="toggleNewsProgrammingSpecialComposer(false)"></button><section class="news-programming-special-panel" role="dialog" aria-modal="true" aria-label="특보 카드 작성 창"><div class="news-programming-special-panel-header"><h4 class="news-programming-special-panel-title">${isEditing?'특보 카드 수정':'특보 카드 작성'}</h4><button type="button" class="section-title-action-btn" onclick="toggleNewsProgrammingSpecialComposer(false)">닫기</button></div><div class="news-programming-special-form"><label class="simple-form-field news-programming-special-field"><span class="simple-form-label">날짜</span><input type="date" class="simple-form-input news-programming-special-date" value="${escapeHtml(selectedDate)}" onchange="setNewsProgrammingSpecialField('date', this.value)"></label><div class="simple-form-field news-programming-special-field"><span class="simple-form-label">시간</span><div class="news-programming-time-picker"><button type="button" class="news-programming-time-picker-trigger${isNewsProgrammingSpecialTimeMenuOpen?' is-open':''}" aria-expanded="${isNewsProgrammingSpecialTimeMenuOpen?'true':'false'}" onclick="toggleNewsProgrammingSpecialTimeMenu()"><span class="news-programming-time-picker-label">${escapeHtml(selectedTimeLabel)}</span><span class="news-programming-time-picker-arrow">▾</span></button>${isNewsProgrammingSpecialTimeMenuOpen?`<div class="news-programming-time-picker-menu" role="listbox" aria-label="특보 시간 선택"><button type="button" class="news-programming-time-picker-option${!selectedTimeOption?' is-selected':''}" onclick="selectNewsProgrammingSpecialTime('')">시간 미정</button>${timeOptions.map(option=>`<button type="button" class="news-programming-time-picker-option${selectedTimeOption&&option.key===selectedTimeOption.key?' is-selected':''}" onclick="selectNewsProgrammingSpecialTime('${escapeHtml(option.key)}')">${escapeHtml(getNewsProgrammingTimeOptionLabel(option))}</button>`).join('')}</div>`:''}</div></div><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">제목</span><input type="text" class="simple-form-input" value="${escapeHtml(titleValue)}" placeholder="방송특보" oninput="setNewsProgrammingSpecialField('title', this.value)"></label><label class="simple-form-field news-programming-special-field news-programming-special-field-wide"><span class="simple-form-label">메모</span><textarea class="simple-form-input simple-form-textarea news-programming-special-textarea" placeholder="특보 메모를 입력하세요" oninput="setNewsProgrammingSpecialField('memo', this.value)">${escapeHtml(memoValue)}</textarea></label></div><div class="news-programming-special-actions"><button type="button" class="section-title-action-btn" onclick="submitNewsProgrammingSpecialEntry()">${isEditing?'저장':'작성'}</button><button type="button" class="section-title-action-btn delete" onclick="clearNewsProgrammingSpecialForm()">초기화</button></div></section></div>`;
 }
 function renderNewsProgrammingComposerPanel(){
   if(isNewsProgrammingSpecialComposerOpen) return renderNewsProgrammingSpecialComposer();
@@ -7790,26 +7965,58 @@ function renderNewsProgrammingFixedBroadcastCard(item={}, broadcastBadge=''){
 function renderNewsProgrammingPanelHtml(){
   const activeDateKey=getActiveNewsProgrammingDateKey();
   const topPanelDateLabel=formatProgrammingDateNavLabel(activeDateKey);
-  const fixedItems=buildBaseNewsProgrammingSchedules(activeDateKey).slice(0, 4);
   loadNewsProgrammingState();
-  const specialItemsForDate=newsProgrammingSpecialEntries
-    .filter(item=>String(item?.date||'').trim()===activeDateKey)
-    .sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
-  const timedSpecialItems=specialItemsForDate.filter(item=>hasNewsProgrammingTimelineTime(item));
-  const waitingSpecialItems=specialItemsForDate.filter(item=>!hasNewsProgrammingTimelineTime(item));
-  const timelineItems=[...fixedItems, ...timedSpecialItems].sort((a,b)=>{
-    const sortDiff=getNewsProgrammingSortValue(a).localeCompare(getNewsProgrammingSortValue(b));
-    if(sortDiff!==0) return sortDiff;
-    const specialOrderDiff=Number(Boolean(a.isSpecialEntry))-Number(Boolean(b.isSpecialEntry));
-    if(specialOrderDiff!==0) return specialOrderDiff;
-    return Number(a.createdAt||0)-Number(b.createdAt||0);
-  }).slice(0, 4);
-  const timelineBadgeMap=getNewsProgrammingTimelineBadgeMap(timelineItems, activeDateKey);
-  const fixedCards=timelineItems.map((item, index)=>renderNewsProgrammingFixedBroadcastCard(item, timelineBadgeMap.get(index)||'')).join('');
-  const specialCards=Array.from({length:4}, (_, index)=>waitingSpecialItems[index]
-    ? renderNewsProgrammingFixedBroadcastCard(waitingSpecialItems[index])
-    : renderNewsProgrammingEmptySlot(index)).join('');
-  return `<tbody><tr><td class="simple-info-cell"><section id="newsProgrammingPanel" class="simple-info-panel news-programming-panel broadcast-suit-board" aria-label="방송 편성표"><section class="news-programming-shell broadcast-suit-shell"><section class="broadcast-suit-list-panel" aria-label="고정 방송카드"><div class="broadcast-suit-top-panel"><button type="button" class="broadcast-suit-date-arrow" aria-label="이전 날짜" onclick="shiftNewsProgrammingViewDate(-1)">‹</button><span class="broadcast-suit-top-date">${escapeHtml(topPanelDateLabel)}</span><label class="broadcast-suit-calendar-trigger" aria-label="방송편성 날짜 선택"><span class="broadcast-suit-calendar-icon" aria-hidden="true"></span><input type="date" class="broadcast-suit-calendar-input" value="${escapeHtml(activeDateKey)}" onchange="setNewsProgrammingViewDate(this.value)"></label><button type="button" class="broadcast-suit-date-arrow" aria-label="다음 날짜" onclick="shiftNewsProgrammingViewDate(1)">›</button></div><div class="news-programming-list broadcast-suit-programming-grid"><section class="broadcast-suit-card-row broadcast-suit-fixed-row" aria-label="고정 방송카드 4개">${fixedCards}</section><section class="broadcast-suit-card-row broadcast-suit-special-row" aria-label="특보편성 카드 4개">${specialCards}</section>${renderNewsProgrammingSpecialComposer()}</div></section></section></section></td></tr></tbody>`;
+  const timelineItems=getNewsProgrammingTimelineItems(activeDateKey);
+  const leadState=getNewsProgrammingLeadState(timelineItems, activeDateKey);
+  const leadItem=leadState.leadIndex>=0 ? timelineItems[leadState.leadIndex] : null;
+  const followingItems=getNewsProgrammingFollowingItems(timelineItems, leadState.leadIndex, 3);
+  const specialShelfItems=getNewsProgrammingSpecialShelfItems(activeDateKey);
+  const leadCard=leadItem
+    ? renderNewsProgrammingStructuredCard(leadItem, {
+      badgeLabel:leadState.state==='onair' ? '방송중' : '방송대기',
+      badgeClass:leadState.state==='onair' ? 'is-onair' : 'is-standby',
+      isLead:true
+    })
+    : renderNewsProgrammingStructuredCard({}, {
+      badgeLabel:'방송대기',
+      badgeClass:'is-standby',
+      isLead:true,
+      isEmpty:true,
+      emptyCopy:'현재 올릴 편성이 없습니다.',
+      emptyAction:'fixed'
+    });
+  const fixedCards=Array.from({length:3}, (_, index)=>{
+    const item=followingItems[index];
+    if(!item){
+      return renderNewsProgrammingStructuredCard({}, {
+        badgeLabel:'',
+        badgeClass:'',
+        isEmpty:true,
+        emptyCopy:'다음 편성 대기',
+        emptyAction:'fixed'
+      });
+    }
+    return renderNewsProgrammingStructuredCard(item, {
+      badgeLabel:item.isSpecialEntry ? '특보' : '',
+      badgeClass:item.isSpecialEntry ? 'is-special' : ''
+    });
+  }).join('');
+  const specialCards=Array.from({length:4}, (_, index)=>{
+    const item=specialShelfItems[index];
+    return item
+      ? renderNewsProgrammingStructuredCard(item, {
+        badgeLabel:'특보',
+        badgeClass:'is-special'
+      })
+      : renderNewsProgrammingStructuredCard({}, {
+        badgeLabel:'특보',
+        badgeClass:'is-special',
+        isEmpty:true,
+        emptyCopy:'작성된 특보 카드가 없습니다.',
+        emptyAction:'special'
+      });
+  }).join('');
+  return `<tbody><tr><td class="simple-info-cell"><section id="newsProgrammingPanel" class="simple-info-panel news-programming-panel broadcast-suit-board" aria-label="방송 편성표"><section class="news-programming-shell broadcast-suit-shell"><section class="broadcast-suit-list-panel" aria-label="방송 편성 카드 보드"><div class="news-programming-list broadcast-suit-programming-grid"><section class="broadcast-suit-section" aria-label="현재 방송 카드"><div class="broadcast-suit-section-head">현재 편성</div><div class="broadcast-suit-card-stack broadcast-suit-card-stack--lead">${leadCard}</div></section><section class="broadcast-suit-section" aria-label="다음 방송 카드 3개"><div class="broadcast-suit-section-head">방송 순서</div><div class="broadcast-suit-card-row broadcast-suit-fixed-row">${fixedCards}</div></section><section class="broadcast-suit-section" aria-label="특보 카드 4개"><div class="broadcast-suit-section-head">특보</div><div class="broadcast-suit-card-row broadcast-suit-special-row">${specialCards}</div></section>${renderNewsProgrammingSpecialComposer()}</div></section></section></section></td></tr></tbody>`;
 }
 function ensureEquipmentEditorModal(){
   if(document.getElementById('equipmentEditorModal')) return;
@@ -8472,6 +8679,7 @@ function resetNewsProgrammingSyncState(){
     liveOnly:false
   };
   currentNewsProgrammingSpecialForm={
+    editId:'',
     date:getTodayLocalDateString(),
     timeKey:'',
     status:'본방',
@@ -16391,6 +16599,19 @@ function renderNewsToolbar(year, broadcaster){
   const isDeleteMode=currentNewsDeletingKey===key;
   return `<div class="toolbar news-toolbar"><button type="button" class="toolbar-btn news-toolbar-btn" onclick="openNewsEditorModal('${year}','${broadcaster}')">작성</button><button type="button" class="toolbar-btn news-toolbar-btn${isEditMode?' active':''}" onclick="toggleNewsEditMode('${year}','${broadcaster}')"${hasEntries?'':' disabled'}>수정</button><button type="button" class="toolbar-btn news-toolbar-btn${isDeleteMode?' active':''}" onclick="toggleNewsDeleteMode('${year}','${broadcaster}')"${hasEntries?'':' disabled'}>삭제</button></div>`;
 }
+function renderEmbeddedNewsCardRow(entry, broadcaster, year, entryIndex, isEditMode, isDeleteMode){
+  const dateText=escapeHtml(entry.date||'-');
+  const titleText=escapeHtml(getNewsTitleCell(entry, broadcaster)||'-');
+  const linkHtml=buildNewsLinkCell(entry.link);
+  const analysisText=escapeHtml(getNewsAnalysisCell(entry, broadcaster)||'-').replace(/ \/ /g,'<br>');
+  const actionButton=isEditMode
+    ? `<button type="button" class="news-row-edit-btn" onclick="openNewsEditorModal('${year}','${broadcaster}',${entryIndex})">수정</button>`
+    : isDeleteMode
+      ? `<button type="button" class="news-row-delete-btn" onclick="deleteNewsEntryAt('${year}','${broadcaster}',${entryIndex})">삭제</button>`
+      : '';
+  const actionHtml=actionButton ? `<div class="news-mobile-card-action">${actionButton}</div>` : '';
+  return `<tr class="news-mobile-card-row"><td class="news-mobile-card-cell" colspan="${isEditMode||isDeleteMode?5:4}"><div class="news-mobile-card">${actionHtml}<div class="news-mobile-card-meta"><span class="news-mobile-card-date">${dateText}</span><div class="news-mobile-card-headline"><span class="news-mobile-card-title">${titleText}</span><span class="news-mobile-card-link">${linkHtml}</span></div></div><div class="news-mobile-card-analysis-row"><span class="news-mobile-card-analysis-label">주요분석</span><p class="news-mobile-card-analysis">${analysisText}</p></div></div></td></tr>`;
+}
 function getNewsDateInputValue(date=''){
   const normalized=normalizeNewsDate(date);
   return /^\d{4}\.\d{2}\.\d{2}$/.test(normalized) ? normalized.replace(/\./g,'-') : '';
@@ -16487,12 +16708,13 @@ function renderNewsTable(year,broadcaster){
   currentNewsYear=year;
   currentNewsBroadcaster=broadcaster;
   const entries=getNewsEntries(year, broadcaster);
+  const isEmbeddedBridgeView=document.body.classList.contains('wc26-media-bridge-embedded');
   document.getElementById('detailCol').classList.add('detail-title-hidden');
   document.getElementById('detailTitle').innerHTML='';
   document.getElementById('detailSubtitle').textContent='';
-  document.getElementById('detailTable').className='data-table news-table';
+  document.getElementById('detailTable').className=`data-table news-table${isEmbeddedBridgeView?' news-table-mobile-card':''}`;
   const detailTable=document.getElementById('detailTable');
-  if(!document.body.classList.contains('wc26-media-bridge-embedded')){
+  if(!isEmbeddedBridgeView){
     detailTable.parentElement.insertAdjacentHTML('beforebegin', renderNewsToolbar(year, broadcaster));
   }
   const key=getNewsEditorKey(year, broadcaster);
@@ -16502,14 +16724,17 @@ function renderNewsTable(year,broadcaster){
   const header=`<thead><tr>${isEditMode||isDeleteMode?'<th></th>':''}<th>날짜</th><th>제목 / 프로그램</th><th>링크</th><th>주요분석</th></tr></thead>`;
   const body=entries.length
     ? entries.map((entry, entryIndex)=>{
+        if(isEmbeddedBridgeView){
+          return renderEmbeddedNewsCardRow(entry, broadcaster, year, entryIndex, isEditMode, isDeleteMode);
+        }
         const actionCell=isEditMode
           ? `<td class="news-action-cell"><button type="button" class="news-row-edit-btn" onclick="openNewsEditorModal('${year}','${broadcaster}',${entryIndex})">수정</button></td>`
           : isDeleteMode
             ? `<td class="news-action-cell"><button type="button" class="news-row-delete-btn" onclick="deleteNewsEntryAt('${year}','${broadcaster}',${entryIndex})">삭제</button></td>`
             : '';
         const dateText=escapeHtml(entry.date||'-');
-        const titleText=escapeHtml(entry.title||'-');
-        const analysisText=escapeHtml(entry.analysis||'-').replace(/ \/ /g,'<br>');
+        const titleText=escapeHtml(getNewsTitleCell(entry, broadcaster)||'-');
+        const analysisText=escapeHtml(getNewsAnalysisCell(entry, broadcaster)||'-').replace(/ \/ /g,'<br>');
         return `<tr>${actionCell}<td>${dateText}</td><td>${titleText}</td><td class="news-link-cell">${buildNewsLinkCell(entry.link)}</td><td>${analysisText}</td></tr>`;
       }).join('')
     : `<tr><td class="news-empty" colspan="${isEditMode||isDeleteMode?5:4}">해당 연도 데이터가 아직 비어 있습니다.</td></tr>`;
