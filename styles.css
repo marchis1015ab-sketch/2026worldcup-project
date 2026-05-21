@@ -4574,6 +4574,12 @@ body::after {
   scrollbar-color: rgba(103, 255, 216, 0.3) transparent;
 }
 
+@media (min-width: 1025px) {
+  #view-match-schedule .group-fixture-results-list {
+    max-height: none;
+  }
+}
+
 #view-match-schedule .group-fixture-result-row {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1.1fr) minmax(180px, 220px) minmax(0, 1.1fr);
