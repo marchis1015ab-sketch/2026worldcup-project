@@ -12163,8 +12163,8 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   }
 
   body:has(#view-dashboard.is-active:not([hidden])) .menu__item {
-    min-height: 42px;
-    padding-block: 8px;
+    min-height: 46px;
+    padding-block: 9px;
   }
 
   body:has(#view-dashboard.is-active:not([hidden])) #panel-equipment,
