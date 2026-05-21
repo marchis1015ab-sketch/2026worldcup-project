@@ -86,7 +86,6 @@ body {
   background-position: center center;
   background-size: cover;
   background-attachment: fixed;
-  filter: brightness(1.22) saturate(1.08);
 }
 
 body::before,
@@ -100,21 +99,29 @@ body::after,
 }
 
 body::before {
-  background: none;
+  background:
+    radial-gradient(circle at 18% 74%, rgba(4, 12, 22, 0.02), transparent 26%),
+    linear-gradient(180deg, rgba(2, 7, 14, 0), rgba(2, 7, 14, 0.04));
 }
 
 body::after {
-  background: none;
-  opacity: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 100%),
+    linear-gradient(rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 100%);
+  background-size: 90px 90px;
+  opacity: 0.15;
 }
 
 .broadcast-bg::before {
-  background: none;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 60%, rgba(2, 7, 14, 0.04) 100%);
 }
 
 .broadcast-bg::after {
-  background: none;
-  opacity: 0;
+  background:
+    linear-gradient(110deg, transparent 0 14%, rgba(103, 255, 216, 0.12) 32%, transparent 48%),
+    linear-gradient(140deg, transparent 56%, rgba(255, 150, 81, 0.13) 70%, transparent 84%);
+  opacity: 0.82;
 }
 
 .shell-frame {
@@ -1849,7 +1856,7 @@ body::after {
   min-width: 0;
   min-height: 0;
   display: grid;
-  align-content: start;
+  align-content: center;
   gap: 8px;
 }
 
@@ -1862,7 +1869,7 @@ body::after {
 
 .official-site-button {
   min-width: 0;
-  min-height: 82px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1882,63 +1889,6 @@ body::after {
     transform 160ms ease,
     border-color 160ms ease,
     background 160ms ease;
-}
-
-.official-site-button--folder {
-  padding: 10px;
-}
-
-.official-site-folder {
-  position: relative;
-  display: block;
-  width: min(100%, 108px);
-  aspect-ratio: 2 / 1.15;
-}
-
-.official-site-folder-tab {
-  position: absolute;
-  top: 0;
-  left: 10%;
-  width: 34%;
-  height: 22%;
-  border-radius: 10px 10px 0 0;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-bottom: 0;
-  background: linear-gradient(180deg, rgba(255, 217, 117, 0.96), rgba(247, 184, 83, 0.92));
-  box-shadow: 0 6px 14px rgba(255, 178, 62, 0.12);
-}
-
-.official-site-folder-face {
-  position: absolute;
-  inset: 18% 0 0;
-  display: block;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background:
-    linear-gradient(180deg, rgba(255, 236, 176, 0.98), rgba(255, 198, 97, 0.94)),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 52%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.36),
-    0 14px 26px rgba(0, 0, 0, 0.2);
-}
-
-.official-site-folder-face::before,
-.official-site-folder-face::after {
-  content: "";
-  position: absolute;
-  left: 16%;
-  right: 16%;
-  height: 2px;
-  border-radius: 999px;
-  background: rgba(148, 88, 12, 0.18);
-}
-
-.official-site-folder-face::before {
-  top: 38%;
-}
-
-.official-site-folder-face::after {
-  top: 56%;
 }
 
 .official-site-button:hover,
@@ -3601,31 +3551,20 @@ body::after {
 #view-schedule .panel-body.schedule-bridge-body,
 #view-match-schedule .panel-body.schedule-bridge-body,
 #equipment-bridge-panel .schedule-bridge-body {
-  top: -2px;
-}
-
-@media (min-width: 1025px) {
-  #view-schedule > .detail-panel > .panel-body.schedule-bridge-body {
-    height: calc(100% - 16px);
-  }
-
-  #view-schedule #schedule-local-shared-shell > .shared-schedule-panel--list {
-    min-height: 0;
-    height: calc(100% + 16px);
-  }
+  top: -1px;
 }
 
 #view-archive .panel-body.archive-suit-body,
 #view-map .panel-body.schedule-bridge-body {
-  top: 20px;
+  top: 10px;
 }
 
 #view-broadcast-news .panel-body.schedule-bridge-body {
-  top: -4px;
+  top: -2px;
 }
 
 #view-operations .panel-body.schedule-bridge-body {
-  top: -20px;
+  top: -10px;
 }
 
 .schedule-bridge-button,
@@ -3922,7 +3861,6 @@ body::after {
   z-index: 1;
   display: flex;
   flex: 1 1 auto;
-  height: 100%;
   min-height: clamp(700px, 84vh, 980px);
   flex-direction: column;
   gap: 10px;
@@ -4122,7 +4060,6 @@ body::after {
   display: grid;
   grid-template-columns: minmax(320px, 0.45fr) minmax(420px, 0.55fr);
   gap: 12px;
-  height: 100%;
   min-height: clamp(560px, 66vh, 780px);
   flex: 1;
 }
@@ -4130,7 +4067,6 @@ body::after {
 #view-match-schedule .group-a-newsuit-panel {
   min-width: 0;
   min-height: 0;
-  height: 100%;
   overflow: hidden;
   border: 1px solid rgba(103, 255, 216, 0.16);
   border-radius: 18px;
@@ -4802,52 +4738,6 @@ body::after {
 
 #view-match-schedule .group-fixture-scorer-item--empty {
   min-height: 12px;
-}
-
-@media (min-width: 981px) {
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-results {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-results[data-layout="inline"],
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-results[data-layout="standings-inline"] {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-results-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-result-row {
-    gap: 7px 10px;
-    padding: 8px 4px;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-result-score-block {
-    gap: 4px;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-result-scorer-grid {
-    gap: 8px;
-    min-height: 12px;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-scorers {
-    gap: 2px;
-    min-height: 12px;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-scorer-item {
-    line-height: 1.15;
-  }
-
-  body:not(.mobile-section-open) #view-match-schedule .group-fixture-scorer-item--empty {
-    min-height: 10px;
-  }
 }
 
 #view-match-schedule .group-a-newsuit-engine-button {
@@ -6631,9 +6521,6 @@ body.archive-suit-modal-open {
 
 #view-field-ops.equipment-ops-shell-view .equipment-bridge-panel--flush .schedule-bridge-body {
   gap: 10px;
-  width: calc(100% + 2px);
-  max-width: none;
-  margin-right: -2px;
 }
 
 #view-field-ops.equipment-ops-shell-view .equipment-bridge-topbar {
@@ -7108,43 +6995,6 @@ body.archive-suit-modal-open {
   margin-bottom: 4px;
 }
 
-.timeline-gantt-cell--head {
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-.timeline-gantt-cell--head:hover,
-.timeline-gantt-cell--head:focus-visible {
-  background: rgba(103, 255, 216, 0.08);
-  border-color: rgba(103, 255, 216, 0.28);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.timeline-gantt-cell--date-memoed {
-  position: relative;
-  background: rgba(255, 118, 142, 0.22);
-  border-color: rgba(255, 118, 142, 0.36);
-  color: var(--mint);
-}
-
-.timeline-gantt-cell--date-memoed::after {
-  content: "";
-  position: absolute;
-  right: 7px;
-  top: 5px;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #ff6b85;
-  box-shadow: 0 0 0 2px rgba(18, 29, 45, 0.72);
-}
-
 .timeline-date-body {
   grid-auto-rows: 42px;
   position: relative;
@@ -7273,15 +7123,12 @@ body.archive-suit-modal-open {
 }
 
 #view-broadcast-news .panel__header {
-  display: none !important;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 #view-broadcast-news #media-bridge-meta,
 #view-broadcast-news #media-bridge-meta[hidden] {
-  display: none !important;
-}
-
-#view-broadcast-news #media-bridge-tag {
   display: none !important;
 }
 
@@ -7373,28 +7220,6 @@ body.archive-suit-modal-open {
   min-height: 980px;
 }
 
-#view-broadcast-news .panel-body.schedule-bridge-body {
-  top: 0;
-  margin-top: 0;
-  padding: 16px;
-  align-items: center;
-}
-
-#view-broadcast-news .schedule-bridge-body > .schedule-bridge-toolbar,
-#view-broadcast-news .schedule-bridge-body > .media-news-control-row,
-#view-broadcast-news .schedule-bridge-body > .schedule-bridge-frame-shell {
-  width: min(100%, 1160px);
-  margin-inline: auto;
-}
-
-#view-broadcast-news .schedule-bridge-toolbar,
-#view-broadcast-news .schedule-bridge-toolbar--secondary,
-#view-broadcast-news .media-news-control-row,
-#view-broadcast-news .media-news-broadcaster-tabs,
-#view-broadcast-news .media-news-actions-toolbar {
-  justify-content: center;
-}
-
 @media (max-width: 767px) {
   #view-broadcast-news .detail-panel,
   #view-broadcast-news .schedule-bridge-body {
@@ -7436,18 +7261,6 @@ body.archive-suit-modal-open {
     height: auto;
     min-height: 0;
   }
-
-  #view-broadcast-news .panel-body.schedule-bridge-body {
-    margin-top: 0;
-    padding: 14px;
-  }
-
-  #view-broadcast-news .schedule-bridge-body > .schedule-bridge-toolbar,
-  #view-broadcast-news .schedule-bridge-body > .media-news-control-row,
-  #view-broadcast-news .schedule-bridge-body > .schedule-bridge-frame-shell {
-    width: 100%;
-  }
-
 }
 
 .shared-schedule-panel {
@@ -8641,27 +8454,6 @@ body.archive-suit-modal-open {
 .timeline-modal__button--ghost {
   border-color: rgba(255, 255, 255, 0.12);
   color: var(--text-sub);
-}
-
-.timeline-date-memo-modal__actions {
-  justify-content: flex-end;
-}
-
-.timeline-date-memo-modal[hidden] {
-  display: none !important;
-}
-
-.timeline-date-memo-modal__date {
-  margin: 0;
-  color: var(--mint);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.timeline-date-memo-modal__delete {
-  border-color: rgba(255, 118, 142, 0.3);
-  background: rgba(66, 15, 28, 0.9);
-  color: #ffd5de;
 }
 
 .timeline-modal__body {
@@ -9916,8 +9708,9 @@ body.archive-suit-modal-open {
   }
 
   body:not(.mobile-section-open) #panel-schedule .official-site-button {
-    min-height: 76px;
-    padding: 8px;
+    min-height: 42px;
+    padding: 8px 6px;
+    font-size: 11px;
   }
 
   body.mobile-section-open .dashboard {
@@ -9929,21 +9722,6 @@ body.archive-suit-modal-open {
   body.mobile-section-open .dashboard-view {
     max-width: 100%;
     overflow-x: hidden;
-  }
-
-  body.mobile-section-open #panel-schedule .official-site-links {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  body.mobile-section-open #panel-schedule .panel__title {
-    color: #000000;
-  }
-
-  body.mobile-section-open #panel-schedule .official-site-button {
-    min-height: 72px;
-    padding: 8px;
   }
 }
 
@@ -11130,10 +10908,10 @@ body.archive-suit-modal-open {
   body:not(.mobile-section-open) .sidebar-brand-mobile-title-line,
   body:not(.mobile-section-open) .sidebar-brand-mobile-title-line + .sidebar-brand-mobile-title-line {
     min-width: 0;
-    font-size: 22px;
+    font-size: 19px;
     line-height: 1;
     font-weight: 800;
-    letter-spacing: -0.065em;
+    letter-spacing: -0.05em;
     white-space: nowrap;
     word-break: keep-all;
   }
@@ -11698,7 +11476,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     position: fixed;
     left: 17px;
     right: 17px;
-    bottom: calc(100dvh - 850px + 17px);
+    bottom: calc(100dvh - 670px + 17px);
     z-index: 10;
     width: auto !important;
     max-width: none !important;
@@ -11706,21 +11484,8 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     pointer-events: auto;
   }
 
-  /* Mobile unified canvas: main page frame and title header. */
-  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame {
-    height: 850px !important;
-    max-height: 850px !important;
-    min-height: 0 !important;
-    position: relative !important;
-    padding: 8px !important;
-    overflow: hidden !important;
-    background:
-      linear-gradient(180deg, rgba(5, 16, 27, 0.97), rgba(3, 11, 21, 0.96)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.05), transparent 38%),
-      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.035), transparent 42%) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
-  }
-
+  /* Mobile unified canvas: main and detail pages share the same outer frame and title header. */
+  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame,
   body.mobile-section-open .shell-frame {
     height: 670px !important;
     max-height: 670px !important;
@@ -11729,28 +11494,21 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     overflow: hidden !important;
   }
 
-  body.mobile-section-open:has(#view-dashboard.is-active:not([hidden])) .shell-frame {
-    height: 670px !important;
-    max-height: 670px !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
   body:has(#view-dashboard.is-active:not([hidden])) .sidebar {
     position: relative !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 834px !important;
-    height: 834px !important;
+    min-height: 654px !important;
+    height: 654px !important;
     padding: 8px 8px 10px !important;
     gap: 0;
     border: 1px solid rgba(180, 255, 246, 0.18) !important;
     border-radius: 24px;
     overflow: hidden !important;
     background:
-      linear-gradient(180deg, rgba(5, 16, 27, 0.97), rgba(3, 11, 21, 0.96)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.05), transparent 38%),
-      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.035), transparent 42%) !important;
+      linear-gradient(180deg, rgba(8, 22, 35, 0.76), rgba(4, 13, 24, 0.6)),
+      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.08), transparent 38%),
+      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.06), transparent 42%) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
     z-index: 2;
   }
@@ -11771,11 +11529,6 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     background: transparent !important;
     box-shadow: none !important;
     z-index: 2;
-  }
-
-  body.mobile-section-open:has(#view-dashboard.is-active:not([hidden])) .sidebar {
-    min-height: 654px !important;
-    height: 654px !important;
   }
 
   body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand,
@@ -11882,10 +11635,10 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body.mobile-section-open .sidebar .sidebar-brand-mobile-title-line + .sidebar-brand-mobile-title-line {
     min-width: 0;
     font-family: "Bahnschrift SemiCondensed", "Arial Narrow", sans-serif !important;
-    font-size: 22px;
+    font-size: 19px;
     line-height: 1;
     font-weight: 800;
-    letter-spacing: -0.065em;
+    letter-spacing: -0.05em;
     white-space: nowrap;
     word-break: keep-all;
   }
@@ -12331,12 +12084,12 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   }
 
   body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .panel__header {
-    order: 1;
+    order: 2;
     margin-top: 0 !important;
   }
 
   body.mobile-section-open #view-schedule:has(.schedule-bridge-button.is-active[data-schedule-bridge-nav="all"]) .schedule-bridge-body {
-    order: 2;
+    order: 1;
     gap: 14px;
   }
 
@@ -12348,15 +12101,12 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body.mobile-section-open #view-schedule .panel__header {
     display: block !important;
     min-height: 0 !important;
-    margin: 0 !important;
+    margin: 0 5px 5px !important;
     padding: 0 !important;
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    position: absolute;
-    top: 5px;
-    left: 5px;
-    right: 5px;
+    position: relative;
     z-index: 1;
   }
 
@@ -12418,7 +12168,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     gap: 6px;
     overflow-x: auto;
     padding: 0;
-    margin: 42px 5px 0;
+    margin: 5px 5px 0;
     scrollbar-width: none;
   }
 
@@ -12445,7 +12195,7 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     gap: 8px;
     overflow: visible;
     width: 288px;
-    margin: 42px auto 0;
+    margin: 5px auto 0;
   }
 
   body.mobile-section-open #view-schedule .timeline-name-cell {
@@ -12613,16 +12363,6 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body.mobile-section-open #view-schedule .panel__header *,
   body.mobile-section-open #view-schedule .schedule-bridge-body,
   body.mobile-section-open #view-schedule .schedule-bridge-body * {
-    visibility: visible !important;
-  }
-
-  body.mobile-section-open #view-broadcast-news .detail-panel > *,
-  body.mobile-section-open #view-broadcast-news .panel__header,
-  body.mobile-section-open #view-broadcast-news .panel__header *,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-body,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-body *,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-frame-shell,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-frame-shell * {
     visibility: visible !important;
   }
 
@@ -12850,386 +12590,6 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
   body.mobile-section-open #view-field-ops #equipment-bridge-panel * {
     visibility: visible !important;
   }
-
-  /* Mobile detail pages share the same outer black frame as the mobile main screen. */
-  body.mobile-section-open .shell-frame {
-    height: 850px !important;
-    max-height: 850px !important;
-    position: relative !important;
-    background:
-      linear-gradient(180deg, rgba(5, 16, 27, 0.97), rgba(3, 11, 21, 0.96)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.05), transparent 38%),
-      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.035), transparent 42%) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
-  }
-
-  body.mobile-section-open .sidebar {
-    width: calc(100% - 16px) !important;
-    max-width: none !important;
-    min-height: 834px !important;
-    height: 834px !important;
-    border: 1px solid rgba(180, 255, 246, 0.18) !important;
-    overflow: hidden !important;
-    background:
-      linear-gradient(180deg, rgba(5, 16, 27, 0.97), rgba(3, 11, 21, 0.96)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.05), transparent 38%),
-      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.035), transparent 42%) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
-  }
-
-  body.mobile-section-open:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
-    width: calc(100% - 16px) !important;
-    max-width: none !important;
-    min-height: 834px !important;
-    height: 834px !important;
-    background:
-      linear-gradient(180deg, rgba(5, 16, 27, 0.97), rgba(3, 11, 21, 0.96)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.05), transparent 38%),
-      radial-gradient(circle at 92% 100%, rgba(255, 116, 53, 0.035), transparent 42%) !important;
-  }
-
-  body.mobile-section-open .shell-frame::before {
-    display: none !important;
-    content: none !important;
-  }
-
-  body.mobile-section-open .sidebar::after {
-    display: block !important;
-    inset: 10px !important;
-    border-radius: 20px !important;
-  }
-
-  body.mobile-section-open .sidebar .sidebar-brand {
-    width: calc(100% - 16px) !important;
-    max-width: none !important;
-    grid-template-columns: 65.9963px 278.079px !important;
-  }
-
-  body.mobile-section-open #view-schedule .detail-panel::before,
-  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-topbar::before {
-    display: none !important;
-    content: none !important;
-  }
-
-  body.mobile-section-open:has(#view-schedule:not([hidden])) #view-schedule .detail-panel::before,
-  body.mobile-section-open:has(#view-field-ops:not([hidden])) #view-field-ops #equipment-bridge-panel .equipment-bridge-topbar::before {
-    display: none !important;
-    content: none !important;
-  }
-
-  body.mobile-section-open #view-match-schedule .detail-panel {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  body.mobile-section-open:has(#view-match-schedule:not([hidden])) #view-match-schedule .detail-panel {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  body.mobile-section-open #view-archive .panel-body.archive-suit-body {
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin-top: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  body.mobile-section-open:has(#view-archive:not([hidden])) #view-archive .detail-panel.archive-suit-shell {
-    height: 100% !important;
-    min-height: 100% !important;
-    max-height: none !important;
-  }
-
-  body.mobile-section-open:has(#view-archive:not([hidden])) #view-archive .panel-body.archive-suit-body {
-    height: 100% !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    margin-top: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  /* Mobile white panel theme: keep the background image bright, turn visible panels into light plates. */
-  body:has(#view-dashboard.is-active:not([hidden])) .shell-frame,
-  body:has(#view-dashboard.is-active:not([hidden])) .sidebar,
-  body.mobile-section-open .shell-frame,
-  body.mobile-section-open .sidebar,
-  body.mobile-section-open:has(.dashboard-view.detail-shell:not([hidden])) .sidebar {
-    color: #0c2330 !important;
-    border-color: rgba(38, 102, 118, 0.24) !important;
-    background:
-      linear-gradient(180deg, rgba(248, 253, 251, 0.96), rgba(229, 244, 240, 0.92)),
-      radial-gradient(circle at 12% 0%, rgba(103, 255, 216, 0.18), transparent 40%),
-      radial-gradient(circle at 92% 100%, rgba(255, 151, 91, 0.12), transparent 44%) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-      0 18px 34px rgba(5, 26, 36, 0.14) !important;
-  }
-
-  body:has(#view-dashboard.is-active:not([hidden])) .sidebar::after,
-  body.mobile-section-open .sidebar::after {
-    border-color: rgba(38, 102, 118, 0.18) !important;
-  }
-
-  body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand,
-  body.mobile-section-open .sidebar .sidebar-brand,
-  body:not(.mobile-section-open) .mobile-dashboard-menu,
-  body:has(#view-dashboard.is-active:not([hidden])) .ticker,
-  body.mobile-section-open .detail-panel,
-  body.mobile-section-open #view-field-ops #equipment-bridge-panel .equipment-bridge-frame-shell,
-  body.mobile-section-open #view-archive .archive-suit-tab-panel,
-  body.mobile-section-open #view-match-schedule .group-a-newsuit-panel,
-  body.mobile-section-open #view-match-schedule .z-third-place-test-panel,
-  body.mobile-section-open #view-broadcast-news .panel-body.schedule-bridge-body,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-frame-shell,
-  body.mobile-section-open #view-operations .panel-body,
-  body.mobile-section-open #view-map .panel-body {
-    color: #0c2330 !important;
-    border-color: rgba(38, 102, 118, 0.24) !important;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 248, 245, 0.9)),
-      radial-gradient(circle at 10% 0%, rgba(103, 255, 216, 0.14), transparent 36%) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.7),
-      0 12px 24px rgba(5, 26, 36, 0.12) !important;
-  }
-
-  body.mobile-section-open #view-broadcast-news .detail-panel {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    min-height: 100% !important;
-    height: 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  body.mobile-section-open #view-broadcast-news .detail-panel > * {
-    flex: 0 0 auto !important;
-  }
-
-  body.mobile-section-open #view-broadcast-news .panel-body.schedule-bridge-body,
-  body.mobile-section-open #view-broadcast-news .schedule-bridge-frame-shell {
-    min-height: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  body.mobile-section-open #view-broadcast-news .panel-body.schedule-bridge-body {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    padding-bottom: 20px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand *,
-  body.mobile-section-open .sidebar .sidebar-brand *,
-  body:not(.mobile-section-open) .mobile-dashboard-menu *,
-  body:has(#view-dashboard.is-active:not([hidden])) .ticker *,
-  body.mobile-section-open .detail-panel *,
-  body.mobile-section-open #view-field-ops #equipment-bridge-panel *,
-  body.mobile-section-open #view-archive *,
-  body.mobile-section-open #view-match-schedule *,
-  body.mobile-section-open #view-broadcast-news *,
-  body.mobile-section-open #view-operations *,
-  body.mobile-section-open #view-map * {
-    color: #0c2330 !important;
-  }
-
-  body:has(#view-dashboard.is-active:not([hidden])) .sidebar .sidebar-brand-mobile-dday,
-  body.mobile-section-open .sidebar .sidebar-brand-mobile-dday,
-  body:not(.mobile-section-open) .mobile-dashboard-menu-card__icon,
-  body:not(.mobile-section-open) .mobile-dashboard-menu-card,
-  body.mobile-section-open .schedule-bridge-button,
-  body.mobile-section-open .timeline-action-button,
-  body.mobile-section-open .equipment-bridge-action-button {
-    color: #0c2330 !important;
-    border-color: rgba(38, 102, 118, 0.28) !important;
-    background: rgba(255, 255, 255, 0.62) !important;
-  }
-
-  body.mobile-section-open #view-map,
-  body.mobile-section-open #view-map .detail-panel,
-  body.mobile-section-open #view-map .detail-panel > *,
-  body.mobile-section-open #view-map .schedule-bridge-body,
-  body.mobile-section-open #view-map .schedule-bridge-body * {
-    visibility: visible !important;
-  }
-
-  body.mobile-section-open #view-map .panel__header {
-    display: none !important;
-  }
-
-  body.mobile-section-open #view-map .detail-panel {
-    display: flex !important;
-    flex-direction: column;
-    height: 100% !important;
-    min-height: 100% !important;
-    padding: 5px !important;
-    border: 1px solid rgba(38, 102, 118, 0.2) !important;
-    border-radius: 24px !important;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 248, 245, 0.9)),
-      radial-gradient(circle at 10% 0%, rgba(103, 255, 216, 0.12), transparent 36%) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.72),
-      0 12px 24px rgba(5, 26, 36, 0.12) !important;
-    overflow: hidden !important;
-  }
-
-  body.mobile-section-open #view-map .panel-body.schedule-bridge-body {
-    display: flex !important;
-    flex-direction: column;
-    gap: 14px !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    padding: 0 0 5px !important;
-    border: 0 !important;
-    border-radius: 22px !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-toolbar:not(.schedule-bridge-toolbar--secondary) {
-    display: grid !important;
-    grid-template-columns: repeat(2, var(--wc26-mobile-tab-width));
-    justify-content: center;
-    gap: 8px;
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
-    margin: 0 auto;
-    padding: 0;
-    overflow: visible;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-toolbar--secondary {
-    display: grid !important;
-    grid-template-columns: repeat(3, var(--wc26-mobile-tab-width));
-    justify-content: center;
-    gap: 8px;
-    width: 214px;
-    min-width: 214px;
-    max-width: 214px;
-    margin: 0 auto;
-    padding: 0;
-    overflow: visible;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-toolbar--secondary[hidden],
-  body.mobile-section-open #view-map .map-stadium-catalog-shell[hidden],
-  body.mobile-section-open #view-map .schedule-bridge-frame-shell[hidden] {
-    display: none !important;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-button {
-    width: var(--wc26-mobile-tab-width);
-    min-width: var(--wc26-mobile-tab-width);
-    max-width: var(--wc26-mobile-tab-width);
-    height: var(--wc26-mobile-tab-height);
-    min-height: var(--wc26-mobile-tab-height);
-    padding: 0 8px !important;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 900;
-    line-height: 1.1;
-    white-space: nowrap;
-    pointer-events: auto;
-    touch-action: manipulation;
-  }
-
-  body.mobile-section-open #view-map .map-stadium-catalog-shell {
-    width: calc(100% - 10px);
-    min-width: 0;
-    margin: 0 5px 5px;
-    padding: 14px 12px;
-    border: 1px solid rgba(38, 102, 118, 0.2);
-    border-radius: 22px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(239, 249, 246, 0.86)),
-      radial-gradient(circle at 0% 0%, rgba(103, 255, 216, 0.12), transparent 38%);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.68),
-      0 10px 20px rgba(5, 26, 36, 0.1);
-  }
-
-  body.mobile-section-open #view-map .map-stadium-catalog-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    border-radius: 18px;
-    border-color: rgba(38, 102, 118, 0.2);
-    background: rgba(255, 255, 255, 0.78);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.68),
-      0 8px 18px rgba(5, 26, 36, 0.1);
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card::after {
-    display: none;
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card-media {
-    aspect-ratio: 4 / 3;
-    background: rgba(226, 242, 239, 0.8);
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card-body {
-    min-height: 48px;
-    padding: 9px 8px 10px;
-    border-top: 1px solid rgba(38, 102, 118, 0.12);
-    background: transparent;
-    text-align: center;
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card-title {
-    font-size: 12px;
-    line-height: 1.22;
-    letter-spacing: -0.03em;
-  }
-
-  body.mobile-section-open #view-map .map-stadium-card-meta,
-  body.mobile-section-open #view-map .map-stadium-card-note {
-    display: none !important;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-frame-shell {
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 620px !important;
-    margin: 0 0 5px !important;
-    border: 1px solid rgba(38, 102, 118, 0.2) !important;
-    border-radius: 22px !important;
-    background: rgba(255, 255, 255, 0.86) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.68),
-      0 10px 20px rgba(5, 26, 36, 0.1) !important;
-    overflow: hidden auto !important;
-  }
-
-  body.mobile-section-open #view-map .schedule-bridge-frame {
-    min-height: 980px !important;
-  }
-
 }
 
 @media (min-width: 1025px) {

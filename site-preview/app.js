@@ -159,7 +159,7 @@ const mobileHomeMatchPreview = document.getElementById("mobile-home-match-previe
 const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
-const WC26_BRIDGE_VERSION = "worldcup-news-card-20260522-08";
+const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-04";
 window.__WC26_LOCAL_BUILD_ID = WC26_LOCAL_BUILD_ID;
 const WC26_GROUP_A_FLAGS = [
   { code: "mx", label: "멕시코" },
@@ -863,33 +863,12 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
     box-shadow: none !important;
   }
 
-  body.wc26-map-bridge-embedded .map-location-pin-header {
-    display: none !important;
-  }
-
   body.wc26-map-bridge-embedded .map-location-pin-shell.place-system-shell,
   body.wc26-map-bridge-embedded #placeSystemGrid,
   body.wc26-map-bridge-embedded #placeListPanel {
     display: grid !important;
     gap: 10px !important;
     background: transparent !important;
-  }
-
-  body.wc26-map-bridge-embedded .map-location-pin-shell.place-system-shell {
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  body.wc26-map-bridge-embedded .map-location-pin-shell.place-system-shell::before,
-  body.wc26-map-bridge-embedded .map-location-pin-shell.place-system-shell::after,
-  body.wc26-map-bridge-embedded .simple-info-panel-map::before,
-  body.wc26-map-bridge-embedded .simple-info-panel-map::after,
-  body.wc26-map-bridge-embedded .simple-info-panel::before,
-  body.wc26-map-bridge-embedded .simple-info-panel::after {
-    display: none !important;
-    content: none !important;
-    background: none !important;
   }
 
   body.wc26-map-bridge-embedded .place-entry-panel,
@@ -955,12 +934,9 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
   body.wc26-map-bridge-embedded #placeGoogleMap,
   body.wc26-map-bridge-embedded .place-preview-map {
     width: 100% !important;
-    max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
     height: min(40vh, 300px) !important;
     min-height: 220px !important;
-    border: 1px solid rgba(38, 102, 118, 0.28) !important;
+    border: 1px solid rgba(93, 242, 255, 0.16) !important;
     border-radius: 14px !important;
     box-shadow: none !important;
   }
@@ -971,20 +947,14 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
     gap: 10px !important;
   }
 
-  body.wc26-map-bridge-embedded .place-category-group > .map-location-pin-card-title {
-    display: none !important;
-  }
-
   body.wc26-map-bridge-embedded .place-card,
   body.wc26-map-bridge-embedded .place-search-result-card,
   body.wc26-map-bridge-embedded .map-location-pin-card {
     padding: 12px !important;
-    border: 1px solid rgba(38, 102, 118, 0.2) !important;
+    border: 1px solid rgba(93, 242, 255, 0.14) !important;
     border-radius: 14px !important;
-    background: rgba(255, 255, 255, 0.84) !important;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.68),
-      0 8px 18px rgba(5, 26, 36, 0.1) !important;
+    background: linear-gradient(180deg, rgba(6, 15, 24, 0.9), rgba(3, 8, 16, 0.86)) !important;
+    box-shadow: none !important;
   }
 
   body.wc26-map-bridge-embedded .place-card-top,
@@ -992,10 +962,6 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
   body.wc26-map-bridge-embedded .map-location-pin-card-body {
     display: grid !important;
     gap: 6px !important;
-  }
-
-  body.wc26-map-bridge-embedded .place-list .place-card-top {
-    display: none !important;
   }
 
   body.wc26-map-bridge-embedded .map-location-pin-card-badge-wrap {
@@ -1024,10 +990,7 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
 
   body.wc26-map-bridge-embedded .map-location-pin-card-title,
   body.wc26-map-bridge-embedded .place-card .map-location-pin-card-title {
-    margin: 0 !important;
-    color: #0c2330 !important;
     font-size: 15px !important;
-    font-weight: 900 !important;
     line-height: 1.25 !important;
   }
 
@@ -1036,24 +999,6 @@ const WC26_MAP_BRIDGE_MOBILE_CSS = `
   body.wc26-map-bridge-embedded .map-location-pin-card-meta {
     font-size: 12px !important;
     line-height: 1.42 !important;
-  }
-
-  body.wc26-map-bridge-embedded .place-card .map-location-pin-card-location {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    white-space: nowrap !important;
-    -webkit-overflow-scrolling: touch !important;
-    color: rgba(12, 35, 48, 0.68) !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    scrollbar-width: none !important;
-  }
-
-  body.wc26-map-bridge-embedded .place-card .map-location-pin-card-location::-webkit-scrollbar {
-    display: none !important;
   }
 }
 `;
@@ -1095,11 +1040,6 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
     display: block !important;
   }
 
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-table.news-table-mobile-card {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-  }
-
   body.wc26-media-bridge-embedded.media-bridge-news-active .news-table colgroup,
   body.wc26-media-bridge-embedded.media-bridge-news-active .news-table thead {
     display: none !important;
@@ -1110,10 +1050,6 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
     gap: 10px !important;
   }
 
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-table.news-table-mobile-card tbody {
-    gap: 12px !important;
-  }
-
   body.wc26-media-bridge-embedded.media-bridge-news-active .news-table tr {
     display: grid !important;
     gap: 7px !important;
@@ -1122,15 +1058,6 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
     border-radius: 16px !important;
     background: linear-gradient(180deg, rgba(4, 13, 25, 0.92), rgba(3, 9, 18, 0.84)) !important;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-table.news-table-mobile-card tr.news-mobile-card-row {
-    display: block !important;
-    gap: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
   }
 
   body.wc26-media-bridge-embedded.media-bridge-news-active .news-table td {
@@ -1149,11 +1076,6 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
     font-weight: 800 !important;
     letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-table.news-table-mobile-card td.news-mobile-card-cell::before {
-    content: none !important;
-    display: none !important;
   }
 
   body.wc26-media-bridge-embedded.media-bridge-news-active .news-table td.news-action-cell {
@@ -1216,103 +1138,6 @@ const WC26_MEDIA_BRIDGE_MOBILE_CSS = `
     min-height: 32px !important;
     padding: 0 10px !important;
     font-size: 11px !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card {
-    display: grid !important;
-    gap: 6px !important;
-    padding: 13px 14px !important;
-    border: 1px solid rgba(93, 242, 255, 0.18) !important;
-    border-radius: 16px !important;
-    background: linear-gradient(180deg, rgba(4, 13, 25, 0.92), rgba(3, 9, 18, 0.84)) !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-action {
-    display: flex !important;
-    justify-content: flex-end !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-meta {
-    display: grid !important;
-    grid-template-columns: auto minmax(0, 1fr) !important;
-    align-items: start !important;
-    gap: 10px !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-date {
-    display: inline-flex !important;
-    align-items: center !important;
-    min-height: 28px !important;
-    padding: 0 10px !important;
-    border-radius: 999px !important;
-    background: rgba(126, 248, 255, 0.1) !important;
-    color: rgba(214, 249, 255, 0.92) !important;
-    font-size: 11px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.04em !important;
-    white-space: nowrap !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-headline {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
-    gap: 6px 8px !important;
-    min-width: 0 !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-title {
-    display: inline !important;
-    flex: 0 1 auto !important;
-    color: #f6fdff !important;
-    font-size: 14px !important;
-    font-weight: 800 !important;
-    line-height: 1.45 !important;
-    word-break: keep-all !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-link {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0 !important;
-    min-width: 0 !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-link .news-link,
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-link .news-muted {
-    display: inline-flex !important;
-    align-items: center !important;
-    min-height: 26px !important;
-    padding: 0 10px !important;
-    border-radius: 999px !important;
-    border: 1px solid rgba(93, 242, 255, 0.22) !important;
-    background: rgba(4, 15, 29, 0.86) !important;
-    font-size: 11px !important;
-    font-weight: 800 !important;
-    text-decoration: none !important;
-    white-space: nowrap !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-analysis-row {
-    display: grid !important;
-    gap: 2px !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-analysis-label {
-    color: rgba(159, 233, 240, 0.78) !important;
-    font-size: 10px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-  }
-
-  body.wc26-media-bridge-embedded.media-bridge-news-active .news-mobile-card-analysis {
-    margin: 0 !important;
-    color: rgba(232, 247, 255, 0.9) !important;
-    font-size: 12px !important;
-    line-height: 1.55 !important;
-    word-break: keep-all !important;
   }
 }
 `;
@@ -1635,7 +1460,7 @@ let timelineResizeTimer = null;
 let activeTimelineTooltipId = "";
 let timelineLastTouchToggleAt = 0;
 let timelineIgnoreDocumentClickUntil = 0;
-let activeTimelineDateMemoKey = "";
+let timelineSeedRestorePromise = null;
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -2772,7 +2597,7 @@ const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
-const WC26_TIMELINE_DATE_MEMO_STORAGE_KEY = "wc26_new_suit_timeline_date_memos_v1";
+const WC26_TIMELINE_SEED_PATH = "timeline-blocks-seed.json";
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_NAME_COLUMN_WIDTH = 92;
@@ -3131,17 +2956,6 @@ function formatTimelineGanttDateLabel(dateKey = "") {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function formatTimelineMemoDateLabel(dateKey = "") {
-  if (!dateKey) {
-    return "";
-  }
-  const date = new Date(`${dateKey}T00:00:00`);
-  if (Number.isNaN(date.getTime())) {
-    return dateKey;
-  }
-  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
-}
-
 function shiftTimelineDateKey(dateKey = "", offset = 0) {
   if (!dateKey) {
     return "";
@@ -3378,13 +3192,7 @@ function backupTimelineBlocksBeforeWrite() {
 }
 
 function loadTimelineBlocks() {
-  const raw = (() => {
-    try {
-      return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
-    } catch (_error) {
-      return "";
-    }
-  })();
+  const raw = readTimelineBlocksRaw();
   const blocks = parseTimelineBlocksFromRaw(raw);
   try {
     const parsedRaw = JSON.parse(String(raw || "").trim() || "[]");
@@ -3413,6 +3221,55 @@ function loadTimelineBlocks() {
   return [];
 }
 
+function readTimelineBlocksRaw() {
+  try {
+    return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function ensureTimelineBlocksSeedRestored() {
+  if (timelineSeedRestorePromise) {
+    return timelineSeedRestorePromise;
+  }
+  const raw = readTimelineBlocksRaw();
+  if (String(raw || "").trim()) {
+    return Promise.resolve(loadTimelineBlocks());
+  }
+  if (parseTimelineBlocksFromRaw(getLatestTimelineBackupRaw()).length) {
+    return Promise.resolve(loadTimelineBlocks());
+  }
+  timelineSeedRestorePromise = fetch(WC26_TIMELINE_SEED_PATH, { cache: "no-store" })
+    .then((response) => (response.ok ? response.json() : []))
+    .catch(() => [])
+    .then((seedItems) => {
+      const currentRaw = readTimelineBlocksRaw();
+      if (String(currentRaw || "").trim()) {
+        return loadTimelineBlocks();
+      }
+      const normalizedSeedBlocks = (Array.isArray(seedItems) ? seedItems : [])
+        .map((block, index) => sanitizeTimelineBlock(block, index))
+        .filter(Boolean)
+        .filter((block) => !isLikelyTimelineSampleBlock(block));
+      if (!normalizedSeedBlocks.length) {
+        return [];
+      }
+      try {
+        window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(normalizedSeedBlocks));
+      } catch (_error) {
+        // Rendering can still use the seed blocks below even if persistence fails.
+      }
+      bridgeLoadState.timelineRangeKey = "";
+      refreshTimelineGanttFromLegacy({ force: true });
+      return normalizedSeedBlocks;
+    })
+    .finally(() => {
+      timelineSeedRestorePromise = null;
+    });
+  return timelineSeedRestorePromise;
+}
+
 function saveTimelineBlocks(blocks = []) {
   const normalizedBlocks = Array.isArray(blocks)
     ? blocks
@@ -3429,87 +3286,8 @@ function saveTimelineBlocks(blocks = []) {
   return normalizedBlocks;
 }
 
-function loadTimelineDateMemos() {
-  try {
-    const raw = String(window.localStorage?.getItem(WC26_TIMELINE_DATE_MEMO_STORAGE_KEY) || "").trim();
-    if (!raw) {
-      return {};
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    return Object.entries(parsed).reduce((acc, [dateKey, memo]) => {
-      const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-      const normalizedMemo = String(memo || "").trim();
-      if (normalizedDateKey && normalizedMemo) {
-        acc[normalizedDateKey] = normalizedMemo;
-      }
-      return acc;
-    }, {});
-  } catch (_error) {
-    return {};
-  }
-}
-
-function saveTimelineDateMemos(memos = {}) {
-  const normalized = Object.entries(memos || {}).reduce((acc, [dateKey, memo]) => {
-    const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-    const normalizedMemo = String(memo || "").trim();
-    if (normalizedDateKey && normalizedMemo) {
-      acc[normalizedDateKey] = normalizedMemo;
-    }
-    return acc;
-  }, {});
-  try {
-    window.localStorage?.setItem(WC26_TIMELINE_DATE_MEMO_STORAGE_KEY, JSON.stringify(normalized));
-    return normalized;
-  } catch (_error) {
-    showToast("날짜 메모 저장에 실패했습니다.");
-    return normalized;
-  }
-}
-
-function getTimelineDateMemo(dateKey = "") {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  if (!normalizedDateKey) {
-    return "";
-  }
-  return String(loadTimelineDateMemos()[normalizedDateKey] || "").trim();
-}
-
-function setTimelineDateMemo(dateKey = "", memo = "") {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  if (!normalizedDateKey) {
-    return false;
-  }
-  const memos = loadTimelineDateMemos();
-  const normalizedMemo = String(memo || "").trim();
-  if (normalizedMemo) {
-    memos[normalizedDateKey] = normalizedMemo;
-  } else {
-    delete memos[normalizedDateKey];
-  }
-  saveTimelineDateMemos(memos);
-  return true;
-}
-
-function buildTimelineDateMemoTooltipModel(dateKey = "", memo = "") {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  const normalizedMemo = String(memo || "").trim();
-  return {
-    id: `date-memo:${normalizedDateKey}`,
-    name: formatTimelineMemoDateLabel(normalizedDateKey),
-    startDate: normalizedDateKey,
-    endDate: normalizedDateKey,
-    place: "날짜 메모",
-    memo: normalizedMemo,
-  };
-}
-
 function hideTimelineTooltip() {
   activeTimelineTooltipId = "";
-  activeTimelineDateMemoKey = "";
   if (!timelineTooltipShell) {
     return;
   }
@@ -3571,149 +3349,6 @@ function showTimelineTooltip(block = {}, anchorElement = null) {
   timelineTooltipShell.hidden = false;
   timelineTooltipShell.setAttribute("aria-hidden", "false");
   positionTimelineTooltip(anchorElement.getBoundingClientRect());
-}
-
-function showTimelineDateMemoTooltip(dateKey = "", anchorElement = null) {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  const memo = getTimelineDateMemo(normalizedDateKey);
-  if (!memo || !(anchorElement instanceof HTMLElement)) {
-    hideTimelineTooltip();
-    return;
-  }
-  activeTimelineDateMemoKey = normalizedDateKey;
-  showTimelineTooltip(buildTimelineDateMemoTooltipModel(normalizedDateKey, memo), anchorElement);
-}
-
-function syncTimelineDateMemoCells(dateKey = "") {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  if (!normalizedDateKey) {
-    return;
-  }
-  const memo = getTimelineDateMemo(normalizedDateKey);
-  document.querySelectorAll(`.timeline-gantt-cell--head[data-timeline-date-key="${normalizedDateKey}"]`).forEach((cell) => {
-    cell.setAttribute("aria-label", `${formatTimelineMemoDateLabel(normalizedDateKey)} 날짜 메모 ${memo ? "수정" : "작성"}`);
-    if (memo) {
-      cell.classList.add("timeline-gantt-cell--date-memoed");
-      cell.dataset.timelineDateMemo = memo;
-    } else {
-      cell.classList.remove("timeline-gantt-cell--date-memoed");
-      delete cell.dataset.timelineDateMemo;
-    }
-  });
-}
-
-function ensureTimelineDateMemoModal() {
-  let modal = document.getElementById("timeline-date-memo-modal");
-  if (modal) {
-    return modal;
-  }
-  document.body.insertAdjacentHTML(
-    "beforeend",
-    `
-      <div class="timeline-modal timeline-date-memo-modal" id="timeline-date-memo-modal" hidden>
-        <div class="timeline-modal__backdrop" data-timeline-date-memo-close></div>
-        <div class="timeline-modal__dialog timeline-date-memo-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="timeline-date-memo-title">
-          <div class="timeline-modal__header">
-            <h3 class="timeline-modal__title" id="timeline-date-memo-title">날짜 메모</h3>
-            <button type="button" class="timeline-modal__close" data-timeline-date-memo-close aria-label="닫기">×</button>
-          </div>
-          <div class="timeline-modal__body">
-            <p class="timeline-date-memo-modal__date" id="timeline-date-memo-date"></p>
-            <label class="timeline-modal__field">
-              <span>메모 입력</span>
-              <textarea id="timeline-date-memo-input" rows="4" maxlength="300" placeholder="이 날짜 메모를 입력하세요"></textarea>
-            </label>
-          </div>
-          <div class="timeline-modal__actions timeline-date-memo-modal__actions">
-            <button type="button" class="timeline-modal__button" id="timeline-date-memo-save">저장</button>
-            <button type="button" class="timeline-modal__button timeline-date-memo-modal__delete" id="timeline-date-memo-delete">삭제</button>
-          </div>
-        </div>
-      </div>
-    `
-  );
-  modal = document.getElementById("timeline-date-memo-modal");
-  modal?.querySelectorAll("[data-timeline-date-memo-close]").forEach((node) => {
-    node.addEventListener("click", closeTimelineDateMemoModal);
-  });
-  document.getElementById("timeline-date-memo-save")?.addEventListener("click", saveTimelineDateMemoFromModal);
-  document.getElementById("timeline-date-memo-delete")?.addEventListener("click", deleteTimelineDateMemoFromModal);
-  document.getElementById("timeline-date-memo-input")?.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeTimelineDateMemoModal();
-      return;
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-      saveTimelineDateMemoFromModal();
-    }
-  });
-  return modal;
-}
-
-function openTimelineDateMemoModal(dateKey = "") {
-  const normalizedDateKey = String(dateKey || "").trim().slice(0, 10);
-  if (!normalizedDateKey) {
-    return;
-  }
-  const modal = ensureTimelineDateMemoModal();
-  const dateNode = document.getElementById("timeline-date-memo-date");
-  const input = document.getElementById("timeline-date-memo-input");
-  if (modal) {
-    modal.dataset.timelineDateKey = normalizedDateKey;
-    modal.removeAttribute("hidden");
-  }
-  if (dateNode) {
-    dateNode.textContent = formatTimelineMemoDateLabel(normalizedDateKey);
-  }
-  if (input) {
-    input.value = getTimelineDateMemo(normalizedDateKey);
-    window.requestAnimationFrame(() => {
-      input.focus();
-      input.select();
-    });
-  }
-}
-
-function closeTimelineDateMemoModal() {
-  const modal = document.getElementById("timeline-date-memo-modal");
-  const input = document.getElementById("timeline-date-memo-input");
-  if (modal) {
-    modal.setAttribute("hidden", "");
-    delete modal.dataset.timelineDateKey;
-  }
-  if (input) {
-    input.value = "";
-  }
-}
-
-function saveTimelineDateMemoFromModal() {
-  const modal = document.getElementById("timeline-date-memo-modal");
-  const input = document.getElementById("timeline-date-memo-input");
-  const dateKey = String(modal?.dataset.timelineDateKey || "").trim().slice(0, 10);
-  const memo = String(input?.value || "").trim();
-  if (!dateKey) {
-    return;
-  }
-  if (!memo) {
-    showToast("메모를 입력해주세요.");
-    return;
-  }
-  setTimelineDateMemo(dateKey, memo);
-  syncTimelineDateMemoCells(dateKey);
-  closeTimelineDateMemoModal();
-  hideTimelineTooltip();
-}
-
-function deleteTimelineDateMemoFromModal() {
-  const modal = document.getElementById("timeline-date-memo-modal");
-  const dateKey = String(modal?.dataset.timelineDateKey || "").trim().slice(0, 10);
-  if (!dateKey) {
-    return;
-  }
-  setTimelineDateMemo(dateKey, "");
-  syncTimelineDateMemoCells(dateKey);
-  closeTimelineDateMemoModal();
-  hideTimelineTooltip();
 }
 
 function bindTimelineBlockTooltip(blockElement, block = {}) {
@@ -3958,40 +3593,9 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   dateHeader.style.gridTemplateColumns = `repeat(${dates.length}, ${WC26_TIMELINE_DATE_CELL_WIDTH}px)`;
   dateHeader.style.width = `${gridWidth}px`;
   dates.forEach((dateKey) => {
-    const memo = getTimelineDateMemo(dateKey);
     const cell = document.createElement("div");
     cell.className = "timeline-gantt-cell timeline-gantt-cell--head";
     cell.textContent = formatTimelineGanttDateLabel(dateKey);
-    cell.dataset.timelineDateKey = dateKey;
-    cell.tabIndex = 0;
-    cell.setAttribute("role", "button");
-    cell.setAttribute("aria-label", `${formatTimelineMemoDateLabel(dateKey)} 날짜 메모 ${memo ? "수정" : "작성"}`);
-    if (memo) {
-      cell.classList.add("timeline-gantt-cell--date-memoed");
-      cell.dataset.timelineDateMemo = memo;
-    }
-    cell.addEventListener("mouseenter", () => {
-      if (!cell.dataset.timelineDateMemo) {
-        return;
-      }
-      showTimelineDateMemoTooltip(dateKey, cell);
-    });
-    cell.addEventListener("mouseleave", () => {
-      if (activeTimelineDateMemoKey === dateKey) {
-        hideTimelineTooltip();
-      }
-    });
-    cell.addEventListener("focus", () => {
-      if (!cell.dataset.timelineDateMemo) {
-        return;
-      }
-      showTimelineDateMemoTooltip(dateKey, cell);
-    });
-    cell.addEventListener("blur", () => {
-      if (activeTimelineDateMemoKey === dateKey) {
-        hideTimelineTooltip();
-      }
-    });
     dateHeader.appendChild(cell);
   });
 
@@ -4051,6 +3655,9 @@ function renderTimelineGantt(summary = {}) {
 }
 
 function refreshTimelineGanttFromLegacy(options = {}) {
+  if (!String(readTimelineBlocksRaw() || "").trim()) {
+    ensureTimelineBlocksSeedRestored();
+  }
   const force = Boolean(options?.force);
   const syncWindow = getScheduleBridgeSyncWindow();
   const getter = syncWindow?.getWC26LegacyTimelineGanttSummary;
@@ -4322,33 +3929,6 @@ function initTimelineEditor() {
     if (navButton instanceof HTMLElement) {
       handleTimelineNavButton(navButton, event);
     }
-  }, { capture: true });
-  document.addEventListener("pointerdown", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    const dateCell = target?.closest(".timeline-gantt-cell--head[data-timeline-date-key]");
-    if (!(dateCell instanceof HTMLElement)) {
-      return;
-    }
-    if (target.closest("[data-timeline-nav]")) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    hideTimelineTooltip();
-    openTimelineDateMemoModal(String(dateCell.dataset.timelineDateKey || "").trim());
-  }, { capture: true });
-  document.addEventListener("keydown", (event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    const dateCell = target?.closest(".timeline-gantt-cell--head[data-timeline-date-key]");
-    if (!(dateCell instanceof HTMLElement)) {
-      return;
-    }
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-    event.preventDefault();
-    hideTimelineTooltip();
-    openTimelineDateMemoModal(String(dateCell.dataset.timelineDateKey || "").trim());
   }, { capture: true });
   timelineActionButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -18308,23 +17888,8 @@ function renderOfficialSiteLinks(links = OFFICIAL_SITE_LINKS) {
     ...normalizedLinks.map((link) => {
       const hasUrl = typeof link.url === "string" && link.url.trim();
       const element = document.createElement(hasUrl ? "a" : "button");
-      element.className = "official-site-button official-site-button--folder";
-      const accessibleLabel = String(link.label || link.shortLabel || "").trim() || "공식 링크";
-      element.setAttribute("aria-label", accessibleLabel);
-      element.title = accessibleLabel;
-
-      const folder = document.createElement("span");
-      folder.className = "official-site-folder";
-      folder.setAttribute("aria-hidden", "true");
-
-      const folderTab = document.createElement("span");
-      folderTab.className = "official-site-folder-tab";
-
-      const folderFace = document.createElement("span");
-      folderFace.className = "official-site-folder-face";
-
-      folder.append(folderTab, folderFace);
-      element.append(folder);
+      element.className = "official-site-button";
+      element.textContent = link.shortLabel || link.label;
 
       if (hasUrl) {
         element.href = link.url.trim();
