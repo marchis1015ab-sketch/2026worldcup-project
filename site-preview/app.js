@@ -1202,6 +1202,7 @@ const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_WINDOW_KEY = "__worldcupGuideTimelineG
 const ARCHIVE_SUIT_LEGACY_GALLERY_DB_NAME = "worldcup-guide-gallery-db";
 const ARCHIVE_SUIT_LEGACY_GALLERY_DB_STORE = "gallery_state";
 const ARCHIVE_SUIT_LEGACY_GALLERY_DB_RECORD_KEY = "entries";
+const ARCHIVE_SUIT_GALLERY_SEED_PATH = "archive-gallery-seed.json";
 const ARCHIVE_SUIT_TABS = {
   "document-storage": { label: "문서보관", accept: ".pdf,.doc,.docx,.hwp,.hwpx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.zip,image/*" },
   "file-storage": { label: "파일보관", accept: "*" },
@@ -1379,6 +1380,11 @@ let archiveSuitLegacyBridgeGalleryCount = 0;
 let archiveSuitLegacyBridgeGallerySource = "pending";
 let archiveSuitLegacyBridgeGalleryReady = false;
 let archiveSuitLegacyBridgeGalleryPromise = null;
+let archiveSuitGallerySeedItems = [];
+let archiveSuitGallerySeedCount = 0;
+let archiveSuitGallerySeedSource = "pending";
+let archiveSuitGallerySeedReady = false;
+let archiveSuitGallerySeedPromise = null;
 let mediaBridgeReady = false;
 let mediaBridgeSection = "broadcast-schedule";
 let mediaBridgeSummaryRenderKey = "";
@@ -4777,6 +4783,38 @@ function ensureArchiveSuitLegacyBridgeGalleryItems() {
   return archiveSuitLegacyBridgeGalleryPromise;
 }
 
+function ensureArchiveSuitGallerySeedItems() {
+  if (archiveSuitGallerySeedReady || archiveSuitGallerySeedPromise) return archiveSuitGallerySeedPromise;
+  archiveSuitGallerySeedPromise = fetch(ARCHIVE_SUIT_GALLERY_SEED_PATH, { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`seed-${response.status}`);
+      }
+      return response.json();
+    })
+    .then((payload) => {
+      const parsed = Array.isArray(payload) ? payload : parseArchiveSuitGalleryRaw(JSON.stringify(payload));
+      archiveSuitGallerySeedItems = parsed.flatMap((entry, index) => extractArchiveSuitLegacyGalleryItems(entry, index)).filter(Boolean);
+      archiveSuitGallerySeedCount = archiveSuitGallerySeedItems.length;
+      archiveSuitGallerySeedSource = archiveSuitGallerySeedItems.length ? "seed" : "empty";
+      archiveSuitGalleryDiagnosticsSignature = "";
+      if (storageBridgeSection === "gallery" && archiveSuitPanels.length) {
+        renderArchiveSuitPanels();
+      }
+    })
+    .catch((error) => {
+      archiveSuitGallerySeedItems = [];
+      archiveSuitGallerySeedCount = 0;
+      archiveSuitGallerySeedSource = "error";
+      console.warn("[archive-gallery-import] seed load failed", error);
+    })
+    .finally(() => {
+      archiveSuitGallerySeedReady = true;
+      archiveSuitGallerySeedPromise = null;
+    });
+  return archiveSuitGallerySeedPromise;
+}
+
 function parseArchiveSuitDeletedIdsRaw(raw = "") {
   if (!raw) return [];
   try {
@@ -4893,7 +4931,7 @@ function extractArchiveSuitLegacyGalleryItems(entry = {}, entryIndex = 0) {
 
 function getArchiveSuitLegacyGalleryItems() {
   const deleted = getArchiveSuitDeletedIdsSet();
-  const imported = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems];
+  const imported = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems, ...archiveSuitGallerySeedItems];
   ARCHIVE_SUIT_LEGACY_GALLERY_KEYS.forEach((key) => {
     const { raw } = getArchiveSuitLegacyGalleryRawByKey(key);
     parseArchiveSuitGalleryRaw(raw).forEach((entry, index) => {
@@ -5003,7 +5041,7 @@ function refreshArchiveSuitLegacyStorageData() {
 function collectArchiveSuitLegacyGalleryCandidates() {
   const rawCounts = {};
   const rawSources = {};
-  const candidates = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems];
+  const candidates = [...archiveSuitLegacyIndexedDbItems, ...archiveSuitLegacyBridgeGalleryItems, ...archiveSuitGallerySeedItems];
   ARCHIVE_SUIT_LEGACY_GALLERY_KEYS.forEach((key) => {
     const { raw, source } = getArchiveSuitLegacyGalleryRawByKey(key);
     const parsed = parseArchiveSuitGalleryRaw(raw);
@@ -5017,6 +5055,8 @@ function collectArchiveSuitLegacyGalleryCandidates() {
   rawSources.indexedDB = archiveSuitLegacyIndexedDbSource;
   rawCounts.legacyBridge = archiveSuitLegacyBridgeGalleryCount;
   rawSources.legacyBridge = archiveSuitLegacyBridgeGallerySource;
+  rawCounts.seed = archiveSuitGallerySeedCount;
+  rawSources.seed = archiveSuitGallerySeedSource;
   return { rawCounts, rawSources, candidates };
 }
 
@@ -6036,6 +6076,7 @@ function renderArchiveSuitPanels() {
     const tab = normalizeStorageBridgeSection(panel.dataset.archiveSuitPanel || "document-storage");
     if (panel.hidden) return;
     if (tab === "gallery") {
+      ensureArchiveSuitGallerySeedItems();
       ensureArchiveSuitLegacyBridgeGalleryItems();
       ensureArchiveSuitLegacyIndexedDbGalleryItems();
       logArchiveSuitGalleryDiagnostics();
