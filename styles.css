@@ -4575,6 +4575,16 @@ body::after {
 }
 
 @media (min-width: 1025px) {
+  #view-match-schedule .group-a-matches-upper {
+    overflow: hidden;
+  }
+
+  #view-match-schedule #match-results-shell,
+  #view-match-schedule .group-fixture-results {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
   #view-match-schedule .group-fixture-results-list {
     max-height: none;
   }
