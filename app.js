@@ -3587,8 +3587,8 @@ function buildTimelineDateMemoModal() {
         </label>
       </div>
       <div class="timeline-modal__actions">
-        <button type="button" class="timeline-modal__button timeline-modal__button--ghost" data-timeline-date-memo-close>취소</button>
         <button type="button" class="timeline-modal__button" id="timeline-date-memo-save">저장</button>
+        <button type="button" class="timeline-modal__button timeline-modal__button--ghost" data-timeline-date-memo-close>취소</button>
       </div>
     </div>
   `;
