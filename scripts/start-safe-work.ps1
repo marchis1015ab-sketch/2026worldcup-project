@@ -39,13 +39,15 @@ function Get-GitOutput {
 function Get-TrimmedLines {
   param([object[]]$Lines)
 
-  return @($Lines | ForEach-Object {
+  $trimmed = @($Lines | ForEach-Object {
     if ($_ -is [string]) {
       $_.TrimEnd()
     }
   } | Where-Object {
     -not [string]::IsNullOrWhiteSpace($_)
   })
+
+  return ,$trimmed
 }
 
 $allowDirty = $false
