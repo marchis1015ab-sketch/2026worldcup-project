@@ -9068,11 +9068,7 @@ function applySharedStateSnapshot(rows=[]){
     const currentRaw=getSharedStateLocalRaw(storageKey);
     let nextRaw=nextStateByKey[storageKey];
     if(storageKey===PERSONAL_TIMELINE_DETAILS_STORAGE_KEY){
-      const mergedRaw=mergePersonalTimelineDetailsRaw(currentRaw, nextRaw);
-      if(mergedRaw&&mergedRaw!==nextRaw){
-        nextRaw=mergedRaw;
-        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
-      }
+      nextRaw=String(nextRaw??'');
     }else if(storageKey===PERSONAL_TIMELINE_DETAILS_DELETED_KEYS_STORAGE_KEY){
       const mergedRaw=mergePersonalTimelineDeletedKeysRaw(currentRaw, nextRaw);
       if(mergedRaw!==nextRaw){
@@ -9080,11 +9076,7 @@ function applySharedStateSnapshot(rows=[]){
         scheduleSharedStateSyncWrite(storageKey, mergedRaw);
       }
     }else if(storageKey===PERSONAL_TIMELINE_SHARED_STORAGE_KEY){
-      const mergedRaw=mergePersonalTimelineSharedRaw(currentRaw, nextRaw);
-      if(mergedRaw!==nextRaw){
-        nextRaw=mergedRaw;
-        scheduleSharedStateSyncWrite(storageKey, mergedRaw);
-      }
+      nextRaw=String(nextRaw??'');
     }else if(storageKey===TIMELINE_GALLERY_STORAGE_KEY){
       const mergedRaw=mergeTimelineGalleryRaw(currentRaw, nextRaw);
       if(mergedRaw!==nextRaw){
