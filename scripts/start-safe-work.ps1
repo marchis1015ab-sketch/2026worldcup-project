@@ -28,8 +28,20 @@ function Write-Fail {
 function Get-GitOutput {
   param([string[]]$Arguments)
 
-  $output = & git @Arguments 2>&1
-  $exitCode = $LASTEXITCODE
+  $stderrPath = [System.IO.Path]::GetTempFileName()
+  try {
+    $stdout = & git @Arguments 2> $stderrPath
+    $stderr = @()
+    if (Test-Path -LiteralPath $stderrPath) {
+      $stderr = Get-Content -LiteralPath $stderrPath
+    }
+    $output = @($stdout) + @($stderr)
+    $exitCode = $LASTEXITCODE
+  } finally {
+    if (Test-Path -LiteralPath $stderrPath) {
+      Remove-Item -LiteralPath $stderrPath -Force
+    }
+  }
 
   return [pscustomobject]@{
     Output = @($output)
