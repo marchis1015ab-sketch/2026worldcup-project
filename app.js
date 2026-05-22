@@ -2564,7 +2564,6 @@ const WC26_WORLD_CUP_OPENING_DATE = { year: 2026, month: 6, day: 11 };
 const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
-const WC26_TIMELINE_BACKUP_PREFIX = `${WC26_TIMELINE_STORAGE_KEY}_backup`;
 let wc26NewSuitSharedStateClient = null;
 let wc26NewSuitSharedStateReady = false;
 let wc26NewSuitSharedStatePollingTimer = null;
@@ -3116,89 +3115,6 @@ function isLikelyTimelineSampleBlock(block = {}) {
   return /mock|sample|seed|demo|테스트|샘플/i.test(text);
 }
 
-function getAllTimelineBackupBlocks() {
-  const merged = [];
-  const seen = new Set();
-  try {
-    const storage = window.localStorage;
-    if (!storage) {
-      return merged;
-    }
-    const backupKeys = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index) || "";
-      if (key.startsWith(WC26_TIMELINE_BACKUP_PREFIX)) {
-        backupKeys.push(key);
-      }
-    }
-    backupKeys.sort().reverse();
-    backupKeys.forEach((key) => {
-      parseTimelineBlocksFromRaw(storage.getItem(key) || "").forEach((block) => {
-        const normalizedKey = getTimelineBlockDedupeKey(block);
-        if (!normalizedKey || seen.has(normalizedKey) || isLikelyTimelineSampleBlock(block)) {
-          return;
-        }
-        seen.add(normalizedKey);
-        merged.push(block);
-      });
-    });
-  } catch (_error) {
-    return merged;
-  }
-  return merged;
-}
-
-function restoreMissingLeeJuwonTimelineBlocks(blocks = []) {
-  return Array.isArray(blocks) ? blocks : [];
-}
-
-function getLatestTimelineBackupRaw() {
-  try {
-    const storage = window.localStorage;
-    if (!storage) {
-      return "";
-    }
-    const backupKeys = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index) || "";
-      if (key.startsWith(WC26_TIMELINE_BACKUP_PREFIX)) {
-        backupKeys.push(key);
-      }
-    }
-    backupKeys.sort().reverse();
-    for (const key of backupKeys) {
-      const raw = storage.getItem(key) || "";
-      if (parseTimelineBlocksFromRaw(raw).length) {
-        return raw;
-      }
-    }
-  } catch (_error) {
-    return "";
-  }
-  return "";
-}
-
-function backupTimelineBlocksBeforeWrite() {
-  try {
-    const storage = window.localStorage;
-    const raw = storage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
-    if (!raw) {
-      return "";
-    }
-    const markerKey = `${WC26_TIMELINE_BACKUP_PREFIX}_marker_${WC26_BRIDGE_VERSION}`;
-    const existingKey = window.sessionStorage?.getItem(markerKey) || "";
-    if (existingKey && storage.getItem(existingKey)) {
-      return existingKey;
-    }
-    const backupKey = `${WC26_TIMELINE_BACKUP_PREFIX}_before_write_${getSharedScheduleTimestampKey()}`;
-    storage.setItem(backupKey, raw);
-    window.sessionStorage?.setItem(markerKey, backupKey);
-    return backupKey;
-  } catch (_error) {
-    return "";
-  }
-}
-
 function getNewSuitSharedStateClient() {
   if (wc26NewSuitSharedStateClient) {
     return wc26NewSuitSharedStateClient;
@@ -3489,15 +3405,13 @@ function loadTimelineBlocks() {
   try {
     const parsedRaw = JSON.parse(rawText || "[]");
     if (Array.isArray(parsedRaw) && parsedRaw.length !== blocks.length) {
-      backupTimelineBlocksBeforeWrite();
       window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(blocks));
-      window.sessionStorage?.setItem(`${WC26_TIMELINE_BACKUP_PREFIX}_personal_generated_removed_${WC26_BRIDGE_VERSION}`, String(parsedRaw.length - blocks.length));
     }
   } catch (_error) {
     rawParseFailed = hasPersistedRaw;
   }
   if (blocks.length) {
-    return restoreMissingLeeJuwonTimelineBlocks(blocks);
+    return blocks;
   }
   if (hasPersistedRaw && !rawParseFailed) {
     return [];
@@ -3514,7 +3428,6 @@ function saveTimelineBlocks(blocks = []) {
         .filter(Boolean)
     : [];
   try {
-    backupTimelineBlocksBeforeWrite();
     const raw = JSON.stringify(normalizedBlocks);
     window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, raw);
     scheduleNewSuitSharedStateWrite(WC26_TIMELINE_STORAGE_KEY, raw);
