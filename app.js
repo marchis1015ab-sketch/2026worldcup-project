@@ -1,4 +1,4 @@
-﻿if (typeof Element !== "undefined" && typeof Element.prototype.replaceChildren !== "function") {
+if (typeof Element !== "undefined" && typeof Element.prototype.replaceChildren !== "function") {
   Element.prototype.replaceChildren = function replaceChildrenFallback(...nodes) {
     while (this.firstChild) {
       this.removeChild(this.firstChild);
@@ -1520,49 +1520,7 @@ const WC26_SHARED_SCHEDULE_BACKUP_PREFIX = "worldcup-guide-personal-timeline-sha
 const WC26_SHARED_SCHEDULE_SNAPSHOT_KEY = "wc26_new_suit_shared_schedule_snapshot_v1";
 const WC26_SHARED_SCHEDULE_DELETED_KEYS = "wc26_new_suit_shared_schedule_deleted_keys_v1";
 const WC26_TIMELINE_GALLERY_STORAGE_BUCKET = "timeline-gallery";
-const WC26_SHARED_SCHEDULE_RECOVERY_SOURCE = `2026-05-16|2026-05-16T14:00:00.000Z|Codex 공용일정 저장 확인 critical-save-nav-fix 2026-05-16
-2026-05-14|2026-05-14T07:46:00.000Z|우리나라, 조별 상대국, 주요경기(일본, 브라질, 아르헨티나, 잉들랜드 등) 청약내역입니다. 기본적으로 우리나라 경기 외 조별상대국 및 위 주요국 경기는 컨퍼런스룸+믹스드존+주차권 청약되어 있습니다. 파일 참고하시고 외부유출 유의해 주세요
-2026-05-14|2026-05-14T02:22:00.000Z|고독스 6개 구매 완료. 늦어도 담주 화에 도착예정
-2026-05-13|2026-05-14T02:23:00.000Z|[남아공팀 취재 계획]
-2026-05-11|2026-05-12T00:51:00.000Z|박재현 기자 까르네 김영실 리더에게 제출.
-2026-05-08|2026-05-08T11:26:00.000Z|-한국전엔 3~4팀 투입 예정
-2026-05-07|2026-05-07T06:01:00.000Z|- 편성
-2026-05-07|2026-05-07T01:21:00.000Z|KT요금제 변경, 접속성공
-2026-05-06|2026-05-06T07:23:00.000Z|[고독스 조명]
-2026-05-05|2026-05-06T07:27:00.000Z|월드컵 취재 및 배정 가안입니다. 참고해주세요.
-2026-05-05|2026-05-05T22:15:00.000Z|*멕시코 과달라하라 및 멕시코시티 현지 답사(이틀 째) 내용을 바탕으로, 출장 팀원들이 숙지해야 할 안전 및 업무 지침을 정리해 드립니다.
-2026-05-05|2026-05-05T21:41:00.000Z|편집 가능: https://2026worldcup-project.vercel.app/
-2026-05-05|2026-05-05T20:52:00.000Z|월드컵 취재 및 배정 가안입니다. 참고해주세요.
-2026-05-05|2026-05-05T12:50:00.000Z|편집 가능 주소:
-2026-05-04|2026-05-04T07:47:00.000Z|내용 없음
-2026-05-04|2026-05-04T07:26:00.000Z|5.4 (월) 3차
-2026-05-04|2026-05-04T07:26:00.000Z|티비유 신호 관련.의견
-2026-05-04|2026-05-04T07:26:00.000Z|완충된 배터리로 테스트해봤는데 배터리는 50% 정도 남음
-2026-04-30|2026-05-07T07:53:00.000Z|[Web발신]
-2026-04-30|2026-05-07T07:53:00.000Z|0430_빅이벤트 회의
-2026-04-27|2026-05-14T07:20:00.000Z|마이크 텍 분출
-2026-04-24|2026-05-07T07:53:00.000Z|* 월드컵 날씨 정보
-2026-04-21|2026-05-08T03:27:00.000Z|월드컵 D-50 까르네 준비.
-2026-04-20|2026-05-14T07:20:00.000Z|[렌즈관련]
-2026-04-20|2026-05-08T03:27:00.000Z|https://n.news.naver.com/article/437/0000488183
-2026-04-20|2026-05-08T03:27:00.000Z|[박재현 기자 사전답사 일정]
-2026-04-17|2026-05-14T07:20:00.000Z|[공지]
-2026-04-16|2026-05-14T07:20:00.000Z|0416 빅이벤트 회의
-2026-04-16|2026-05-14T07:20:00.000Z|월드컵 디자인 명함 신청
-2026-04-15|2026-05-14T07:20:00.000Z|[출장 공지] 멕시코 과달라하라 취재 예정
-2026-04-13|2026-05-14T07:20:00.000Z|비디오탈리 논의 - 부조 -
-2026-04-10|2026-05-14T07:20:00.000Z|보도제작본부 _COS 베뉴 서비스 문의사항 답변.
-2026-04-09|2026-05-14T07:20:00.000Z|* 0409 빅이벤트 회의
-2026-04-09|2026-05-14T07:20:00.000Z|기술기획팀 전달사항
-2026-04-07|2026-05-14T07:20:00.000Z|하이드레이션 타임 지원 관련 경우의 수 공유
-2026-04-03|2026-05-14T07:20:00.000Z|[4월 3일]
-2026-04-02|2026-05-14T07:20:00.000Z|빅이벤트 회의(대외비)
-2026-04-01|2026-05-14T07:20:00.000Z|1차전 상대 체코로 결정.
-2026-03-31|2026-05-14T07:20:00.000Z|월드컵 현지밀착 취재팀 정상원 기자 합류
-2026-03-30|2026-05-14T07:20:00.000Z|북중미 월드컵 출장자 전원 언론인 비자(I-VISA) 발급 완료.
-2026-03-26|2026-05-14T07:20:00.000Z|[3월 26일]
-2026-03-23|2026-05-14T07:20:00.000Z|[3월 23일]
-2026-03-19|2026-05-16T13:21:00.000Z|[3월 19일]`;
+const WC26_SHARED_SCHEDULE_RECOVERY_SOURCE = "";
 const WC26_SHARED_SCHEDULE_RENDER_LIMIT = 160;
 const WC26_SHARED_SCHEDULE_PREVIEW_TIMEOUT_MS = 6500;
 const WC26_SHARED_SCHEDULE_MAX_SPREADSHEET_BYTES = 8 * 1024 * 1024;
@@ -1769,7 +1727,19 @@ const WC26_SHARED_STATE_TABLE = "shared_state";
 const WC26_NEW_SUIT_SHARED_STATE_KEYS = Object.freeze([
   WC26_OPS_MEMO_STORAGE_KEY,
   "wc26_new_suit_timeline_blocks_v1",
+  WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
+  WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
+  WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
+  "wc26_new_suit_shared_schedule_deleted_keys_v1",
 ]);
+
+function isNewSuitLegacyScheduleStateKey(storageKey = "") {
+  return (
+    storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared ||
+    storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.details ||
+    storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted
+  );
+}
 
 const WC26_STAGE_LABELS = {
   group: "조별리그",
@@ -3179,26 +3149,7 @@ function getAllTimelineBackupBlocks() {
 }
 
 function restoreMissingLeeJuwonTimelineBlocks(blocks = []) {
-  const normalizedBlocks = Array.isArray(blocks) ? blocks : [];
-  const currentKeys = new Set(normalizedBlocks.map(getTimelineBlockDedupeKey));
-  const leeBackupBlocks = getAllTimelineBackupBlocks().filter((block) => String(block.name || "").trim() === "이주원");
-  const missingBlocks = leeBackupBlocks.filter((block) => !currentKeys.has(getTimelineBlockDedupeKey(block)));
-  if (!missingBlocks.length) {
-    return normalizedBlocks;
-  }
-
-  const restoredBlocks = [...normalizedBlocks, ...missingBlocks];
-  try {
-    backupTimelineBlocksBeforeWrite();
-    window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(restoredBlocks));
-    window.sessionStorage?.setItem(
-      `${WC26_TIMELINE_BACKUP_PREFIX}_lee_restore_${WC26_BRIDGE_VERSION}`,
-      String(missingBlocks.length)
-    );
-  } catch (_error) {
-    // If persistence is unavailable, the merged list can still render for this session.
-  }
-  return restoredBlocks;
+  return Array.isArray(blocks) ? blocks : [];
 }
 
 function getLatestTimelineBackupRaw() {
@@ -3337,10 +3288,33 @@ function mergeOpsMemoLists(localRaw = "", remoteRaw = "") {
 
 function mergeNewSuitSharedStateRaw(storageKey = "", localRaw = "", remoteRaw = "") {
   if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
-    return mergeTimelineBlockLists(localRaw, remoteRaw);
+    const normalizedRemote = String(remoteRaw || "").trim();
+    return normalizedRemote
+      ? JSON.stringify(parseTimelineBlocksFromRaw(normalizedRemote))
+      : JSON.stringify(parseTimelineBlocksFromRaw(localRaw));
+  }
+  if (storageKey === WC26_SHARED_SCHEDULE_DELETED_KEYS) {
+    const values = new Set();
+    [localRaw, remoteRaw].forEach((raw) => {
+      try {
+        const parsed = JSON.parse(String(raw || "").trim() || "[]");
+        (Array.isArray(parsed) ? parsed : []).forEach((value) => {
+          const normalized = String(value || "").trim();
+          if (normalized) {
+            values.add(normalized);
+          }
+        });
+      } catch (_error) {
+        // Invalid tombstone cache should not resurrect deleted entries.
+      }
+    });
+    return JSON.stringify(Array.from(values));
   }
   if (storageKey === WC26_OPS_MEMO_STORAGE_KEY) {
     return mergeOpsMemoLists(localRaw, remoteRaw);
+  }
+  if (isNewSuitLegacyScheduleStateKey(storageKey)) {
+    return String(remoteRaw ?? "");
   }
   return String(remoteRaw || localRaw || "");
 }
@@ -3349,6 +3323,25 @@ function rerenderNewSuitSharedStateKey(storageKey = "") {
   if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
     renderTimelineGantt({});
     renderTimelineManageList();
+    return;
+  }
+  if (storageKey === WC26_SHARED_SCHEDULE_DELETED_KEYS) {
+    renderSharedScheduleShellIfActive();
+    return;
+  }
+  if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) {
+    renderSharedScheduleShellIfActive();
+    refreshAccumulatedScheduleFlow();
+    return;
+  }
+  if (
+    storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.details ||
+    storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted
+  ) {
+    renderPersonalScheduleShellIfActive();
+    renderAccumulatedScheduleShellIfActive();
+    refreshAccumulatedScheduleFlow();
+    requestEquipmentBridgeSummary();
     return;
   }
   if (storageKey === WC26_OPS_MEMO_STORAGE_KEY) {
@@ -3410,13 +3403,23 @@ async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STAT
   const remoteByKey = new Map(rows.map((row) => [String(row?.state_key || "").trim(), String(row?.state_value ?? "")]));
   storageKeys.forEach((storageKey) => {
     const localRaw = getLocalStorageRaw(storageKey);
-    const remoteRaw = remoteByKey.get(storageKey) || "";
+    const hasRemoteRow = remoteByKey.has(storageKey);
+    if (!hasRemoteRow && isNewSuitLegacyScheduleStateKey(storageKey)) {
+      return;
+    }
+    const rawRemote = hasRemoteRow ? remoteByKey.get(storageKey) || "" : "";
+    const remoteRaw =
+      hasRemoteRow &&
+      (storageKey === WC26_TIMELINE_STORAGE_KEY || storageKey === WC26_SHARED_SCHEDULE_DELETED_KEYS) &&
+      !String(rawRemote).trim()
+        ? "[]"
+        : rawRemote;
     const mergedRaw = mergeNewSuitSharedStateRaw(storageKey, localRaw, remoteRaw);
     if (mergedRaw !== localRaw) {
       setLocalStorageRaw(storageKey, mergedRaw);
       rerenderNewSuitSharedStateKey(storageKey);
     }
-    if (mergedRaw !== remoteRaw) {
+    if (mergedRaw !== remoteRaw && !isNewSuitLegacyScheduleStateKey(storageKey)) {
       scheduleNewSuitSharedStateWrite(storageKey, mergedRaw);
     }
   });
@@ -3432,7 +3435,11 @@ function applyNewSuitSharedStateRemoteRow(row = {}) {
     return;
   }
   const localRaw = getLocalStorageRaw(storageKey);
-  const remoteRaw = String(row?.state_value ?? "");
+  const rawRemote = String(row?.state_value ?? "");
+  const remoteRaw =
+    (storageKey === WC26_TIMELINE_STORAGE_KEY || storageKey === WC26_SHARED_SCHEDULE_DELETED_KEYS) && !rawRemote.trim()
+      ? "[]"
+      : rawRemote;
   const mergedRaw = mergeNewSuitSharedStateRaw(storageKey, localRaw, remoteRaw);
   if (mergedRaw !== localRaw) {
     setLocalStorageRaw(storageKey, mergedRaw);
@@ -3496,16 +3503,6 @@ function loadTimelineBlocks() {
     return [];
   }
 
-  const backupRaw = getLatestTimelineBackupRaw();
-  const backupBlocks = parseTimelineBlocksFromRaw(backupRaw).filter((block) => !isLikelyTimelineSampleBlock(block));
-  if (backupBlocks.length) {
-    try {
-      window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, JSON.stringify(backupBlocks));
-    } catch (_error) {
-      // Rendering can still use the backup data even if restore persistence fails.
-    }
-    return backupBlocks;
-  }
   return [];
 }
 
@@ -14173,7 +14170,9 @@ function writeSharedScheduleDeletedKeys(deletedKeys) {
   }
 
   try {
-    storage.setItem(WC26_SHARED_SCHEDULE_DELETED_KEYS, JSON.stringify(Array.from(deletedKeys || []).filter(Boolean)));
+    const raw = JSON.stringify(Array.from(deletedKeys || []).filter(Boolean));
+    storage.setItem(WC26_SHARED_SCHEDULE_DELETED_KEYS, raw);
+    scheduleNewSuitSharedStateWrite(WC26_SHARED_SCHEDULE_DELETED_KEYS, raw);
     return true;
   } catch (_error) {
     return false;
