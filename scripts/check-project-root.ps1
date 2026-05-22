@@ -38,16 +38,24 @@ function Normalize-PathValue {
 function Get-GitOutput {
   param([string[]]$Arguments)
 
+  $stdoutPath = [System.IO.Path]::GetTempFileName()
   $stderrPath = [System.IO.Path]::GetTempFileName()
   try {
-    $stdout = & git @Arguments 2> $stderrPath
+    $process = Start-Process -FilePath 'git' -ArgumentList $Arguments -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+    $stdout = @()
     $stderr = @()
+    if (Test-Path -LiteralPath $stdoutPath) {
+      $stdout = Get-Content -LiteralPath $stdoutPath
+    }
     if (Test-Path -LiteralPath $stderrPath) {
       $stderr = Get-Content -LiteralPath $stderrPath
     }
     $output = @($stdout) + @($stderr)
-    $exitCode = $LASTEXITCODE
+    $exitCode = $process.ExitCode
   } finally {
+    if (Test-Path -LiteralPath $stdoutPath) {
+      Remove-Item -LiteralPath $stdoutPath -Force
+    }
     if (Test-Path -LiteralPath $stderrPath) {
       Remove-Item -LiteralPath $stderrPath -Force
     }
