@@ -3,6 +3,7 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $false
 
 function Write-Info {
   param([string]$Message)
