@@ -1,49 +1,163 @@
-$approvedPaths = @(
-  "C:\Users\Jnote\Desktop\2026worldcup-project",
-  "C:\Users\march\OneDrive\Desktop\2026worldcup-project"
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Write-Info {
+  param([string]$Message)
+  Write-Host "[INFO] $Message"
+}
+
+function Write-Ok {
+  param([string]$Message)
+  Write-Host "[ OK ] $Message" -ForegroundColor Green
+}
+
+function Write-Warn {
+  param([string]$Message)
+  Write-Host "[WARN] $Message" -ForegroundColor Yellow
+}
+
+function Write-Fail {
+  param([string]$Message)
+  Write-Host "[FAIL] $Message" -ForegroundColor Red
+}
+
+function Normalize-PathValue {
+  param([string]$PathValue)
+
+  if ([string]::IsNullOrWhiteSpace($PathValue)) {
+    return ''
+  }
+
+  return [System.IO.Path]::GetFullPath($PathValue).TrimEnd('\').ToLowerInvariant()
+}
+
+function Get-GitOutput {
+  param([string[]]$Arguments)
+
+  $output = & git @Arguments 2>&1
+  $exitCode = $LASTEXITCODE
+
+  return [pscustomobject]@{
+    Output = @($output)
+    ExitCode = $exitCode
+  }
+}
+
+$currentPath = [System.IO.Path]::GetFullPath((Get-Location).Path)
+$normalizedCurrentPath = Normalize-PathValue -PathValue $currentPath
+
+$approvedRoots = @(
+  'C:\Users\march\OneDrive\Desktop\2026worldcup-project'
 )
 
-$expectedRemote = "https://github.com/marchis1015ab-sketch/2026worldcup-project.git"
-$currentPath = (Get-Location).Path
-$currentBranch = (git branch --show-current).Trim()
-$currentRemote = (git remote get-url origin 2>$null | Select-Object -First 1).Trim()
+$normalizedApprovedRoots = $approvedRoots | ForEach-Object {
+  Normalize-PathValue -PathValue $_
+}
 
-Write-Host "Approved:" ($approvedPaths -join ", ")
-Write-Host "Current :" $currentPath
+$blockedPathHints = @(
+  'wc26-new-suit',
+  'new project',
+  '월드컵 프로젝트'
+)
 
-if ($approvedPaths -notcontains $currentPath) {
-  Write-Host "ERROR: Current path is not an approved project root. Stop."
+$failures = [System.Collections.Generic.List[string]]::new()
+$warnings = [System.Collections.Generic.List[string]]::new()
+
+Write-Info "Current path: $currentPath"
+
+$matchedBlockedHint = $blockedPathHints | Where-Object {
+  $normalizedCurrentPath.Contains($_.ToLowerInvariant())
+} | Select-Object -First 1
+
+if ($matchedBlockedHint) {
+  $failures.Add("Blocked copy path detected: $matchedBlockedHint")
+} elseif ($normalizedApprovedRoots -contains $normalizedCurrentPath) {
+  Write-Ok 'Approved working folder confirmed.'
+} else {
+  $failures.Add('This is not an approved working folder.')
+}
+
+$gitDirectory = Join-Path $currentPath '.git'
+if (Test-Path -LiteralPath $gitDirectory -PathType Container) {
+  Write-Ok '.git directory found.'
+} else {
+  $failures.Add('.git directory is missing.')
+}
+
+$packageJsonPath = Join-Path $currentPath 'package.json'
+$coreFilePaths = @(
+  (Join-Path $currentPath 'index.html'),
+  (Join-Path $currentPath 'app.js'),
+  (Join-Path $currentPath 'styles.css')
+)
+
+$hasPackageJson = Test-Path -LiteralPath $packageJsonPath -PathType Leaf
+$hasCoreFiles = $true
+foreach ($coreFilePath in $coreFilePaths) {
+  if (-not (Test-Path -LiteralPath $coreFilePath -PathType Leaf)) {
+    $hasCoreFiles = $false
+    break
+  }
+}
+
+if ($hasPackageJson -or $hasCoreFiles) {
+  Write-Ok 'Project marker files confirmed.'
+} else {
+  $failures.Add('package.json or project core files are missing.')
+}
+
+$originResult = Get-GitOutput -Arguments @('config', '--get', 'remote.origin.url')
+$originUrl = ($originResult.Output | Select-Object -First 1)
+$expectedOriginPatterns = @(
+  'https://github.com/marchis1015ab-sketch/2026worldcup-project',
+  'https://github.com/marchis1015ab-sketch/2026worldcup-project.git',
+  'git@github.com:marchis1015ab-sketch/2026worldcup-project.git'
+)
+
+if ($originResult.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($originUrl)) {
+  $failures.Add('origin remote could not be verified.')
+} else {
+  $normalizedOrigin = $originUrl.Trim().ToLowerInvariant()
+  $expectedOriginsNormalized = $expectedOriginPatterns | ForEach-Object { $_.ToLowerInvariant() }
+  if ($expectedOriginsNormalized -contains $normalizedOrigin) {
+    Write-Ok "origin remote: $originUrl"
+  } else {
+    $failures.Add("origin remote is not the approved repository: $originUrl")
+  }
+}
+
+$branchResult = Get-GitOutput -Arguments @('branch', '--show-current')
+$branchName = ($branchResult.Output | Select-Object -First 1)
+if ($branchResult.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($branchName)) {
+  $failures.Add('Current branch could not be verified.')
+} elseif ($branchName.Trim() -eq 'main') {
+  Write-Ok 'Current branch is main.'
+} else {
+  $failures.Add("Current branch is not main: $branchName")
+}
+
+$vercelProjectPath = Join-Path $currentPath '.vercel\project.json'
+if (Test-Path -LiteralPath $vercelProjectPath -PathType Leaf) {
+  Write-Ok '.vercel/project.json found.'
+} else {
+  $warnings.Add('.vercel/project.json is missing. Check the Vercel link manually.')
+}
+
+foreach ($warning in $warnings) {
+  Write-Warn $warning
+}
+
+if ($failures.Count -gt 0) {
+  foreach ($failure in $failures) {
+    Write-Fail $failure
+  }
+
+  Write-Fail '이 폴더에서 작업 금지'
   exit 1
 }
 
-if (!(Test-Path ".\.git")) {
-  Write-Host "ERROR: .git directory is missing. Stop."
-  exit 1
-}
-
-if (!(Test-Path ".\.vercel\project.json")) {
-  Write-Host "ERROR: .vercel/project.json is missing. Stop."
-  exit 1
-}
-
-if ($currentRemote -ne $expectedRemote) {
-  Write-Host "ERROR: origin remote does not match the approved repository. Stop."
-  exit 1
-}
-
-if ($currentBranch -ne "main") {
-  Write-Host "ERROR: Current branch is not main. Stop."
-  exit 1
-}
-
-if (!(Test-Path ".\index.html")) {
-  Write-Host "ERROR: index.html is missing. Stop."
-  exit 1
-}
-
-if (!(Test-Path ".\app.js")) {
-  Write-Host "ERROR: app.js is missing. Stop."
-  exit 1
-}
-
-Write-Host "OK: Approved project root verified."
+Write-Ok 'Safe project root check passed.'
+exit 0
