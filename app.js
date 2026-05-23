@@ -16873,7 +16873,6 @@ function getScheduleLocalStateFetchKeys(sectionId = scheduleBridgeSection) {
   }
   if (sectionId === "personal" || sectionId === "accumulated") {
     return [
-      WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
       WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
       WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
     ];
