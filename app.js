@@ -1726,11 +1726,9 @@ const WC26_OPS_MEMO_STORAGE_KEY = "wc26_new_suit_ops_memo_pad_v1";
 const WC26_SHARED_STATE_TABLE = "shared_state";
 const WC26_NEW_SUIT_SHARED_STATE_KEYS = Object.freeze([
   WC26_OPS_MEMO_STORAGE_KEY,
-  "wc26_new_suit_timeline_blocks_v1",
   WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
   WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
   WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
-  "wc26_new_suit_shared_schedule_deleted_keys_v1",
 ]);
 
 function isNewSuitLegacyScheduleStateKey(storageKey = "") {
@@ -2563,6 +2561,9 @@ function initDailyMatchCarousel() {
 const WC26_WORLD_CUP_OPENING_DATE = { year: 2026, month: 6, day: 11 };
 const WC26_TIMELINE_GANTT_DAY_COUNT = 28;
 const WC26_TIMELINE_MEMBER_ORDER = ["박재현", "장후원", "정상원", "이주원", "김진광", "정재우"];
+const WC26_TIMELINE_SHARED_ROW_NAME = "공용";
+const WC26_TIMELINE_RENDER_ROW_ORDER = [...WC26_TIMELINE_MEMBER_ORDER, WC26_TIMELINE_SHARED_ROW_NAME];
+const WC26_TIMELINE_DIAG_VERBOSE = false;
 const WC26_TIMELINE_STORAGE_KEY = "wc26_new_suit_timeline_blocks_v1";
 let wc26NewSuitSharedStateClient = null;
 let wc26NewSuitSharedStateReady = false;
@@ -3902,44 +3903,302 @@ function buildTimelineBlocksFromLegacySummary(dates = [], summary = {}) {
   return new Map(WC26_TIMELINE_MEMBER_ORDER.map((name) => [name, []]));
 }
 
-function buildTimelineBlocksByName(dates = [], summary = {}) {
-  const rows = buildTimelineBlocksFromLegacySummary(dates, summary);
-  loadTimelineBlocks().forEach((block, index) => {
-    if (String(block.kind || block.type || "").trim() === WC26_TIMELINE_DATE_MEMO_KIND) {
+function recordTlLockDiag(stage = "", payload = {}) {
+  const normalizedStage = String(stage || "").trim() || "unknown";
+  const normalizedPayload = payload && typeof payload === "object" ? payload : { value: payload };
+  const isErrorStage = normalizedStage.includes(":error") || normalizedStage.endsWith("-error");
+  if (WC26_TIMELINE_DIAG_VERBOSE || isErrorStage) {
+    try {
+      const logger = isErrorStage ? console.warn : console.info;
+      logger("[TL-LOCK-DIAG]", normalizedStage, normalizedPayload);
+    } catch (_error) {
+      // Best-effort diagnostic only.
+    }
+  }
+  const applyToNode = (node) => {
+    if (!node?.dataset) {
       return;
     }
-    const normalizedName = String(block.name || "").trim();
-    if (!rows.has(normalizedName)) {
-      rows.set(normalizedName, []);
+    node.dataset.tlLockDiagStage = normalizedStage;
+    try {
+      node.dataset.tlLockDiagPayload = JSON.stringify(normalizedPayload).slice(0, 400);
+    } catch (_error) {
+      node.dataset.tlLockDiagPayload = "";
     }
-    rows.get(normalizedName).push({
-      id: block.id || `custom-${index + 1}`,
-      source: "custom",
-      name: normalizedName,
-      startDate: block.startDate,
-      endDate: block.endDate,
-      period: formatTimelineBlockPeriod(block.startDate, block.endDate),
-      place: block.place,
-      memo: block.memo || "",
-      task: "",
-      title: `${normalizedName}\n${formatTimelineBlockPeriod(block.startDate, block.endDate)}\n${block.place}${block.memo ? `\n${block.memo}` : ""}`,
+  };
+  applyToNode(document.getElementById("schedule-timeline-gantt-grid"));
+  applyToNode(document.getElementById("schedule-timeline-gantt-empty"));
+  applyToNode(document.getElementById("timeline-gantt-grid"));
+  applyToNode(document.getElementById("timeline-gantt-empty"));
+}
+
+function readOfficialTimelineDeletedKeys() {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  let raw = "";
+  try {
+    raw = String(syncWindow?.readPersonalTimelineDeletedKeysRaw?.() || "").trim();
+  } catch (_error) {
+    raw = "";
+  }
+  if (!raw) {
+    try {
+      raw = String(window.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted) || "").trim();
+    } catch (_error) {
+      raw = "";
+    }
+  }
+  if (!raw) {
+    return new Set();
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const source = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.keys) ? parsed.keys : [];
+    const keys = new Set(source.map((value) => String(value || "").trim()).filter(Boolean));
+    recordTlLockDiag("readOfficialTimelineDeletedKeys", { deletedCount: keys.size });
+    return keys;
+  } catch (_error) {
+    recordTlLockDiag("readOfficialTimelineDeletedKeys:error", { message: String(_error?.message || _error || "") });
+    return new Set();
+  }
+}
+
+function isOfficialTimelineEntryDeleted(entry = {}, dateKey = "", deletedKeys = null) {
+  const normalizedDateKey = String(dateKey || entry?.dateKey || "").slice(0, 10).trim();
+  const normalizedName = String(entry?.name || "").trim();
+  if (!normalizedDateKey || !normalizedName) {
+    return false;
+  }
+  const keySet = deletedKeys instanceof Set ? deletedKeys : readOfficialTimelineDeletedKeys();
+  return keySet.has(`${normalizedDateKey}::${normalizedName}`);
+}
+
+function buildTimelineBlocksFromOfficialPersonalDetails(dates = []) {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  const visibleDateKeys = new Set((Array.isArray(dates) ? dates : []).map((dateKey) => String(dateKey || "").slice(0, 10).trim()));
+  const deletedKeys = readOfficialTimelineDeletedKeys();
+  const blocks = [];
+  let raw = "";
+
+  try {
+    raw = String(syncWindow?.readPersonalTimelineDetailsRaw?.() || "").trim();
+  } catch (_error) {
+    raw = "";
+  }
+  if (!raw) {
+    try {
+      raw = String(window.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.details) || "").trim();
+    } catch (_error) {
+      raw = "";
+    }
+  }
+
+  let rawState = {};
+  try {
+    rawState = raw ? JSON.parse(raw) || {} : {};
+  } catch (_error) {
+    rawState = {};
+  }
+
+  Object.entries(rawState || {}).forEach(([dateKey, people]) => {
+    const normalizedDateKey = String(dateKey || "").slice(0, 10).trim();
+    if (!normalizedDateKey || (visibleDateKeys.size && !visibleDateKeys.has(normalizedDateKey))) {
+      return;
+    }
+
+    Object.entries(people || {}).forEach(([name, personEntries]) => {
+      const normalizedName = String(name || "").trim();
+      if (!normalizedName || !WC26_TIMELINE_MEMBER_ORDER.includes(normalizedName)) {
+        return;
+      }
+      if (isOfficialTimelineEntryDeleted({ name: normalizedName }, normalizedDateKey, deletedKeys)) {
+        return;
+      }
+
+      (Array.isArray(personEntries) ? personEntries : [personEntries]).forEach((detail, entryIndex) => {
+        if (!detail || typeof detail !== "object") {
+          return;
+        }
+
+        const taskValue = getPersonalScheduleFieldValue(detail, "업무내용");
+        const taskLabel = getPersonalScheduleTaskLabel(taskValue);
+        const place = getPersonalScheduleFieldValue(detail, "장소");
+        const startTime = getPersonalScheduleFieldValue(detail, "시작시간");
+        const endTime =
+          getPersonalScheduleFieldValue(detail, "종료시간") || String(detail?.endTimeLabel || detail?.endLabel || "").trim();
+        const reportText =
+          typeof syncWindow?.buildPersonalTimelineReportText === "function"
+            ? String(syncWindow.buildPersonalTimelineReportText(normalizedName, detail, normalizedDateKey) || "").trim()
+            : "";
+        if (!taskLabel && !place && !startTime && !reportText) {
+          return;
+        }
+
+        const timeLabel = [startTime, endTime].filter(Boolean).join("~");
+        const period = [formatTimelineBlockPeriod(normalizedDateKey, normalizedDateKey), timeLabel].filter(Boolean).join(" ");
+        blocks.push({
+          id: `official-personal-${normalizedDateKey}-${normalizedName}-${entryIndex}`,
+          source: "official-personal",
+          name: normalizedName,
+          startDate: normalizedDateKey,
+          endDate: normalizedDateKey,
+          period,
+          place,
+          memo: reportText,
+          task: taskLabel,
+          title: [normalizedName, period, place, taskLabel, reportText].filter(Boolean).join("\n"),
+        });
+      });
     });
+  });
+
+  recordTlLockDiag("buildTimelineBlocksFromOfficialPersonalDetails", {
+    visibleStart: Array.from(visibleDateKeys)[0] || "",
+    visibleEnd: Array.from(visibleDateKeys)[visibleDateKeys.size - 1] || "",
+    deletedCount: deletedKeys.size,
+    generatedBlocks: blocks.length,
+  });
+  return blocks;
+}
+
+function buildTimelineBlocksFromOfficialSharedSchedules(dates = []) {
+  try {
+    const syncWindow = getScheduleBridgeSyncWindow();
+    const visibleDateKeys = new Set((Array.isArray(dates) ? dates : []).map((dateKey) => String(dateKey || "").slice(0, 10).trim()));
+    const blocks = [];
+    let raw = "";
+
+    try {
+      raw = String(syncWindow?.readPersonalTimelineSharedRaw?.() || "").trim();
+    } catch (_error) {
+      raw = "";
+    }
+    if (!raw) {
+      try {
+        raw = String(window.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) || "").trim();
+      } catch (_error) {
+        raw = "";
+      }
+    }
+
+    let rawState = {};
+    try {
+      rawState = raw ? JSON.parse(raw) || {} : {};
+    } catch (_error) {
+      rawState = {};
+    }
+
+    flattenSharedScheduleState(rawState).forEach((entry, entryIndex) => {
+      const normalizedDateKey = String(entry?.dateKey || "").slice(0, 10).trim();
+      if (!normalizedDateKey || (visibleDateKeys.size && !visibleDateKeys.has(normalizedDateKey))) {
+        return;
+      }
+
+      const text = String(entry?.text || "").trim();
+      if (!text) {
+        return;
+      }
+      const period = formatTimelineBlockPeriod(normalizedDateKey, normalizedDateKey);
+      blocks.push({
+        id: `official-shared-${normalizedDateKey}-${entry?.id || entryIndex}`,
+        source: "official-shared",
+        name: WC26_TIMELINE_SHARED_ROW_NAME,
+        startDate: normalizedDateKey,
+        endDate: normalizedDateKey,
+        period,
+        place: "",
+        memo: text,
+        task: "공용일정",
+        title: [WC26_TIMELINE_SHARED_ROW_NAME, period, "공용일정", text].filter(Boolean).join("\n"),
+      });
+    });
+
+    recordTlLockDiag("buildTimelineBlocksFromOfficialSharedSchedules", {
+      visibleStart: Array.from(visibleDateKeys)[0] || "",
+      visibleEnd: Array.from(visibleDateKeys)[visibleDateKeys.size - 1] || "",
+      generatedBlocks: blocks.length,
+    });
+    return blocks;
+  } catch (_error) {
+    recordTlLockDiag("buildTimelineBlocksFromOfficialSharedSchedules:error", {
+      message: String(_error?.message || _error || ""),
+    });
+    return [];
+  }
+}
+
+function buildTimelineGanttRowsFromOfficialState(dates = []) {
+  const rows = new Map(WC26_TIMELINE_RENDER_ROW_ORDER.map((name) => [name, []]));
+  let personalBlocks = [];
+  let sharedBlocks = [];
+  try {
+    personalBlocks = buildTimelineBlocksFromOfficialPersonalDetails(dates);
+  } catch (_error) {
+    recordTlLockDiag("buildTimelineGanttRowsFromOfficialState:personal-error", {
+      message: String(_error?.message || _error || ""),
+    });
+  }
+  try {
+    sharedBlocks = buildTimelineBlocksFromOfficialSharedSchedules(dates);
+  } catch (_error) {
+    recordTlLockDiag("buildTimelineGanttRowsFromOfficialState:shared-error", {
+      message: String(_error?.message || _error || ""),
+    });
+  }
+  [...personalBlocks, ...sharedBlocks].forEach((block) => {
+    const normalizedName = String(block?.name || "").trim();
+    if (!normalizedName || !rows.has(normalizedName)) {
+      return;
+    }
+    rows.get(normalizedName).push(block);
+  });
+  const generatedRowCount = Array.from(rows.values()).filter((blocks) => Array.isArray(blocks) && blocks.length).length;
+  recordTlLockDiag("buildTimelineGanttRowsFromOfficialState", {
+    visibleStart: Array.isArray(dates) && dates.length ? dates[0] : "",
+    visibleEnd: Array.isArray(dates) && dates.length ? dates[dates.length - 1] : "",
+    personalBlocks: personalBlocks.length,
+    sharedBlocks: sharedBlocks.length,
+    generatedRows: generatedRowCount,
+    generatedBlocks: personalBlocks.length + sharedBlocks.length,
   });
   return rows;
 }
 
+function buildTimelineBlocksByName(dates = [], summary = {}) {
+  return buildTimelineGanttRowsFromOfficialState(dates);
+}
+
 function buildTimelineGanttRenderKey(summary = {}) {
+  const visibleDates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), WC26_TIMELINE_GANTT_DAY_COUNT);
+  const officialRows = Array.from(buildTimelineGanttRowsFromOfficialState(visibleDates).entries());
   return JSON.stringify({
-    summary,
-    blocks: loadTimelineBlocks(),
-    visibleDates: getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), WC26_TIMELINE_GANTT_DAY_COUNT),
+    officialRows: officialRows.map(([name, blocks]) => [
+      name,
+      (Array.isArray(blocks) ? blocks : []).map((block) => [block.id, block.startDate, block.endDate, block.place, block.memo, block.title]),
+    ]),
+    visibleDates,
   });
 }
 
 function renderTimelineGanttHost(host, dates = [], rows = []) {
   if (!host?.grid || !host.scroller || !host.empty) {
+    recordTlLockDiag("renderTimelineGanttHost:missing-host", {
+      hostKey: host?.key || "",
+      hasGrid: Boolean(host?.grid),
+      hasScroller: Boolean(host?.scroller),
+      hasEmpty: Boolean(host?.empty),
+    });
     return;
   }
+  recordTlLockDiag("renderTimelineGanttHost:enter", {
+    hostKey: host.key,
+    rowCount: Array.isArray(rows) ? rows.length : 0,
+    blockCount: (Array.isArray(rows) ? rows : []).reduce(
+      (count, row) => count + (Array.isArray(row?.blocks) ? row.blocks.length : 0),
+      0,
+    ),
+    visibleStart: Array.isArray(dates) && dates.length ? dates[0] : "",
+    visibleEnd: Array.isArray(dates) && dates.length ? dates[dates.length - 1] : "",
+  });
   host.empty.hidden = true;
   host.scroller.hidden = false;
   const dateMemoMap = getTimelineDateMemoMap(dates);
@@ -3949,6 +4208,7 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
     dateMemos: Array.from(dateMemoMap.values()).map((entry) => [entry.dateKey, entry.memo, entry.updatedAt]),
   });
   if (host.grid.dataset.renderKey === renderKey) {
+    recordTlLockDiag("renderTimelineGanttHost:renderKey-skip", { hostKey: host.key });
     return;
   }
   host.grid.dataset.renderKey = renderKey;
@@ -4036,13 +4296,23 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
   dateArea.append(dateHeader, dateBody);
   layout.append(namesColumn, dateArea);
   host.grid.replaceChildren(layout);
+  recordTlLockDiag("renderTimelineGanttHost:complete", {
+    hostKey: host.key,
+    childCount: host.grid.children.length,
+    emptyHidden: host.empty.hidden,
+    scrollerHidden: host.scroller.hidden,
+  });
 }
 
 function renderTimelineGantt(summary = {}) {
+  recordTlLockDiag("renderTimelineGantt:enter", {
+    hostCount: getTimelineGanttHosts().length,
+    visibleReference: getTimelineReferenceDateKey(),
+  });
   getTimelineGanttHosts().forEach((host) => {
     const dates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), getTimelineHostDayCount(host));
     const blocksByName = buildTimelineBlocksByName(dates, summary);
-    const rows = WC26_TIMELINE_MEMBER_ORDER.map((name) => ({
+    const rows = WC26_TIMELINE_RENDER_ROW_ORDER.map((name) => ({
       name,
       blocks: (blocksByName.get(name) || []).sort((a, b) => {
         if (a.startDate !== b.startDate) {
@@ -4051,11 +4321,24 @@ function renderTimelineGantt(summary = {}) {
         return String(a.endDate).localeCompare(String(b.endDate));
       }),
     }));
+    recordTlLockDiag("renderTimelineGantt:before-host", {
+      hostKey: host.key,
+      visibleStart: dates[0] || "",
+      visibleEnd: dates[dates.length - 1] || "",
+      generatedRows: rows.length,
+      generatedBlocks: rows.reduce((count, row) => count + row.blocks.length, 0),
+      hasGrid: Boolean(host.grid),
+    });
     renderTimelineGanttHost(host, dates, rows);
   });
+  recordTlLockDiag("renderTimelineGantt:complete");
 }
 
 function refreshTimelineGanttFromLegacy(options = {}) {
+  recordTlLockDiag("refreshTimelineGanttFromLegacy:enter", {
+    force: Boolean(options?.force),
+    section: scheduleBridgeSection,
+  });
   const force = Boolean(options?.force);
   const syncWindow = getScheduleBridgeSyncWindow();
   const getter = syncWindow?.getWC26LegacyTimelineGanttSummary;
@@ -4064,31 +4347,59 @@ function refreshTimelineGanttFromLegacy(options = {}) {
     try {
       summary = getter.call(syncWindow) || {};
     } catch (_error) {
+      recordTlLockDiag("refreshTimelineGanttFromLegacy:summary-error", {
+        message: String(_error?.message || _error || ""),
+      });
       summary = {};
     }
   }
+  const hosts = getTimelineGanttHosts();
+  const visibleDates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), WC26_TIMELINE_GANTT_DAY_COUNT);
+  const officialRows = Array.from(buildTimelineGanttRowsFromOfficialState(visibleDates).entries());
   const rangeKey = JSON.stringify({
     referenceDate: getTimelineReferenceDateKey(),
     visibleDays: WC26_TIMELINE_GANTT_DAY_COUNT,
-    blocks: loadTimelineBlocks().map((block) => [
-      block.id,
-      block.name,
-      block.startDate,
-      block.endDate,
-      block.place,
-      block.memo,
-      block.updatedAt,
+    officialRows: officialRows.map(([name, blocks]) => [
+      name,
+      (Array.isArray(blocks) ? blocks : []).map((block) => [block.id, block.startDate, block.endDate, block.place, block.memo, block.title]),
     ]),
     dates: Array.isArray(summary?.dates) ? summary.dates : [],
     rows: Array.isArray(summary?.rows)
       ? summary.rows.map((row) => [row?.id, row?.label, Array.isArray(row?.items) ? row.items.length : 0])
       : [],
   });
-  if (!force && rangeKey && bridgeLoadState.timelineRangeKey === rangeKey) {
+  const allHostsRendered =
+    hosts.length > 0 && hosts.every((host) => String(host?.grid?.dataset?.renderKey || "").trim().length > 0);
+  recordTlLockDiag("refreshTimelineGanttFromLegacy:before-skip-check", {
+    force,
+    hostCount: hosts.length,
+    allHostsRendered,
+    visibleStart: visibleDates[0] || "",
+    visibleEnd: visibleDates[visibleDates.length - 1] || "",
+    officialRows: officialRows.length,
+  });
+  if (!force && rangeKey && bridgeLoadState.timelineRangeKey === rangeKey && allHostsRendered) {
+    recordTlLockDiag("refreshTimelineGanttFromLegacy:skip", { reason: "rangeKey-match" });
     return;
   }
   bridgeLoadState.timelineRangeKey = rangeKey;
-  renderTimelineGantt(summary);
+  try {
+    renderTimelineGantt(summary);
+    recordTlLockDiag("refreshTimelineGanttFromLegacy:complete");
+  } catch (_error) {
+    recordTlLockDiag("refreshTimelineGanttFromLegacy:error", {
+      message: String(_error?.message || _error || ""),
+    });
+    hosts.forEach((host) => {
+      if (host?.empty) {
+        host.empty.hidden = false;
+        host.empty.textContent = "일정현황 데이터를 불러오지 못했습니다.";
+      }
+      if (host?.scroller) {
+        host.scroller.hidden = true;
+      }
+    });
+  }
 }
 
 function syncScheduleTimelineShellVisibility() {
@@ -14063,33 +14374,13 @@ function getSharedScheduleSemanticKey(entry = {}, dateKey = "") {
 }
 
 function readSharedScheduleDeletedKeys() {
-  const storage = getSharedScheduleSnapshotStorage();
-  if (!storage) {
-    return new Set();
-  }
-
-  try {
-    const parsed = JSON.parse(String(storage.getItem(WC26_SHARED_SCHEDULE_DELETED_KEYS) || "[]"));
-    return new Set(Array.isArray(parsed) ? parsed.map((key) => String(key || "").trim()).filter(Boolean) : []);
-  } catch (_error) {
-    return new Set();
-  }
+  // Deprecated tombstone cache must not participate in official shared schedule filtering.
+  return new Set();
 }
 
 function writeSharedScheduleDeletedKeys(deletedKeys) {
-  const storage = getSharedScheduleSnapshotStorage();
-  if (!storage) {
-    return false;
-  }
-
-  try {
-    const raw = JSON.stringify(Array.from(deletedKeys || []).filter(Boolean));
-    storage.setItem(WC26_SHARED_SCHEDULE_DELETED_KEYS, raw);
-    scheduleNewSuitSharedStateWrite(WC26_SHARED_SCHEDULE_DELETED_KEYS, raw);
-    return true;
-  } catch (_error) {
-    return false;
-  }
+  void deletedKeys;
+  return false;
 }
 
 function getSharedScheduleDeleteKeys(entry = {}, dateKey = "") {
@@ -14103,17 +14394,13 @@ function getSharedScheduleDeleteKeys(entry = {}, dateKey = "") {
 }
 
 function isSharedScheduleEntryDeleted(entry = {}, dateKey = "") {
-  const deletedKeys = readSharedScheduleDeletedKeys();
-  return getSharedScheduleDeleteKeys(entry, dateKey).some((key) => deletedKeys.has(key));
+  void dateKey;
+  return Boolean(entry?.deleted);
 }
 
 function rememberSharedScheduleDeletedEntries(entries = []) {
-  const deletedKeys = readSharedScheduleDeletedKeys();
-  (Array.isArray(entries) ? entries : []).forEach((entry) => {
-    getSharedScheduleDeleteKeys(entry, entry?.dateKey).forEach((key) => deletedKeys.add(key));
-  });
-  writeSharedScheduleDeletedKeys(deletedKeys);
-  return deletedKeys.size;
+  void entries;
+  return 0;
 }
 
 function filterDeletedSharedScheduleEntries(entries = []) {
@@ -14230,6 +14517,112 @@ function flattenSharedScheduleState(state = {}) {
     });
   });
   return entries;
+}
+
+function readOfficialSharedScheduleState(syncWindow = null) {
+  const sources = [];
+  if (typeof syncWindow?.readPersonalTimelineSharedRaw === "function") {
+    try {
+      sources.push(String(syncWindow.readPersonalTimelineSharedRaw() || "").trim());
+    } catch (_error) {
+      // Ignore bridge read errors and continue with stable fallbacks below.
+    }
+  }
+  sources.push(
+    String(window.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) || "").trim(),
+    String(syncWindow?.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) || "").trim(),
+  );
+  for (const raw of sources) {
+    if (!raw) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    } catch (_error) {
+      // Keep searching until we find a readable official payload.
+    }
+  }
+  return {};
+}
+
+function getOfficialSharedScheduleEntries(syncWindow = null) {
+  return flattenSharedScheduleState(readOfficialSharedScheduleState(syncWindow));
+}
+
+function matchesSharedScheduleText(entry = {}, text = "") {
+  return (
+    String(entry?.text || "")
+      .replace(/\s+/g, " ")
+      .trim() ===
+    String(text || "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+async function waitForOfficialSharedScheduleEntry(syncWindow, { dateKey = "", text = "", delays = [180, 360, 720, 1200, 2000] } = {}) {
+  const normalizedDateKey = String(dateKey || "").trim();
+  const normalizedText = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const readEntry = () =>
+    getOfficialSharedScheduleEntries(syncWindow).find((entry) => {
+      if (normalizedDateKey && String(entry?.dateKey || "").trim() !== normalizedDateKey) {
+        return false;
+      }
+      if (normalizedText && !matchesSharedScheduleText(entry, normalizedText)) {
+        return false;
+      }
+      return true;
+    }) || null;
+
+  let foundEntry = readEntry();
+  if (foundEntry) {
+    return foundEntry;
+  }
+  for (const delay of delays) {
+    await new Promise((resolve) => window.setTimeout(resolve, delay));
+    foundEntry = readEntry();
+    if (foundEntry) {
+      return foundEntry;
+    }
+  }
+  return null;
+}
+
+async function waitForOfficialSharedScheduleRemoval(syncWindow, entries = [], delays = [180, 360, 720, 1200, 2000]) {
+  const signatures = (Array.isArray(entries) ? entries : [])
+    .map((entry) => ({
+      dateKey: String(entry?.dateKey || "").trim(),
+      id: String(entry?.id || "").trim(),
+      semantic: getSharedScheduleSemanticKey(entry, entry?.dateKey),
+    }))
+    .filter((entry) => entry.dateKey && (entry.id || entry.semantic));
+  const hasAnyEntry = () =>
+    getOfficialSharedScheduleEntries(syncWindow).some((entry) =>
+      signatures.some((signature) => {
+        if (String(entry?.dateKey || "").trim() !== signature.dateKey) {
+          return false;
+        }
+        if (signature.id && String(entry?.id || "").trim() === signature.id) {
+          return true;
+        }
+        return Boolean(signature.semantic) && getSharedScheduleSemanticKey(entry, entry?.dateKey) === signature.semantic;
+      }),
+    );
+  if (!hasAnyEntry()) {
+    return true;
+  }
+  for (const delay of delays) {
+    await new Promise((resolve) => window.setTimeout(resolve, delay));
+    if (!hasAnyEntry()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function groupSharedScheduleEntries(entries = []) {
@@ -14570,24 +14963,13 @@ function readSharedScheduleGroups() {
     return mergeSharedScheduleOptimisticGroups(readSharedScheduleFallbackGroups());
   }
 
-  const hasSharedReader =
-    typeof syncWindow.readPersonalTimelineSharedRaw === "function" ||
-    typeof syncWindow.getPersonalTimelineSharedEntries === "function";
-  if (!hasSharedReader) {
+  if (typeof syncWindow.readPersonalTimelineSharedRaw !== "function") {
     return mergeSharedScheduleOptimisticGroups(readSharedScheduleFallbackGroups());
   }
 
-  let rawState = {};
+  const rawState = readOfficialSharedScheduleState(syncWindow);
   let timelineAssignmentsState = {};
-  let raw = "";
-
-  try {
-    raw = String(syncWindow.readPersonalTimelineSharedRaw?.() || "").trim();
-    rawState = raw ? JSON.parse(raw) || {} : {};
-  } catch (_error) {
-    raw = "";
-    rawState = {};
-  }
+  const raw = JSON.stringify(rawState);
 
   try {
     const rawAssignments = String(syncWindow.readTimelineAssignmentsRaw?.() || "").trim();
@@ -14607,18 +14989,6 @@ function readSharedScheduleGroups() {
     });
   }
 
-  try {
-    const selectedDateKey = String(syncWindow.getWC26LegacyScheduleSummary?.()?.selectedDate || "").trim();
-    if (selectedDateKey && typeof syncWindow.getPersonalTimelineSharedEntries === "function") {
-      const selectedEntries = syncWindow.getPersonalTimelineSharedEntries(selectedDateKey) || [];
-      if (Array.isArray(selectedEntries) && selectedEntries.length) {
-        dateKeys.add(selectedDateKey);
-      }
-    }
-  } catch (_error) {
-    // Best-effort only: keep available local/shared fallbacks if the direct summary lookup fails.
-  }
-
   const rawEntries = flattenSharedScheduleState(rawState);
   const fallbackGroups = readSharedScheduleFallbackGroups();
   const fallbackEntries = flattenSharedScheduleGroups(fallbackGroups);
@@ -14636,14 +15006,11 @@ function readSharedScheduleGroups() {
 
   if (rawEntries.length !== rawDedupedEntries.length) {
     const backupKey = backupSharedScheduleRawIfNeeded(syncWindow, raw);
-    const localStorageDedupeApplied = persistSharedScheduleLocalDedupe(syncWindow, rawDedupedEntries);
-    if (localStorageDedupeApplied) {
-      effectiveRawState = buildSharedScheduleStateFromEntries(rawDedupedEntries);
-    }
+    effectiveRawState = buildSharedScheduleStateFromEntries(rawDedupedEntries);
     sharedScheduleLastDiagnostics = {
       ...(sharedScheduleLastDiagnostics || {}),
       backupKey,
-      localStorageDedupeApplied,
+      localStorageDedupeApplied: false,
     };
   } else {
     const backupKey = backupSharedScheduleRawIfNeeded(syncWindow, raw);
@@ -14657,19 +15024,9 @@ function readSharedScheduleGroups() {
   Array.from(dateKeys)
     .sort((left, right) => String(right).localeCompare(String(left)))
     .forEach((dateKey) => {
-      let dateEntries = Array.isArray(effectiveRawState[dateKey]) ? effectiveRawState[dateKey] : [effectiveRawState[dateKey]].filter(Boolean);
-
-      if (effectiveRawState === rawState) {
-        try {
-        if (typeof syncWindow.getPersonalTimelineSharedEntries === "function") {
-          dateEntries = syncWindow.getPersonalTimelineSharedEntries(dateKey) || [];
-        } else {
-          dateEntries = Array.isArray(effectiveRawState[dateKey]) ? effectiveRawState[dateKey] : [effectiveRawState[dateKey]];
-        }
-        } catch (_error) {
-          dateEntries = Array.isArray(effectiveRawState[dateKey]) ? effectiveRawState[dateKey] : [effectiveRawState[dateKey]];
-        }
-      }
+      const dateEntries = Array.isArray(effectiveRawState[dateKey])
+        ? effectiveRawState[dateKey]
+        : [effectiveRawState[dateKey]].filter(Boolean);
 
       const normalizedEntries = Array.isArray(dateEntries)
         ? dateEntries
@@ -14681,7 +15038,10 @@ function readSharedScheduleGroups() {
     });
 
   const dedupedEntries = dedupeSharedScheduleEntries(entries);
-  const mergedRecoveryEntries = mergeSharedScheduleRecoveryEntries([...dedupedEntries, ...fallbackEntries]);
+  const mergedRecoveryEntries =
+    rawEntries.length || hasAssignmentDates
+      ? dedupedEntries
+      : mergeSharedScheduleRecoveryEntries([...dedupedEntries, ...fallbackEntries]);
   const recoveryExpandedCount = Math.max(0, mergedRecoveryEntries.length - dedupedEntries.length);
   if (!dedupedEntries.length && fallbackGroups.length) {
     sharedScheduleLastDiagnostics = {
@@ -14691,24 +15051,13 @@ function readSharedScheduleGroups() {
     return mergeSharedScheduleOptimisticGroups(fallbackGroups);
   }
 
-  const localEntryCountAfterMerge = countSharedScheduleLocalEntries(syncWindow);
-  if (entries.length !== mergedRecoveryEntries.length || localEntryCountAfterMerge !== mergedRecoveryEntries.length) {
-    const backupKey = sharedScheduleLastDiagnostics?.backupKey || backupSharedScheduleRawIfNeeded(syncWindow, raw);
-    const localStorageDedupeApplied = persistSharedScheduleLocalDedupe(syncWindow, mergedRecoveryEntries);
-    sharedScheduleLastDiagnostics = {
-      ...(sharedScheduleLastDiagnostics || {}),
-      backupKey,
-      localStorageDedupeApplied,
-    };
-  }
-  const recoveryPersisted = persistSharedScheduleRecoveryIfExpanded(syncWindow, mergedRecoveryEntries, Math.max(dedupedEntries.length, localEntryCountAfterMerge));
   const diagnostics = collectSharedScheduleDiagnostics(syncWindow, rawState, raw, timelineAssignmentsState, entries, mergedRecoveryEntries);
   sharedScheduleLastDiagnostics = {
     ...diagnostics,
     backupKey: sharedScheduleLastDiagnostics?.backupKey || diagnostics.backupKey || "",
-    localStorageDedupeApplied: Boolean(sharedScheduleLastDiagnostics?.localStorageDedupeApplied),
+    localStorageDedupeApplied: false,
     recoveryAppliedCount: recoveryExpandedCount,
-    recoveryPersisted,
+    recoveryPersisted: false,
   };
 
   const groups = groupSharedScheduleEntries(mergedRecoveryEntries);
@@ -15158,6 +15507,22 @@ async function handleSharedScheduleSave() {
         })),
       },
     });
+    if (typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+      await syncWindow.flushPendingSharedStateWritesWithRetry({
+        retries: 3,
+        delayMs: 550,
+        throwOnError: true,
+        context: {
+          feature: "shared-schedule-save-verify",
+          dateKey,
+          textFirstLine: text.split(/\r?\n/, 1)[0] || "",
+        },
+      });
+    }
+    const persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
+    if (!persistedEntry) {
+      throw new Error("shared schedule save did not persist official shared entry");
+    }
     removeSharedScheduleOptimisticEntry(optimisticEntry.id);
     clearSharedScheduleComposer();
     setSharedScheduleComposerOpen(false);
@@ -15165,6 +15530,7 @@ async function handleSharedScheduleSave() {
     sharedScheduleDeleteSelection.clear();
     renderSharedScheduleList();
     requestScheduleBridgeSummary();
+    refreshTimelineGanttFromLegacy({ force: true });
     showToast("공용일정을 저장했습니다.");
   } catch (error) {
     removeSharedScheduleOptimisticEntry(optimisticEntry.id);
@@ -15257,6 +15623,18 @@ async function handleSharedScheduleDeleteConfirm() {
   const remainingGroups = groupSharedScheduleEntries(dedupedRemainingEntries);
   persistSharedScheduleSnapshotFromGroups(remainingGroups);
   persistSharedScheduleLocalDedupe(syncWindow || window, dedupedRemainingEntries);
+  if (typeof syncWindow?.flushPendingSharedStateWritesWithRetry === "function") {
+    await syncWindow.flushPendingSharedStateWritesWithRetry({
+      retries: 3,
+      delayMs: 550,
+      throwOnError: true,
+      context: {
+        feature: "shared-schedule-delete-verify",
+        deletedCount: targets.length,
+      },
+    });
+  }
+  await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
 
   sharedScheduleLastDiagnostics = {
     ...(sharedScheduleLastDiagnostics || {}),
@@ -15267,6 +15645,7 @@ async function handleSharedScheduleDeleteConfirm() {
   sharedScheduleDeleteMode = false;
   renderSharedScheduleList();
   requestScheduleBridgeSummary();
+  refreshTimelineGanttFromLegacy({ force: true });
   showToast(targets.length === 1 ? "공용일정을 삭제했습니다." : "선택한 공용일정을 삭제했습니다.");
 }
 
@@ -16422,6 +16801,86 @@ async function handlePersonalScheduleSave() {
   return false;
 }
 
+function createLegacyPersonalScheduleRow(syncWindow, values = {}) {
+  const row = syncWindow.document.createElement("div");
+  row.className = "personal-timeline-person-row";
+  row.dataset.personName = values.name || "";
+
+  const button = syncWindow.document.createElement("button");
+  button.type = "button";
+  button.className = "personal-timeline-save-btn";
+  button.dataset.dateKey = values.dateKey;
+  button.dataset.person = values.name;
+  row.appendChild(button);
+
+  Object.entries(values)
+    .filter(([field]) => field && !["dateKey", "name"].includes(field))
+    .forEach(([field, fieldValue]) => {
+      const select = syncWindow.document.createElement("select");
+      select.className = "personal-timeline-detail-select";
+      select.dataset.dateKey = values.dateKey;
+      select.dataset.person = values.name;
+      select.dataset.field = field;
+
+      const option = syncWindow.document.createElement("option");
+      option.value = fieldValue || "";
+      option.textContent = fieldValue || "";
+      select.appendChild(option);
+      select.value = fieldValue || "";
+      row.appendChild(select);
+    });
+
+  return row;
+}
+
+async function waitForLegacyPersonalTimelineEntries(syncWindow, dateKey = "", name = "") {
+  const readEntries = () =>
+    typeof syncWindow?.getPersonalTimelineDetailEntries === "function"
+      ? syncWindow.getPersonalTimelineDetailEntries(dateKey, name)
+      : [];
+
+  const delays = [0, 300, 700, 1200, 2000];
+  let lastEntries = [];
+  for (const delayMs of delays) {
+    if (delayMs > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+    }
+    const entries = readEntries();
+    if (Array.isArray(entries) && entries.length) {
+      return entries;
+    }
+    lastEntries = Array.isArray(entries) ? entries : [];
+  }
+  return lastEntries;
+}
+
+async function recoverLegacyPersonalTimelineEntries(syncWindow, values = {}) {
+  const dateKey = String(values?.dateKey || "").trim();
+  const name = String(values?.name || "").trim();
+  if (!dateKey || !name || typeof syncWindow?.savePersonalTimelineDetailSelectionBatch !== "function") {
+    return [];
+  }
+
+  try {
+    syncWindow.savePersonalTimelineDetailSelectionBatch(dateKey, name, values);
+    if (typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+      await syncWindow.flushPendingSharedStateWritesWithRetry({
+        retries: 3,
+        delayMs: 700,
+        throwOnError: true,
+        context: { feature: "personal-schedule-save-recover", dateKey, name },
+      });
+    }
+    if (typeof syncWindow.reloadPersonalTimelineDetailSelectionsFromStorage === "function") {
+      syncWindow.reloadPersonalTimelineDetailSelectionsFromStorage();
+    }
+  } catch (error) {
+    console.warn("[personal-schedule] legacy detail recovery failed", error);
+  }
+
+  return waitForLegacyPersonalTimelineEntries(syncWindow, dateKey, name);
+}
+
 async function handlePersonalScheduleRowSave(row) {
   if (personalScheduleIsSaving) {
     return;
@@ -16470,9 +16929,10 @@ async function handlePersonalScheduleRowSave(row) {
         context: {feature: "personal-schedule-save", dateKey, name},
       });
     }
-    const savedEntries = typeof syncWindow.getPersonalTimelineDetailEntries === "function"
-      ? syncWindow.getPersonalTimelineDetailEntries(dateKey, name)
-      : [];
+    let savedEntries = await waitForLegacyPersonalTimelineEntries(syncWindow, dateKey, name);
+    if (!Array.isArray(savedEntries) || !savedEntries.length) {
+      savedEntries = await recoverLegacyPersonalTimelineEntries(syncWindow, values);
+    }
     console.info("[personal-schedule] personal save legacy result", {
       saveResult,
       savedEntryCount: Array.isArray(savedEntries) ? savedEntries.length : 0,
