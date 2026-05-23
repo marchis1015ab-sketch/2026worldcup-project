@@ -5503,7 +5503,7 @@ function syncMobileSectionViewportState() {
   syncMobileSectionUi(targetId, { skipHistory: true });
 }
 
-function focusSection(targetId, sectionId) {
+function focusSection(targetId, sectionId, options = {}) {
   const selector = WC26_VIEW_MAP[targetId];
   const view = selector ? document.querySelector(selector) : null;
 
@@ -5529,7 +5529,7 @@ function focusSection(targetId, sectionId) {
   }
 
   if (targetId === "schedule") {
-    setScheduleBridgeSection(sectionId);
+    setScheduleBridgeSection(sectionId, options);
   }
 
   if (targetId === "field-ops") {
@@ -5537,7 +5537,7 @@ function focusSection(targetId, sectionId) {
   }
 
   if (targetId === "archive") {
-    setArchiveBridgeSection(sectionId);
+    setArchiveBridgeSection(sectionId, options);
   }
 
   if (targetId === "broadcast-news") {
@@ -7142,9 +7142,10 @@ function postStorageBridgeNavigation(sectionId = "document-storage") {
   );
 }
 
-function setArchiveBridgeSection(sectionId = "document-storage") {
+function setArchiveBridgeSection(sectionId = "document-storage", options = {}) {
   const previousSection = storageBridgeSection;
   storageBridgeSection = normalizeStorageBridgeSection(sectionId);
+  const passiveOpen = options?.passive === true;
   if (previousSection === "gallery" && storageBridgeSection !== "gallery") {
     closeArchiveSuitGalleryModal();
   }
@@ -7169,6 +7170,10 @@ function setArchiveBridgeSection(sectionId = "document-storage") {
       renderArchiveSuitPanels();
     });
   } else if (shouldRefreshLegacyStorage) {
+    if (passiveOpen) {
+      renderArchiveSuitPanels();
+      return;
+    }
     refreshArchiveSuitLegacyStorageData().then(() => {
       if (storageBridgeSection !== normalizeStorageBridgeSection(sectionId)) {
         return;
@@ -17361,11 +17366,16 @@ async function handlePersonalScheduleRowSave(row) {
   }
 }
 
-function setScheduleBridgeSection(sectionId = "all") {
+function setScheduleBridgeSection(sectionId = "all", options = {}) {
   scheduleBridgeSection = normalizeScheduleBridgeSection(sectionId);
   setScheduleBridgeButtonState(scheduleBridgeSection);
   syncScheduleTimelineShellVisibility();
+  const passiveOpen = options?.passive === true;
   if (scheduleBridgeSection === "all") {
+    if (passiveOpen) {
+      queueScheduleLegacyHudSkin();
+      return;
+    }
     ensureScheduleSummaryBridgeLoaded();
     return;
   }
@@ -18774,6 +18784,9 @@ function closePersonalEquipmentDetail() {
 function activateDirect(button) {
   const targetId = button ? button.dataset.target : "";
   const sectionId = button ? button.dataset.section || "main" : "";
+  const passiveOpen =
+    (targetId === "schedule" && normalizeScheduleBridgeSection(sectionId) === "all") ||
+    (targetId === "archive" && normalizeStorageBridgeSection(sectionId) === "document-storage");
 
   if (!setView(targetId)) {
     return;
@@ -18781,7 +18794,7 @@ function activateDirect(button) {
 
   closeAllGroups();
   clearNavActive();
-  focusSection(targetId, sectionId);
+  focusSection(targetId, sectionId, passiveOpen ? { passive: true } : undefined);
   highlightTargets(WC26_MENU_GROUPS[targetId]?.targetSelectors || []);
   showToast(`${getButtonLabel(button)} view로 이동했습니다.`);
 }
