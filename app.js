@@ -1198,6 +1198,7 @@ const ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY = "worldcup-guide-gallery-manual-gr
 const ARCHIVE_SUIT_LEGACY_GALLERY_KEYS = ["galleryData", "galleryItems", "worldcup-gallery-items-v1", "worldcup_timeline_gallery_v1"];
 const ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS = Object.freeze(["galleryData"]);
 const ARCHIVE_SUIT_GALLERY_SHARED_STATE_TIMEOUT_MS = 4500;
+const ARCHIVE_SUIT_GALLERY_SHARED_STATE_COOLDOWN_MS = 30000;
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY = "worldcup-guide-gallery-deleted-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_WINDOW_KEY = "__worldcupGuideTimelineGallery__";
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_WINDOW_KEY = "__worldcupGuideTimelineGalleryDeleted__";
@@ -1600,6 +1601,7 @@ let archiveSuitLegacyIndexedDbReady = false;
 let archiveSuitLegacyIndexedDbPromise = null;
 let archiveSuitLegacyGallerySharedStateReady = false;
 let archiveSuitLegacyGallerySharedStatePromise = null;
+let archiveSuitLegacyGallerySharedStateFetchedAt = 0;
 const archiveSuitLegacyGallerySharedStateRawByKey = new Map();
 let mediaBridgeReady = false;
 let mediaBridgeSection = "broadcast-schedule";
@@ -5694,11 +5696,19 @@ function readArchiveSuitWindowPayload() {
 
 async function hydrateArchiveSuitLegacyGallerySharedState(options = {}) {
   const force = Boolean(options?.force);
+  if (archiveSuitLegacyGallerySharedStatePromise) {
+    return archiveSuitLegacyGallerySharedStatePromise;
+  }
+  if (archiveSuitLegacyGallerySharedStateReady) {
+    const isCooldownActive =
+      archiveSuitLegacyGallerySharedStateFetchedAt > 0 &&
+      Date.now() - archiveSuitLegacyGallerySharedStateFetchedAt < ARCHIVE_SUIT_GALLERY_SHARED_STATE_COOLDOWN_MS;
+    if (!force || isCooldownActive) {
+      return archiveSuitLegacyGallerySharedStateRawByKey;
+    }
+  }
   if (!force && archiveSuitLegacyGallerySharedStateReady) {
     return archiveSuitLegacyGallerySharedStateRawByKey;
-  }
-  if (!force && archiveSuitLegacyGallerySharedStatePromise) {
-    return archiveSuitLegacyGallerySharedStatePromise;
   }
   const timeoutValue = "__archive_gallery_shared_state_timeout__";
   const sharedStateFetch = Promise.resolve(fetchNewSuitSharedStateRows(ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS));
@@ -5716,6 +5726,7 @@ async function hydrateArchiveSuitLegacyGallerySharedState(options = {}) {
         archiveSuitLegacyGallerySharedStateRawByKey.set("galleryData", raw);
       }
       archiveSuitLegacyGallerySharedStateReady = true;
+      archiveSuitLegacyGallerySharedStateFetchedAt = Date.now();
       return archiveSuitLegacyGallerySharedStateRawByKey;
     })
     .catch((error) => {
