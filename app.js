@@ -1246,6 +1246,184 @@ const bridgeLoadState = {
   timelineRangeKey: "",
 };
 
+const WC26_READ_THROTTLE_MS = Object.freeze({
+  newSuitSharedState: 45000,
+  scheduleLocalState: 45000,
+  archiveLegacyStorage: 60000,
+  storageBridgeSummary: 60000,
+});
+
+const WC26_READ_CIRCUIT_BREAKER_MS = 120000;
+
+const wc26ReadSingleFlightState = {
+  newSuitSharedState: new Map(),
+  scheduleLocalState: new Map(),
+  archiveLegacyStorage: new Map(),
+  storageBridgeSummary: new Map(),
+};
+
+const wc26ReadCircuitState = new Map();
+
+function runReadSingleFlight(cache, cacheKey, executor, options = {}) {
+  const key = String(cacheKey || "").trim();
+  if (!cache || !key || typeof executor !== "function") {
+    return Promise.resolve().then(() => executor?.());
+  }
+  const ttlMs = Number(options?.ttlMs) || 0;
+  const force = options?.force === true;
+  const now = Date.now();
+  const current = cache.get(key);
+  if (!force && current?.promise) {
+    return current.promise;
+  }
+  if (!force && ttlMs > 0 && current && now - Number(current.completedAt || 0) < ttlMs) {
+    return Promise.resolve(current.value);
+  }
+  const promise = Promise.resolve()
+    .then(() => executor())
+    .then((value) => {
+      cache.set(key, {
+        value,
+        completedAt: Date.now(),
+      });
+      return value;
+    })
+    .catch((error) => {
+      const latest = cache.get(key);
+      if (latest?.promise === promise) {
+        if (latest?.completedAt) {
+          cache.set(key, {
+            value: latest.value,
+            completedAt: latest.completedAt,
+          });
+        } else {
+          cache.delete(key);
+        }
+      }
+      throw error;
+    });
+  cache.set(key, {
+    value: current?.value,
+    completedAt: Number(current?.completedAt || 0),
+    promise,
+  });
+  return promise;
+}
+
+function isElementVisibleForRead(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+  if (element.hidden || element.closest("[hidden]")) {
+    return false;
+  }
+  return true;
+}
+
+function getReadCircuitSnapshot(channel = "") {
+  const key = String(channel || "").trim();
+  if (!key) {
+    return null;
+  }
+  const current = wc26ReadCircuitState.get(key);
+  if (!current) {
+    return null;
+  }
+  if (Number(current.until || 0) <= Date.now()) {
+    wc26ReadCircuitState.delete(key);
+    return null;
+  }
+  return current;
+}
+
+function isReadCircuitOpen(channel = "") {
+  return Boolean(getReadCircuitSnapshot(channel));
+}
+
+function tripReadCircuit(channel = "", error = null) {
+  const key = String(channel || "").trim();
+  if (!key) {
+    return;
+  }
+  wc26ReadCircuitState.set(key, {
+    until: Date.now() + WC26_READ_CIRCUIT_BREAKER_MS,
+    message: String(error?.message || error || "").trim(),
+  });
+}
+
+function clearReadCircuit(channel = "") {
+  const key = String(channel || "").trim();
+  if (!key) {
+    return;
+  }
+  wc26ReadCircuitState.delete(key);
+}
+
+function shouldTripReadCircuit(error = null) {
+  const haystack = JSON.stringify({
+    message: String(error?.message || error || ""),
+    code: String(error?.code || ""),
+    status: String(error?.status || error?.statusCode || ""),
+    details: String(error?.details || ""),
+    hint: String(error?.hint || ""),
+    name: String(error?.name || ""),
+  }).toLowerCase();
+  return (
+    haystack.includes("aborterror") ||
+    haystack.includes("timeout") ||
+    haystack.includes("544") ||
+    haystack.includes("57014") ||
+    haystack.includes("500") ||
+    haystack.includes("statement timeout") ||
+    haystack.includes("databasetimeout")
+  );
+}
+
+function getReadDelayMessage() {
+  return "Supabase 응답 지연 중 / 잠시 후 다시 시도";
+}
+
+function renderScheduleReadDelayState(sectionId = scheduleBridgeSection) {
+  const message = getReadDelayMessage();
+  if (sectionId === "shared") {
+    if (sharedScheduleListMeta) {
+      sharedScheduleListMeta.textContent = message;
+    }
+    if (sharedScheduleList && !sharedScheduleList.querySelector(".shared-schedule-card")) {
+      sharedScheduleList.replaceChildren();
+      const empty = document.createElement("p");
+      empty.className = "shared-schedule-empty";
+      empty.textContent = message;
+      sharedScheduleList.appendChild(empty);
+    }
+    return;
+  }
+  if (sectionId === "accumulated") {
+    if (accumulatedScheduleListMeta) {
+      accumulatedScheduleListMeta.textContent = message;
+    }
+    if (accumulatedScheduleList && !accumulatedScheduleList.querySelector(".accumulated-schedule-items li")) {
+      accumulatedScheduleList.replaceChildren();
+      const empty = document.createElement("div");
+      empty.className = "accumulated-schedule-empty";
+      empty.textContent = message;
+      accumulatedScheduleList.appendChild(empty);
+    }
+    return;
+  }
+  if (sectionId === "all") {
+    getTimelineGanttHosts({ visibleOnly: true }).forEach((host) => {
+      if (host?.empty) {
+        host.empty.hidden = false;
+        host.empty.textContent = message;
+      }
+      if (host?.scroller && !host.grid?.children?.length) {
+        host.scroller.hidden = true;
+      }
+    });
+  }
+}
+
 function perfDebug(label, value) {
   if (!PERFORMANCE_DEBUG_ENABLED) {
     return;
@@ -3266,7 +3444,7 @@ function rerenderNewSuitSharedStateKey(storageKey = "") {
   }
 }
 
-async function fetchNewSuitSharedStateRows(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS) {
+async function fetchNewSuitSharedStateRows(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS, options = {}) {
   const client = getNewSuitSharedStateClient();
   if (!client) {
     return [];
@@ -3275,15 +3453,38 @@ async function fetchNewSuitSharedStateRows(storageKeys = WC26_NEW_SUIT_SHARED_ST
   if (!keys.length) {
     return [];
   }
-  const { data, error } = await client
-    .from(WC26_SHARED_STATE_TABLE)
-    .select("state_key,state_value,updated_at")
-    .in("state_key", keys);
-  if (error) {
+  if (isReadCircuitOpen("shared-state") && options?.force !== true) {
+    return [];
+  }
+  const cacheKey = keys.slice().sort().join("|");
+  try {
+    const rows = await runReadSingleFlight(
+      wc26ReadSingleFlightState.newSuitSharedState,
+      cacheKey,
+      async () => {
+        const { data, error } = await client
+          .from(WC26_SHARED_STATE_TABLE)
+          .select("state_key,state_value,updated_at")
+          .in("state_key", keys);
+        if (error) {
+          throw error;
+        }
+        return Array.isArray(data) ? data : [];
+      },
+      {
+        ttlMs: WC26_READ_THROTTLE_MS.newSuitSharedState,
+        force: options?.force === true,
+      },
+    );
+    clearReadCircuit("shared-state");
+    return rows;
+  } catch (error) {
+    if (shouldTripReadCircuit(error)) {
+      tripReadCircuit("shared-state", error);
+    }
     console.warn("[new-suit shared_state] fetch failed", error);
     return [];
   }
-  return Array.isArray(data) ? data : [];
 }
 
 async function flushNewSuitSharedStateWrites() {
@@ -3315,8 +3516,8 @@ function scheduleNewSuitSharedStateWrite(storageKey = "", raw = "") {
   window.setTimeout(flushNewSuitSharedStateWrites, 120);
 }
 
-async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS) {
-  const rows = await fetchNewSuitSharedStateRows(storageKeys);
+async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS, options = {}) {
+  const rows = await fetchNewSuitSharedStateRows(storageKeys, options);
   const remoteByKey = new Map(rows.map((row) => [String(row?.state_key || "").trim(), String(row?.state_value ?? "")]));
   storageKeys.forEach((storageKey) => {
     const localRaw = getLocalStorageRaw(storageKey);
@@ -3369,9 +3570,6 @@ function initNewSuitSharedStateSync() {
     return;
   }
   wc26NewSuitSharedStateReady = true;
-  hydrateNewSuitSharedState();
-  window.addEventListener("focus", () => hydrateNewSuitSharedState());
-  wc26NewSuitSharedStatePollingTimer = window.setInterval(() => hydrateNewSuitSharedState(), 15000);
 
   const client = getNewSuitSharedStateClient();
   if (!client?.channel) {
@@ -3822,7 +4020,8 @@ function bindTimelineDateMemoTooltip(cellElement, memoEntry = null) {
   cellElement.addEventListener("blur", hideTimelineTooltip);
 }
 
-function getTimelineGanttHosts() {
+function getTimelineGanttHosts(options = {}) {
+  const visibleOnly = options?.visibleOnly === true;
   return [
     {
       key: "dashboard",
@@ -3840,7 +4039,15 @@ function getTimelineGanttHosts() {
       scroller: document.getElementById("schedule-timeline-gantt-scroller"),
       grid: document.getElementById("schedule-timeline-gantt-grid"),
     },
-  ].filter((host) => host.empty && host.scroller && host.grid);
+  ].filter((host) => {
+    if (!(host.empty && host.scroller && host.grid)) {
+      return false;
+    }
+    if (!visibleOnly) {
+      return true;
+    }
+    return isElementVisibleForRead(host.shell || host.grid);
+  });
 }
 
 function getTimelineHostDayCount(host) {
@@ -4305,11 +4512,16 @@ function renderTimelineGanttHost(host, dates = [], rows = []) {
 }
 
 function renderTimelineGantt(summary = {}) {
+  const hosts = getTimelineGanttHosts({ visibleOnly: true });
   recordTlLockDiag("renderTimelineGantt:enter", {
-    hostCount: getTimelineGanttHosts().length,
+    hostCount: hosts.length,
     visibleReference: getTimelineReferenceDateKey(),
   });
-  getTimelineGanttHosts().forEach((host) => {
+  if (!hosts.length) {
+    recordTlLockDiag("renderTimelineGantt:skip", { reason: "no-visible-hosts" });
+    return;
+  }
+  hosts.forEach((host) => {
     const dates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), getTimelineHostDayCount(host));
     const blocksByName = buildTimelineBlocksByName(dates, summary);
     const rows = WC26_TIMELINE_RENDER_ROW_ORDER.map((name) => ({
@@ -4340,6 +4552,11 @@ function refreshTimelineGanttFromLegacy(options = {}) {
     section: scheduleBridgeSection,
   });
   const force = Boolean(options?.force);
+  if (!force && isReadCircuitOpen("shared-state")) {
+    renderScheduleReadDelayState("all");
+    recordTlLockDiag("refreshTimelineGanttFromLegacy:skip", { reason: "shared-state-circuit-open" });
+    return;
+  }
   const syncWindow = getScheduleBridgeSyncWindow();
   const getter = syncWindow?.getWC26LegacyTimelineGanttSummary;
   let summary = {};
@@ -4353,7 +4570,11 @@ function refreshTimelineGanttFromLegacy(options = {}) {
       summary = {};
     }
   }
-  const hosts = getTimelineGanttHosts();
+  const hosts = getTimelineGanttHosts({ visibleOnly: true });
+  if (!hosts.length) {
+    recordTlLockDiag("refreshTimelineGanttFromLegacy:skip", { reason: "no-visible-hosts" });
+    return;
+  }
   const visibleDates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), WC26_TIMELINE_GANTT_DAY_COUNT);
   const officialRows = Array.from(buildTimelineGanttRowsFromOfficialState(visibleDates).entries());
   const rangeKey = JSON.stringify({
@@ -5273,6 +5494,9 @@ function focusSection(targetId, sectionId) {
 
   if (targetId === "operations") {
     setOpsBridgeSection(sectionId);
+    if (normalizeOpsBridgeSection(sectionId) === "operation-memo") {
+      void hydrateNewSuitSharedState([WC26_OPS_MEMO_STORAGE_KEY]);
+    }
   }
 
   syncMenuLaunchState(targetId, sectionId);
@@ -5280,7 +5504,7 @@ function focusSection(targetId, sectionId) {
 
 function normalizeScheduleBridgeSection(sectionId = "") {
   const normalized = String(sectionId || "").trim().toLowerCase();
-  return ["all", "shared", "personal", "accumulated", "export"].includes(normalized)
+  return ["all", "shared", "personal", "accumulated", "timeline", "export"].includes(normalized)
     ? normalized
     : "all";
 }
@@ -5693,37 +5917,59 @@ function getArchiveSuitLegacyStorageItems(tab = "document-storage") {
   }
 }
 
-function refreshArchiveSuitLegacyStorageData() {
-  return waitForScheduleBridgeFunction("getWC26LegacyStorageSummary", 5000).then((legacyWindow) => {
-    if (!legacyWindow) {
-      return;
-    }
-    const tasks = [];
-    if (typeof legacyWindow.refreshEquipmentCarnetEntriesFromSupabase === "function") {
-      tasks.push(Promise.resolve(legacyWindow.refreshEquipmentCarnetEntriesFromSupabase({ forceRender: false })));
-    }
-    if (typeof legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase === "function") {
-      tasks.push(Promise.resolve(legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase({ forceRender: false })));
-    }
-    if (!tasks.length) {
-      if (typeof legacyWindow.loadEquipmentCarnetEntries === "function") {
-        try {
-          legacyWindow.loadEquipmentCarnetEntries();
-        } catch (_error) {
-          // Ignore legacy cache read failures.
+function refreshArchiveSuitLegacyStorageData(options = {}) {
+  if (isReadCircuitOpen("storage") && options?.force !== true) {
+    return Promise.resolve();
+  }
+  return runReadSingleFlight(
+    wc26ReadSingleFlightState.archiveLegacyStorage,
+    "archive-legacy-storage",
+    () =>
+      waitForScheduleBridgeFunction("getWC26LegacyStorageSummary", 5000).then((legacyWindow) => {
+        if (!legacyWindow) {
+          return;
         }
-      }
-      if (typeof legacyWindow.loadEquipmentFileStorageEntries === "function") {
-        try {
-          legacyWindow.loadEquipmentFileStorageEntries();
-        } catch (_error) {
-          // Ignore legacy cache read failures.
+        const tasks = [];
+        if (typeof legacyWindow.refreshEquipmentCarnetEntriesFromSupabase === "function") {
+          tasks.push(Promise.resolve(legacyWindow.refreshEquipmentCarnetEntriesFromSupabase({ forceRender: false })));
         }
+        if (typeof legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase === "function") {
+          tasks.push(Promise.resolve(legacyWindow.refreshEquipmentFileStorageEntriesFromSupabase({ forceRender: false })));
+        }
+        if (!tasks.length) {
+          if (typeof legacyWindow.loadEquipmentCarnetEntries === "function") {
+            try {
+              legacyWindow.loadEquipmentCarnetEntries();
+            } catch (_error) {
+              // Ignore legacy cache read failures.
+            }
+          }
+          if (typeof legacyWindow.loadEquipmentFileStorageEntries === "function") {
+            try {
+              legacyWindow.loadEquipmentFileStorageEntries();
+            } catch (_error) {
+              // Ignore legacy cache read failures.
+            }
+          }
+          return;
+        }
+        return Promise.allSettled(tasks).then(() => undefined);
+      }),
+    {
+      ttlMs: WC26_READ_THROTTLE_MS.archiveLegacyStorage,
+      force: options?.force === true,
+    },
+  )
+    .then((value) => {
+      clearReadCircuit("storage");
+      return value;
+    })
+    .catch((error) => {
+      if (shouldTripReadCircuit(error)) {
+        tripReadCircuit("storage", error);
       }
-      return;
-    }
-    return Promise.allSettled(tasks).then(() => undefined);
-  });
+      return undefined;
+    });
 }
 
 function collectArchiveSuitLegacyGalleryCandidates() {
@@ -6806,12 +7052,16 @@ function postStorageBridgeNavigation(sectionId = "document-storage") {
 function setArchiveBridgeSection(sectionId = "document-storage") {
   const previousSection = storageBridgeSection;
   storageBridgeSection = normalizeStorageBridgeSection(sectionId);
-  ensureScheduleSummaryBridgeLoaded();
   if (previousSection === "gallery" && storageBridgeSection !== "gallery") {
     closeArchiveSuitGalleryModal();
   }
   setStorageBridgeButtonState(storageBridgeSection);
-  if (storageBridgeFrame) {
+  const shouldNavigateBridge =
+    storageBridgeSection === "document-storage" ||
+    storageBridgeSection === "file-storage" ||
+    storageBridgeSection === "video" ||
+    storageBridgeSection === "carnet";
+  if (storageBridgeFrame && shouldNavigateBridge) {
     postStorageBridgeNavigation(storageBridgeSection);
   }
   const shouldRefreshLegacyStorage =
@@ -6822,11 +7072,15 @@ function setArchiveBridgeSection(sectionId = "document-storage") {
         return;
       }
       renderArchiveSuitPanels();
-      requestStorageBridgeSummary();
+      requestStorageBridgeSummaryWithCooldown();
     });
   } else {
     renderArchiveSuitPanels();
   }
+}
+
+function isArchiveViewActive() {
+  return Boolean(document.querySelector('#view-archive.is-active:not([hidden])'));
 }
 
 function stripBridgeSummaryHtml(value = "") {
@@ -15099,6 +15353,11 @@ function renderSharedScheduleList() {
     return;
   }
 
+  if (isReadCircuitOpen("shared-state")) {
+    renderScheduleReadDelayState("shared");
+    return;
+  }
+
   const groups = readSharedScheduleGroups();
   const totalCount = groups.reduce((count, group) => count + group.entries.length, 0);
   let renderedCount = 0;
@@ -16488,12 +16747,18 @@ function shouldRefreshScheduleLocalShell(changedKeys = []) {
 }
 
 function getScheduleLocalStateFetchKeys(sectionId = scheduleBridgeSection) {
+  if (sectionId === "all") {
+    return [
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
+    ];
+  }
   if (sectionId === "shared") {
-    return [WC26_LEGACY_TIMELINE_STORAGE_KEYS.timeline, WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared];
+    return [WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared];
   }
   if (sectionId === "personal" || sectionId === "accumulated") {
     return [
-      WC26_LEGACY_TIMELINE_STORAGE_KEYS.timeline,
       WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
       WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
       WC26_LEGACY_TIMELINE_STORAGE_KEYS.deleted,
@@ -16503,17 +16768,34 @@ function getScheduleLocalStateFetchKeys(sectionId = scheduleBridgeSection) {
 }
 
 function requestScheduleLocalStateSync(sectionId = scheduleBridgeSection) {
-  const syncWindow = getScheduleBridgeSyncWindow();
   const fetchKeys = getScheduleLocalStateFetchKeys(sectionId);
-  if (!fetchKeys.length || typeof syncWindow?.fetchSharedStateSnapshot !== "function") {
+  if (!fetchKeys.length) {
     return;
   }
-  Promise.resolve(syncWindow.fetchSharedStateSnapshot(fetchKeys, { markInitial: false }))
+  if (isReadCircuitOpen("shared-state")) {
+    renderScheduleReadDelayState(sectionId);
+    return;
+  }
+  const cacheKey = `${normalizeScheduleBridgeSection(sectionId)}::${fetchKeys.slice().sort().join("|")}`;
+  runReadSingleFlight(
+    wc26ReadSingleFlightState.scheduleLocalState,
+    cacheKey,
+    () => hydrateNewSuitSharedState(fetchKeys),
+    {
+      ttlMs: WC26_READ_THROTTLE_MS.scheduleLocalState,
+    },
+  )
     .then(() => {
+      clearReadCircuit("shared-state");
       rerenderActiveScheduleLocalShell();
-      refreshTimelineGanttFromLegacy();
     })
-    .catch(() => undefined);
+    .catch((error) => {
+      if (shouldTripReadCircuit(error)) {
+        tripReadCircuit("shared-state", error);
+        renderScheduleReadDelayState(sectionId);
+      }
+      return undefined;
+    });
 }
 
 function getAccumulatedPersonalScheduleEntries() {
@@ -16560,6 +16842,11 @@ function groupAccumulatedScheduleEntries(entries = []) {
 
 function renderAccumulatedScheduleShell() {
   if (!accumulatedScheduleList) {
+    return;
+  }
+
+  if (isReadCircuitOpen("shared-state")) {
+    renderScheduleReadDelayState("accumulated");
     return;
   }
 
@@ -16961,28 +17248,26 @@ function setScheduleBridgeSection(sectionId = "all") {
   syncScheduleTimelineShellVisibility();
   if (scheduleBridgeSection === "all") {
     ensureScheduleSummaryBridgeLoaded();
+    return;
+  }
+  if (scheduleBridgeSection === "timeline") {
     refreshTimelineGanttFromLegacy();
     return;
   }
   if (scheduleBridgeSection === "shared") {
     renderSharedScheduleShell();
-    window.setTimeout(() => {
-      ensureScheduleSummaryBridgeLoaded();
-    }, 0);
-    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("shared"), [120, 420, 1100, 2200]);
+    requestScheduleLocalStateSync("shared");
     return;
   }
   if (scheduleBridgeSection === "personal") {
-    ensureScheduleSummaryBridgeLoaded();
     renderPersonalScheduleShell();
-    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("personal"), [120, 420, 1100, 2200]);
+    requestScheduleLocalStateSync("personal");
     return;
   }
   if (scheduleBridgeSection === "accumulated") {
-    ensureScheduleSummaryBridgeLoaded();
     renderAccumulatedScheduleShell();
     refreshAccumulatedScheduleFlow();
-    queueBridgeSummaryBurst(() => requestScheduleLocalStateSync("accumulated"), [120, 420, 1100, 2200]);
+    requestScheduleLocalStateSync("accumulated");
     return;
   }
   postScheduleBridgeNavigation(scheduleBridgeSection);
@@ -17598,6 +17883,24 @@ function requestStorageBridgeSummary() {
   );
 }
 
+function requestStorageBridgeSummaryWithCooldown(options = {}) {
+  if (isReadCircuitOpen("storage") && options?.force !== true) {
+    return Promise.resolve(false);
+  }
+  return runReadSingleFlight(
+    wc26ReadSingleFlightState.storageBridgeSummary,
+    `storage-summary::${normalizeStorageBridgeSection(storageBridgeSection)}`,
+    () => {
+      requestStorageBridgeSummary();
+      return true;
+    },
+    {
+      ttlMs: WC26_READ_THROTTLE_MS.storageBridgeSummary,
+      force: options?.force === true,
+    },
+  ).catch(() => false);
+}
+
 function requestMediaBridgeSummary() {
   if (
     tryApplyDirectBridgeSummary("getWC26LegacyMediaSummary", applyMediaBridgeSummary, {
@@ -17712,8 +18015,6 @@ function initScheduleBridge() {
     window.setTimeout(() => {
       setScheduleBridgeSection(scheduleBridgeSection);
     }, 120);
-    queueBridgeSummaryBurst(requestScheduleBridgeSummary);
-    queueBridgeSummaryBurst(refreshTimelineGanttFromLegacy, [120, 320, 760]);
     queueScheduleLegacyHudSkin([80, 220, 520, 1100]);
   });
 
@@ -17721,16 +18022,6 @@ function initScheduleBridge() {
     if (!isLazyIframeLoaded(scheduleBridgeSyncFrame)) {
       return;
     }
-    [40, 220, 650, 1200, 2000, 3200, 5200].forEach((delay) => {
-      window.setTimeout(() => {
-        requestScheduleBridgeSummary();
-        requestMatchMapBridgeSummary();
-        refreshTimelineGanttFromLegacy();
-        renderSharedScheduleShellIfActive();
-        renderPersonalScheduleShellIfActive();
-        renderAccumulatedScheduleShellIfActive();
-      }, delay);
-    });
   });
 
   if (!sharedScheduleEventsBound) {
@@ -18146,7 +18437,7 @@ function initStorageBridge() {
   });
 
   if (!storageBridgeFrame) {
-    setArchiveBridgeSection(storageBridgeSection);
+    setStorageBridgeButtonState(storageBridgeSection);
     return;
   }
 
@@ -18160,11 +18451,12 @@ function initStorageBridge() {
       storageBridgeLoading.textContent = "자료보관 불러오는 중...";
     }
     syncStorageBridgeEmbeddedSkin();
-    window.setTimeout(() => {
-      syncStorageBridgeEmbeddedSkin();
-      setArchiveBridgeSection(storageBridgeSection);
-    }, 120);
-    queueBridgeSummaryBurst(requestStorageBridgeSummary);
+    if (isArchiveViewActive()) {
+      window.setTimeout(() => {
+        syncStorageBridgeEmbeddedSkin();
+        setArchiveBridgeSection(storageBridgeSection);
+      }, 120);
+    }
   });
 }
 
@@ -19407,7 +19699,6 @@ initStadiumPanel();
 initPanelFiveBroadcastStatus();
 initPersonalEquipmentTabs();
 startTopbarStatusTicker();
-refreshTimelineGanttFromLegacy();
 restoreDashboardViewOnPlainEntry();
 syncMobileSectionViewportState();
 restoreMobileSectionFromHash();
