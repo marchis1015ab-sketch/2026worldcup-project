@@ -1196,6 +1196,8 @@ const ARCHIVE_SUIT_STORAGE_KEY = "wc26-archive-suit-items-v1";
 const ARCHIVE_SUIT_DELETED_STORAGE_KEY = "wc26-archive-suit-deleted-v1";
 const ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY = "worldcup-guide-gallery-manual-groups-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_KEYS = ["galleryData", "galleryItems", "worldcup-gallery-items-v1", "worldcup_timeline_gallery_v1"];
+const ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS = Object.freeze(["galleryData"]);
+const ARCHIVE_SUIT_GALLERY_SHARED_STATE_TIMEOUT_MS = 4500;
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY = "worldcup-guide-gallery-deleted-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_WINDOW_KEY = "__worldcupGuideTimelineGallery__";
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_WINDOW_KEY = "__worldcupGuideTimelineGalleryDeleted__";
@@ -1552,6 +1554,9 @@ let archiveSuitLegacyIndexedDbRawCount = 0;
 let archiveSuitLegacyIndexedDbSource = "pending";
 let archiveSuitLegacyIndexedDbReady = false;
 let archiveSuitLegacyIndexedDbPromise = null;
+let archiveSuitLegacyGallerySharedStateReady = false;
+let archiveSuitLegacyGallerySharedStatePromise = null;
+const archiveSuitLegacyGallerySharedStateRawByKey = new Map();
 let mediaBridgeReady = false;
 let mediaBridgeSection = "broadcast-schedule";
 let mediaBridgeSummaryRenderKey = "";
@@ -5640,8 +5645,49 @@ function readArchiveSuitWindowPayload() {
   }
 }
 
+async function hydrateArchiveSuitLegacyGallerySharedState(options = {}) {
+  const force = Boolean(options?.force);
+  if (!force && archiveSuitLegacyGallerySharedStateReady) {
+    return archiveSuitLegacyGallerySharedStateRawByKey;
+  }
+  if (!force && archiveSuitLegacyGallerySharedStatePromise) {
+    return archiveSuitLegacyGallerySharedStatePromise;
+  }
+  const timeoutValue = "__archive_gallery_shared_state_timeout__";
+  const sharedStateFetch = Promise.resolve(fetchNewSuitSharedStateRows(ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS));
+  const timeout = new Promise((resolve) => {
+    window.setTimeout(() => resolve(timeoutValue), ARCHIVE_SUIT_GALLERY_SHARED_STATE_TIMEOUT_MS);
+  });
+  archiveSuitLegacyGallerySharedStatePromise = Promise.resolve(Promise.race([sharedStateFetch, timeout]))
+    .then((rows) => {
+      if (rows === timeoutValue) {
+        return archiveSuitLegacyGallerySharedStateRawByKey;
+      }
+      const galleryRow = (Array.isArray(rows) ? rows : []).find((row) => String(row?.state_key || "").trim() === "galleryData");
+      const raw = String(galleryRow?.state_value || "").trim();
+      if (raw) {
+        archiveSuitLegacyGallerySharedStateRawByKey.set("galleryData", raw);
+      }
+      archiveSuitLegacyGallerySharedStateReady = true;
+      return archiveSuitLegacyGallerySharedStateRawByKey;
+    })
+    .catch((error) => {
+      console.warn("[archive-gallery-import] shared_state galleryData hydrate failed", error);
+      return archiveSuitLegacyGallerySharedStateRawByKey;
+    })
+    .finally(() => {
+      archiveSuitLegacyGallerySharedStatePromise = null;
+      archiveSuitLegacyGallerySharedStateReady = true;
+    });
+  return archiveSuitLegacyGallerySharedStatePromise;
+}
+
 function getArchiveSuitLegacyGalleryRawByKey(key = "") {
   const normalizedKey = String(key || "").trim();
+  const sharedStateRaw = archiveSuitLegacyGallerySharedStateRawByKey.get(normalizedKey);
+  if (sharedStateRaw) {
+    return { raw: sharedStateRaw, source: "shared_state" };
+  }
   for (const [storageName, storage] of getArchiveSuitReadableStorageAreas()) {
     const raw = storage?.getItem(normalizedKey);
     if (raw) {
@@ -7066,7 +7112,16 @@ function setArchiveBridgeSection(sectionId = "document-storage") {
   }
   const shouldRefreshLegacyStorage =
     storageBridgeSection === "document-storage" || storageBridgeSection === "file-storage";
-  if (shouldRefreshLegacyStorage) {
+  if (storageBridgeSection === "gallery") {
+    renderArchiveSuitPanels();
+    hydrateArchiveSuitLegacyGallerySharedState({ force: true }).finally(() => {
+      if (storageBridgeSection !== "gallery") {
+        return;
+      }
+      archiveSuitGalleryDiagnosticsSignature = "";
+      renderArchiveSuitPanels();
+    });
+  } else if (shouldRefreshLegacyStorage) {
     refreshArchiveSuitLegacyStorageData().then(() => {
       if (storageBridgeSection !== normalizeStorageBridgeSection(sectionId)) {
         return;
