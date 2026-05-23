@@ -10427,9 +10427,24 @@ function readPersonalTimelineDetailsRaw(){
     return '';
   }
 }
-function writePersonalTimelineDetailsRaw(raw){
+function isPersonalTimelineDetailsRawEmpty(raw=''){
+  const parsed=parsePersonalTimelineDetailsState(raw);
+  return !Object.keys(parsed).length;
+}
+function writePersonalTimelineDetailsRaw(raw, options={}){
+  const {
+    reason='unknown',
+    allowEmptySync=false,
+    allowEmptyWrite=false
+  }=options||{};
+  const normalizedRaw=String(raw??'');
+  const isEmptyState=isPersonalTimelineDetailsRawEmpty(normalizedRaw);
+  if(isEmptyState&&!allowEmptyWrite){
+    legacyDebugLog('[personal-timeline-details] skip empty write', {reason});
+    return false;
+  }
   const storages=getTimelineStorageAreas();
-  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw));
+  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, normalizedRaw));
   if(typeof window==='undefined') return;
   let payload={};
   if(window.name){
@@ -10439,14 +10454,19 @@ function writePersonalTimelineDetailsRaw(raw){
       payload={};
     }
   }
-  payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]=raw;
+  payload[PERSONAL_TIMELINE_DETAILS_WINDOW_NAME_KEY]=normalizedRaw;
   try{
     window.name=JSON.stringify(payload);
   }catch(error){
     window.name='';
   }
-  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, raw);
+  if(isEmptyState&&!allowEmptySync){
+    legacyDebugLog('[personal-timeline-details] skip empty sync', {reason});
+    return true;
+  }
+  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_DETAILS_STORAGE_KEY, normalizedRaw);
   if(sharedStateSyncReady) void flushPendingSharedStateWrites();
+  return true;
 }
 function readHeaderReportBoardRecentRaw(){
   const storages=getTimelineStorageAreas();
@@ -10699,7 +10719,11 @@ function populatePersonalTimelineDetailSelectionsFromRaw(raw, options={}){
       }
     });
     if(persist&&didSanitize){
-      savePersonalTimelineDetailSelections();
+      if(Object.keys(personalTimelineDetailSelections).length){
+        savePersonalTimelineDetailSelections({reason:'sanitize-persist'});
+      }else{
+        legacyDebugLog('[personal-timeline-details] skip sanitize persist empty state');
+      }
     }
     return true;
   }catch(error){
@@ -10906,9 +10930,19 @@ function sanitizePersonalTimelineDetailEntry(entry){
   if(Number.isFinite(savedAtValue)&&savedAtValue>0) sanitizedFields._savedAt=savedAtValue;
   return personalTimelineDetailFields.some(field=>String(sanitizedFields[field]||'').trim()) ? sanitizedFields : null;
 }
-function savePersonalTimelineDetailSelections(){
+function savePersonalTimelineDetailSelections(options={}){
   if(!canEdit()) return;
-  writePersonalTimelineDetailsRaw(JSON.stringify(personalTimelineDetailSelections));
+  const {
+    reason='user-save',
+    allowEmptySync=false,
+    allowEmptyWrite=allowEmptySync
+  }=options||{};
+  const raw=JSON.stringify(personalTimelineDetailSelections);
+  writePersonalTimelineDetailsRaw(raw, {
+    reason,
+    allowEmptySync,
+    allowEmptyWrite
+  });
   notifyWc26LegacyScheduleSummaryChanged('detail-save');
 }
 function sanitizePersonalTimelineDetailEntriesForPerson(dateKey='', name=''){
@@ -10929,7 +10963,7 @@ function sanitizePersonalTimelineDetailEntriesForPerson(dateKey='', name=''){
         delete personalTimelineDetailSelections[dateKey];
       }
     }
-    savePersonalTimelineDetailSelections();
+      savePersonalTimelineDetailSelections({reason:'sanitize-persist'});
   }
   return stableEntries;
 }
@@ -12160,7 +12194,12 @@ function deletePersonalTimelineDetailEntry(dateKey, name, entryIndex){
     }
   }
   addPersonalTimelineDeletedKey(dateKey, name);
-  savePersonalTimelineDetailSelections();
+  const isEmptyState=!Object.keys(personalTimelineDetailSelections).length;
+  savePersonalTimelineDetailSelections({
+    reason:isEmptyState ? 'user-delete-last-entry' : 'user-delete',
+    allowEmptySync:isEmptyState,
+    allowEmptyWrite:isEmptyState
+  });
   saveHeaderReportBoardRecentMarks();
   if(personalTimelineEndEditorState.itemId===buildPersonalTimelineEndEditorId(dateKey, name, entryIndex)){
     resetPersonalTimelineEndEditorState();
@@ -12185,7 +12224,7 @@ function updatePersonalTimelineDetailMemo(dateKey='', name='', entryIndex=-1, me
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
   dateSelections[name]=entries;
-  savePersonalTimelineDetailSelections();
+  savePersonalTimelineDetailSelections({reason:'user-save'});
   personalTimelineSummaryMemoEditState.delete(buildPersonalTimelineSummaryMemoStateKey(dateKey, name, entryIndex));
   updateHeaderReportBoard();
   return true;
@@ -12194,7 +12233,6 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   if(!requireEditAccess()) return {didAppendNew:false, entryIndex:-1};
   if(!dateKey||!name) return {didAppendNew:false, entryIndex:-1};
   loadPersonalTimelineDetailSelections();
-  deletePersonalTimelineDeletedKey(dateKey, name);
   const normalized=Object.create(null);
   let didAppendNew=false;
   let entryIndex=-1;
@@ -12215,6 +12253,11 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
   if(endTimeLabel) normalized.endTimeLabel=endTimeLabel;
   if(endTimeLabel) normalized.endLabel=endTimeLabel;
   if(memo) normalized.memo=memo;
+  if(!Object.keys(normalized).length){
+    legacyDebugLog('[personal-timeline-details] skip empty user save', {dateKey, name});
+    return {didAppendNew:false, entryIndex:-1};
+  }
+  deletePersonalTimelineDeletedKey(dateKey, name);
   if(Object.keys(normalized).length){
     normalized._createdAt=Number(detailValues?._createdAt)||Number(lastEntry?._createdAt)||Number(lastEntry?._savedAt)||Date.now();
     normalized._savedAt=Number(detailValues?._savedAt)||Date.now();
@@ -12227,13 +12270,8 @@ function savePersonalTimelineDetailSelectionBatch(dateKey, name, detailValues){
       normalized._savedAt=Number(lastEntry?._savedAt)||normalized._savedAt;
       dateSelections[name]=[normalized];
     }
-  }else if(personalTimelineDetailSelections[dateKey]){
-    delete personalTimelineDetailSelections[dateKey][name];
-    if(!Object.keys(personalTimelineDetailSelections[dateKey]).length){
-      delete personalTimelineDetailSelections[dateKey];
-    }
   }
-  savePersonalTimelineDetailSelections();
+  savePersonalTimelineDetailSelections({reason:'user-save'});
   updateHeaderReportBoard();
   updateEquipmentSharedTvuIndicators();
   return {didAppendNew, entryIndex};
@@ -12285,7 +12323,7 @@ function savePersonalTimelineEndInfo(dateKey='', name='', entryIndex=-1, endDate
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
   dateSelections[name]=entries;
-  savePersonalTimelineDetailSelections();
+  savePersonalTimelineDetailSelections({reason:'user-save'});
   reloadPersonalTimelineDetailSelectionsFromStorage();
   updateHeaderReportBoard();
   updateEquipmentSharedTvuIndicators();
@@ -12317,7 +12355,7 @@ function endPersonalTimelineDetailEntry(dateKey='', name='', entryIndex=-1){
   if(!nextEntry) return false;
   entries[entryIndex]=nextEntry;
   dateSelections[name]=entries;
-  savePersonalTimelineDetailSelections();
+  savePersonalTimelineDetailSelections({reason:'user-save'});
   updateHeaderReportBoard();
   updateEquipmentSharedTvuIndicators();
   notifyWc26LegacyScheduleSummaryChanged('end');

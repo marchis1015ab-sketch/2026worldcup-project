@@ -1265,6 +1265,15 @@ const wc26ReadSingleFlightState = {
 };
 
 const wc26ReadCircuitState = new Map();
+const wc26ScheduleReadState = {
+  shared: {
+    pending: false,
+    failed: false,
+    reason: "",
+    lastAttemptAt: 0,
+    lastSuccessAt: 0,
+  },
+};
 
 function runReadSingleFlight(cache, cacheKey, executor, options = {}) {
   const key = String(cacheKey || "").trim();
@@ -1359,6 +1368,41 @@ function clearReadCircuit(channel = "") {
     return;
   }
   wc26ReadCircuitState.delete(key);
+}
+
+function markScheduleReadPending(sectionId = "", options = {}) {
+  const normalizedSection = normalizeScheduleBridgeSection(sectionId);
+  if (normalizedSection !== "shared") {
+    return;
+  }
+  wc26ScheduleReadState.shared.pending = true;
+  wc26ScheduleReadState.shared.failed = false;
+  wc26ScheduleReadState.shared.reason = "";
+  wc26ScheduleReadState.shared.lastAttemptAt = Date.now();
+  if (options?.renderDelay) {
+    renderScheduleReadDelayState("shared");
+  }
+}
+
+function markScheduleReadSuccess(sectionId = "") {
+  const normalizedSection = normalizeScheduleBridgeSection(sectionId);
+  if (normalizedSection !== "shared") {
+    return;
+  }
+  wc26ScheduleReadState.shared.pending = false;
+  wc26ScheduleReadState.shared.failed = false;
+  wc26ScheduleReadState.shared.reason = "";
+  wc26ScheduleReadState.shared.lastSuccessAt = Date.now();
+}
+
+function markScheduleReadFailure(sectionId = "", error = null) {
+  const normalizedSection = normalizeScheduleBridgeSection(sectionId);
+  if (normalizedSection !== "shared") {
+    return;
+  }
+  wc26ScheduleReadState.shared.pending = false;
+  wc26ScheduleReadState.shared.failed = true;
+  wc26ScheduleReadState.shared.reason = String(error?.message || error || "").trim();
 }
 
 function shouldTripReadCircuit(error = null) {
@@ -3488,6 +3532,9 @@ async function fetchNewSuitSharedStateRows(storageKeys = WC26_NEW_SUIT_SHARED_ST
       tripReadCircuit("shared-state", error);
     }
     console.warn("[new-suit shared_state] fetch failed", error);
+    if (options?.throwOnError) {
+      throw error;
+    }
     return [];
   }
 }
@@ -15417,9 +15464,16 @@ function renderSharedScheduleList() {
   const totalCount = groups.reduce((count, group) => count + group.entries.length, 0);
   let renderedCount = 0;
   let hasMoreItems = false;
+  const shouldHoldSharedReadState =
+    !groups.length &&
+    (wc26ScheduleReadState.shared.pending ||
+      wc26ScheduleReadState.shared.failed ||
+      isReadCircuitOpen("shared-state"));
 
   if (sharedScheduleListMeta) {
-    sharedScheduleListMeta.textContent = totalCount
+    sharedScheduleListMeta.textContent = shouldHoldSharedReadState
+      ? getReadDelayMessage()
+      : totalCount
       ? `${totalCount}건 공용일정 / 최근 ${Math.min(
           totalCount,
           WC26_SHARED_SCHEDULE_RENDER_LIMIT,
@@ -15438,6 +15492,11 @@ function renderSharedScheduleList() {
   sharedScheduleList.dataset.sharedScheduleRemovedCount = String(sharedScheduleLastDiagnostics?.removedCount || 0);
   sharedScheduleList.dataset.sharedScheduleBackupKey = String(sharedScheduleLastDiagnostics?.backupKey || "");
   syncSharedScheduleDeleteModeUi();
+
+  if (shouldHoldSharedReadState) {
+    renderScheduleReadDelayState("shared");
+    return;
+  }
 
   if (!groups.length) {
     const empty = document.createElement("p");
@@ -16832,19 +16891,25 @@ function requestScheduleLocalStateSync(sectionId = scheduleBridgeSection) {
     return;
   }
   const cacheKey = `${normalizeScheduleBridgeSection(sectionId)}::${fetchKeys.slice().sort().join("|")}`;
+  markScheduleReadPending(sectionId, { renderDelay: true });
   runReadSingleFlight(
     wc26ReadSingleFlightState.scheduleLocalState,
     cacheKey,
-    () => hydrateNewSuitSharedState(fetchKeys),
+    () =>
+      hydrateNewSuitSharedState(fetchKeys, {
+        throwOnError: true,
+      }),
     {
       ttlMs: WC26_READ_THROTTLE_MS.scheduleLocalState,
     },
   )
     .then(() => {
       clearReadCircuit("shared-state");
+      markScheduleReadSuccess(sectionId);
       rerenderActiveScheduleLocalShell();
     })
     .catch((error) => {
+      markScheduleReadFailure(sectionId, error);
       if (shouldTripReadCircuit(error)) {
         tripReadCircuit("shared-state", error);
         renderScheduleReadDelayState(sectionId);
