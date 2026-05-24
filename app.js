@@ -5540,6 +5540,104 @@ function isMobileSectionViewport() {
   return Boolean(WC26_MOBILE_MEDIA_QUERY?.matches);
 }
 
+const WC26_MOBILE_DETAIL_SHELLS = Object.freeze({
+  schedule: {
+    title: "일정",
+    message: "일정 화면을 준비 중입니다.",
+  },
+  "field-ops": {
+    title: "장비",
+    message: "장비 화면을 준비 중입니다.",
+  },
+  archive: {
+    title: "보관함",
+    message: "보관함 화면을 준비 중입니다.",
+  },
+  "match-schedule": {
+    title: "대진표",
+    message: "대진표 화면을 준비 중입니다.",
+  },
+  map: {
+    title: "경기장 / MAP",
+    message: "MAP 화면을 준비 중입니다.",
+  },
+  "broadcast-news": {
+    title: "방송편성",
+    message: "방송편성 화면을 준비 중입니다.",
+  },
+  operations: {
+    title: "운영상태",
+    message: "운영 화면을 준비 중입니다.",
+  },
+});
+
+function ensureMobileDetailShell(targetId = "") {
+  const config = WC26_MOBILE_DETAIL_SHELLS[targetId];
+  const selector = WC26_VIEW_MAP[targetId];
+  if (!config || !selector) {
+    return;
+  }
+
+  const view = document.querySelector(selector);
+  if (!view) {
+    return;
+  }
+
+  let shell = view.querySelector(":scope > .mobile-detail-shell");
+  if (!shell) {
+    shell = document.createElement("section");
+    shell.className = "mobile-detail-shell";
+    shell.dataset.mobileDetailShell = targetId;
+    shell.hidden = true;
+    shell.setAttribute("aria-label", `${config.title} 모바일 상세 준비 화면`);
+    shell.innerHTML = `
+      <header class="mobile-detail-shell__header">
+        <p class="mobile-detail-shell__eyebrow">WC26 MOBILE</p>
+        <h2 class="mobile-detail-shell__title"></h2>
+      </header>
+      <div class="mobile-detail-shell__board">
+        <div class="mobile-detail-shell__inner">
+          <p class="mobile-detail-shell__empty"></p>
+        </div>
+      </div>
+    `;
+    view.appendChild(shell);
+  }
+
+  shell.querySelector(".mobile-detail-shell__title").textContent = config.title;
+  shell.querySelector(".mobile-detail-shell__empty").textContent = config.message;
+}
+
+function ensureMobileDetailShells() {
+  Object.keys(WC26_MOBILE_DETAIL_SHELLS).forEach(ensureMobileDetailShell);
+}
+
+function syncMobileDetailShellVisibility(targetId = "dashboard") {
+  Object.entries(WC26_MOBILE_DETAIL_SHELLS).forEach(([viewId]) => {
+    const view = document.querySelector(WC26_VIEW_MAP[viewId] || "");
+    const shell = view?.querySelector(":scope > .mobile-detail-shell");
+    if (!view || !shell) {
+      return;
+    }
+    const shouldShowShell = isMobileSectionViewport() && targetId === viewId;
+    shell.hidden = !shouldShowShell;
+    Array.from(view.children).forEach((child) => {
+      if (child === shell) {
+        return;
+      }
+      if (shouldShowShell) {
+        child.dataset.mobileDetailShellHidden = "true";
+        child.setAttribute("hidden", "");
+        return;
+      }
+      if (child.dataset.mobileDetailShellHidden === "true") {
+        child.removeAttribute("hidden");
+        delete child.dataset.mobileDetailShellHidden;
+      }
+    });
+  });
+}
+
 function ensureMobileHomeHistoryState() {
   if (!isMobileSectionViewport()) {
     return;
@@ -5562,6 +5660,8 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
   if (!document.body) {
     return;
   }
+  ensureMobileDetailShell(targetId);
+  syncMobileDetailShellVisibility(targetId);
   if (!isMobileSectionViewport()) {
     document.body.classList.remove("mobile-section-open");
     if (mobileSectionBackButton) {
@@ -20353,6 +20453,7 @@ quickActionButtons.forEach((button) => {
 });
 
 bindDashboardPanelTitleLaunchers();
+ensureMobileDetailShells();
 
 stageTabs.forEach((button) => {
   button.addEventListener("click", () => setTournamentStage(button));
