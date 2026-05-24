@@ -1196,7 +1196,7 @@ const ARCHIVE_SUIT_STORAGE_KEY = "wc26-archive-suit-items-v1";
 const ARCHIVE_SUIT_DELETED_STORAGE_KEY = "wc26-archive-suit-deleted-v1";
 const ARCHIVE_SUIT_MANUAL_GROUPS_STORAGE_KEY = "worldcup-guide-gallery-manual-groups-v1";
 const ARCHIVE_SUIT_LEGACY_GALLERY_KEYS = ["galleryData", "galleryItems", "worldcup-gallery-items-v1", "worldcup_timeline_gallery_v1"];
-const ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS = Object.freeze(["galleryData"]);
+const ARCHIVE_SUIT_SHARED_STATE_GALLERY_KEYS = Object.freeze(["galleryData", "worldcup-guide-gallery-deleted-v1"]);
 const ARCHIVE_SUIT_GALLERY_SHARED_STATE_TIMEOUT_MS = 4500;
 const ARCHIVE_SUIT_GALLERY_SHARED_STATE_COOLDOWN_MS = 30000;
 const ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY = "worldcup-guide-gallery-deleted-v1";
@@ -5814,6 +5814,22 @@ async function hydrateArchiveSuitLegacyGallerySharedState(options = {}) {
       const raw = String(galleryRow?.state_value || "").trim();
       if (raw) {
         archiveSuitLegacyGallerySharedStateRawByKey.set("galleryData", raw);
+      }
+      const deletedRow = (Array.isArray(rows) ? rows : []).find(
+        (row) => String(row?.state_key || "").trim() === ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY,
+      );
+      const deletedRaw = String(deletedRow?.state_value || "").trim();
+      if (deletedRaw) {
+        const mergedDeletedIds = new Set([
+          ...parseArchiveSuitDeletedIdsRaw(window.localStorage?.getItem(ARCHIVE_SUIT_DELETED_STORAGE_KEY) || ""),
+          ...parseArchiveSuitDeletedIdsRaw(deletedRaw),
+        ]);
+        try {
+          window.localStorage?.setItem(ARCHIVE_SUIT_DELETED_STORAGE_KEY, JSON.stringify({ version: 1, ids: [...mergedDeletedIds] }));
+          window.localStorage?.setItem(ARCHIVE_SUIT_LEGACY_GALLERY_DELETED_KEY, JSON.stringify([...mergedDeletedIds]));
+        } catch (error) {
+          console.warn("[archive-gallery-import] deleted registry hydrate failed", error);
+        }
       }
       archiveSuitLegacyGallerySharedStateReady = true;
       archiveSuitLegacyGallerySharedStateFetchedAt = Date.now();
