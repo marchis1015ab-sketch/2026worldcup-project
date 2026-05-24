@@ -13795,12 +13795,16 @@ function getTimelineGalleryFileExtension(fileName='', mimeType=''){
   return 'jpg';
 }
 function sanitizeTimelineGalleryStorageSegment(value=''){
-  return String(value||'')
+  const safeSegment=String(value||'')
     .trim()
-    .replace(/[\\/:*?"<>|#%{}^~[\]`]/g, '-')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .slice(0, 80)||'photo';
+    .replace(/^[.-]+|[.-]+$/g, '')
+    .slice(0, 80);
+  return safeSegment||'photo';
 }
 function getTimelineGallerySupabaseUrl(){
   return String(SHARED_STATE_SYNC_SUPABASE_URL||window.APP_CONFIG?.supabaseUrl||'').trim();
@@ -13837,6 +13841,7 @@ function logTimelineGalleryStorageFailure(error, context={}){
   const details=getTimelineGalleryStorageErrorDetails(error);
   console.error('[timeline-gallery] upload failed', {
     bucketName:TIMELINE_GALLERY_STORAGE_BUCKET,
+    fileName:context.fileName||'',
     filePath:context.storagePath||'',
     supabaseUrl:getTimelineGallerySupabaseUrl(),
     message:details.message,
@@ -13864,7 +13869,7 @@ async function uploadTimelineGalleryImage(image={}, entryId=''){
       upsert:false
     });
   if(error){
-    logTimelineGalleryStorageFailure(error, {storagePath});
+    logTimelineGalleryStorageFailure(error, {storagePath, fileName:image?.fileName||file?.name||''});
     throw error;
   }
   const {data}=client.storage
