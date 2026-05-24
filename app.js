@@ -5558,8 +5558,8 @@ const WC26_MOBILE_DETAIL_SHELLS = Object.freeze({
     message: "대진표 화면을 준비 중입니다.",
   },
   map: {
-    title: "경기장 / MAP",
-    message: "MAP 화면을 준비 중입니다.",
+    title: "경기장",
+    message: "경기장 화면을 준비 중입니다.",
   },
   "broadcast-news": {
     title: "방송편성",
@@ -5567,7 +5567,7 @@ const WC26_MOBILE_DETAIL_SHELLS = Object.freeze({
   },
   operations: {
     title: "운영상태",
-    message: "운영 화면을 준비 중입니다.",
+    message: "운영상태 화면을 준비 중입니다.",
   },
 });
 
@@ -5592,7 +5592,6 @@ function ensureMobileDetailShell(targetId = "") {
     shell.setAttribute("aria-label", `${config.title} 모바일 상세 준비 화면`);
     shell.innerHTML = `
       <header class="mobile-detail-shell__header">
-        <p class="mobile-detail-shell__eyebrow">WC26 MOBILE</p>
         <h2 class="mobile-detail-shell__title"></h2>
       </header>
       <div class="mobile-detail-shell__board">
@@ -5601,7 +5600,7 @@ function ensureMobileDetailShell(targetId = "") {
         </div>
       </div>
     `;
-    view.appendChild(shell);
+    view.insertBefore(shell, view.firstChild);
   }
 
   shell.querySelector(".mobile-detail-shell__title").textContent = config.title;
@@ -5671,6 +5670,9 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
   }
   const isHome = targetId === "dashboard";
   document.body.classList.toggle("mobile-section-open", !isHome);
+  if (!isHome) {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
   if (mobileSectionBackButton) {
     if (isHome) {
       mobileSectionBackButton.setAttribute("hidden", "");
