@@ -6197,6 +6197,160 @@ function readArchiveSuitFile(file) {
   });
 }
 
+async function saveArchiveSuitGalleryViaLegacy({ date = "", memo = "", files = [] } = {}) {
+  const uploadFiles = Array.isArray(files) ? files.filter((file) => file instanceof File) : [];
+  if (!uploadFiles.length) {
+    throw new Error("archive gallery save requires at least one file");
+  }
+
+  const syncWindow = await waitForScheduleBridgeFunction("saveGalleryEntry", 15000);
+  if (!syncWindow || typeof syncWindow.saveGalleryEntry !== "function") {
+    throw new Error("legacy timeline gallery save bridge unavailable");
+  }
+
+  if (typeof syncWindow.openTimelineGalleryView === "function") {
+    syncWindow.openTimelineGalleryView();
+  }
+
+  const getGalleryFormElements = () => {
+    const galleryRoot = syncWindow.document.querySelector(".timeline-gallery-view") || syncWindow.document;
+    return {
+      galleryRoot,
+      dateInput: galleryRoot.querySelector("#gallery-date"),
+      memoInput: galleryRoot.querySelector("#gallery-memo"),
+      fileInput: galleryRoot.querySelector("#gallery-upload"),
+    };
+  };
+
+  const waitForGalleryForm = async (timeoutMs = 1500) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const next = getGalleryFormElements();
+      if (
+        next.dateInput instanceof syncWindow.HTMLInputElement &&
+        next.memoInput instanceof syncWindow.HTMLInputElement &&
+        next.fileInput instanceof syncWindow.HTMLInputElement
+      ) {
+        return next;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 120));
+    }
+    return getGalleryFormElements();
+  };
+
+  let formState = await waitForGalleryForm(500);
+  if (
+    (!(formState.dateInput instanceof syncWindow.HTMLInputElement) ||
+      !(formState.memoInput instanceof syncWindow.HTMLInputElement) ||
+      !(formState.fileInput instanceof syncWindow.HTMLInputElement)) &&
+    typeof syncWindow.toggleTimelineGalleryForm === "function"
+  ) {
+    syncWindow.toggleTimelineGalleryForm();
+  }
+  formState = await waitForGalleryForm(1800);
+  const { galleryRoot, dateInput, memoInput, fileInput } = formState;
+
+  if (!(dateInput instanceof syncWindow.HTMLInputElement) || !(memoInput instanceof syncWindow.HTMLInputElement) || !(fileInput instanceof syncWindow.HTMLInputElement)) {
+    throw new Error("legacy timeline gallery form unavailable");
+  }
+
+  dateInput.value = date || getArchiveSuitToday();
+  memoInput.value = memo || "";
+
+  const transfer = typeof syncWindow.DataTransfer === "function" ? new syncWindow.DataTransfer() : new DataTransfer();
+  for (const file of uploadFiles) {
+    const bytes = await file.arrayBuffer();
+    const legacyFile = typeof syncWindow.File === "function"
+      ? new syncWindow.File([bytes], file.name, {
+          type: file.type || "application/octet-stream",
+          lastModified: file.lastModified || Date.now(),
+        })
+      : new File([bytes], file.name, {
+          type: file.type || "application/octet-stream",
+          lastModified: file.lastModified || Date.now(),
+        });
+    transfer.items.add(legacyFile);
+  }
+  fileInput.files = transfer.files;
+  fileInput.dispatchEvent(new syncWindow.Event("change", { bubbles: true }));
+
+  const expectedGalleryTokens = [
+    memo,
+    ...uploadFiles.map((file) => String(file?.name || "").trim()),
+  ].filter(Boolean);
+  const rawContainsExpectedToken = (raw = "") =>
+    expectedGalleryTokens.some((token) => token && String(raw || "").includes(token));
+
+  const waitForLegacyGallerySave = async (timeoutMs = 15000) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const localRaw =
+        typeof syncWindow.readTimelineGalleryRaw === "function" ? String(syncWindow.readTimelineGalleryRaw() || "") : "";
+      if (rawContainsExpectedToken(localRaw)) {
+        return localRaw;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    }
+    return typeof syncWindow.readTimelineGalleryRaw === "function" ? String(syncWindow.readTimelineGalleryRaw() || "") : "";
+  };
+
+  const localGalleryRaw = await waitForLegacyGallerySave();
+  if (typeof syncWindow.flushPendingSharedStateWritesWithRetry === "function") {
+    await syncWindow.flushPendingSharedStateWritesWithRetry({
+      retries: 3,
+      delayMs: 700,
+      throwOnError: true,
+      context: {
+        feature: "archive-gallery-save-verify",
+        dateKey: date || getArchiveSuitToday(),
+        fileCount: uploadFiles.length,
+      },
+    });
+  }
+  if (typeof syncWindow.hydrateTimelineGalleryEntries === "function") {
+    await syncWindow.hydrateTimelineGalleryEntries(true);
+  }
+
+  const waitForRemoteGallerySave = async (timeoutMs = 12000) => {
+    const startedAt = Date.now();
+    let latestRaw = "";
+    while (Date.now() - startedAt < timeoutMs) {
+      try {
+        const rows = await fetchNewSuitSharedStateRows(["galleryData"], { force: true });
+        const sharedRow = (Array.isArray(rows) ? rows : []).find(
+          (row) => String(row?.state_key || "").trim() === "galleryData",
+        );
+        latestRaw = String(sharedRow?.state_value || "").trim();
+        if (rawContainsExpectedToken(latestRaw)) {
+          return latestRaw;
+        }
+      } catch (error) {
+        console.warn("[archive-gallery-import] shared_state galleryData refresh failed", error);
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 240));
+    }
+    return latestRaw;
+  };
+
+  let galleryRaw = await waitForRemoteGallerySave();
+  const localHasExpected = rawContainsExpectedToken(localGalleryRaw);
+  const remoteHasExpected = rawContainsExpectedToken(galleryRaw);
+  if (!remoteHasExpected && localHasExpected) {
+    throw new Error("archive gallery save did not reach official galleryData state");
+  }
+  if (localHasExpected && !remoteHasExpected) {
+    galleryRaw = localGalleryRaw;
+  } else if (!galleryRaw) {
+    galleryRaw = localGalleryRaw;
+  } else if (localGalleryRaw && localGalleryRaw.length > galleryRaw.length && !remoteHasExpected) {
+    galleryRaw = localGalleryRaw;
+  }
+
+  return {
+    galleryRaw,
+  };
+}
+
 function getArchiveSuitFileUrl(item = {}) {
   const directUrl = String(item.fileData || item.publicUrl || item.url || item.previewUrl || "").trim();
   if (directUrl) return directUrl;
@@ -7097,6 +7251,24 @@ async function saveArchiveSuitForm(form) {
   const memo = String(form?.querySelector('[data-archive-field="memo"]')?.value || "").trim();
   const fileInput = form?.querySelector('[data-archive-field="file"]');
   const files = Array.from(fileInput?.files || []);
+  if (tab === "gallery" && !editId) {
+    const result = await saveArchiveSuitGalleryViaLegacy({ date, memo, files });
+    if (result?.galleryRaw) {
+      archiveSuitLegacyGallerySharedStateRawByKey.set("galleryData", result.galleryRaw);
+      archiveSuitLegacyGallerySharedStateReady = true;
+      archiveSuitLegacyGallerySharedStateFetchedAt = Date.now();
+    } else {
+      archiveSuitLegacyGallerySharedStateRawByKey.delete("galleryData");
+      archiveSuitLegacyGallerySharedStateReady = false;
+      archiveSuitLegacyGallerySharedStateFetchedAt = 0;
+    }
+    archiveSuitMode = "view";
+    archiveSuitEditingId = "";
+    archiveSuitSelectedId = "";
+    archiveSuitGalleryDiagnosticsSignature = "";
+    renderArchiveSuitPanels();
+    return;
+  }
   const filePayload = await readArchiveSuitFile(files[0] || null);
   const items = getArchiveSuitItems();
   if (editId) {
