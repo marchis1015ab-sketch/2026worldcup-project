@@ -1954,6 +1954,7 @@ const WC26_KOREA_ROSTER = [
 const WC26_OPS_MEMO_STORAGE_KEY = "wc26_new_suit_ops_memo_pad_v1";
 const WC26_SHARED_STATE_TABLE = "shared_state";
 const WC26_NEW_SUIT_SHARED_STATE_KEYS = Object.freeze([
+  "wc26_new_suit_timeline_blocks_v1",
   WC26_OPS_MEMO_STORAGE_KEY,
   WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
   WC26_LEGACY_TIMELINE_STORAGE_KEYS.details,
@@ -2800,6 +2801,8 @@ let wc26NewSuitSharedStatePollingTimer = null;
 let wc26NewSuitSharedStateChannel = null;
 const wc26NewSuitSharedStatePendingWrites = new Map();
 const wc26NewSuitSharedStateWriteGuards = new Map();
+let wc26TimelineRemoteSharedStateRaw = "";
+let wc26TimelineRemoteSharedStateHydrated = false;
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_DATE_MEMO_KIND = "dateMemo";
@@ -3465,6 +3468,39 @@ function mergeNewSuitSharedStateRaw(storageKey = "", localRaw = "", remoteRaw = 
   return String(remoteRaw || localRaw || "");
 }
 
+function normalizeTimelineSharedStateRaw(raw = "") {
+  return JSON.stringify(parseTimelineBlocksFromRaw(String(raw || "").trim() || "[]"));
+}
+
+function setTimelineRemoteSharedStateSnapshot(raw = "", options = {}) {
+  wc26TimelineRemoteSharedStateRaw = normalizeTimelineSharedStateRaw(raw);
+  if (options?.markHydrated !== false) {
+    wc26TimelineRemoteSharedStateHydrated = true;
+  }
+  return wc26TimelineRemoteSharedStateRaw;
+}
+
+function shouldPreferLocalTimelineDraft() {
+  const guardUntil = Number(wc26NewSuitSharedStateWriteGuards.get(WC26_TIMELINE_STORAGE_KEY) || 0);
+  return wc26NewSuitSharedStatePendingWrites.has(WC26_TIMELINE_STORAGE_KEY) || guardUntil > Date.now();
+}
+
+function requestTimelineSharedStateHydration(options = {}) {
+  return hydrateNewSuitSharedState([WC26_TIMELINE_STORAGE_KEY], {
+    force: options?.force === true,
+    throwOnError: true,
+  }).catch((error) => {
+    console.warn("[timeline shared_state] hydrate failed", error);
+    return [];
+  });
+}
+
+function queueTimelineSharedStateVerification(delayMs = 480) {
+  window.setTimeout(() => {
+    void requestTimelineSharedStateHydration({ force: true });
+  }, delayMs);
+}
+
 function rerenderNewSuitSharedStateKey(storageKey = "") {
   if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
     renderTimelineGantt({});
@@ -3575,6 +3611,15 @@ async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STAT
   const remoteByKey = new Map(rows.map((row) => [String(row?.state_key || "").trim(), String(row?.state_value ?? "")]));
   storageKeys.forEach((storageKey) => {
     const localRaw = getLocalStorageRaw(storageKey);
+    if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
+      const hasRemoteRow = remoteByKey.has(storageKey);
+      const normalizedRemote = setTimelineRemoteSharedStateSnapshot(hasRemoteRow ? remoteByKey.get(storageKey) || "" : "[]");
+      if (hasRemoteRow && normalizedRemote !== localRaw) {
+        setLocalStorageRaw(storageKey, normalizedRemote);
+      }
+      rerenderNewSuitSharedStateKey(storageKey);
+      return;
+    }
     const hasRemoteRow = remoteByKey.has(storageKey);
     if (!hasRemoteRow && isNewSuitLegacyScheduleStateKey(storageKey)) {
       return;
@@ -3608,6 +3653,14 @@ function applyNewSuitSharedStateRemoteRow(row = {}) {
   }
   const localRaw = getLocalStorageRaw(storageKey);
   const rawRemote = String(row?.state_value ?? "");
+  if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
+    const normalizedRemote = setTimelineRemoteSharedStateSnapshot(rawRemote);
+    if (normalizedRemote !== localRaw) {
+      setLocalStorageRaw(storageKey, normalizedRemote);
+    }
+    rerenderNewSuitSharedStateKey(storageKey);
+    return;
+  }
   const remoteRaw =
     (storageKey === WC26_TIMELINE_STORAGE_KEY || storageKey === WC26_SHARED_SCHEDULE_DELETED_KEYS) && !rawRemote.trim()
       ? "[]"
@@ -3645,6 +3698,9 @@ function initNewSuitSharedStateSync() {
 
 function loadTimelineBlocks() {
   const raw = (() => {
+    if (wc26TimelineRemoteSharedStateHydrated && !shouldPreferLocalTimelineDraft()) {
+      return wc26TimelineRemoteSharedStateRaw || "[]";
+    }
     try {
       return window.localStorage?.getItem(WC26_TIMELINE_STORAGE_KEY) || "";
     } catch (_error) {
@@ -3684,6 +3740,7 @@ function saveTimelineBlocks(blocks = []) {
     const raw = JSON.stringify(normalizedBlocks);
     window.localStorage?.setItem(WC26_TIMELINE_STORAGE_KEY, raw);
     scheduleNewSuitSharedStateWrite(WC26_TIMELINE_STORAGE_KEY, raw);
+    queueTimelineSharedStateVerification();
   } catch (_error) {
     showToast("일정현황 저장에 실패했습니다.");
   }
@@ -4711,7 +4768,7 @@ function refreshTimelineGanttFromLegacy(options = {}) {
 }
 
 function syncScheduleTimelineShellVisibility() {
-  const isTimelineSection = scheduleBridgeSection === "all";
+  const isTimelineSection = scheduleBridgeSection === "all" || scheduleBridgeSection === "timeline";
   const isSharedSection = scheduleBridgeSection === "shared";
   const isPersonalSection = scheduleBridgeSection === "personal";
   const isAccumulatedSection = scheduleBridgeSection === "accumulated";
@@ -6698,7 +6755,6 @@ function getArchiveSuitManualGroupsSignature(manualState = getArchiveSuitManualG
 }
 
 function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
-  const manualSignature = getArchiveSuitManualGroupsSignature();
   return items
     .map((item, index) =>
       [
@@ -6713,14 +6769,12 @@ function buildArchiveSuitGalleryGroupsCacheKey(items = []) {
         item.storagePath || item.publicUrl || "",
       ].join("~"),
     )
-    .join("|") + `::manual:${manualSignature}`;
+    .join("|");
 }
 
-function getArchiveSuitGalleryGroupKey(item = {}, index = 0, manualState = getArchiveSuitManualGroupsState()) {
+function getArchiveSuitGalleryGroupKey(item = {}, index = 0) {
   const explicitKey = getArchiveSuitGalleryBatchKey(item);
   if (explicitKey) return `batch:${explicitKey}`;
-  const manualGroup = getArchiveSuitManualGroupForItem(item, manualState);
-  if (manualGroup?.id) return `manual:${normalizeArchiveSuitGalleryGroupToken(manualGroup.id)}`;
   const relatedKey = getArchiveSuitGalleryRelatedKey(item);
   if (relatedKey) return `related:${relatedKey}`;
   const dateKey = getArchiveSuitGalleryDateKey(item);
@@ -6736,11 +6790,9 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
   if (cacheKey && cacheKey === archiveSuitGalleryGroupsCacheKey) {
     return archiveSuitGalleryGroupsCache;
   }
-  const manualState = getArchiveSuitManualGroupsState();
   const groupMap = new Map();
   items.forEach((item, index) => {
-    const groupKey = getArchiveSuitGalleryGroupKey(item, index, manualState);
-    const manualGroup = groupKey.startsWith("manual:") ? getArchiveSuitManualGroupForItem(item, manualState) : null;
+    const groupKey = getArchiveSuitGalleryGroupKey(item, index);
     if (!groupMap.has(groupKey)) {
       groupMap.set(groupKey, {
         groupKey,
@@ -6748,9 +6800,9 @@ function getArchiveSuitGalleryGroups(items = getArchiveSuitDisplayItems("gallery
         date: item.date || item.createdAt || "",
         dateKey: getArchiveSuitGalleryDateKey(item),
         sortTime: getArchiveSuitGallerySortTime(item),
-        memo: manualGroup?.memo || item.memo || "",
-        title: manualGroup?.title || item.memo || item.fileName || "갤러리 묶음",
-        manualGroupId: manualGroup?.id || "",
+        memo: item.memo || "",
+        title: item.memo || item.fileName || "갤러리 묶음",
+        manualGroupId: "",
       });
     }
     const group = groupMap.get(groupKey);
@@ -17602,6 +17654,7 @@ function setScheduleBridgeSection(sectionId = "all", options = {}) {
     return;
   }
   if (scheduleBridgeSection === "timeline") {
+    void requestTimelineSharedStateHydration();
     refreshTimelineGanttFromLegacy();
     return;
   }
@@ -20036,6 +20089,7 @@ WC26_MOBILE_MEDIA_QUERY?.addEventListener?.("change", () => {
 
 initDailyMatchCarousel();
 initNewSuitSharedStateSync();
+void requestTimelineSharedStateHydration();
 initAccumulatedTicker();
 initTimelineEditor();
 initScheduleBridge();
