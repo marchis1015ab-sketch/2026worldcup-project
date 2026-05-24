@@ -508,6 +508,28 @@ body::after {
   width: 100%;
 }
 
+.operator-cache-cleanup-button {
+  margin-top: 2px;
+  border-color: rgba(126, 255, 237, 0.16);
+  background:
+    linear-gradient(135deg, rgba(120, 172, 204, 0.11), rgba(103, 255, 216, 0.035) 58%, transparent 72%),
+    rgba(20, 43, 60, 0.58);
+  color: rgba(218, 234, 240, 0.86);
+}
+
+.operator-cache-cleanup-button:hover,
+.operator-cache-cleanup-button:focus-visible {
+  border-color: rgba(126, 255, 237, 0.32);
+  background:
+    linear-gradient(135deg, rgba(120, 172, 204, 0.16), rgba(103, 255, 216, 0.08) 58%, transparent 72%),
+    rgba(23, 51, 69, 0.76);
+}
+
+.operator-cache-cleanup-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .nav-arrow {
   align-self: center;
   color: var(--mint);
@@ -3128,6 +3150,7 @@ body::after {
   }
 
   .side-nav,
+  .operator-cache-cleanup-button,
   .quick-strip {
     display: none;
   }

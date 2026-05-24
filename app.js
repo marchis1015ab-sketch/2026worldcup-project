@@ -49,6 +49,7 @@ const sharedScheduleDetailMeta = document.getElementById("shared-schedule-detail
 const sharedScheduleDetailAttachments = document.getElementById("shared-schedule-detail-attachments");
 const sharedScheduleFilePreviewModal = document.getElementById("shared-schedule-file-preview-modal");
 const sidebarHomeButton = document.getElementById("sidebar-home-button");
+const operatorCacheCleanupButton = document.getElementById("operator-cache-cleanup-button");
 const sharedScheduleFilePreviewTitle = document.getElementById("shared-schedule-file-preview-title");
 const sharedScheduleFilePreviewType = document.getElementById("shared-schedule-file-preview-type");
 const sharedScheduleFilePreviewBody = document.getElementById("shared-schedule-file-preview-body");
@@ -1580,6 +1581,7 @@ let sharedScheduleLastDiagnostics = null;
 let sharedScheduleEventsBound = false;
 let sharedScheduleOptimisticEntries = [];
 let sharedScheduleXlsxRuntimePromise = null;
+let wc26OperatorCacheCleanupRunning = false;
 let personalScheduleComposerOpen = false;
 let personalScheduleIsSaving = false;
 let personalScheduleEventsBound = false;
@@ -5142,6 +5144,234 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => {
     toastShell.classList.remove("is-visible");
   }, 2200);
+}
+
+const WC26_OPERATOR_CACHE_CLEANUP_ALLOW_PATTERNS = Object.freeze([
+  "cache",
+  "debug",
+  "diagnostic",
+  "log",
+  "preview",
+  "temp",
+  "tmp",
+  "render-cache",
+  "performance",
+  "upload-retry",
+  "stale",
+  "sheet-preview",
+  "excel-preview",
+  "document-preview",
+  "gallery-preview",
+]);
+
+const WC26_OPERATOR_CACHE_CLEANUP_PROTECTED_PATTERNS = Object.freeze([
+  "worldcup-guide-personal-timeline-shared-v1",
+  "worldcup-guide-personal-timeline-details-v1",
+  "worldcup-guide-personal-timeline-details-deleted-v1",
+  "wc26_new_suit_timeline_blocks_v1",
+  "wc26_new_suit_shared_schedule_deleted_keys_v1",
+  "gallerydata",
+  "worldcup-guide-gallery",
+  "timeline-gallery",
+  "equipment",
+  "schedule",
+  "schedules",
+  "map_places",
+  "broadcast",
+  "news",
+  "deleted",
+  "shared_state",
+  "supabase",
+  "auth",
+  "profile",
+  "user",
+  "token",
+]);
+
+function getWc26OperatorStorageKeys(storage) {
+  const keys = [];
+  if (!storage) {
+    return keys;
+  }
+  try {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key) {
+        keys.push(key);
+      }
+    }
+  } catch (error) {
+    console.warn("[operator-cleanup] storage key scan failed", error);
+  }
+  return keys;
+}
+
+function isWc26OperatorCleanupAllowedKey(key = "") {
+  const normalized = String(key || "").toLowerCase();
+  return WC26_OPERATOR_CACHE_CLEANUP_ALLOW_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+function isWc26OperatorCleanupProtectedKey(key = "") {
+  const normalized = String(key || "").toLowerCase();
+  return WC26_OPERATOR_CACHE_CLEANUP_PROTECTED_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+function removeWc26OperatorStorageKeys(storage, storageLabel = "storage", { allowAllTemporary = false } = {}) {
+  const removed = [];
+  const skippedProtected = [];
+  const failed = [];
+  const keys = getWc26OperatorStorageKeys(storage);
+  const hasProtectedKey = keys.some(isWc26OperatorCleanupProtectedKey);
+  const candidates = keys.filter((key) => allowAllTemporary && !hasProtectedKey ? true : isWc26OperatorCleanupAllowedKey(key));
+
+  candidates.forEach((key) => {
+    if (isWc26OperatorCleanupProtectedKey(key)) {
+      skippedProtected.push(key);
+      console.warn("[operator-cleanup] protected key skipped", { storage: storageLabel, key });
+      return;
+    }
+    try {
+      storage.removeItem(key);
+      removed.push(key);
+    } catch (error) {
+      failed.push(key);
+      console.warn("[operator-cleanup] storage key removal failed", { storage: storageLabel, key, error });
+    }
+  });
+
+  console.info(`[operator-cleanup] removed ${storageLabel} keys:`, removed);
+  console.info(`[operator-cleanup] skipped protected ${storageLabel} keys:`, skippedProtected);
+  if (failed.length) {
+    console.warn(`[operator-cleanup] failed ${storageLabel} keys:`, failed);
+  }
+  return { removed, skippedProtected, failed };
+}
+
+function openWc26OperatorIndexedDb(databaseName = "") {
+  return new Promise((resolve) => {
+    if (!window.indexedDB || !databaseName) {
+      resolve(null);
+      return;
+    }
+    try {
+      const request = window.indexedDB.open(databaseName);
+      request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+      request.onsuccess = () => resolve(request.result || null);
+    } catch (_error) {
+      resolve(null);
+    }
+  });
+}
+
+async function cleanupWc26OperatorIndexedDbStore(database, storeName = "") {
+  if (!database || !storeName || isWc26OperatorCleanupProtectedKey(storeName)) {
+    return { removed: [], skipped: [storeName].filter(Boolean), failed: [] };
+  }
+  if (!isWc26OperatorCleanupAllowedKey(storeName)) {
+    return { removed: [], skipped: [storeName], failed: [] };
+  }
+
+  return new Promise((resolve) => {
+    const removed = [];
+    const failed = [];
+    try {
+      const transaction = database.transaction(storeName, "readwrite");
+      const store = transaction.objectStore(storeName);
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => removed.push(`${database.name}.${storeName}`);
+      clearRequest.onerror = () => failed.push(`${database.name}.${storeName}`);
+      transaction.oncomplete = () => resolve({ removed, skipped: [], failed });
+      transaction.onerror = () => resolve({ removed, skipped: [], failed: failed.length ? failed : [`${database.name}.${storeName}`] });
+      transaction.onabort = () => resolve({ removed, skipped: [], failed: failed.length ? failed : [`${database.name}.${storeName}`] });
+    } catch (error) {
+      console.warn("[operator-cleanup] indexedDB store cleanup failed", { database: database.name, storeName, error });
+      resolve({ removed, skipped: [], failed: [`${database.name}.${storeName}`] });
+    }
+  });
+}
+
+async function cleanupWc26OperatorIndexedDb() {
+  if (!window.indexedDB || typeof window.indexedDB.databases !== "function") {
+    console.info("[operator-cleanup] indexedDB cleanup skipped: database listing unavailable");
+    return { removed: [], skipped: ["database listing unavailable"], failed: [] };
+  }
+
+  const removed = [];
+  const skipped = [];
+  const failed = [];
+  try {
+    const databases = await window.indexedDB.databases();
+    for (const info of Array.isArray(databases) ? databases : []) {
+      const databaseName = String(info?.name || "").trim();
+      if (!databaseName) {
+        continue;
+      }
+      if (isWc26OperatorCleanupProtectedKey(databaseName)) {
+        skipped.push(databaseName);
+        continue;
+      }
+      const database = await openWc26OperatorIndexedDb(databaseName);
+      if (!database) {
+        failed.push(databaseName);
+        continue;
+      }
+      const storeNames = Array.from(database.objectStoreNames || []);
+      if (!storeNames.length) {
+        skipped.push(databaseName);
+        database.close();
+        continue;
+      }
+      for (const storeName of storeNames) {
+        const result = await cleanupWc26OperatorIndexedDbStore(database, storeName);
+        removed.push(...result.removed);
+        skipped.push(...result.skipped);
+        failed.push(...result.failed);
+      }
+      database.close();
+    }
+  } catch (error) {
+    console.warn("[operator-cleanup] indexedDB cleanup skipped", error);
+    skipped.push("indexedDB scan failed");
+  }
+
+  console.info("[operator-cleanup] indexedDB cleanup result:", { removed, skipped, failed });
+  return { removed, skipped, failed };
+}
+
+async function runWc26OperatorCacheCleanup() {
+  if (wc26OperatorCacheCleanupRunning) {
+    return;
+  }
+  if (
+    !window.confirm(
+      "브라우저 임시 캐시와 진단 로그만 정리합니다. 공식 저장 데이터는 삭제하지 않습니다. 계속할까요?",
+    )
+  ) {
+    console.info("[operator-cleanup] canceled by user");
+    return;
+  }
+
+  wc26OperatorCacheCleanupRunning = true;
+  if (operatorCacheCleanupButton) {
+    operatorCacheCleanupButton.disabled = true;
+  }
+
+  try {
+    const localStorageResult = removeWc26OperatorStorageKeys(window.localStorage, "localStorage");
+    const sessionStorageResult = removeWc26OperatorStorageKeys(window.sessionStorage, "sessionStorage", { allowAllTemporary: true });
+    const indexedDbResult = await cleanupWc26OperatorIndexedDb();
+    console.info("[operator-cleanup] completed", {
+      localStorage: localStorageResult,
+      sessionStorage: sessionStorageResult,
+      indexedDB: indexedDbResult,
+    });
+  } catch (error) {
+    console.warn("[operator-cleanup] cleanup finished with errors", error);
+  } finally {
+    window.alert("운영 캐시 정리가 완료되었습니다. 화면을 새로고침합니다.");
+    window.location.reload();
+  }
 }
 
 function highlightTargets(selectors) {
@@ -20142,6 +20372,10 @@ sidebarHomeButton?.addEventListener("keydown", (event) => {
   }
   event.preventDefault();
   goToDashboardHome();
+});
+
+operatorCacheCleanupButton?.addEventListener("click", () => {
+  void runWc26OperatorCacheCleanup();
 });
 
 window.addEventListener("popstate", (event) => {
