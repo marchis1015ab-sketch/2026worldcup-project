@@ -4389,37 +4389,70 @@ function buildTimelineBlocksFromOfficialSharedSchedules(dates = []) {
 
 function buildTimelineGanttRowsFromOfficialState(dates = []) {
   const rows = new Map(WC26_TIMELINE_RENDER_ROW_ORDER.map((name) => [name, []]));
-  let personalBlocks = [];
-  let sharedBlocks = [];
-  try {
-    personalBlocks = buildTimelineBlocksFromOfficialPersonalDetails(dates);
-  } catch (_error) {
-    recordTlLockDiag("buildTimelineGanttRowsFromOfficialState:personal-error", {
-      message: String(_error?.message || _error || ""),
-    });
-  }
-  try {
-    sharedBlocks = buildTimelineBlocksFromOfficialSharedSchedules(dates);
-  } catch (_error) {
-    recordTlLockDiag("buildTimelineGanttRowsFromOfficialState:shared-error", {
-      message: String(_error?.message || _error || ""),
-    });
-  }
-  [...personalBlocks, ...sharedBlocks].forEach((block) => {
+  const visibleDateKeys = (Array.isArray(dates) ? dates : [])
+    .map((dateKey) => String(dateKey || "").slice(0, 10).trim())
+    .filter(Boolean);
+  const visibleStart = visibleDateKeys[0] || "";
+  const visibleEnd = visibleDateKeys[visibleDateKeys.length - 1] || "";
+  const savedBlocks = loadTimelineBlocks()
+    .filter((block) => String(block?.kind || block?.type || "").trim() !== WC26_TIMELINE_DATE_MEMO_KIND)
+    .map((block) => {
+      const normalizedName = String(block?.name || "").trim();
+      const startDate = String(block?.startDate || "").slice(0, 10).trim();
+      const endDate = String(block?.endDate || "").slice(0, 10).trim();
+      if (!normalizedName || !startDate || !endDate) {
+        return null;
+      }
+      if (visibleStart && endDate < visibleStart) {
+        return null;
+      }
+      if (visibleEnd && startDate > visibleEnd) {
+        return null;
+      }
+      const period = formatTimelineBlockPeriod(startDate, endDate);
+      const place = String(block?.place || "").trim();
+      const memo = String(block?.memo || "").trim();
+      return {
+        ...block,
+        source: String(block?.source || "timeline-block").trim(),
+        name: normalizedName,
+        startDate,
+        endDate,
+        period,
+        place,
+        memo,
+        title: [normalizedName, period, place, memo].filter(Boolean).join("\n"),
+      };
+    })
+    .filter(Boolean);
+
+  savedBlocks.forEach((block) => {
     const normalizedName = String(block?.name || "").trim();
     if (!normalizedName || !rows.has(normalizedName)) {
       return;
     }
     rows.get(normalizedName).push(block);
   });
+  rows.forEach((blocks, name) => {
+    rows.set(
+      name,
+      [...blocks].sort((left, right) => {
+        const startCompare = String(left?.startDate || "").localeCompare(String(right?.startDate || ""));
+        if (startCompare !== 0) return startCompare;
+        const endCompare = String(left?.endDate || "").localeCompare(String(right?.endDate || ""));
+        if (endCompare !== 0) return endCompare;
+        return String(left?.id || "").localeCompare(String(right?.id || ""));
+      }),
+    );
+  });
   const generatedRowCount = Array.from(rows.values()).filter((blocks) => Array.isArray(blocks) && blocks.length).length;
   recordTlLockDiag("buildTimelineGanttRowsFromOfficialState", {
-    visibleStart: Array.isArray(dates) && dates.length ? dates[0] : "",
-    visibleEnd: Array.isArray(dates) && dates.length ? dates[dates.length - 1] : "",
-    personalBlocks: personalBlocks.length,
-    sharedBlocks: sharedBlocks.length,
+    visibleStart,
+    visibleEnd,
+    source: WC26_TIMELINE_STORAGE_KEY,
+    savedBlocks: savedBlocks.length,
     generatedRows: generatedRowCount,
-    generatedBlocks: personalBlocks.length + sharedBlocks.length,
+    generatedBlocks: savedBlocks.length,
   });
   return rows;
 }
