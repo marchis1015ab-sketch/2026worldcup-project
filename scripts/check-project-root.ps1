@@ -71,7 +71,8 @@ $currentPath = [System.IO.Path]::GetFullPath((Get-Location).Path)
 $normalizedCurrentPath = Normalize-PathValue -PathValue $currentPath
 
 $approvedRoots = @(
-  'C:\Users\march\OneDrive\Desktop\2026worldcup-project'
+  'C:\Users\march\OneDrive\Desktop\2026worldcup-project',
+  'C:\Users\Jnote\Desktop\2026worldcup-project'
 )
 
 $normalizedApprovedRoots = $approvedRoots | ForEach-Object {
