@@ -34,6 +34,7 @@ const sharedScheduleDateInput = document.getElementById("shared-schedule-date-in
 const sharedScheduleContentInput = document.getElementById("shared-schedule-content-input");
 const sharedScheduleFileInput = document.getElementById("shared-schedule-file-input");
 const sharedSchedulePreview = document.getElementById("shared-schedule-preview");
+const sharedScheduleExportButton = document.getElementById("shared-schedule-export-button");
 const sharedScheduleSaveButton = document.getElementById("shared-schedule-save-button");
 const sharedScheduleCancelButton = document.getElementById("shared-schedule-cancel-button");
 const sharedScheduleDeleteModeButton = document.getElementById("shared-schedule-delete-mode-button");
@@ -15006,6 +15007,11 @@ function normalizeSharedScheduleEntryForRender(entry = {}, dateKey = "", entryIn
     entryIndex,
     text,
     firstLine: getSharedScheduleFirstLine(text),
+    time: String(entry?.time || entry?.startTime || entry?.localTime || "").trim(),
+    title: String(entry?.title || "").trim(),
+    place: String(entry?.place || entry?.location || entry?.venue || "").trim(),
+    owner: String(entry?.owner || entry?.manager || entry?.assignee || entry?.person || "").trim(),
+    memo: String(entry?.memo || entry?.note || "").trim(),
     attachments,
     updatedAt: String(entry?.updatedAt || entry?.createdAt || "").trim(),
     createdAt: String(entry?.createdAt || "").trim(),
@@ -15201,6 +15207,77 @@ function readOfficialSharedScheduleState(syncWindow = null) {
 
 function getOfficialSharedScheduleEntries(syncWindow = null) {
   return flattenSharedScheduleState(readOfficialSharedScheduleState(syncWindow));
+}
+
+function getSharedScheduleExportTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return {
+    display: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(
+      date.getMinutes(),
+    )}`,
+    file: `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(
+      date.getMinutes(),
+    )}`,
+  };
+}
+
+function getSharedScheduleExportField(value = "") {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  return normalized || "-";
+}
+
+function getSharedScheduleExportLine(entry = {}) {
+  const textLines = String(entry?.text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const title = getSharedScheduleExportField(entry?.title || textLines[0] || entry?.firstLine || entry?.text);
+  const memoSource = entry?.memo || entry?.note || textLines.slice(1).join(" / ");
+  const fields = [
+    getSharedScheduleExportField(entry?.time || entry?.startTime || entry?.localTime),
+    title,
+    getSharedScheduleExportField(entry?.place || entry?.location || entry?.venue),
+    getSharedScheduleExportField(entry?.owner || entry?.manager || entry?.assignee || entry?.person),
+    getSharedScheduleExportField(memoSource),
+  ];
+  return `- ${fields.join(" / ")}`;
+}
+
+function buildSharedScheduleExportText(entries = [], createdAt = new Date()) {
+  const timestamp = getSharedScheduleExportTimestamp(createdAt);
+  const lines = ["2026 월드컵 공용일정 내보내기", `생성시각: ${timestamp.display}`, ""];
+  const grouped = groupSharedScheduleEntries(
+    dedupeSharedScheduleEntries(entries).sort((left, right) => {
+      const dateCompare = String(left.dateKey || "").localeCompare(String(right.dateKey || ""));
+      if (dateCompare) {
+        return dateCompare;
+      }
+      return getSharedScheduleUpdatedStamp(left) - getSharedScheduleUpdatedStamp(right);
+    }),
+  ).sort((left, right) => String(left.dateKey || "").localeCompare(String(right.dateKey || "")));
+
+  grouped.forEach((group) => {
+    lines.push(`[${group.dateKey}]`);
+    group.entries.forEach((entry) => {
+      lines.push(getSharedScheduleExportLine(entry));
+    });
+    lines.push("");
+  });
+
+  return lines.join("\r\n").trimEnd() + "\r\n";
+}
+
+function exportSharedScheduleText() {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  const entries = dedupeSharedScheduleEntries(getOfficialSharedScheduleEntries(syncWindow));
+  if (!entries.length) {
+    alert("내보낼 공용일정이 없습니다.");
+    return;
+  }
+
+  const timestamp = getSharedScheduleExportTimestamp();
+  downloadTextFile(`wc26-shared-schedule-${timestamp.file}.txt`, buildSharedScheduleExportText(entries));
 }
 
 function matchesSharedScheduleText(entry = {}, text = "") {
@@ -18456,6 +18533,7 @@ function initScheduleBridge() {
     sharedScheduleFileInput?.addEventListener("change", () => {
       setSharedScheduleDraftFiles(sharedScheduleFileInput.files);
     });
+    sharedScheduleExportButton?.addEventListener("click", exportSharedScheduleText);
     sharedScheduleSaveButton?.addEventListener("click", handleSharedScheduleSave);
     sharedScheduleDeleteModeButton?.addEventListener("click", toggleSharedScheduleDeleteMode);
     sharedScheduleDeleteConfirmButton?.addEventListener("click", () => {

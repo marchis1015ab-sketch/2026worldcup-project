@@ -11926,14 +11926,18 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
 
   body.mobile-section-open #view-schedule .shared-schedule-panel--list .shared-schedule-panel__actions {
     display: flex !important;
-    width: 299px;
-    max-width: 299px;
+    width: min(299px, calc(100vw - 34px));
+    max-width: calc(100vw - 34px);
     justify-content: flex-end;
     align-items: center;
     gap: 6px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     margin: -9px 17px 0 0;
     margin-left: auto;
+  }
+
+  body.mobile-section-open #view-schedule #shared-schedule-export-button {
+    flex: 1 1 100%;
   }
 
   body.mobile-section-open #view-schedule .detail-panel > *,
