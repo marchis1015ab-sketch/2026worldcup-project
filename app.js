@@ -7185,12 +7185,18 @@ function setArchiveBridgeSection(sectionId = "document-storage", options = {}) {
       renderArchiveSuitPanels();
       return;
     }
-    refreshArchiveSuitLegacyStorageData().then(() => {
+    const rerenderLegacyStoragePanels = () => {
       if (storageBridgeSection !== normalizeStorageBridgeSection(sectionId)) {
         return;
       }
       renderArchiveSuitPanels();
+    };
+    refreshArchiveSuitLegacyStorageData().then(() => {
+      rerenderLegacyStoragePanels();
       requestStorageBridgeSummaryWithCooldown();
+      [240, 900].forEach((delay) => {
+        window.setTimeout(rerenderLegacyStoragePanels, delay);
+      });
     });
   } else {
     renderArchiveSuitPanels();
