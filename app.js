@@ -165,7 +165,7 @@ const scheduleDetailTitle = scheduleDetailView?.querySelector(".panel__title") |
 const scheduleTimelineGanttShell = document.getElementById("schedule-timeline-gantt-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
-const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-04";
+const WC26_BRIDGE_VERSION = "shared-auto-write-block-20260525-01";
 window.__WC26_LOCAL_BUILD_ID = WC26_LOCAL_BUILD_ID;
 const WC26_GROUP_A_FLAGS = [
   { code: "mx", label: "멕시코" },
@@ -14991,9 +14991,48 @@ async function writeOfficialSharedScheduleState(state = {}) {
   return response;
 }
 
-async function syncOfficialSharedScheduleStateFromBridge(syncWindow = null) {
-  const entries = dedupeSharedScheduleEntries(flattenSharedScheduleState(readBridgeSharedScheduleState(syncWindow)));
-  const state = buildSharedScheduleStateFromEntries(entries);
+async function syncOfficialSharedScheduleStateFromBridge(syncWindow = null, options = {}) {
+  const bridgeState = readBridgeSharedScheduleState(syncWindow);
+  const bridgeEntries = dedupeSharedScheduleEntries(flattenSharedScheduleState(bridgeState));
+  const remoteState = readOfficialSharedScheduleState(syncWindow);
+  const remoteEntries = dedupeSharedScheduleEntries(flattenSharedScheduleState(remoteState));
+  const testMarkers = bridgeEntries
+    .filter((entry) =>
+      /TEST_SHARED_RESTORE_SINGLE_SOURCE|TEST_SHARED_FRESH_HYDRATE|TEST_SHARED|DELETE_ME/i.test(
+        String(entry?.text || entry?.content || "").trim(),
+      ),
+    )
+    .map((entry) => String(entry?.text || entry?.content || "").trim())
+    .filter(Boolean);
+  const reasons = [];
+  if (options?.userAction !== true) {
+    reasons.push("userAction-required");
+  }
+  if (options?.allowRemoteWrite !== true) {
+    reasons.push("allowRemoteWrite-required");
+  }
+  if (!bridgeEntries.length) {
+    reasons.push("bridge-empty");
+  }
+  if (remoteEntries.length && bridgeEntries.length > remoteEntries.length) {
+    reasons.push("bridge-count-exceeds-remote");
+  }
+  if (testMarkers.length) {
+    reasons.push("bridge-has-test-marker");
+  }
+  if (reasons.length) {
+    console.warn("[shared-v1-bridge-sync-blocked]", {
+      reason: reasons.join(","),
+      caller: String(options?.caller || "").trim() || "syncOfficialSharedScheduleStateFromBridge",
+      userAction: options?.userAction === true,
+      allowRemoteWrite: options?.allowRemoteWrite === true,
+      bridgeCount: bridgeEntries.length,
+      remoteCount: remoteEntries.length,
+      testMarkers,
+    });
+    return remoteState;
+  }
+  const state = buildSharedScheduleStateFromEntries(bridgeEntries);
   await writeOfficialSharedScheduleState(state);
   return state;
 }
@@ -17097,7 +17136,11 @@ async function handleSharedScheduleSave() {
     }
     let persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
     if (!persistedEntry) {
-      await syncOfficialSharedScheduleStateFromBridge(syncWindow);
+      await syncOfficialSharedScheduleStateFromBridge(syncWindow, {
+        userAction: true,
+        allowRemoteWrite: false,
+        caller: "handleSharedScheduleSave",
+      });
       persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
     }
     if (!persistedEntry) {
@@ -17198,7 +17241,11 @@ async function handleSharedScheduleDeleteConfirmOfficial(groups = [], targets = 
   }
   let removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
   if (!removed) {
-    await syncOfficialSharedScheduleStateFromBridge(syncWindow);
+    await syncOfficialSharedScheduleStateFromBridge(syncWindow, {
+      userAction: true,
+      allowRemoteWrite: false,
+      caller: "handleSharedScheduleDeleteConfirmOfficial",
+    });
     removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
   }
   if (!removed) {

@@ -8173,10 +8173,17 @@ const sharedStatePendingRefetchKeys = new Set();
 let sharedStateSyncWriteInProgress = false;
 let sharedStateSyncWriteTimerId = null;
 const sharedStatePendingWrites = new Map();
+const sharedStatePendingWriteMeta = new Map();
 const sharedStateLocalWriteGuards = new Map();
 const SHARED_STATE_LOCAL_WRITE_GUARD_MS = 5000;
 const HEADER_REPORT_BOARD_RECENT_DURATION_MS = 5 * 60 * 1000;
 const TIMELINE_KIMJINGWANG_GUIDELINE_CLEANUP_KEY = '__worldcupGuideCleanupKimJingwangGuidelineV1__';
+const SHARED_V1_TEST_MARKER_PATTERNS = Object.freeze([
+  'TEST_SHARED_RESTORE_SINGLE_SOURCE',
+  'TEST_SHARED_FRESH_HYDRATE',
+  'TEST_SHARED',
+  'DELETE_ME'
+]);
 
 function isSupabaseRealtimeEnabled(){
   return SUPABASE_REALTIME_ENABLED;
@@ -8719,10 +8726,16 @@ function schedulePendingSharedStateFlush(delay=120){
     flushPendingSharedStateWrites();
   }, delay);
 }
-function scheduleSharedStateSyncWrite(storageKey, raw=''){
+function scheduleSharedStateSyncWrite(storageKey, raw='', options={}){
   if(sharedStateSyncDisabled||!SHARED_STATE_SYNC_REGISTRY[storageKey]) return;
   const normalizedRaw=String(raw??'');
+  const normalizedOptions=options&&typeof options==='object' ? options : {};
+  if(storageKey===PERSONAL_TIMELINE_SHARED_STORAGE_KEY&&!isSharedV1RemoteWriteAllowed(normalizedOptions)){
+    logSharedV1WriteEvent('[shared-v1-pending-write-blocked]', normalizedRaw, normalizedOptions, normalizedOptions.reason||'scheduleSharedStateSyncWrite');
+    return;
+  }
   sharedStatePendingWrites.set(storageKey, normalizedRaw);
+  sharedStatePendingWriteMeta.set(storageKey, normalizedOptions);
   sharedStateValueCache.set(storageKey, {succeeded:true, raw:normalizedRaw, fetchedAt:Date.now()});
   sharedStateLocalWriteGuards.set(storageKey, Date.now()+SHARED_STATE_LOCAL_WRITE_GUARD_MS);
   if(sharedStateSyncReady){
@@ -8758,6 +8771,57 @@ function buildSharedStateWriteDebugPayload(pendingEntries=[]){
     payloadLength:String(stateValue||'').length
   }));
 }
+function getSharedV1WriteMarkers(raw=''){
+  const text=String(raw||'');
+  return SHARED_V1_TEST_MARKER_PATTERNS.filter(pattern=>text.includes(pattern));
+}
+function countSharedV1RawEntries(raw=''){
+  const state=parsePersonalTimelineSharedState(raw);
+  return Object.values(state||{}).reduce((count, entries)=>{
+    const normalized=Array.isArray(entries) ? entries : [entries];
+    return count+normalized.filter(Boolean).length;
+  }, 0);
+}
+function buildSharedV1WriteDiagnostic(raw='', options={}, reason=''){
+  const normalizedOptions=options&&typeof options==='object' ? options : {};
+  const stackSource=normalizedOptions.stack||new Error().stack||'';
+  const stack=String(stackSource)
+    .split('\n')
+    .map(line=>String(line||'').trim())
+    .filter(Boolean)
+    .slice(2, 8)
+    .join('\n');
+  const testMarkers=getSharedV1WriteMarkers(raw);
+  return {
+    reason:String(reason||normalizedOptions.reason||'').trim()||'shared-v1-guard',
+    caller:String(normalizedOptions.caller||'').trim()||'unknown',
+    userAction:normalizedOptions.userAction===true,
+    allowRemoteWrite:normalizedOptions.allowRemoteWrite===true,
+    rawCount:countSharedV1RawEntries(raw),
+    hasTestMarker:testMarkers.length>0,
+    testMarkers,
+    stack
+  };
+}
+function isSharedV1RemoteWriteAllowed(options={}){
+  return options?.userAction===true||options?.allowRemoteWrite===true;
+}
+function logSharedV1WriteEvent(tag='[shared-v1-write-blocked]', raw='', options={}, reason=''){
+  const payload=buildSharedV1WriteDiagnostic(raw, options, reason);
+  const logger=tag==='[shared-v1-write-allowed]' ? console.info : console.warn;
+  logger(tag, payload);
+  return payload;
+}
+function dropBlockedSharedV1PendingWrite(reason='initSharedStateSync'){
+  if(!sharedStatePendingWrites.has(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)) return false;
+  const raw=String(sharedStatePendingWrites.get(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)||'');
+  const options=sharedStatePendingWriteMeta.get(PERSONAL_TIMELINE_SHARED_STORAGE_KEY)||{};
+  if(isSharedV1RemoteWriteAllowed(options)) return false;
+  sharedStatePendingWrites.delete(PERSONAL_TIMELINE_SHARED_STORAGE_KEY);
+  sharedStatePendingWriteMeta.delete(PERSONAL_TIMELINE_SHARED_STORAGE_KEY);
+  logSharedV1WriteEvent('[shared-v1-pending-write-blocked]', raw, options, reason);
+  return true;
+}
 async function flushPendingSharedStateWritesWithRetry(options={}){
   const {
     retries=2,
@@ -8769,13 +8833,32 @@ async function flushPendingSharedStateWritesWithRetry(options={}){
     window.clearTimeout(sharedStateSyncWriteTimerId);
     sharedStateSyncWriteTimerId=null;
   }
+  dropBlockedSharedV1PendingWrite(context?.feature||context?.reason||'flushPendingSharedStateWritesWithRetry');
   const client=getSharedStateSyncClient();
   if(!client||sharedStateSyncWriteInProgress||!sharedStatePendingWrites.size){
     return {ok:true, attempts:0, skipped:true};
   }
   sharedStateSyncWriteInProgress=true;
-  const pendingEntries=[...sharedStatePendingWrites.entries()];
+  const pendingPayload=[...sharedStatePendingWrites.entries()].map(([stateKey, stateValue])=>[
+    stateKey,
+    stateValue,
+    sharedStatePendingWriteMeta.get(stateKey)||{}
+  ]);
   sharedStatePendingWrites.clear();
+  sharedStatePendingWriteMeta.clear();
+  const pendingEntries=[];
+  const pendingMetaEntries=[];
+  pendingPayload.forEach(([stateKey, stateValue, meta])=>{
+    if(stateKey===PERSONAL_TIMELINE_SHARED_STORAGE_KEY&&!isSharedV1RemoteWriteAllowed(meta)){
+      logSharedV1WriteEvent('[shared-v1-pending-write-blocked]', stateValue, meta, context?.feature||context?.reason||'flushPendingSharedStateWritesWithRetry');
+      return;
+    }
+    pendingEntries.push([stateKey, stateValue]);
+    pendingMetaEntries.push([stateKey, meta]);
+  });
+  if(!pendingEntries.length){
+    return {ok:true, attempts:0, skipped:true, blocked:true};
+  }
   let lastError=null;
   try{
     for(let attempt=0; attempt<=retries; attempt+=1){
@@ -8838,6 +8921,7 @@ async function flushPendingSharedStateWritesWithRetry(options={}){
       }
     }
     pendingEntries.forEach(([state_key, state_value])=>sharedStatePendingWrites.set(state_key, state_value));
+    pendingMetaEntries.forEach(([state_key, meta])=>sharedStatePendingWriteMeta.set(state_key, meta));
     if(throwOnError&&lastError){
       throw lastError;
     }
@@ -9238,6 +9322,7 @@ function initSharedStateSync(){
   if(!client) return;
   sharedStateSyncInitStarted=true;
   sharedStateSyncReady=true;
+  dropBlockedSharedV1PendingWrite('initSharedStateSync');
   fetchSharedStateSnapshot(SHARED_STATE_INITIAL_FETCH_KEYS, {markInitial:true});
   startSharedStateRealtimeSync();
   flushPendingSharedStateWrites();
@@ -9968,9 +10053,10 @@ function readPersonalTimelineSharedRaw(){
     return '';
   }
 }
-function writePersonalTimelineSharedRaw(raw){
+function writePersonalTimelineSharedRaw(raw, options={}){
+  const normalizedRaw=String(raw??'');
   const storages=getTimelineStorageAreas();
-  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw));
+  storages.forEach(storage=>storage.setItem(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, normalizedRaw));
   if(typeof window==='undefined') return;
   let payload={};
   if(window.name){
@@ -9980,15 +10066,25 @@ function writePersonalTimelineSharedRaw(raw){
       payload={};
     }
   }
-  payload[PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY]=raw;
+  payload[PERSONAL_TIMELINE_SHARED_WINDOW_NAME_KEY]=normalizedRaw;
   try{
     window.name=JSON.stringify(payload);
   }catch(error){
     window.name='';
   }
-  setSharedStateLocalRaw(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
-  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, raw);
-  if(sharedStateSyncReady) void flushPendingSharedStateWrites();
+  setSharedStateLocalRaw(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, normalizedRaw);
+  const normalizedOptions=options&&typeof options==='object' ? options : {};
+  if(!isSharedV1RemoteWriteAllowed(normalizedOptions)){
+    logSharedV1WriteEvent('[shared-v1-write-blocked]', normalizedRaw, normalizedOptions, normalizedOptions.reason||'writePersonalTimelineSharedRaw');
+    return;
+  }
+  logSharedV1WriteEvent('[shared-v1-write-allowed]', normalizedRaw, normalizedOptions, normalizedOptions.reason||'writePersonalTimelineSharedRaw');
+  scheduleSharedStateSyncWrite(PERSONAL_TIMELINE_SHARED_STORAGE_KEY, normalizedRaw, normalizedOptions);
+  if(sharedStateSyncReady) void flushPendingSharedStateWritesWithRetry({
+    context:{
+      feature:String(normalizedOptions.reason||'shared-v1-user-action').trim()||'shared-v1-user-action'
+    }
+  });
 }
 function createTimelineModalMediaId(){
   timelineModalMediaSeq+=1;
@@ -10176,15 +10272,24 @@ function loadPersonalTimelineSharedEntries(){
         }
       }
     });
-    savePersonalTimelineSharedEntries();
+    console.info('[shared-v1-load-save-suppressed]', {
+      reason:'loadPersonalTimelineSharedEntries',
+      rawCount:countSharedV1RawEntries(raw),
+      hasTestMarker:getSharedV1WriteMarkers(raw).length>0
+    });
   }catch(error){
     console.warn('Failed to load personal timeline shared entries.', error);
   }
 }
-function savePersonalTimelineSharedEntries(){
+function savePersonalTimelineSharedEntries(options={}){
   if(!canEdit()) return;
-  writePersonalTimelineSharedRaw(JSON.stringify(personalTimelineSharedEntries));
-  notifyWc26LegacyScheduleSummaryChanged('shared-save');
+  const normalizedOptions=options&&typeof options==='object' ? options : {};
+  const reason=String(normalizedOptions.reason||'shared-save').trim()||'shared-save';
+  writePersonalTimelineSharedRaw(JSON.stringify(personalTimelineSharedEntries), {
+    ...normalizedOptions,
+    reason
+  });
+  notifyWc26LegacyScheduleSummaryChanged(reason);
 }
 function getPersonalTimelineSharedEntries(dateKey){
   loadPersonalTimelineSharedEntries();
@@ -10196,7 +10301,7 @@ function getPersonalTimelineSharedEntries(dateKey){
 function getPersonalTimelineSharedEntry(dateKey, entryIndex=0){
   return getPersonalTimelineSharedEntries(dateKey)[entryIndex]||null;
 }
-function setPersonalTimelineSharedEntries(dateKey, entries){
+function setPersonalTimelineSharedEntries(dateKey, entries, options={}){
   if(!dateKey) return;
   loadPersonalTimelineSharedEntries();
   const normalized=normalizePersonalTimelineSharedEntries(entries, dateKey);
@@ -10211,10 +10316,10 @@ function setPersonalTimelineSharedEntries(dateKey, entries){
     timelineAssignments['영상취재팀 공동'].delete(dateKey);
   }
   saveTimelineAssignments();
-  savePersonalTimelineSharedEntries();
+  savePersonalTimelineSharedEntries(options);
 }
-function setPersonalTimelineSharedEntry(dateKey, entry){
-  setPersonalTimelineSharedEntries(dateKey, entry ? [entry] : []);
+function setPersonalTimelineSharedEntry(dateKey, entry, options={}){
+  setPersonalTimelineSharedEntries(dateKey, entry ? [entry] : [], options);
 }
 function setScheduleSavingState(isSaving){
   const modal=document.getElementById('timelineModal');
@@ -10350,7 +10455,11 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
     nextEntries.push(nextEntry);
   }
   try{
-    setPersonalTimelineSharedEntries(dateKey, nextEntries);
+    setPersonalTimelineSharedEntries(dateKey, nextEntries, {
+      userAction:true,
+      reason:'shared-save',
+      caller:'saveCommonScheduleWithAttachment'
+    });
   }catch(error){
     console.error('[shared-schedule] local save failed', {
       dateKey,
@@ -10360,7 +10469,11 @@ async function saveCommonScheduleWithAttachment({item=null, dateKey='', entryInd
       error
     });
     writeTimelineAssignmentsRaw(previousAssignmentsRaw);
-    writePersonalTimelineSharedRaw(previousSharedRaw);
+    writePersonalTimelineSharedRaw(previousSharedRaw, {
+      userAction:false,
+      reason:'shared-rollback',
+      caller:'saveCommonScheduleWithAttachment.rollback'
+    });
     writeTimelineGalleryRaw(previousGalleryRaw);
     timelineEditableLabels.forEach(label=>timelineAssignments[label]?.clear());
     hasLoadedTimelineSavedAssignments=false;
@@ -13101,7 +13214,11 @@ function deletePersonalTimelineSharedEntryAt(item, dateKey, entryIndex){
   const nextEntries=[...getPersonalTimelineSharedEntries(dateKey)];
   if(!nextEntries[entryIndex]) return;
   nextEntries.splice(entryIndex,1);
-  setPersonalTimelineSharedEntries(dateKey, nextEntries);
+  setPersonalTimelineSharedEntries(dateKey, nextEntries, {
+    userAction:true,
+    reason:'shared-delete',
+    caller:'deletePersonalTimelineSharedEntryAt'
+  });
   if(!nextEntries.length){
     if(personalTimelineSharedEditingDateKey===dateKey) personalTimelineSharedEditingDateKey='';
     if(personalTimelineSharedDeletingDateKey===dateKey) personalTimelineSharedDeletingDateKey='';
