@@ -3664,16 +3664,12 @@ async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STAT
       const remoteRaw = hasRemoteRow ? remoteByKey.get(storageKey) || "" : "";
       const normalizedRemote = setSharedScheduleRemoteSharedStateSnapshot(remoteRaw);
       if (!hasRemoteRow) {
-        if (localRaw) {
-          setLocalStorageRaw(storageKey, "");
-        }
+        clearSharedScheduleLocalCaches(getScheduleBridgeSyncWindow() || window);
         rerenderNewSuitSharedStateKey(storageKey);
         return;
       }
-      if (normalizedRemote !== localRaw) {
-        setLocalStorageRaw(storageKey, normalizedRemote);
-        rerenderNewSuitSharedStateKey(storageKey);
-      }
+      syncSharedScheduleCachesFromOfficialState(parseSharedScheduleState(normalizedRemote), getScheduleBridgeSyncWindow() || window);
+      rerenderNewSuitSharedStateKey(storageKey);
       return;
     }
     const hasRemoteRow = remoteByKey.has(storageKey);
@@ -3723,10 +3719,8 @@ function applyNewSuitSharedStateRemoteRow(row = {}) {
   }
   if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) {
     const normalizedRemote = setSharedScheduleRemoteSharedStateSnapshot(rawRemote);
-    if (normalizedRemote !== localRaw) {
-      setLocalStorageRaw(storageKey, normalizedRemote);
-      rerenderNewSuitSharedStateKey(storageKey);
-    }
+    syncSharedScheduleCachesFromOfficialState(parseSharedScheduleState(normalizedRemote), getScheduleBridgeSyncWindow() || window);
+    rerenderNewSuitSharedStateKey(storageKey);
     return;
   }
   const remoteRaw =
@@ -14964,6 +14958,7 @@ async function fetchOfficialSharedScheduleState(syncWindow = null) {
   }
   const normalizedRaw = normalizeSharedStateValueRaw(rows?.[0]?.state_value);
   setSharedScheduleRemoteSharedStateSnapshot(normalizedRaw);
+  syncSharedScheduleCachesFromOfficialState(parseSharedScheduleState(normalizedRaw), syncWindow || getScheduleBridgeSyncWindow() || window);
   return parseSharedScheduleState(normalizedRaw);
 }
 
@@ -16440,6 +16435,33 @@ function countSharedScheduleLocalEntries(syncWindow) {
   } catch (_error) {
     return 0;
   }
+}
+
+function clearSharedScheduleLocalCaches(syncWindow = null) {
+  const storage = getSharedScheduleSnapshotStorage();
+  try {
+    storage?.removeItem?.(WC26_SHARED_SCHEDULE_SNAPSHOT_KEY);
+  } catch (_error) {
+    // Ignore cache cleanup failures.
+  }
+  try {
+    syncWindow?.localStorage?.removeItem?.(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared);
+    syncWindow?.sessionStorage?.removeItem?.(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared);
+  } catch (_error) {
+    // Ignore mirror cleanup failures.
+  }
+}
+
+function syncSharedScheduleCachesFromOfficialState(rawState = {}, syncWindow = null) {
+  const entries = dedupeSharedScheduleEntries(flattenSharedScheduleState(rawState));
+  if (!entries.length) {
+    clearSharedScheduleLocalCaches(syncWindow);
+    return [];
+  }
+  const groups = groupSharedScheduleEntries(entries);
+  persistSharedScheduleLocalDedupe(syncWindow || window, entries);
+  persistSharedScheduleSnapshotFromGroups(groups);
+  return entries;
 }
 
 function readSharedScheduleGroupsFromOfficialState(syncWindow = null) {
@@ -18160,12 +18182,45 @@ function getScheduleLocalStateFetchKeys(sectionId = scheduleBridgeSection) {
   return [];
 }
 
+async function hydrateOfficialSharedScheduleState() {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  let hydrateError = null;
+  try {
+    await hydrateNewSuitSharedState([WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared], {
+      throwOnError: true,
+      force: true,
+    });
+  } catch (error) {
+    hydrateError = error;
+  }
+
+  const cachedEntries = getOfficialSharedScheduleEntries(syncWindow);
+  if (cachedEntries.length) {
+    syncSharedScheduleCachesFromOfficialState(readOfficialSharedScheduleState(), syncWindow || window);
+    clearReadCircuit("shared-state");
+    markScheduleReadSuccess("shared");
+    rerenderActiveScheduleLocalShell();
+    return cachedEntries;
+  }
+
+  try {
+    const state = await fetchOfficialSharedScheduleState(syncWindow);
+    syncSharedScheduleCachesFromOfficialState(state, syncWindow || window);
+    clearReadCircuit("shared-state");
+    markScheduleReadSuccess("shared");
+    rerenderActiveScheduleLocalShell();
+    return getOfficialSharedScheduleEntries(syncWindow);
+  } catch (directError) {
+    throw hydrateError || directError;
+  }
+}
+
 function requestScheduleLocalStateSync(sectionId = scheduleBridgeSection) {
   const fetchKeys = getScheduleLocalStateFetchKeys(sectionId);
   if (!fetchKeys.length) {
     return;
   }
-  if (isReadCircuitOpen("shared-state")) {
+  if (sectionId !== "shared" && isReadCircuitOpen("shared-state")) {
     renderScheduleReadDelayState(sectionId);
     return;
   }
@@ -18175,11 +18230,14 @@ function requestScheduleLocalStateSync(sectionId = scheduleBridgeSection) {
     wc26ReadSingleFlightState.scheduleLocalState,
     cacheKey,
     () =>
-      hydrateNewSuitSharedState(fetchKeys, {
-        throwOnError: true,
-      }),
+      sectionId === "shared"
+        ? hydrateOfficialSharedScheduleState()
+        : hydrateNewSuitSharedState(fetchKeys, {
+            throwOnError: true,
+          }),
     {
       ttlMs: WC26_READ_THROTTLE_MS.scheduleLocalState,
+      force: sectionId === "shared",
     },
   )
     .then(() => {
