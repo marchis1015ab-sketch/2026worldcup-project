@@ -2815,6 +2815,8 @@ const wc26NewSuitSharedStatePendingWrites = new Map();
 const wc26NewSuitSharedStateWriteGuards = new Map();
 let wc26TimelineRemoteSharedStateRaw = "";
 let wc26TimelineRemoteSharedStateHydrated = false;
+let wc26SharedScheduleRemoteSharedStateRaw = "";
+let wc26SharedScheduleRemoteSharedStateHydrated = false;
 const WC26_TIMELINE_DEFAULT_START_DATE = "2026-05-23";
 const WC26_TIMELINE_COLORS = ["#2fe0a4", "#47b8ff", "#ff9f68", "#ff6ea9", "#a78bfa", "#ffd166"];
 const WC26_TIMELINE_DATE_MEMO_KIND = "dateMemo";
@@ -3506,6 +3508,15 @@ function setTimelineRemoteSharedStateSnapshot(raw = "", options = {}) {
   return wc26TimelineRemoteSharedStateRaw;
 }
 
+function setSharedScheduleRemoteSharedStateSnapshot(raw = "", options = {}) {
+  const normalized = normalizeSharedStateValueRaw(raw);
+  wc26SharedScheduleRemoteSharedStateRaw = normalized;
+  if (options?.markHydrated !== false) {
+    wc26SharedScheduleRemoteSharedStateHydrated = true;
+  }
+  return wc26SharedScheduleRemoteSharedStateRaw;
+}
+
 function shouldPreferLocalTimelineDraft() {
   const guardUntil = Number(wc26NewSuitSharedStateWriteGuards.get(WC26_TIMELINE_STORAGE_KEY) || 0);
   return wc26NewSuitSharedStatePendingWrites.has(WC26_TIMELINE_STORAGE_KEY) || guardUntil > Date.now();
@@ -3648,6 +3659,23 @@ async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STAT
       rerenderNewSuitSharedStateKey(storageKey);
       return;
     }
+    if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) {
+      const hasRemoteRow = remoteByKey.has(storageKey);
+      const remoteRaw = hasRemoteRow ? remoteByKey.get(storageKey) || "" : "";
+      const normalizedRemote = setSharedScheduleRemoteSharedStateSnapshot(remoteRaw);
+      if (!hasRemoteRow) {
+        if (localRaw) {
+          setLocalStorageRaw(storageKey, "");
+        }
+        rerenderNewSuitSharedStateKey(storageKey);
+        return;
+      }
+      if (normalizedRemote !== localRaw) {
+        setLocalStorageRaw(storageKey, normalizedRemote);
+        rerenderNewSuitSharedStateKey(storageKey);
+      }
+      return;
+    }
     const hasRemoteRow = remoteByKey.has(storageKey);
     if (!hasRemoteRow && isNewSuitLegacyScheduleStateKey(storageKey)) {
       if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared && localRaw) {
@@ -3691,6 +3719,14 @@ function applyNewSuitSharedStateRemoteRow(row = {}) {
       setLocalStorageRaw(storageKey, normalizedRemote);
     }
     rerenderNewSuitSharedStateKey(storageKey);
+    return;
+  }
+  if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) {
+    const normalizedRemote = setSharedScheduleRemoteSharedStateSnapshot(rawRemote);
+    if (normalizedRemote !== localRaw) {
+      setLocalStorageRaw(storageKey, normalizedRemote);
+      rerenderNewSuitSharedStateKey(storageKey);
+    }
     return;
   }
   const remoteRaw =
@@ -14926,7 +14962,9 @@ async function fetchOfficialSharedScheduleState(syncWindow = null) {
   } catch (_error) {
     rows = [];
   }
-  return parseSharedScheduleState(normalizeSharedStateValueRaw(rows?.[0]?.state_value));
+  const normalizedRaw = normalizeSharedStateValueRaw(rows?.[0]?.state_value);
+  setSharedScheduleRemoteSharedStateSnapshot(normalizedRaw);
+  return parseSharedScheduleState(normalizedRaw);
 }
 
 async function writeOfficialSharedScheduleState(state = {}) {
@@ -14954,11 +14992,12 @@ async function writeOfficialSharedScheduleState(state = {}) {
   if (!response.ok) {
     throw new Error(`shared schedule official write failed: ${response.status}`);
   }
+  setSharedScheduleRemoteSharedStateSnapshot(JSON.stringify(state || {}));
   return response;
 }
 
 async function syncOfficialSharedScheduleStateFromBridge(syncWindow = null) {
-  const entries = dedupeSharedScheduleEntries(getOfficialSharedScheduleEntries(syncWindow));
+  const entries = dedupeSharedScheduleEntries(flattenSharedScheduleState(readBridgeSharedScheduleState(syncWindow)));
   const state = buildSharedScheduleStateFromEntries(entries);
   await writeOfficialSharedScheduleState(state);
   return state;
@@ -15929,7 +15968,7 @@ function flattenSharedScheduleState(state = {}) {
   return entries;
 }
 
-function readOfficialSharedScheduleState(syncWindow = null) {
+function readBridgeSharedScheduleState(syncWindow = null) {
   const sources = [];
   if (typeof syncWindow?.readPersonalTimelineSharedRaw === "function") {
     try {
@@ -15951,8 +15990,15 @@ function readOfficialSharedScheduleState(syncWindow = null) {
   return {};
 }
 
+function readOfficialSharedScheduleState() {
+  if (!wc26SharedScheduleRemoteSharedStateHydrated) {
+    return {};
+  }
+  return parseSharedScheduleState(wc26SharedScheduleRemoteSharedStateRaw);
+}
+
 function getOfficialSharedScheduleEntries(syncWindow = null) {
-  return flattenSharedScheduleState(readOfficialSharedScheduleState(syncWindow));
+  return flattenSharedScheduleState(readOfficialSharedScheduleState());
 }
 
 function getSharedScheduleExportTimestamp(date = new Date()) {
