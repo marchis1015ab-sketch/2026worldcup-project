@@ -5712,24 +5712,14 @@ function syncMobileDetailShellVisibility(targetId = "dashboard") {
   Object.entries(WC26_MOBILE_DETAIL_SHELLS).forEach(([viewId]) => {
     const view = document.querySelector(WC26_VIEW_MAP[viewId] || "");
     const shell = view?.querySelector(":scope > .mobile-detail-shell");
-    if (viewId === "schedule") {
-      if (shell) {
-        shell.hidden = true;
-      }
+    if (shell) {
+      shell.hidden = true;
+    }
+    if (!view) {
       return;
     }
-    if (!view || !shell) {
-      return;
-    }
-    const shouldShowShell = isMobileSectionViewport() && targetId === viewId;
-    shell.hidden = !shouldShowShell;
     Array.from(view.children).forEach((child) => {
       if (child === shell) {
-        return;
-      }
-      if (shouldShowShell) {
-        child.dataset.mobileDetailShellHidden = "true";
-        child.setAttribute("hidden", "");
         return;
       }
       if (child.dataset.mobileDetailShellHidden === "true") {
@@ -5737,6 +5727,152 @@ function syncMobileDetailShellVisibility(targetId = "dashboard") {
         delete child.dataset.mobileDetailShellHidden;
       }
     });
+  });
+}
+
+function syncMobileDetailFrameLayout(targetId = "dashboard") {
+  const sidebar = document.querySelector(".sidebar");
+  const dashboard = document.querySelector("main.dashboard");
+  const activeSelector = WC26_VIEW_MAP[targetId];
+  const activeView =
+    targetId && targetId !== "dashboard" && activeSelector
+      ? document.querySelector(`${activeSelector}.is-active:not([hidden])`)
+      : null;
+  const rootDetailPanel = activeView?.querySelector(":scope > .detail-panel");
+  const resetProps = [
+    "display",
+    "visibility",
+    "position",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "inset",
+    "width",
+    "max-width",
+    "min-width",
+    "height",
+    "max-height",
+    "min-height",
+    "margin",
+    "padding",
+    "gap",
+    "grid-template-rows",
+    "border",
+    "border-radius",
+    "background",
+    "box-shadow",
+    "overflow",
+    "box-sizing",
+    "z-index",
+    "opacity",
+  ];
+  const applyImportantStyles = (element, styles) => {
+    if (!element) {
+      return;
+    }
+    Object.entries(styles).forEach(([property, value]) => {
+      element.style.setProperty(property, value, "important");
+    });
+  };
+  const clearInlineLayout = () => {
+    [sidebar, dashboard, activeView, rootDetailPanel].forEach((element) => {
+      if (!element) {
+        return;
+      }
+      resetProps.forEach((prop) => element.style.removeProperty(prop));
+    });
+  };
+  if (!isMobileSectionViewport() || targetId === "dashboard") {
+    clearInlineLayout();
+    return;
+  }
+  const shellInset = window.innerWidth >= 430 ? 18 : window.innerWidth >= 381 ? 16 : 14;
+  const headerHeight = 70;
+  const gap = 14;
+  const bigPanelTop = shellInset + headerHeight + gap;
+  applyImportantStyles(sidebar, {
+    display: "block",
+    visibility: "visible",
+    position: "absolute",
+    top: `${shellInset}px`,
+    left: `${shellInset}px`,
+    right: `${shellInset}px`,
+    width: "auto",
+    "max-width": "none",
+    "min-width": "0",
+    height: `${headerHeight}px`,
+    "min-height": `${headerHeight}px`,
+    padding: "0",
+    border: "0",
+    background: "transparent",
+    "box-shadow": "none",
+    overflow: "visible",
+    "z-index": "8",
+    opacity: "1",
+  });
+  applyImportantStyles(dashboard, {
+    display: "block",
+    visibility: "visible",
+    position: "absolute",
+    top: `${bigPanelTop}px`,
+    right: `${shellInset}px`,
+    bottom: `${shellInset}px`,
+    left: `${shellInset}px`,
+    width: "auto",
+    "max-width": "none",
+    "min-width": "0",
+    height: "auto",
+    "min-height": "0",
+    margin: "0",
+    padding: "0",
+    overflow: "hidden",
+    "z-index": "4",
+    opacity: "1",
+  });
+  applyImportantStyles(activeView, {
+    display: "block",
+    visibility: "visible",
+    position: "absolute",
+    inset: "0",
+    width: "100%",
+    "max-width": "100%",
+    "min-width": "0",
+    height: "100%",
+    "max-height": "100%",
+    "min-height": "0",
+    margin: "0",
+    padding: "14px",
+    overflow: "hidden",
+    "box-sizing": "border-box",
+    opacity: "1",
+  });
+  applyImportantStyles(rootDetailPanel, {
+    display: "grid",
+    visibility: "visible",
+    position: "relative",
+    inset: "auto",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+    "grid-template-rows": "auto minmax(0, 1fr)",
+    gap: "14px",
+    width: "100%",
+    "max-width": "100%",
+    "min-width": "0",
+    height: "100%",
+    "max-height": "100%",
+    "min-height": "100%",
+    margin: "0",
+    padding: "14px",
+    border: "1px solid rgba(173, 244, 234, 0.14)",
+    "border-radius": "16px",
+    background: "linear-gradient(180deg, rgba(6, 18, 33, 0.96), rgba(3, 10, 20, 0.96)), rgba(0, 0, 0, 0.82)",
+    "box-shadow": "inset 0 0 0 1px rgba(255, 255, 255, 0.025)",
+    overflow: "hidden",
+    "box-sizing": "border-box",
+    opacity: "1",
   });
 }
 
@@ -5771,6 +5907,7 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
     }
     void closeMobileScheduleTimelineStage();
     syncScheduleMobileHeaderBackState();
+    syncMobileDetailFrameLayout(targetId);
     return;
   }
   const isHome = targetId === "dashboard";
@@ -5790,6 +5927,7 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
   }
   syncScheduleMobileHeaderBackState();
   syncMobileScheduleTimelineShellVisibility();
+  syncMobileDetailFrameLayout(targetId);
   if (options.skipHistory) {
     return;
   }
