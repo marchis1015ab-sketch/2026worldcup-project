@@ -13504,3 +13504,340 @@ body:has(#view-dashboard.is-active:not([hidden])) .dashboard {
     pointer-events: none !important;
   }
 }
+
+@media (max-width: 767px) {
+  body.mobile-section-open:has(#view-schedule.dashboard-view.detail-shell.is-active:not([hidden])) .mobile-section-back {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  body.mobile-section-open #view-schedule.dashboard-view.detail-shell.is-active:not([hidden]) {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 14px 14px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  body.mobile-section-open #view-schedule.dashboard-view.detail-shell.is-active:not([hidden]) > :not(.mobile-detail-shell),
+  body.mobile-section-open #view-schedule.dashboard-view.detail-shell.is-active:not([hidden]) > [data-mobile-detail-shell-hidden="true"] {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body.mobile-section-open #view-schedule > .mobile-detail-shell {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: calc(100dvh - 82px) !important;
+    height: auto !important;
+    padding: 10px !important;
+    margin: 0 auto !important;
+    border-radius: 26px !important;
+    border: 1px solid rgba(180, 255, 246, 0.16) !important;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(103, 255, 216, 0.08), transparent 34%),
+      linear-gradient(180deg, rgba(5, 16, 29, 0.96), rgba(2, 8, 18, 0.95)) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+      0 16px 28px rgba(0, 0, 0, 0.24) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel::before,
+  body.mobile-section-open #view-schedule .detail-panel::after {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel__header {
+    order: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 50px !important;
+    margin: 0 !important;
+    padding: 14px 16px !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(173, 244, 234, 0.14) !important;
+    background: linear-gradient(180deg, rgba(18, 44, 59, 0.92), rgba(11, 29, 42, 0.94)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03) !important;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    z-index: 1 !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel__header > div:first-child {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel__title {
+    margin: 0 !important;
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel-head-actions {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .panel-body.schedule-bridge-body,
+  body.mobile-section-open #view-schedule .schedule-bridge-body {
+    order: 1 !important;
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(173, 244, 234, 0.12) !important;
+    background: linear-gradient(180deg, rgba(6, 18, 33, 0.96), rgba(3, 10, 20, 0.96)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  body.mobile-section-open #view-schedule .schedule-bridge-button {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 6px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  body.mobile-section-open #view-schedule #schedule-local-timeline-shell,
+  body.mobile-section-open #view-schedule #schedule-local-shared-shell,
+  body.mobile-section-open #view-schedule #schedule-local-personal-shell,
+  body.mobile-section-open #view-schedule #schedule-local-accumulated-shell,
+  body.mobile-section-open #view-schedule #schedule-bridge-frame-shell {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body.mobile-section-open #view-schedule .detail-panel > *,
+  body.mobile-section-open #view-schedule .schedule-bridge-body > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  body.mobile-section-open #view-schedule #schedule-timeline-gantt-shell {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .shared-schedule-panel__title {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-launcher {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 14px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(103, 255, 216, 0.16) !important;
+    background: linear-gradient(180deg, rgba(9, 24, 40, 0.96), rgba(5, 12, 23, 0.98)) !important;
+    box-sizing: border-box !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-launcher__copy {
+    min-width: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-launcher__copy strong {
+    display: block !important;
+    font-size: 13px !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-launcher__copy p {
+    margin: 4px 0 0 !important;
+    font-size: 11px !important;
+    color: rgba(216, 232, 242, 0.72) !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-launcher__button {
+    flex: 0 0 auto !important;
+    min-width: 96px !important;
+    height: 38px !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage[hidden] {
+    display: none !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage {
+    position: fixed !important;
+    inset: 10px !important;
+    z-index: 90 !important;
+    display: block !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__surface {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    height: 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 12px !important;
+    border-radius: 22px !important;
+    border: 1px solid rgba(173, 244, 234, 0.18) !important;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(103, 255, 216, 0.08), transparent 34%),
+      linear-gradient(180deg, rgba(4, 11, 21, 0.98), rgba(2, 7, 14, 0.98)) !important;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38) !important;
+    box-sizing: border-box !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__head strong {
+    font-size: 14px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__board {
+    min-height: 260px !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(173, 244, 234, 0.12) !important;
+    background: rgba(5, 14, 24, 0.92) !important;
+    box-sizing: border-box !important;
+    overflow: auto !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-gantt-shell {
+    min-height: 100% !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-gantt-layout {
+    grid-template-columns: 84px max-content !important;
+    gap: 6px !important;
+    min-height: 100% !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-name-column {
+    width: 84px !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-name-cell,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-gantt-cell--body {
+    min-height: 42px !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-name-cell,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-name-cell strong,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-gantt-cell,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage .timeline-gantt-date-label {
+    color: #eaf8ff !important;
+    opacity: 1 !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__actions {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__actions .timeline-action-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 4px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage__actions .timeline-action-button[disabled] {
+    opacity: 0.46 !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage:fullscreen,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage:-webkit-full-screen {
+    inset: 0 !important;
+  }
+
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage:fullscreen .mobile-schedule-timeline-stage__surface,
+  body.mobile-section-open #view-schedule .mobile-schedule-timeline-stage:-webkit-full-screen .mobile-schedule-timeline-stage__surface {
+    border-radius: 0 !important;
+    height: 100dvh !important;
+  }
+}

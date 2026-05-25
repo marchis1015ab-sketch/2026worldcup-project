@@ -159,6 +159,10 @@ const mobileHeaderDdayNode = document.getElementById("new-suit-mobile-dday");
 const mobileSectionBackButton = document.getElementById("mobile-section-back");
 const mobileHomeMatchPreview = document.getElementById("mobile-home-match-preview");
 const mobileHomeMatchPreviewShell = document.getElementById("mobile-home-match-preview-shell");
+const scheduleDetailView = document.getElementById("view-schedule");
+const scheduleDetailHeader = scheduleDetailView?.querySelector(".panel__header") || null;
+const scheduleDetailTitle = scheduleDetailView?.querySelector(".panel__title") || null;
+const scheduleTimelineGanttShell = document.getElementById("schedule-timeline-gantt-shell");
 const topbarVersionNode = document.getElementById("new-suit-version-indicator");
 const WC26_LOCAL_BUILD_ID = "map-stadium-newsuit-20260517-03";
 const WC26_BRIDGE_VERSION = "bridge-target-fix-20260518-04";
@@ -1686,6 +1690,9 @@ let timelineDateMemoDateLabel = null;
 let timelineDateMemoInput = null;
 let timelineDateMemoSaveButton = null;
 let timelineDateMemoDeleteButton = null;
+let mobileScheduleTimelineStageOpen = false;
+let mobileScheduleTimelineOrientationLocked = false;
+let mobileScheduleTimelineFullscreenActive = false;
 
 const WC26_SCHEDULE_BRIDGE_MESSAGE = {
   ready: "wc26:legacy-schedule-ready",
@@ -1994,6 +2001,8 @@ const WC26_MATCH_RESULT_STAGE_LABELS = {
 const WC26_DAILY_MATCH_INTERVAL = 7000;
 const WC26_DAILY_MATCH_RESUME_DELAY = 12000;
 const WC26_LOCAL_TIME_ZONE = "America/New_York";
+const WC26_MOBILE_MAX_WIDTH = 767;
+const WC26_MOBILE_TIMELINE_STAGE_DAY_COUNT = 14;
 const WC26_MOBILE_MEDIA_QUERY = window.matchMedia("(max-width: 767px)");
 const WC26_GROUP_A_PREVIEW_FALLBACK_MATCHES = Object.freeze([
   {
@@ -4153,6 +4162,15 @@ function getTimelineGanttHosts(options = {}) {
       scroller: document.getElementById("schedule-timeline-gantt-scroller"),
       grid: document.getElementById("schedule-timeline-gantt-grid"),
     },
+    {
+      key: "schedule-mobile-stage",
+      mode: "mobile-stage",
+      forceDayCount: WC26_MOBILE_TIMELINE_STAGE_DAY_COUNT,
+      shell: document.getElementById("mobile-schedule-timeline-stage-shell"),
+      empty: document.getElementById("mobile-schedule-timeline-stage-empty"),
+      scroller: document.getElementById("mobile-schedule-timeline-stage-scroller"),
+      grid: document.getElementById("mobile-schedule-timeline-stage-grid"),
+    },
   ].filter((host) => {
     if (!(host.empty && host.scroller && host.grid)) {
       return false;
@@ -4165,6 +4183,9 @@ function getTimelineGanttHosts(options = {}) {
 }
 
 function getTimelineHostDayCount(host) {
+  if (Number(host?.forceDayCount) > 0) {
+    return Number(host.forceDayCount);
+  }
   const shellWidth =
     host?.scroller?.clientWidth ||
     host?.shell?.clientWidth ||
@@ -4665,6 +4686,7 @@ function renderTimelineGantt(summary = {}) {
     visibleReference: getTimelineReferenceDateKey(),
   });
   if (!hosts.length) {
+    renderMobileScheduleTimelineLauncher();
     recordTlLockDiag("renderTimelineGantt:skip", { reason: "no-visible-hosts" });
     return;
   }
@@ -4690,6 +4712,7 @@ function renderTimelineGantt(summary = {}) {
     });
     renderTimelineGanttHost(host, dates, rows);
   });
+  renderMobileScheduleTimelineLauncher();
   recordTlLockDiag("renderTimelineGantt:complete");
 }
 
@@ -5536,8 +5559,29 @@ function clearNavActive() {
   });
 }
 
+function getViewportWidth() {
+  const visualViewportWidth = Number(window.visualViewport?.width || 0);
+  if (visualViewportWidth > 0) {
+    return visualViewportWidth;
+  }
+  const innerWidth = Number(window.innerWidth || 0);
+  if (innerWidth > 0) {
+    return innerWidth;
+  }
+  return Number(document.documentElement?.clientWidth || 0);
+}
+
 function isMobileSectionViewport() {
+  const viewportWidth = getViewportWidth();
+  if (viewportWidth > 0) {
+    return viewportWidth <= WC26_MOBILE_MAX_WIDTH;
+  }
   return Boolean(WC26_MOBILE_MEDIA_QUERY?.matches);
+}
+
+function shouldShowMobileSectionBackButton(targetId = "dashboard") {
+  const normalizedTargetId = String(targetId || "dashboard").trim().toLowerCase() || "dashboard";
+  return normalizedTargetId !== "dashboard" && normalizedTargetId !== "schedule";
 }
 
 const WC26_MOBILE_DETAIL_SHELLS = Object.freeze({
@@ -5572,6 +5616,9 @@ const WC26_MOBILE_DETAIL_SHELLS = Object.freeze({
 });
 
 function ensureMobileDetailShell(targetId = "") {
+  if (targetId === "schedule") {
+    return;
+  }
   const config = WC26_MOBILE_DETAIL_SHELLS[targetId];
   const selector = WC26_VIEW_MAP[targetId];
   if (!config || !selector) {
@@ -5615,6 +5662,12 @@ function syncMobileDetailShellVisibility(targetId = "dashboard") {
   Object.entries(WC26_MOBILE_DETAIL_SHELLS).forEach(([viewId]) => {
     const view = document.querySelector(WC26_VIEW_MAP[viewId] || "");
     const shell = view?.querySelector(":scope > .mobile-detail-shell");
+    if (viewId === "schedule") {
+      if (shell) {
+        shell.hidden = true;
+      }
+      return;
+    }
     if (!view || !shell) {
       return;
     }
@@ -5666,20 +5719,27 @@ function syncMobileSectionUi(targetId = "dashboard", options = {}) {
     if (mobileSectionBackButton) {
       mobileSectionBackButton.setAttribute("hidden", "");
     }
+    void closeMobileScheduleTimelineStage();
+    syncScheduleMobileHeaderBackState();
     return;
   }
   const isHome = targetId === "dashboard";
   document.body.classList.toggle("mobile-section-open", !isHome);
+  if (targetId !== "schedule") {
+    void closeMobileScheduleTimelineStage();
+  }
   if (!isHome) {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }
   if (mobileSectionBackButton) {
-    if (isHome) {
+    if (!shouldShowMobileSectionBackButton(targetId)) {
       mobileSectionBackButton.setAttribute("hidden", "");
     } else {
       mobileSectionBackButton.removeAttribute("hidden");
     }
   }
+  syncScheduleMobileHeaderBackState();
+  syncMobileScheduleTimelineShellVisibility();
   if (options.skipHistory) {
     return;
   }
@@ -5746,6 +5806,7 @@ function returnToMobileLauncher(options = {}) {
   if (!isMobileSectionViewport()) {
     return false;
   }
+  void closeMobileScheduleTimelineStage();
   clearNavActive();
   const dashboardButton = document.querySelector('.nav-direct[data-target="dashboard"]');
   if (dashboardButton) {
@@ -5908,13 +5969,18 @@ function forceMobileHashViewFallback() {
     view.classList.toggle("is-active", isNext);
   });
   document.body.classList.toggle("mobile-section-open", targetId !== "dashboard");
+  if (targetId !== "schedule") {
+    void closeMobileScheduleTimelineStage();
+  }
   if (mobileSectionBackButton) {
-    if (targetId === "dashboard") {
+    if (!shouldShowMobileSectionBackButton(targetId)) {
       mobileSectionBackButton.setAttribute("hidden", "");
     } else {
       mobileSectionBackButton.removeAttribute("hidden");
     }
   }
+  syncScheduleMobileHeaderBackState();
+  syncMobileScheduleTimelineShellVisibility();
   refreshMobileScheduleTimelineIfNeeded(targetId);
   return true;
 }
@@ -5926,6 +5992,261 @@ function syncMobileSectionViewportState() {
     ensureMobileHomeHistoryState();
   }
   syncMobileSectionUi(targetId, { skipHistory: true });
+}
+
+function isMobileScheduleViewActive() {
+  return Boolean(
+    isMobileSectionViewport() &&
+      scheduleDetailView &&
+      scheduleDetailView.classList.contains("is-active") &&
+      !scheduleDetailView.hasAttribute("hidden"),
+  );
+}
+
+function ensureMobileScheduleTimelineLauncher() {
+  if (!scheduleLocalTimelineShell) {
+    return null;
+  }
+  let launcher = scheduleLocalTimelineShell.querySelector(".mobile-schedule-timeline-launcher");
+  if (launcher) {
+    return launcher;
+  }
+  launcher = document.createElement("section");
+  launcher.className = "mobile-schedule-timeline-launcher";
+  launcher.innerHTML = `
+    <div class="mobile-schedule-timeline-launcher__copy">
+      <strong>가로형 타임라인 보드</strong>
+      <p id="mobile-schedule-timeline-launcher-range">타임라인 범위를 준비하는 중</p>
+    </div>
+    <button type="button" class="timeline-action-button mobile-schedule-timeline-launcher__button" data-mobile-schedule-open-stage>
+      타임라인 열기
+    </button>
+  `;
+  launcher.querySelector("[data-mobile-schedule-open-stage]")?.addEventListener("click", () => {
+    void openMobileScheduleTimelineStage();
+  });
+  scheduleLocalTimelineShell.prepend(launcher);
+  return launcher;
+}
+
+function ensureMobileScheduleTimelineStage() {
+  if (!scheduleLocalTimelineShell) {
+    return null;
+  }
+  let stage = scheduleLocalTimelineShell.querySelector(".mobile-schedule-timeline-stage");
+  if (stage) {
+    return stage;
+  }
+  stage = document.createElement("section");
+  stage.className = "mobile-schedule-timeline-stage";
+  stage.hidden = true;
+  stage.innerHTML = `
+    <div class="mobile-schedule-timeline-stage__surface">
+      <div class="mobile-schedule-timeline-stage__head">
+        <strong>타임라인</strong>
+        <button type="button" class="timeline-action-button timeline-action-button--ghost" data-mobile-schedule-close-stage>닫기</button>
+      </div>
+      <div class="mobile-schedule-timeline-stage__board">
+        <div
+          class="timeline-gantt-shell timeline-gantt-shell--detail timeline-gantt-shell--mobile-stage"
+          id="mobile-schedule-timeline-stage-shell"
+          data-timeline-host="schedule-mobile-stage"
+        >
+          <div class="timeline-gantt-empty" id="mobile-schedule-timeline-stage-empty">타임라인 데이터를 불러오는 중</div>
+          <div class="timeline-gantt-scroller" id="mobile-schedule-timeline-stage-scroller" hidden>
+            <div class="timeline-gantt-grid" id="mobile-schedule-timeline-stage-grid"></div>
+          </div>
+        </div>
+      </div>
+      <div class="mobile-schedule-timeline-stage__actions">
+        <button type="button" class="timeline-action-button" data-mobile-stage-nav="prev">이전</button>
+        <button type="button" class="timeline-action-button" data-mobile-stage-nav="today">오늘</button>
+        <button type="button" class="timeline-action-button" data-mobile-stage-nav="next">다음</button>
+        <button type="button" class="timeline-action-button" disabled title="모바일 1차 이식에서는 비활성화됩니다.">작성</button>
+        <button type="button" class="timeline-action-button" disabled title="모바일 1차 이식에서는 비활성화됩니다.">수정</button>
+      </div>
+    </div>
+  `;
+  stage.querySelector("[data-mobile-schedule-close-stage]")?.addEventListener("click", () => {
+    void closeMobileScheduleTimelineStage();
+  });
+  stage.querySelectorAll("[data-mobile-stage-nav]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const direction = String(button.dataset.mobileStageNav || "").trim();
+      if (direction === "prev") {
+        timelineDateOffset -= 1;
+      } else if (direction === "next") {
+        timelineDateOffset += 1;
+      } else {
+        timelineDateOffset = getTimelineDateOffsetFromDefault();
+      }
+      bridgeLoadState.timelineRangeKey = "";
+      refreshTimelineGanttFromLegacy({ force: true });
+      event.preventDefault();
+    });
+  });
+  scheduleLocalTimelineShell.appendChild(stage);
+  return stage;
+}
+
+function renderMobileScheduleTimelineLauncher() {
+  const launcher = ensureMobileScheduleTimelineLauncher();
+  if (!launcher) {
+    return;
+  }
+  const rangeNode = launcher.querySelector("#mobile-schedule-timeline-launcher-range");
+  const dates = getTimelineVisibleDateKeys(getTimelineReferenceDateKey(), WC26_MOBILE_TIMELINE_STAGE_DAY_COUNT);
+  if (rangeNode) {
+    const startDate = dates[0] || "";
+    const endDate = dates[dates.length - 1] || "";
+    rangeNode.textContent =
+      startDate && endDate
+        ? `${formatTimelineGanttDateLabel(startDate)} ~ ${formatTimelineGanttDateLabel(endDate)}`
+        : "타임라인 범위를 준비하는 중";
+  }
+  launcher.hidden = !isMobileScheduleViewActive() || mobileScheduleTimelineStageOpen || scheduleBridgeSection !== "all";
+}
+
+function syncScheduleMobileHeaderBackState() {
+  if (!scheduleDetailHeader) {
+    return;
+  }
+  const isActive = isMobileScheduleViewActive();
+  scheduleDetailHeader.classList.toggle("mobile-schedule-header-back", isActive);
+  if (scheduleDetailTitle) {
+    if (!scheduleDetailTitle.dataset.defaultTitle) {
+      scheduleDetailTitle.dataset.defaultTitle = scheduleDetailTitle.textContent || "일정현황";
+    }
+    scheduleDetailTitle.textContent = isActive ? "일정" : scheduleDetailTitle.dataset.defaultTitle;
+  }
+  if (isActive) {
+    scheduleDetailHeader.setAttribute("role", "button");
+    scheduleDetailHeader.setAttribute("tabindex", "0");
+    scheduleDetailHeader.setAttribute("aria-label", "일정 메인으로 복귀");
+  } else {
+    scheduleDetailHeader.removeAttribute("role");
+    scheduleDetailHeader.removeAttribute("tabindex");
+    scheduleDetailHeader.removeAttribute("aria-label");
+  }
+}
+
+function syncMobileScheduleTimelineShellVisibility() {
+  if (scheduleTimelineGanttShell) {
+    scheduleTimelineGanttShell.hidden = isMobileSectionViewport();
+  }
+  const stage = ensureMobileScheduleTimelineStage();
+  if (stage) {
+    stage.hidden = !isMobileScheduleViewActive() || scheduleBridgeSection !== "all" || !mobileScheduleTimelineStageOpen;
+    stage.dataset.fallback = String(!mobileScheduleTimelineOrientationLocked);
+  }
+  renderMobileScheduleTimelineLauncher();
+}
+
+async function tryEnterMobileScheduleTimelineFullscreen(target) {
+  if (!(target instanceof HTMLElement) || typeof target.requestFullscreen !== "function") {
+    return false;
+  }
+  try {
+    await target.requestFullscreen({ navigationUI: "hide" });
+    return Boolean(document.fullscreenElement);
+  } catch (_error) {
+    try {
+      await target.requestFullscreen();
+      return Boolean(document.fullscreenElement);
+    } catch (__error) {
+      return false;
+    }
+  }
+}
+
+async function tryLockMobileScheduleTimelineLandscape() {
+  if (!screen?.orientation || typeof screen.orientation.lock !== "function") {
+    return false;
+  }
+  try {
+    await screen.orientation.lock("landscape");
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function unlockMobileScheduleTimelineOrientation() {
+  try {
+    if (screen?.orientation && typeof screen.orientation.unlock === "function") {
+      screen.orientation.unlock();
+    }
+  } catch (_error) {
+    // Unsupported browsers keep the fallback stage only.
+  }
+}
+
+async function openMobileScheduleTimelineStage() {
+  if (!isMobileScheduleViewActive()) {
+    return false;
+  }
+  const stage = ensureMobileScheduleTimelineStage();
+  if (!stage) {
+    return false;
+  }
+  mobileScheduleTimelineStageOpen = true;
+  syncMobileScheduleTimelineShellVisibility();
+  refreshTimelineGanttFromLegacy({ force: true });
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!mobileScheduleTimelineStageOpen) {
+        return;
+      }
+      refreshTimelineGanttFromLegacy({ force: true });
+    });
+  });
+  mobileScheduleTimelineFullscreenActive = await tryEnterMobileScheduleTimelineFullscreen(stage);
+  mobileScheduleTimelineOrientationLocked = await tryLockMobileScheduleTimelineLandscape();
+  stage.dataset.fullscreen = String(mobileScheduleTimelineFullscreenActive);
+  stage.dataset.orientationLocked = String(mobileScheduleTimelineOrientationLocked);
+  stage.dataset.fallback = String(!mobileScheduleTimelineOrientationLocked);
+  return true;
+}
+
+async function closeMobileScheduleTimelineStage() {
+  mobileScheduleTimelineStageOpen = false;
+  unlockMobileScheduleTimelineOrientation();
+  mobileScheduleTimelineOrientationLocked = false;
+  if (document.fullscreenElement && typeof document.exitFullscreen === "function") {
+    try {
+      await document.exitFullscreen();
+    } catch (_error) {
+      // Ignore exit failures and keep the schedule shell usable.
+    }
+  }
+  mobileScheduleTimelineFullscreenActive = false;
+  syncMobileScheduleTimelineShellVisibility();
+  return true;
+}
+
+if (scheduleDetailHeader) {
+  scheduleDetailHeader.addEventListener("click", (event) => {
+    if (!isMobileScheduleViewActive()) {
+      return;
+    }
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest(".panel-head-actions, button, input, select, textarea, a, label")) {
+      return;
+    }
+    event.preventDefault();
+    void closeMobileScheduleTimelineStage().finally(() => {
+      returnToMobileLauncher();
+    });
+  });
+  scheduleDetailHeader.addEventListener("keydown", (event) => {
+    if (!isMobileScheduleViewActive() || !["Enter", " "].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    void closeMobileScheduleTimelineStage().finally(() => {
+      returnToMobileLauncher();
+    });
+  });
 }
 
 function focusSection(targetId, sectionId, options = {}) {
@@ -18067,8 +18388,12 @@ async function handlePersonalScheduleRowSave(row) {
 
 function setScheduleBridgeSection(sectionId = "all", options = {}) {
   scheduleBridgeSection = normalizeScheduleBridgeSection(sectionId);
+  if (scheduleBridgeSection !== "all" || !isMobileSectionViewport()) {
+    void closeMobileScheduleTimelineStage();
+  }
   setScheduleBridgeButtonState(scheduleBridgeSection);
   syncScheduleTimelineShellVisibility();
+  syncMobileScheduleTimelineShellVisibility();
   const passiveOpen = options?.passive === true;
   if (scheduleBridgeSection === "all") {
     if (passiveOpen) {
@@ -18225,7 +18550,11 @@ function initScheduleBridge() {
 
   scheduleBridgeButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      setScheduleBridgeSection(button.dataset.scheduleBridgeNav || "all");
+      const nextSection = button.dataset.scheduleBridgeNav || "all";
+      setScheduleBridgeSection(nextSection);
+      if (nextSection === "all" && isMobileSectionViewport()) {
+        void openMobileScheduleTimelineStage();
+      }
     });
   });
 
@@ -18966,7 +19295,11 @@ function initScheduleBridge() {
   }
 
   window.addEventListener("message", handleScheduleBridgeMessage);
+  ensureMobileScheduleTimelineLauncher();
+  ensureMobileScheduleTimelineStage();
   syncScheduleTimelineShellVisibility();
+  syncScheduleMobileHeaderBackState();
+  syncMobileScheduleTimelineShellVisibility();
 }
 
 function initMatchMapBridge() {
