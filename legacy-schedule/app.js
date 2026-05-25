@@ -8423,6 +8423,15 @@ function getSharedStateLocalRaw(storageKey){
   const payload=readSharedStateWindowPayload();
   return typeof payload?.[config.windowNameKey]==='string' ? payload[config.windowNameKey] : '';
 }
+function normalizeSharedStateValueRaw(value=''){
+  if(typeof value==='string') return value;
+  if(value===null||typeof value==='undefined') return '';
+  try{
+    return JSON.stringify(value);
+  }catch(error){
+    return String(value||'');
+  }
+}
 function setSharedStateLocalRaw(storageKey, raw=''){
   const config=SHARED_STATE_SYNC_REGISTRY[storageKey];
   if(!config) return;
@@ -9058,7 +9067,7 @@ function applySharedStateSnapshot(rows=[]){
   rows.forEach(row=>{
     const stateKey=String(row?.state_key||'').trim();
     if(!stateKey||!SHARED_STATE_SYNC_REGISTRY[stateKey]) return;
-    nextStateByKey[stateKey]=String(row?.state_value??'');
+    nextStateByKey[stateKey]=normalizeSharedStateValueRaw(row?.state_value);
   });
   const changedKeys=[];
   SHARED_STATE_SYNC_KEYS.forEach(storageKey=>{

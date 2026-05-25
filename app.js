@@ -3395,6 +3395,20 @@ function setLocalStorageRaw(storageKey = "", raw = "") {
   }
 }
 
+function normalizeSharedStateValueRaw(value = "") {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value === null || typeof value === "undefined") {
+    return "";
+  }
+  try {
+    return JSON.stringify(value);
+  } catch (_error) {
+    return String(value || "");
+  }
+}
+
 function getEntryTimeValue(entry = {}) {
   const source = String(entry?.updatedAt || entry?.createdAt || "").trim();
   const parsed = Date.parse(source);
@@ -3620,7 +3634,9 @@ function scheduleNewSuitSharedStateWrite(storageKey = "", raw = "") {
 
 async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STATE_KEYS, options = {}) {
   const rows = await fetchNewSuitSharedStateRows(storageKeys, options);
-  const remoteByKey = new Map(rows.map((row) => [String(row?.state_key || "").trim(), String(row?.state_value ?? "")]));
+  const remoteByKey = new Map(
+    rows.map((row) => [String(row?.state_key || "").trim(), normalizeSharedStateValueRaw(row?.state_value)]),
+  );
   storageKeys.forEach((storageKey) => {
     const localRaw = getLocalStorageRaw(storageKey);
     if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
@@ -3634,6 +3650,10 @@ async function hydrateNewSuitSharedState(storageKeys = WC26_NEW_SUIT_SHARED_STAT
     }
     const hasRemoteRow = remoteByKey.has(storageKey);
     if (!hasRemoteRow && isNewSuitLegacyScheduleStateKey(storageKey)) {
+      if (storageKey === WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared && localRaw) {
+        setLocalStorageRaw(storageKey, "");
+        rerenderNewSuitSharedStateKey(storageKey);
+      }
       return;
     }
     const rawRemote = hasRemoteRow ? remoteByKey.get(storageKey) || "" : "";
@@ -3664,7 +3684,7 @@ function applyNewSuitSharedStateRemoteRow(row = {}) {
     return;
   }
   const localRaw = getLocalStorageRaw(storageKey);
-  const rawRemote = String(row?.state_value ?? "");
+  const rawRemote = normalizeSharedStateValueRaw(row?.state_value);
   if (storageKey === WC26_TIMELINE_STORAGE_KEY) {
     const normalizedRemote = setTimelineRemoteSharedStateSnapshot(rawRemote);
     if (normalizedRemote !== localRaw) {
@@ -15680,7 +15700,10 @@ function getSharedScheduleSemanticKey(entry = {}, dateKey = "") {
     .trim()
     .toLowerCase();
   const attachmentSignature = getSharedScheduleAttachmentSignature(entry?.attachments || entry?.images || []);
-  return [normalizedDate, normalizedText, attachmentSignature].join("::");
+  if (normalizedText) {
+    return [normalizedDate, normalizedText].join("::");
+  }
+  return [normalizedDate, "__attachments__", attachmentSignature].join("::");
 }
 
 function readSharedScheduleDeletedKeys() {
@@ -15833,26 +15856,19 @@ function readOfficialSharedScheduleState(syncWindow = null) {
   const sources = [];
   if (typeof syncWindow?.readPersonalTimelineSharedRaw === "function") {
     try {
-      sources.push(String(syncWindow.readPersonalTimelineSharedRaw() || "").trim());
+      sources.push(normalizeSharedStateValueRaw(syncWindow.readPersonalTimelineSharedRaw()));
     } catch (_error) {
       // Ignore bridge read errors and continue with stable fallbacks below.
     }
   }
-  sources.push(
-    String(window.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) || "").trim(),
-    String(syncWindow?.localStorage?.getItem(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared) || "").trim(),
-  );
+  sources.push(getLocalStorageRaw(WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared));
   for (const raw of sources) {
-    if (!raw) {
+    if (!String(raw || "").trim()) {
       continue;
     }
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        return parsed;
-      }
-    } catch (_error) {
-      // Keep searching until we find a readable official payload.
+    const parsed = parseSharedScheduleState(raw);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
     }
   }
   return {};
@@ -16303,6 +16319,22 @@ function countSharedScheduleLocalEntries(syncWindow) {
   }
 }
 
+function readSharedScheduleGroupsFromOfficialState(syncWindow = null) {
+  const rawState = readOfficialSharedScheduleState(syncWindow);
+  const raw = JSON.stringify(rawState);
+  const rawEntries = flattenSharedScheduleState(rawState);
+  const dedupedEntries = dedupeSharedScheduleEntries(rawEntries);
+  const diagnostics = collectSharedScheduleDiagnostics(syncWindow, rawState, raw, {}, rawEntries, dedupedEntries);
+  sharedScheduleLastDiagnostics = {
+    ...diagnostics,
+    backupKey: sharedScheduleLastDiagnostics?.backupKey || diagnostics.backupKey || "",
+    localStorageDedupeApplied: false,
+    recoveryAppliedCount: 0,
+    recoveryPersisted: false,
+  };
+  return mergeSharedScheduleOptimisticGroups(groupSharedScheduleEntries(dedupedEntries));
+}
+
 function collectSharedScheduleDiagnostics(syncWindow, rawState = {}, raw = "", assignmentState = {}, entries = [], dedupedEntries = []) {
   const localRaw = (() => {
     try {
@@ -16339,6 +16371,7 @@ function collectSharedScheduleDiagnostics(syncWindow, rawState = {}, raw = "", a
 
 function readSharedScheduleGroups() {
   const syncWindow = getScheduleBridgeSyncWindow();
+  return readSharedScheduleGroupsFromOfficialState(syncWindow);
 
   if (!syncWindow || !isLazyIframeLoaded(scheduleBridgeSyncFrame)) {
     return mergeSharedScheduleOptimisticGroups(readSharedScheduleFallbackGroups());
@@ -16950,6 +16983,88 @@ function toggleSharedScheduleDeleteMode() {
   renderSharedScheduleList();
 }
 
+async function handleSharedScheduleDeleteConfirmOfficial(groups = [], targets = []) {
+  const syncWindow = await waitForScheduleBridgeFunction("deletePersonalTimelineSharedEntryAt");
+  const deleteFn = syncWindow?.deletePersonalTimelineSharedEntryAt;
+  if (typeof deleteFn !== "function") {
+    throw new Error("shared schedule delete bridge unavailable");
+  }
+
+  const targetsByDate = new Map();
+  const officialState = readOfficialSharedScheduleState(syncWindow);
+  targets.forEach((entry) => {
+    const dateKey = String(entry?.dateKey || "").trim();
+    if (!dateKey) {
+      return;
+    }
+    const dateEntries = Array.isArray(officialState?.[dateKey]) ? officialState[dateKey] : [officialState?.[dateKey]].filter(Boolean);
+    const targetSemanticKey = getSharedScheduleSemanticKey(entry, dateKey);
+    dateEntries.forEach((rawEntry, entryIndex) => {
+      const normalizedEntry = normalizeSharedScheduleEntryForRender(rawEntry, dateKey, entryIndex);
+      if (!normalizedEntry) {
+        return;
+      }
+      const sameId = String(entry?.id || "").trim() && String(normalizedEntry.id || "").trim() === String(entry.id || "").trim();
+      const sameSemantic = targetSemanticKey && getSharedScheduleSemanticKey(normalizedEntry, dateKey) === targetSemanticKey;
+      if (!sameId && !sameSemantic) {
+        return;
+      }
+      if (!targetsByDate.has(dateKey)) {
+        targetsByDate.set(dateKey, new Set());
+      }
+      targetsByDate.get(dateKey).add(entryIndex);
+    });
+  });
+
+  Array.from(targetsByDate.entries()).forEach(([dateKey, entryIndexes]) => {
+    Array.from(entryIndexes)
+      .slice()
+      .sort((left, right) => right - left)
+      .forEach((entryIndex) => {
+        deleteFn.call(syncWindow, null, dateKey, entryIndex);
+      });
+  });
+
+  rememberSharedScheduleDeletedEntries(targets);
+
+  const selectedKeys = new Set(targets.map((entry) => entry.entryKey));
+  const remainingEntries = flattenSharedScheduleGroups(groups).filter((entry) => {
+    const key = getSharedScheduleEntryKey(entry.dateKey, entry.id);
+    return !selectedKeys.has(key) && !isSharedScheduleEntryDeleted(entry, entry.dateKey);
+  });
+  const dedupedRemainingEntries = dedupeSharedScheduleEntries(remainingEntries);
+  const remainingGroups = groupSharedScheduleEntries(dedupedRemainingEntries);
+  persistSharedScheduleSnapshotFromGroups(remainingGroups);
+  persistSharedScheduleLocalDedupe(syncWindow || window, dedupedRemainingEntries);
+  if (typeof syncWindow?.flushPendingSharedStateWritesWithRetry === "function") {
+    await syncWindow.flushPendingSharedStateWritesWithRetry({
+      retries: 3,
+      delayMs: 550,
+      throwOnError: true,
+      context: {
+        feature: "shared-schedule-delete-verify",
+        deletedCount: targets.length,
+      },
+    });
+  }
+  const removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
+  if (!removed) {
+    throw new Error("shared schedule delete did not remove official shared entry");
+  }
+
+  sharedScheduleLastDiagnostics = {
+    ...(sharedScheduleLastDiagnostics || {}),
+    deletedTombstoneCount: readSharedScheduleDeletedKeys().size,
+    lastDeletedCount: targets.length,
+  };
+  sharedScheduleDeleteSelection.clear();
+  sharedScheduleDeleteMode = false;
+  renderSharedScheduleList();
+  requestScheduleBridgeSummary();
+  refreshTimelineGanttFromLegacy({ force: true });
+  showToast(targets.length === 1 ? "怨듭슜?쇱젙????젣?덉뒿?덈떎." : "?좏깮??怨듭슜?쇱젙????젣?덉뒿?덈떎.");
+}
+
 async function handleSharedScheduleDeleteConfirm() {
   if (!sharedScheduleDeleteSelection.size) {
     showToast("삭제할 공용일정을 선택해주세요.");
@@ -16978,6 +17093,15 @@ async function handleSharedScheduleDeleteConfirm() {
   const confirmMessage =
     targets.length === 1 ? "이 공용일정을 삭제하시겠습니까?" : "선택한 공용일정을 삭제하시겠습니까?";
   if (!window.confirm(confirmMessage)) {
+    return;
+  }
+
+  try {
+    return await handleSharedScheduleDeleteConfirmOfficial(groups, targets);
+  } catch (error) {
+    console.error("[NEW SUIT] shared schedule delete failed", error);
+    renderSharedScheduleList();
+    showToast("怨듭슜?쇱젙 ??젣?먯떎 ?ㅽ뙣?덉뒿?덈떎.");
     return;
   }
 

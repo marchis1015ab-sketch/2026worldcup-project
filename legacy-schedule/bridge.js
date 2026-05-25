@@ -84,7 +84,16 @@
     const cacheRows = (rows = []) => {
       rows.forEach((row) => {
         const stateKey = String(row?.state_key || "").trim();
-        const stateValue = String(row?.state_value ?? "");
+        let stateValue = "";
+        if (typeof row?.state_value === "string") {
+          stateValue = row.state_value;
+        } else if (row?.state_value !== null && typeof row?.state_value !== "undefined") {
+          try {
+            stateValue = JSON.stringify(row.state_value);
+          } catch (_error) {
+            stateValue = String(row.state_value || "");
+          }
+        }
         if (!stateKey || !normalizedKeys.includes(stateKey) || !stateValue) {
           return;
         }
