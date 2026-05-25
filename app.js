@@ -14887,6 +14887,83 @@ function getSharedScheduleSupabaseUrl() {
   ).trim();
 }
 
+function getSharedScheduleSupabaseAnonKey() {
+  const syncWindow = getScheduleBridgeSyncWindow();
+  const visibleWindow = scheduleBridgeFrame?.contentWindow;
+  return String(
+    window.APP_CONFIG?.supabaseAnonKey ||
+      syncWindow?.APP_CONFIG?.supabaseAnonKey ||
+      visibleWindow?.APP_CONFIG?.supabaseAnonKey ||
+      "",
+  ).trim();
+}
+
+async function fetchOfficialSharedScheduleState(syncWindow = null) {
+  void syncWindow;
+  const supabaseUrl = getSharedScheduleSupabaseUrl();
+  const supabaseAnonKey = getSharedScheduleSupabaseAnonKey();
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("shared schedule official source unavailable");
+  }
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/+$/, "")}/rest/v1/shared_state?select=state_value&state_key=eq.${encodeURIComponent(
+      WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
+    )}`,
+    {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+    },
+  );
+  const payload = await response.text();
+  if (!response.ok) {
+    throw new Error(`shared schedule official fetch failed: ${response.status}`);
+  }
+  let rows = [];
+  try {
+    rows = JSON.parse(payload);
+  } catch (_error) {
+    rows = [];
+  }
+  return parseSharedScheduleState(normalizeSharedStateValueRaw(rows?.[0]?.state_value));
+}
+
+async function writeOfficialSharedScheduleState(state = {}) {
+  const supabaseUrl = getSharedScheduleSupabaseUrl();
+  const supabaseAnonKey = getSharedScheduleSupabaseAnonKey();
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("shared schedule official source unavailable");
+  }
+  const response = await fetch(`${supabaseUrl.replace(/\/+$/, "")}/rest/v1/shared_state`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify([
+      {
+        state_key: WC26_LEGACY_TIMELINE_STORAGE_KEYS.shared,
+        state_value: JSON.stringify(state || {}),
+        updated_at: new Date().toISOString(),
+      },
+    ]),
+  });
+  if (!response.ok) {
+    throw new Error(`shared schedule official write failed: ${response.status}`);
+  }
+  return response;
+}
+
+async function syncOfficialSharedScheduleStateFromBridge(syncWindow = null) {
+  const entries = dedupeSharedScheduleEntries(getOfficialSharedScheduleEntries(syncWindow));
+  const state = buildSharedScheduleStateFromEntries(entries);
+  await writeOfficialSharedScheduleState(state);
+  return state;
+}
+
 function getSharedScheduleStoragePublicUrl(storagePath = "") {
   const normalizedPath = String(storagePath || "").trim();
   if (!normalizedPath) {
@@ -15965,8 +16042,8 @@ async function waitForOfficialSharedScheduleEntry(syncWindow, { dateKey = "", te
   const normalizedText = String(text || "")
     .replace(/\s+/g, " ")
     .trim();
-  const readEntry = () =>
-    getOfficialSharedScheduleEntries(syncWindow).find((entry) => {
+  const readEntry = async () =>
+    flattenSharedScheduleState(await fetchOfficialSharedScheduleState(syncWindow)).find((entry) => {
       if (normalizedDateKey && String(entry?.dateKey || "").trim() !== normalizedDateKey) {
         return false;
       }
@@ -15976,13 +16053,13 @@ async function waitForOfficialSharedScheduleEntry(syncWindow, { dateKey = "", te
       return true;
     }) || null;
 
-  let foundEntry = readEntry();
+  let foundEntry = await readEntry();
   if (foundEntry) {
     return foundEntry;
   }
   for (const delay of delays) {
     await new Promise((resolve) => window.setTimeout(resolve, delay));
-    foundEntry = readEntry();
+    foundEntry = await readEntry();
     if (foundEntry) {
       return foundEntry;
     }
@@ -15998,8 +16075,8 @@ async function waitForOfficialSharedScheduleRemoval(syncWindow, entries = [], de
       semantic: getSharedScheduleSemanticKey(entry, entry?.dateKey),
     }))
     .filter((entry) => entry.dateKey && (entry.id || entry.semantic));
-  const hasAnyEntry = () =>
-    getOfficialSharedScheduleEntries(syncWindow).some((entry) =>
+  const hasAnyEntry = async () =>
+    flattenSharedScheduleState(await fetchOfficialSharedScheduleState(syncWindow)).some((entry) =>
       signatures.some((signature) => {
         if (String(entry?.dateKey || "").trim() !== signature.dateKey) {
           return false;
@@ -16010,12 +16087,12 @@ async function waitForOfficialSharedScheduleRemoval(syncWindow, entries = [], de
         return Boolean(signature.semantic) && getSharedScheduleSemanticKey(entry, entry?.dateKey) === signature.semantic;
       }),
     );
-  if (!hasAnyEntry()) {
+  if (!(await hasAnyEntry())) {
     return true;
   }
   for (const delay of delays) {
     await new Promise((resolve) => window.setTimeout(resolve, delay));
-    if (!hasAnyEntry()) {
+    if (!(await hasAnyEntry())) {
       return true;
     }
   }
@@ -16950,7 +17027,11 @@ async function handleSharedScheduleSave() {
         },
       });
     }
-    const persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
+    let persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
+    if (!persistedEntry) {
+      await syncOfficialSharedScheduleStateFromBridge(syncWindow);
+      persistedEntry = await waitForOfficialSharedScheduleEntry(syncWindow, { dateKey, text });
+    }
     if (!persistedEntry) {
       throw new Error("shared schedule save did not persist official shared entry");
     }
@@ -17047,7 +17128,11 @@ async function handleSharedScheduleDeleteConfirmOfficial(groups = [], targets = 
       },
     });
   }
-  const removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
+  let removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
+  if (!removed) {
+    await syncOfficialSharedScheduleStateFromBridge(syncWindow);
+    removed = await waitForOfficialSharedScheduleRemoval(syncWindow, targets);
+  }
   if (!removed) {
     throw new Error("shared schedule delete did not remove official shared entry");
   }
