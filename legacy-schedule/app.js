@@ -840,6 +840,8 @@ let newsProgrammingSpecialEntries = [];
 let isNewsProgrammingDeleteMode = false;
 const selectedNewsProgrammingDeleteIds = new Set();
 let currentNewsProgrammingSpecialForm = {
+  id:'',
+  createdAt:0,
   date:getTodayTimelineKey(),
   timeKey:'',
   status:'본방',
@@ -7533,6 +7535,8 @@ function setNewsProgrammingSpecialField(field='', value=''){
 }
 function resetNewsProgrammingSpecialForm(){
   currentNewsProgrammingSpecialForm={
+    id:'',
+    createdAt:0,
     date:getActiveNewsProgrammingDateKey(),
     timeKey:'',
     status:'본방',
@@ -7544,6 +7548,10 @@ function resetNewsProgrammingSpecialForm(){
 function submitNewsProgrammingSpecialEntry(){
   clearNewsProgrammingDeleteMode();
   loadNewsProgrammingState();
+  const editingId=String(currentNewsProgrammingSpecialForm.id||'').trim();
+  const existingEntry=editingId
+    ? newsProgrammingSpecialEntries.find(entry=>getNewsProgrammingEntryId(entry)===editingId)||null
+    : null;
   const selectedFormDate=String(currentNewsProgrammingSpecialForm.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey();
   const selectedTimeKey=String(currentNewsProgrammingSpecialForm.timeKey||'').trim();
   const selectedTimeOption=selectedTimeKey ? getNewsProgrammingTimeOptions(selectedFormDate).find(option=>option.key===selectedTimeKey) : null;
@@ -7551,8 +7559,9 @@ function submitNewsProgrammingSpecialEntry(){
   const normalizedStatus=String(currentNewsProgrammingSpecialForm.status||'본방').trim()==='생방' ? '생방' : '본방';
   const normalizedTitle=String(currentNewsProgrammingSpecialForm.title||'').trim()||'특보 편성';
   const normalizedMemo=String(currentNewsProgrammingSpecialForm.memo||'').trim();
-  newsProgrammingSpecialEntries.push({
-    id:`news-programming-special-${Date.now()}`,
+  const now=Date.now();
+  const nextEntry={
+    id:existingEntry?.id||editingId||`news-programming-special-${now}`,
     date:normalizedDate,
     localDayOffset:Number(selectedTimeOption?.localDayOffset)||0,
     localTime:String(selectedTimeOption?.localTime||'').trim(),
@@ -7562,8 +7571,13 @@ function submitNewsProgrammingSpecialEntry(){
     status:normalizedStatus,
     memo:normalizedMemo,
     isSpecialEntry:true,
-    createdAt:Date.now()
-  });
+    createdAt:Number(existingEntry?.createdAt||currentNewsProgrammingSpecialForm.createdAt)||now
+  };
+  if(existingEntry){
+    newsProgrammingSpecialEntries=newsProgrammingSpecialEntries.map(entry=>getNewsProgrammingEntryId(entry)===nextEntry.id ? nextEntry : entry);
+  }else{
+    newsProgrammingSpecialEntries.push(nextEntry);
+  }
   resetNewsProgrammingSpecialForm();
   saveNewsProgrammingState();
   refreshTicker();
@@ -7601,10 +7615,37 @@ function clearNewsProgrammingSpecialForm(){
 function openNewsProgrammingSpecialComposer(){
   clearNewsProgrammingDeleteMode();
   loadNewsProgrammingState();
+  currentNewsProgrammingSpecialForm.id='';
+  currentNewsProgrammingSpecialForm.createdAt=0;
   if(!String(currentNewsProgrammingSpecialForm.date||'').trim()){
     currentNewsProgrammingSpecialForm.date=getActiveNewsProgrammingDateKey();
   }
   currentNewsProgrammingSpecialForm.title=String(currentNewsProgrammingSpecialForm.title||'방송특보');
+  isNewsProgrammingSpecialComposerOpen=true;
+  isNewsProgrammingSpecialTimeMenuOpen=false;
+  rerenderNewsProgrammingPanelIfActive();
+}
+function openNewsProgrammingSpecialEditor(entryId=''){
+  if(!requireEditAccess()) return;
+  clearNewsProgrammingDeleteMode();
+  loadNewsProgrammingState();
+  const normalizedId=String(entryId||'').trim();
+  const entry=newsProgrammingSpecialEntries.find(item=>getNewsProgrammingEntryId(item)===normalizedId);
+  if(!entry) return;
+  currentNewsProgrammingSpecialForm={
+    id:getNewsProgrammingEntryId(entry),
+    createdAt:Number(entry.createdAt)||0,
+    date:String(entry.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey(),
+    timeKey:hasNewsProgrammingTimelineTime(entry)
+      ? getNewsProgrammingTimeOptionKey({
+        date:String(entry.date||getActiveNewsProgrammingDateKey()).trim()||getActiveNewsProgrammingDateKey(),
+        localHour:Number(String(entry.localTime||'00:00').slice(0, 2))
+      })
+      : '',
+    status:String(entry.status||'본방').trim()==='생방' ? '생방' : '본방',
+    title:String(entry.title||''),
+    memo:String(entry.memo||'')
+  };
   isNewsProgrammingSpecialComposerOpen=true;
   isNewsProgrammingSpecialTimeMenuOpen=false;
   rerenderNewsProgrammingPanelIfActive();
@@ -7779,13 +7820,19 @@ function renderNewsProgrammingFixedBroadcastCard(item={}, broadcastBadge=''){
   const timeLabel=String(item.localTime||'').trim()==='--:--'
     ? '<span class="news-programming-time-text">--:--</span>'
     : buildNewsProgrammingTimeLabel(item);
-  const createAction=item.isSpecialEntry ? ' onclick="openNewsProgrammingSpecialComposer()"' : '';
+  const entryId=getNewsProgrammingEntryId(item);
+  const createAction=item.isSpecialEntry
+    ? entryId
+      ? ` onclick="openNewsProgrammingSpecialEditor('${escapeHtml(entryId)}')"`
+      : ' onclick="openNewsProgrammingSpecialComposer()"'
+    : '';
+  const actionLabel=item.isSpecialEntry&&entryId ? '수정' : '작성';
   const badgeHtml=broadcastBadge==='onair'
     ? '<span class="broadcast-suit-air-badge is-onair">ON AIR</span>'
     : broadcastBadge==='standby'
       ? '<span class="broadcast-suit-air-badge is-standby">방송대기</span>'
       : '';
-  return `<article class="news-programming-card broadcast-suit-card is-fixed-broadcast-card"><div class="news-programming-card-top"><div class="news-programming-time">${timeLabel}</div></div>${badgeHtml}<h4 class="news-programming-card-title">${escapeHtml(item.title||'프로그램')}</h4><div class="broadcast-suit-fixed-bottom"><div class="broadcast-suit-fixed-memo">${escapeHtml(item.memo||'')}</div><div class="broadcast-suit-fixed-actions"><button type="button" class="section-title-action-btn"${createAction}>작성</button><button type="button" class="section-title-action-btn delete">삭제</button></div></div></article>`;
+  return `<article class="news-programming-card broadcast-suit-card is-fixed-broadcast-card"><div class="news-programming-card-top"><div class="news-programming-time">${timeLabel}</div></div>${badgeHtml}<h4 class="news-programming-card-title">${escapeHtml(item.title||'프로그램')}</h4><div class="broadcast-suit-fixed-bottom"><div class="broadcast-suit-fixed-memo">${escapeHtml(item.memo||'')}</div><div class="broadcast-suit-fixed-actions"><button type="button" class="section-title-action-btn"${createAction}>${actionLabel}</button><button type="button" class="section-title-action-btn delete">삭제</button></div></div></article>`;
 }
 function renderNewsProgrammingPanelHtml(){
   const activeDateKey=getActiveNewsProgrammingDateKey();
@@ -8488,6 +8535,8 @@ function resetNewsProgrammingSyncState(){
     liveOnly:false
   };
   currentNewsProgrammingSpecialForm={
+    id:'',
+    createdAt:0,
     date:getTodayLocalDateString(),
     timeKey:'',
     status:'본방',
